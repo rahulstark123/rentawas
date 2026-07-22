@@ -27,11 +27,8 @@ export default function HeroSection() {
   return (
     <section className="relative pt-28 md:pt-36 pb-20 md:pb-28 overflow-hidden hero-glow">
       <div className="max-w-7xl mx-auto px-6 sm:px-8 text-center relative z-10">
-        {/* Main Headline with Plus Jakarta Sans Font */}
-        <h1 
-          className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-[#0B132B] leading-[1.08] max-w-4xl mx-auto"
-          style={{ fontFamily: "var(--font-jakarta), var(--font-plus-jakarta), system-ui, sans-serif" }}
-        >
+        {/* Main Headline */}
+        <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-[#0B132B] leading-[1.08] max-w-4xl mx-auto">
           Manage Spaces.{" "}
           <span className="block sm:inline text-[#FF6B00]">Elevate Lives.</span>
         </h1>

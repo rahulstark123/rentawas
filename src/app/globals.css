@@ -2,7 +2,7 @@
 
 @layer base {
   :root {
-    --font-heading: var(--font-outfit);
+    --font-heading: var(--font-jakarta);
     --font-sans: var(--font-jakarta);
   }
 
@@ -15,8 +15,9 @@
     color: #0F172A;
   }
 
+  /* Set Plus Jakarta Sans for all headings across the entire website */
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-outfit), system-ui, sans-serif;
+    font-family: var(--font-jakarta), var(--font-plus-jakarta), system-ui, sans-serif;
     letter-spacing: -0.025em;
   }
 }
