@@ -36,7 +36,7 @@ export default function Navbar() {
         }`}
       >
         <div className="max-w-7xl mx-auto px-6 sm:px-8 flex items-center justify-between h-full">
-          {/* Left: Brand Logo & Title */}
+          {/* Left: Brand Logo & Title (Forced Cormorant Garamond font style) */}
           <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group h-full py-1">
             <Image
               src="/logo.png"
@@ -46,13 +46,17 @@ export default function Navbar() {
               priority
               className="h-11 sm:h-12 w-auto max-h-full object-contain group-hover:opacity-90 transition-opacity shrink-0"
             />
-            <span className="text-xl sm:text-2xl font-extrabold text-[#0B132B] tracking-tight group-hover:opacity-90 transition-opacity">
-              Rent<span className="text-[#FF6B00]">Awas</span>
+            <span 
+              className="text-2xl sm:text-3xl font-extrabold tracking-tight group-hover:opacity-90 transition-opacity font-cormorant"
+              style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
+            >
+              <span className="text-[#0B132B]" style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}>Rent</span>
+              <span className="text-[#FF6B00]" style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}>Awas</span>
             </span>
           </Link>
 
           {/* Center: Navigation Links */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-8 font-sans">
             <Link
               href="#platform"
               className="text-xs font-bold text-slate-700 hover:text-slate-950 transition-colors uppercase tracking-wider"
@@ -74,7 +78,7 @@ export default function Navbar() {
           </nav>
 
           {/* Right: Actions */}
-          <div className="hidden md:flex items-center gap-5">
+          <div className="hidden md:flex items-center gap-5 font-sans">
             <button
               onClick={() => triggerModal("User & Owner Log In")}
               className="text-xs font-bold text-slate-800 hover:text-black transition-colors px-3 py-2 cursor-pointer uppercase tracking-wider"
@@ -101,7 +105,7 @@ export default function Navbar() {
 
         {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-b border-slate-200 px-6 py-5 space-y-4 shadow-lg absolute top-16 left-0 right-0">
+          <div className="md:hidden bg-white border-b border-slate-200 px-6 py-5 space-y-4 shadow-lg absolute top-16 left-0 right-0 font-sans">
             <nav className="flex flex-col gap-3">
               <Link
                 href="#platform"
