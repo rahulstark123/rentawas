@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import { 
   Check, 
   Bell, 
@@ -65,23 +66,49 @@ export default function PricingAndFAQ() {
     },
   ];
 
+  const cardVariants: Variants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: i * 0.15,
+        duration: 0.5,
+      },
+    }),
+  };
+
   return (
     <section id="pricing" className="py-20 md:py-28 bg-[#F8FAFC]">
       <div className="max-w-7xl mx-auto px-6 sm:px-8">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16 md:mb-20">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="text-center max-w-3xl mx-auto mb-16 md:mb-20"
+        >
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0B132B] tracking-tight">
             Simple Pricing for Every Property Portfolio
           </h2>
           <p className="text-slate-600 font-medium text-base sm:text-lg mt-4 leading-relaxed">
             Choose the perfect plan for your rental business. Start with a 14-day free trial. No credit card required.
           </p>
-        </div>
+        </motion.div>
 
         {/* 3 Pricing Cards Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-6 items-stretch mb-24">
           {/* Card 1: Starter */}
-          <div className="bg-white rounded-xl md:rounded-2xl p-7 sm:p-8 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between">
+          <motion.div 
+            custom={0}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={cardVariants}
+            whileHover={{ y: -4 }}
+            className="bg-white rounded-xl md:rounded-2xl p-7 sm:p-8 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between"
+          >
             <div>
               <h3 className="text-xl font-bold text-slate-900 mb-1">Starter</h3>
               <p className="text-xs text-slate-500 font-medium mb-6">
@@ -136,10 +163,18 @@ export default function PricingAndFAQ() {
             >
               Start Free Trial
             </button>
-          </div>
+          </motion.div>
 
           {/* Card 2: Growth (Most Popular) */}
-          <div className="bg-white rounded-xl md:rounded-2xl p-7 sm:p-8 border-2 border-[#FF6B00] shadow-lg relative flex flex-col justify-between lg:-translate-y-2">
+          <motion.div 
+            custom={1}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={cardVariants}
+            whileHover={{ y: -6 }}
+            className="bg-white rounded-xl md:rounded-2xl p-7 sm:p-8 border-2 border-[#FF6B00] shadow-lg relative flex flex-col justify-between lg:-translate-y-2"
+          >
             {/* Most Popular Badge */}
             <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#FF6B00] text-white text-[10px] font-extrabold uppercase tracking-wider px-3.5 py-0.5 rounded-full shadow-xs">
               Most Popular
@@ -202,10 +237,18 @@ export default function PricingAndFAQ() {
             >
               Start Free Trial
             </button>
-          </div>
+          </motion.div>
 
           {/* Card 3: Business */}
-          <div className="bg-white rounded-xl md:rounded-2xl p-7 sm:p-8 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between">
+          <motion.div 
+            custom={2}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={cardVariants}
+            whileHover={{ y: -4 }}
+            className="bg-white rounded-xl md:rounded-2xl p-7 sm:p-8 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between"
+          >
             <div>
               <h3 className="text-xl font-bold text-slate-900 mb-1">Business</h3>
               <p className="text-xs text-slate-500 font-medium mb-6">
@@ -260,11 +303,17 @@ export default function PricingAndFAQ() {
             >
               Contact Sales
             </button>
-          </div>
+          </motion.div>
         </div>
 
         {/* Every Plan Includes Grid Section */}
-        <div className="bg-white rounded-xl md:rounded-2xl p-8 sm:p-10 border border-slate-200/80 card-shadow mb-24 text-center">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="bg-white rounded-xl md:rounded-2xl p-8 sm:p-10 border border-slate-200/80 card-shadow mb-24 text-center"
+        >
           <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0B132B] mb-8">
             Every Plan Includes
           </h3>
@@ -283,13 +332,19 @@ export default function PricingAndFAQ() {
               );
             })}
           </div>
-        </div>
+        </motion.div>
 
         {/* FAQ Accordion Section */}
         <div className="max-w-3xl mx-auto">
-          <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0B132B] text-center mb-8">
+          <motion.h3 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-2xl sm:text-3xl font-extrabold text-[#0B132B] text-center mb-8"
+          >
             Frequently Asked Questions
-          </h3>
+          </motion.h3>
           <div className="space-y-3">
             {faqs.map((faq, index) => {
               const isOpen = openFaq === index;
@@ -300,7 +355,7 @@ export default function PricingAndFAQ() {
                 >
                   <button
                     onClick={() => toggleFaq(index)}
-                    className="w-full px-5 py-4 text-left font-bold text-slate-900 flex items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors"
+                    className="w-full px-5 py-4 text-left font-bold text-slate-900 flex items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors cursor-pointer"
                   >
                     <span className="text-sm sm:text-base">{faq.q}</span>
                     <ChevronDown
@@ -309,11 +364,21 @@ export default function PricingAndFAQ() {
                       }`}
                     />
                   </button>
-                  {isOpen && (
-                    <div className="px-5 pb-4 pt-0 text-slate-600 text-xs sm:text-sm leading-relaxed border-t border-slate-100">
-                      {faq.a}
-                    </div>
-                  )}
+                  <AnimatePresence>
+                    {isOpen && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-5 pb-4 pt-0 text-slate-600 text-xs sm:text-sm leading-relaxed border-t border-slate-100">
+                          {faq.a}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}

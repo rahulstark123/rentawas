@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { 
   Building2, 
   Users, 
@@ -27,20 +28,35 @@ export default function HeroSection() {
   return (
     <section className="relative pt-28 md:pt-36 pb-20 md:pb-28 overflow-hidden hero-glow">
       <div className="max-w-7xl mx-auto px-6 sm:px-8 text-center relative z-10">
-        {/* Main Headline */}
-        <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-[#0B132B] leading-[1.08] max-w-4xl mx-auto">
+        {/* Animated Main Headline */}
+        <motion.h1 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-[#0B132B] leading-[1.08] max-w-4xl mx-auto"
+        >
           Manage Spaces.{" "}
           <span className="block sm:inline text-[#FF6B00]">Elevate Lives.</span>
-        </h1>
+        </motion.h1>
 
-        {/* Subheadline */}
-        <p className="text-slate-600 text-base sm:text-lg md:text-xl max-w-2xl mx-auto mt-6 mb-10 leading-relaxed font-normal">
+        {/* Animated Subheadline */}
+        <motion.p 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
+          className="text-slate-600 text-base sm:text-lg md:text-xl max-w-2xl mx-auto mt-6 mb-10 leading-relaxed font-normal"
+        >
           The ultimate mission control for rental ecosystems. Automate rent collection,
           streamline maintenance, and maximize yield with precision.
-        </p>
+        </motion.p>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 max-w-md mx-auto">
+        {/* Animated Action Buttons */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
+          className="flex flex-col sm:flex-row items-center justify-center gap-3.5 max-w-md mx-auto"
+        >
           <button
             onClick={() => openComingSoon("Start Managing RentAwas")}
             className="w-full sm:w-auto text-xs font-bold text-white bg-[#0B132B] hover:bg-[#162244] active:scale-[0.98] transition-all px-6 py-3 rounded-md shadow-xs hover:shadow-sm text-center cursor-pointer uppercase tracking-wider"
@@ -57,10 +73,16 @@ export default function HeroSection() {
           >
             View Demo
           </a>
-        </div>
+        </motion.div>
 
-        {/* Dashboard Mockup Frame */}
-        <div id="demo" className="max-w-5xl mx-auto mt-14 md:mt-16 bg-white rounded-xl md:rounded-2xl p-2.5 sm:p-3 window-shadow relative group">
+        {/* Animated Dashboard Mockup Frame */}
+        <motion.div 
+          id="demo" 
+          initial={{ opacity: 0, y: 40, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.7, delay: 0.45, ease: "easeOut" }}
+          className="max-w-5xl mx-auto mt-14 md:mt-16 bg-white rounded-xl md:rounded-2xl p-2.5 sm:p-3 window-shadow relative group"
+        >
           {/* Top Window Dots Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 mb-2.5 bg-slate-50/80 rounded-t-lg">
             <div className="flex items-center gap-1.5">
@@ -225,7 +247,7 @@ export default function HeroSection() {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Coming Soon Modal */}

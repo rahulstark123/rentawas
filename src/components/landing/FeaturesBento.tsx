@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, Variants } from "framer-motion";
 import { 
   IconInventory, 
   IconLeaseAI, 
@@ -29,23 +30,58 @@ export default function FeaturesBento() {
     return () => clearInterval(timer);
   }, []);
 
+  const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.12,
+      },
+    },
+  };
+
+  const cardVariants: Variants = {
+    hidden: { opacity: 0, y: 24 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5 },
+    },
+  };
+
   return (
     <section id="platform" className="py-20 md:py-28 bg-[#F8FAFC]">
       <div className="max-w-7xl mx-auto px-6 sm:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-14 md:mb-18">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.5 }}
+          className="text-center max-w-3xl mx-auto mb-14 md:mb-18"
+        >
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0B132B] tracking-tight">
             Everything you need, in one interface.
           </h2>
           <p className="text-slate-500 font-medium text-base sm:text-lg mt-3">
             Precision-engineered tools for every stage of the property lifecycle.
           </p>
-        </div>
+        </motion.div>
 
         {/* Bento Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6">
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          className="grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6"
+        >
           {/* Card 1: Smart Inventory */}
-          <div className="md:col-span-7 bg-white rounded-xl md:rounded-2xl p-7 sm:p-8 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between group">
+          <motion.div 
+            variants={cardVariants}
+            whileHover={{ y: -3 }}
+            className="md:col-span-7 bg-white rounded-xl md:rounded-2xl p-7 sm:p-8 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between group"
+          >
             <div>
               <div className="w-10 h-10 rounded-lg bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
                 <IconInventory className="w-5 h-5" />
@@ -67,10 +103,14 @@ export default function FeaturesBento() {
                 94% OCCUPIED
               </span>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card 2: AI Lease Architect */}
-          <div className="md:col-span-5 bg-[#141A26] text-white rounded-xl md:rounded-2xl p-7 sm:p-8 border border-slate-800 shadow-sm hover:shadow-lg transition-all flex flex-col justify-between group relative overflow-hidden">
+          <motion.div 
+            variants={cardVariants}
+            whileHover={{ y: -3 }}
+            className="md:col-span-5 bg-[#141A26] text-white rounded-xl md:rounded-2xl p-7 sm:p-8 border border-slate-800 shadow-sm hover:shadow-lg transition-all flex flex-col justify-between group relative overflow-hidden"
+          >
             <div className="absolute -top-12 -right-12 w-36 h-36 bg-purple-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
             <div>
@@ -90,10 +130,14 @@ export default function FeaturesBento() {
               <span className="text-purple-400 font-semibold">{typedText}</span>
               <span className="w-2 h-4 bg-purple-400 animate-pulse"></span>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card 3: Maintenance */}
-          <div className="md:col-span-3 bg-white rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between group">
+          <motion.div 
+            variants={cardVariants}
+            whileHover={{ y: -3 }}
+            className="md:col-span-3 bg-white rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between group"
+          >
             <div>
               <div className="w-10 h-10 rounded-lg bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
                 <IconMaintenance className="w-5 h-5" />
@@ -105,10 +149,14 @@ export default function FeaturesBento() {
                 Real-time ticket tracking with automated vendor dispatch.
               </p>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card 4: Tenant Health */}
-          <div className="md:col-span-3 bg-white rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between group">
+          <motion.div 
+            variants={cardVariants}
+            whileHover={{ y: -3 }}
+            className="md:col-span-3 bg-white rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between group"
+          >
             <div>
               <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
                 <IconTenantHealth className="w-5 h-5" />
@@ -120,10 +168,14 @@ export default function FeaturesBento() {
                 Credit scoring and behavioral history at a glance.
               </p>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card 5: Autopilot Rent */}
-          <div className="md:col-span-6 bg-white rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 group">
+          <motion.div 
+            variants={cardVariants}
+            whileHover={{ y: -3 }}
+            className="md:col-span-6 bg-white rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 group"
+          >
             <div className="max-w-sm">
               <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
                 <IconAutopilotRent className="w-5 h-5" />
@@ -151,8 +203,8 @@ export default function FeaturesBento() {
                 <span className="h-1.5 w-14 bg-indigo-200 rounded-full"></span>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </div>
     </section>
   );

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { Home, Wrench, User, CreditCard, Megaphone } from "lucide-react";
 import { IconOneTapPayments, IconSmartAnnouncements } from "@/components/ui/CustomIcons";
 
@@ -9,13 +10,23 @@ export default function ResidentAppSection() {
   const [useLiveUI, setUseLiveUI] = useState(false);
 
   return (
-    <section id="solutions" className="py-20 md:py-28 bg-[#F9FAFB] overflow-hidden">
+    <section id="solutions" className="py-20 md:py-28 bg-[#F8FAFB] overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 sm:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
           {/* Left Column: Phone Mockup Frame (5 cols) */}
-          <div className="lg:col-span-5 flex flex-col items-center justify-center relative">
-            {/* Phone Outer Bezel Container */}
-            <div className="relative w-full max-w-[320px] sm:max-w-[340px] aspect-[9/18.5] bg-[#0B132B] rounded-[48px] p-3 shadow-2xl border-4 border-slate-900 group">
+          <motion.div 
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.6 }}
+            className="lg:col-span-5 flex flex-col items-center justify-center relative"
+          >
+            {/* Phone Outer Bezel Container with Floating Animation */}
+            <motion.div 
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="relative w-full max-w-[320px] sm:max-w-[340px] aspect-[9/18.5] bg-[#0B132B] rounded-[48px] p-3 shadow-2xl border-4 border-slate-900 group"
+            >
               {/* Dynamic Island / Notch */}
               <div className="absolute top-6 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full z-30 flex items-center justify-end px-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-slate-800 border border-slate-700"></span>
@@ -123,19 +134,25 @@ export default function ResidentAppSection() {
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
 
             {/* View Mode Toggle Pill under phone */}
             <button
               onClick={() => setUseLiveUI(!useLiveUI)}
-              className="mt-4 text-xs font-medium text-slate-500 hover:text-slate-900 underline transition-colors"
+              className="mt-4 text-xs font-medium text-slate-500 hover:text-slate-900 underline transition-colors cursor-pointer"
             >
               {useLiveUI ? "Switch to Photo View" : "Switch to Interactive Mobile Screen"}
             </button>
-          </div>
+          </motion.div>
 
           {/* Right Column: Text & Features (7 cols) */}
-          <div className="lg:col-span-7">
+          <motion.div 
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.6 }}
+            className="lg:col-span-7"
+          >
             {/* Category Tag */}
             <span className="text-xs sm:text-sm font-extrabold text-[#FF6B00] uppercase tracking-wider block mb-3">
               RESIDENT APP
@@ -180,7 +197,7 @@ export default function ResidentAppSection() {
                 </p>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
