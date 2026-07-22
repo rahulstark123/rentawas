@@ -11,10 +11,11 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    color: #1E293B;
+    color: #334155;
+    font-weight: 400;
   }
 
-  /* Headings & Section Titles use Cormorant Garamond */
+  /* Headings & Section Titles use elegant Cormorant Garamond */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-cormorant), Georgia, serif;
     letter-spacing: -0.015em;
@@ -22,23 +23,25 @@
     color: #0B132B;
   }
 
-  /* Descriptions, Paragraphs, Subtexts explicitly use Inter */
-  p, sub, caption {
+  /* Descriptions, Paragraphs, Subtexts explicitly use clean Inter normal weight */
+  p {
     font-family: var(--font-inter), system-ui, sans-serif;
+    font-weight: 400;
+    color: #475569;
   }
 }
 
 /* Hairline crisp borders and layered human UI shadows */
 .card-shadow {
   box-shadow: 
-    0 1px 3px 0 rgba(15, 23, 42, 0.04),
-    0 4px 12px 0 rgba(15, 23, 42, 0.03);
+    0 1px 3px 0 rgba(15, 23, 42, 0.03),
+    0 4px 12px 0 rgba(15, 23, 42, 0.025);
 }
 
 .card-shadow-hover:hover {
   box-shadow: 
-    0 4px 6px -1px rgba(15, 23, 42, 0.06),
-    0 10px 20px -3px rgba(15, 23, 42, 0.05);
+    0 4px 6px -1px rgba(15, 23, 42, 0.05),
+    0 10px 20px -3px rgba(15, 23, 42, 0.04);
 }
 
 .window-shadow {

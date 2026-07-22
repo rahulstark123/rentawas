@@ -63,7 +63,7 @@ export default function FeaturesBento() {
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0B132B] tracking-tight">
             Everything you need, in one interface.
           </h2>
-          <p className="text-slate-900 font-bold text-lg sm:text-xl mt-3">
+          <p className="text-slate-600 font-normal text-base sm:text-lg mt-3">
             Precision-engineered tools for every stage of the property lifecycle.
           </p>
         </motion.div>
@@ -86,20 +86,20 @@ export default function FeaturesBento() {
               <div className="w-10 h-10 rounded-lg bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
                 <IconInventory className="w-5 h-5" />
               </div>
-              <h3 className="text-2xl md:text-3xl font-extrabold text-slate-950 mb-2">
+              <h3 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
                 Smart Inventory
               </h3>
-              <p className="text-slate-900 font-bold text-base md:text-lg leading-relaxed max-w-lg mb-8">
+              <p className="text-slate-600 font-normal text-sm md:text-base leading-relaxed max-w-lg mb-8">
                 Manage buildings, floors, and individual rooms with nested hierarchical views and live availability tracking.
               </p>
             </div>
 
             {/* Inventory Visual Bar */}
-            <div className="bg-slate-50 border border-slate-300 rounded-lg p-3 flex items-center justify-between">
-              <span className="text-sm font-extrabold text-slate-950 uppercase tracking-wider">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
                 The Regent, Wing A
               </span>
-              <span className="px-2.5 py-0.5 rounded text-xs font-extrabold bg-orange-100 text-orange-700 tracking-wider uppercase">
+              <span className="px-2.5 py-0.5 rounded text-[11px] font-extrabold bg-orange-100 text-orange-700 tracking-wider uppercase">
                 94% OCCUPIED
               </span>
             </div>
@@ -117,17 +117,17 @@ export default function FeaturesBento() {
               <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/15 text-purple-300 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform backdrop-blur-xs">
                 <IconLeaseAI className="w-5 h-5" />
               </div>
-              <h3 className="text-2xl md:text-3xl font-extrabold text-white mb-2">
+              <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">
                 AI Lease Architect
               </h3>
-              <p className="text-slate-100 font-bold text-base md:text-lg leading-relaxed mb-8">
+              <p className="text-slate-300 font-normal text-sm md:text-base leading-relaxed mb-8">
                 Generate legally compliant, localized lease agreements in seconds using our proprietary LLM trained on property law.
               </p>
             </div>
 
             {/* Simulated AI Command Bar */}
-            <div className="bg-[#0C1019] border border-slate-700 rounded-lg p-3 flex items-center gap-2 font-mono text-xs text-white">
-              <span className="text-purple-300 font-bold">{typedText}</span>
+            <div className="bg-[#0C1019] border border-slate-800 rounded-lg p-3 flex items-center gap-2 font-mono text-xs text-slate-300">
+              <span className="text-purple-400 font-semibold">{typedText}</span>
               <span className="w-2 h-4 bg-purple-400 animate-pulse"></span>
             </div>
           </motion.div>
@@ -142,10 +142,10 @@ export default function FeaturesBento() {
               <div className="w-10 h-10 rounded-lg bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
                 <IconMaintenance className="w-5 h-5" />
               </div>
-              <h3 className="text-xl font-extrabold text-slate-950 mb-2">
+              <h3 className="text-xl font-bold text-slate-900 mb-2">
                 Maintenance
               </h3>
-              <p className="text-slate-900 font-bold text-sm sm:text-base leading-relaxed">
+              <p className="text-slate-600 font-normal text-xs sm:text-sm leading-relaxed">
                 Real-time ticket tracking with automated vendor dispatch.
               </p>
             </div>
@@ -161,10 +161,10 @@ export default function FeaturesBento() {
               <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
                 <IconTenantHealth className="w-5 h-5" />
               </div>
-              <h3 className="text-xl font-extrabold text-slate-950 mb-2">
+              <h3 className="text-xl font-bold text-slate-900 mb-2">
                 Tenant Health
               </h3>
-              <p className="text-slate-900 font-bold text-sm sm:text-base leading-relaxed">
+              <p className="text-slate-600 font-normal text-xs sm:text-sm leading-relaxed">
                 Credit scoring and behavioral history at a glance.
               </p>
             </div>
@@ -180,10 +180,10 @@ export default function FeaturesBento() {
               <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
                 <IconAutopilotRent className="w-5 h-5" />
               </div>
-              <h3 className="text-2xl font-extrabold text-slate-950 mb-2">
+              <h3 className="text-xl font-bold text-slate-900 mb-2">
                 Autopilot Rent
               </h3>
-              <p className="text-slate-900 font-bold text-sm sm:text-base leading-relaxed">
+              <p className="text-slate-600 font-normal text-xs sm:text-sm leading-relaxed">
                 Collection rates increased by 40% with automated reminders and multi-channel payment gateways.
               </p>
             </div>
@@ -192,15 +192,15 @@ export default function FeaturesBento() {
             <div className="w-full sm:w-44 flex flex-col gap-2">
               <div className="bg-purple-50 border border-purple-100/80 rounded-lg p-2 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-purple-600"></span>
-                <span className="h-1.5 w-16 bg-purple-400 rounded-full"></span>
+                <span className="h-1.5 w-16 bg-purple-300 rounded-full"></span>
               </div>
               <div className="bg-slate-100 border border-slate-200/60 rounded-lg p-2 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-slate-600"></span>
-                <span className="h-1.5 w-20 bg-slate-500 rounded-full"></span>
+                <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                <span className="h-1.5 w-20 bg-slate-300 rounded-full"></span>
               </div>
               <div className="bg-indigo-50 border border-indigo-100/80 rounded-lg p-2 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
-                <span className="h-1.5 w-14 bg-indigo-400 rounded-full"></span>
+                <span className="h-1.5 w-14 bg-indigo-300 rounded-full"></span>
               </div>
             </div>
           </motion.div>
