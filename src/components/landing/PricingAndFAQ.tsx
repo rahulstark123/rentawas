@@ -318,10 +318,10 @@ export default function PricingAndFAQ() {
               </ul>
             </div>
             <button
-              onClick={() => triggerModal("Business Fleet Sales Consultation")}
+              onClick={() => triggerModal("Business Plan Free Trial")}
               className="w-full text-center text-xs font-bold text-white bg-[#0B132B] hover:bg-[#162244] transition-colors py-3 rounded-lg cursor-pointer uppercase tracking-wider"
             >
-              Contact Sales
+              Start Free Trial
             </button>
           </motion.div>
         </div>
