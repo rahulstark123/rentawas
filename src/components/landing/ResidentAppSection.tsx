@@ -10,7 +10,7 @@ export default function ResidentAppSection() {
   const [useLiveUI, setUseLiveUI] = useState(false);
 
   return (
-    <section id="solutions" className="py-20 md:py-28 bg-[#F8FAFB] overflow-hidden">
+    <section id="solutions" className="py-20 md:py-28 bg-[#F8FAFC] overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 sm:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
           {/* Left Column: Phone Mockup Frame (5 cols) */}
@@ -21,12 +21,8 @@ export default function ResidentAppSection() {
             transition={{ duration: 0.6 }}
             className="lg:col-span-5 flex flex-col items-center justify-center relative"
           >
-            {/* Phone Outer Bezel Container with Floating Animation */}
-            <motion.div 
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="relative w-full max-w-[320px] sm:max-w-[340px] aspect-[9/18.5] bg-[#0B132B] rounded-[48px] p-3 shadow-2xl border-4 border-slate-900 group"
-            >
+            {/* Static Phone Outer Bezel Container */}
+            <div className="relative w-full max-w-[320px] sm:max-w-[340px] aspect-[9/18.5] bg-[#0B132B] rounded-[48px] p-3 shadow-2xl border-4 border-slate-900 group">
               {/* Dynamic Island / Notch */}
               <div className="absolute top-6 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full z-30 flex items-center justify-end px-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-slate-800 border border-slate-700"></span>
@@ -134,7 +130,7 @@ export default function ResidentAppSection() {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </div>
 
             {/* View Mode Toggle Pill under phone */}
             <button
