@@ -33,18 +33,18 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-[#0B132B] leading-[1.08] max-w-4xl mx-auto"
+          className="text-5xl sm:text-7xl md:text-8xl font-extrabold tracking-tight text-[#0B132B] leading-[1.05] max-w-5xl mx-auto"
         >
           Manage Spaces.{" "}
           <span className="block sm:inline text-[#FF6B00]">Elevate Lives.</span>
         </motion.h1>
 
-        {/* Animated Subheadline */}
+        {/* Animated Bold Subheadline */}
         <motion.p 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
-          className="text-slate-600 text-base sm:text-lg md:text-xl max-w-2xl mx-auto mt-6 mb-10 leading-relaxed font-normal"
+          className="text-slate-900 font-bold text-lg sm:text-xl md:text-2xl max-w-3xl mx-auto mt-6 mb-10 leading-relaxed"
         >
           The ultimate mission control for rental ecosystems. Automate rent collection,
           streamline maintenance, and maximize yield with precision.
@@ -59,7 +59,7 @@ export default function HeroSection() {
         >
           <button
             onClick={() => openComingSoon("Start Managing RentAwas")}
-            className="w-full sm:w-auto text-xs font-bold text-white bg-[#0B132B] hover:bg-[#162244] active:scale-[0.98] transition-all px-6 py-3 rounded-md shadow-xs hover:shadow-sm text-center cursor-pointer uppercase tracking-wider"
+            className="w-full sm:w-auto text-sm font-extrabold text-white bg-[#0B132B] hover:bg-[#162244] active:scale-[0.98] transition-all px-7 py-3.5 rounded-md shadow-xs hover:shadow-sm text-center cursor-pointer uppercase tracking-wider"
           >
             Start Managing Free
           </button>
@@ -69,7 +69,7 @@ export default function HeroSection() {
               e.preventDefault();
               openComingSoon("Interactive Demo Dashboard");
             }}
-            className="w-full sm:w-auto text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 active:scale-[0.98] transition-all px-6 py-3 rounded-md shadow-2xs text-center cursor-pointer uppercase tracking-wider"
+            className="w-full sm:w-auto text-sm font-extrabold text-slate-900 bg-white hover:bg-slate-50 border border-slate-300 active:scale-[0.98] transition-all px-7 py-3.5 rounded-md shadow-2xs text-center cursor-pointer uppercase tracking-wider"
           >
             View Demo
           </a>

@@ -135,7 +135,7 @@ export default function ResidentAppSection() {
             {/* View Mode Toggle Pill under phone */}
             <button
               onClick={() => setUseLiveUI(!useLiveUI)}
-              className="mt-4 text-xs font-medium text-slate-500 hover:text-slate-900 underline transition-colors cursor-pointer"
+              className="mt-4 text-xs font-extrabold text-slate-700 hover:text-slate-950 underline transition-colors cursor-pointer"
             >
               {useLiveUI ? "Switch to Photo View" : "Switch to Interactive Mobile Screen"}
             </button>
@@ -160,20 +160,20 @@ export default function ResidentAppSection() {
             </h2>
 
             {/* Subheadline */}
-            <p className="text-slate-600 font-normal text-base sm:text-lg max-w-xl leading-relaxed mb-10">
+            <p className="text-slate-900 font-bold text-base sm:text-xl max-w-xl leading-relaxed mb-10">
               Give residents a premium mobile experience. Rent payments, maintenance reporting, and community updates, all in their pocket.
             </p>
 
             {/* Feature Item 1 */}
             <div className="flex items-start gap-4 mb-8">
-              <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 text-sky-700 flex items-center justify-center shrink-0 mt-1 shadow-2xs">
+              <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 text-sky-700 flex items-center justify-center shrink-0 mt-1 shadow-2xs font-bold">
                 <IconOneTapPayments className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1">
+                <h3 className="text-xl sm:text-2xl font-extrabold text-slate-950 mb-1">
                   One-Tap Payments
                 </h3>
-                <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
+                <p className="text-slate-900 font-bold text-sm sm:text-base leading-relaxed">
                   Support for Apple Pay, Google Pay, and automatic bank transfers.
                 </p>
               </div>
@@ -181,14 +181,14 @@ export default function ResidentAppSection() {
 
             {/* Feature Item 2 */}
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 text-sky-700 flex items-center justify-center shrink-0 mt-1 shadow-2xs">
+              <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 text-sky-700 flex items-center justify-center shrink-0 mt-1 shadow-2xs font-bold">
                 <IconSmartAnnouncements className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1">
+                <h3 className="text-xl sm:text-2xl font-extrabold text-slate-950 mb-1">
                   Smart Announcements
                 </h3>
-                <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
+                <p className="text-slate-900 font-bold text-sm sm:text-base leading-relaxed">
                   Geo-targeted push notifications for building maintenance or events.
                 </p>
               </div>
