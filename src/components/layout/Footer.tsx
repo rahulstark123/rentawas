@@ -16,7 +16,10 @@ export default function Footer() {
                 height={72}
                 className="h-10 sm:h-[44px] w-auto object-contain rounded-md group-hover:opacity-90 transition-opacity"
               />
-              <span className="text-2xl font-extrabold text-white tracking-tight">
+              <span 
+                className="text-2xl font-extrabold text-white tracking-tight"
+                style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}
+              >
                 Rent<span className="text-[#FF6B00]">Awas</span>
               </span>
             </Link>

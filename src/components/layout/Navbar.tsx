@@ -36,7 +36,7 @@ export default function Navbar() {
         }`}
       >
         <div className="max-w-7xl mx-auto px-6 sm:px-8 flex items-center justify-between h-full">
-          {/* Left: Brand Logo & Text */}
+          {/* Left: Original Bold Geometric Brand Logo & Text */}
           <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group h-full py-1">
             <Image
               src="/logo.png"
@@ -46,28 +46,31 @@ export default function Navbar() {
               priority
               className="h-11 sm:h-12 w-auto max-h-full object-contain group-hover:opacity-90 transition-opacity shrink-0"
             />
-            <span className="text-2xl sm:text-3xl font-extrabold text-[#0B132B] tracking-tight group-hover:opacity-90 transition-opacity">
+            <span 
+              className="text-xl sm:text-2xl font-extrabold text-[#0B132B] tracking-tight group-hover:opacity-90 transition-opacity"
+              style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}
+            >
               Rent<span className="text-[#FF6B00]">Awas</span>
             </span>
           </Link>
 
-          {/* Center: Bold High-Contrast Navigation Links */}
+          {/* Center: Navigation Links */}
           <nav className="hidden md:flex items-center gap-8">
             <Link
               href="#platform"
-              className="text-sm font-extrabold text-slate-800 hover:text-slate-950 transition-colors uppercase tracking-wider"
+              className="text-xs font-bold text-slate-700 hover:text-slate-950 transition-colors uppercase tracking-wider"
             >
               Platform
             </Link>
             <Link
               href="#solutions"
-              className="text-sm font-extrabold text-slate-800 hover:text-slate-950 transition-colors uppercase tracking-wider"
+              className="text-xs font-bold text-slate-700 hover:text-slate-950 transition-colors uppercase tracking-wider"
             >
               Solutions
             </Link>
             <Link
               href="#pricing"
-              className="text-sm font-extrabold text-slate-800 hover:text-slate-950 transition-colors uppercase tracking-wider"
+              className="text-xs font-bold text-slate-700 hover:text-slate-950 transition-colors uppercase tracking-wider"
             >
               Pricing
             </Link>
@@ -77,13 +80,13 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-5">
             <button
               onClick={() => triggerModal("User & Owner Log In")}
-              className="text-sm font-extrabold text-slate-900 hover:text-black transition-colors px-3 py-2 cursor-pointer uppercase tracking-wider"
+              className="text-xs font-bold text-slate-800 hover:text-black transition-colors px-3 py-2 cursor-pointer uppercase tracking-wider"
             >
               Log In
             </button>
             <button
               onClick={() => triggerModal("Add New Property Portal")}
-              className="text-xs sm:text-sm font-extrabold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all px-5 py-2.5 rounded-md shadow-2xs cursor-pointer uppercase tracking-wider"
+              className="text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all px-4.5 py-2 rounded-md shadow-2xs cursor-pointer uppercase tracking-wider"
             >
               Add Property
             </button>
@@ -106,21 +109,21 @@ export default function Navbar() {
               <Link
                 href="#platform"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-base font-extrabold text-slate-900 uppercase tracking-wider"
+                className="text-sm font-bold text-slate-800 uppercase tracking-wider"
               >
                 Platform
               </Link>
               <Link
                 href="#solutions"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-base font-extrabold text-slate-900 uppercase tracking-wider"
+                className="text-sm font-bold text-slate-800 uppercase tracking-wider"
               >
                 Solutions
               </Link>
               <Link
                 href="#pricing"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-base font-extrabold text-slate-900 uppercase tracking-wider"
+                className="text-sm font-bold text-slate-800 uppercase tracking-wider"
               >
                 Pricing
               </Link>
@@ -128,13 +131,13 @@ export default function Navbar() {
             <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
               <button
                 onClick={() => triggerModal("User & Owner Log In")}
-                className="w-full text-center text-sm font-extrabold text-slate-900 py-2 rounded-md hover:bg-slate-50 cursor-pointer uppercase tracking-wider"
+                className="w-full text-center text-xs font-bold text-slate-800 py-2 rounded-md hover:bg-slate-50 cursor-pointer uppercase tracking-wider"
               >
                 Log In
               </button>
               <button
                 onClick={() => triggerModal("Add New Property Portal")}
-                className="w-full text-center text-sm font-extrabold text-white bg-[#FF6B00] py-2.5 rounded-md shadow-xs cursor-pointer uppercase tracking-wider"
+                className="w-full text-center text-xs font-bold text-white bg-[#FF6B00] py-2.5 rounded-md shadow-xs cursor-pointer uppercase tracking-wider"
               >
                 Add Property
               </button>
