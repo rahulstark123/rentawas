@@ -2,14 +2,12 @@
 
 import { motion, Variants } from "framer-motion";
 import { 
-  Zap, 
-  ShieldCheck, 
-  Clock, 
-  TrendingUp, 
+  Building2, 
+  Users, 
+  CreditCard, 
+  Wrench, 
   CheckCircle2, 
   XCircle,
-  Sparkles,
-  Building,
   ArrowRight
 } from "lucide-react";
 import ComingSoonModal from "@/components/ui/ComingSoonModal";
@@ -20,36 +18,36 @@ export default function WhyRentAwas() {
 
   const pillars = [
     {
-      icon: Zap,
+      icon: Building2,
+      emoji: "🏠",
       iconBg: "bg-amber-50 text-amber-600 border-amber-100",
-      title: "Automated Rent Collection",
-      desc: "Instant UPI, Auto-Debit, and automated WhatsApp reminders eliminate payment delays by up to 92%.",
-      stat: "98.4%",
-      statLabel: "On-Time Payments",
+      title: "Property & Unit Management",
+      desc: "Manage multiple properties, buildings, floors, and rental units from a single dashboard with complete visibility.",
+      badge: "Unlimited Properties",
     },
     {
-      icon: ShieldCheck,
+      icon: Users,
+      emoji: "👥",
+      iconBg: "bg-purple-50 text-purple-600 border-purple-100",
+      title: "Tenant Management",
+      desc: "Store tenant profiles, lease details, KYC documents, emergency contacts, payment history, and communication in one place.",
+      badge: "Complete Tenant Records",
+    },
+    {
+      icon: CreditCard,
+      emoji: "💳",
       iconBg: "bg-[#FF6B00]/10 text-[#FF6B00] border-[#FF6B00]/20",
-      title: "AI Legal & Lease Architect",
-      desc: "Generate legally compliant, state-localized lease agreements in seconds with digital signatures.",
-      stat: "< 60s",
-      statLabel: "Lease Generation",
+      title: "Rent Collection",
+      desc: "Track rent payments, due dates, overdue invoices, recurring rent, receipts, and payment history with automatic reminders.",
+      badge: "Never Miss Rent Due",
     },
     {
-      icon: Clock,
+      icon: Wrench,
+      emoji: "🛠️",
       iconBg: "bg-sky-50 text-sky-600 border-sky-100",
-      title: "Instant Maintenance Dispatch",
-      desc: "AI prioritizes repair urgency and dispatches verified local vendors with live SLA tracking.",
-      stat: "4x Faster",
-      statLabel: "Ticket Resolution",
-    },
-    {
-      icon: TrendingUp,
-      iconBg: "bg-emerald-50 text-emerald-600 border-emerald-100",
-      title: "Yield & ROI Optimization",
-      desc: "Real-time occupancy analytics, auto bank feeds, and financial forecasting to maximize net yield.",
-      stat: "+18%",
-      statLabel: "Average Net Yield",
+      title: "Maintenance Requests",
+      desc: "Tenants can raise maintenance requests, upload photos, and track progress while managers assign and resolve issues efficiently.",
+      badge: "Faster Issue Resolution",
     },
   ];
 
@@ -100,7 +98,7 @@ export default function WhyRentAwas() {
           transition={{ duration: 0.5 }}
           className="text-center max-w-3xl mx-auto mb-16 md:mb-20"
         >
-          <span className="text-xs sm:text-sm font-extrabold text-[#FF6B00] uppercase tracking-wider block mb-3 font-sans">
+          <span className="text-xs sm:text-sm font-bold text-[#FF6B00] uppercase tracking-wider block mb-3 font-sans">
             THE RENTAWAS ADVANTAGE
           </span>
           <h2 
@@ -110,11 +108,11 @@ export default function WhyRentAwas() {
             Why Rent<span className="text-[#FF6B00]">Awas</span>?
           </h2>
           <p className="text-slate-600 font-normal text-base sm:text-lg mt-4 leading-relaxed font-sans">
-            Traditional property management is broken—riddled with manual spreadsheet errors, delayed rent, and surprise maintenance costs. RentAwas unifies your entire rental ecosystem into one intelligent mission control.
+            Everything you need to manage rental properties, tenants, rent collection, maintenance, and documents—all from one modern platform. Built for landlords, property managers, PG owners, and rental businesses.
           </p>
         </motion.div>
 
-        {/* 4 Pillars Grid */}
+        {/* 4 Pillars Grid Cards matching user exact specifications */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
           {pillars.map((pillar, idx) => {
             const IconComponent = pillar.icon;
@@ -130,12 +128,15 @@ export default function WhyRentAwas() {
                 className="bg-[#F8FAFC] rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between group"
               >
                 <div>
-                  <div className={`w-11 h-11 rounded-xl border flex items-center justify-center mb-5 group-hover:scale-105 transition-transform ${pillar.iconBg}`}>
-                    <IconComponent className="w-5.5 h-5.5" />
+                  <div className="flex items-center justify-between mb-5">
+                    <div className={`w-11 h-11 rounded-xl border flex items-center justify-center group-hover:scale-105 transition-transform ${pillar.iconBg}`}>
+                      <IconComponent className="w-5.5 h-5.5" />
+                    </div>
+                    <span className="text-2xl">{pillar.emoji}</span>
                   </div>
                   
                   <h3 
-                    className="text-xl font-bold text-[#0B132B] mb-2"
+                    className="text-xl sm:text-2xl font-bold text-[#0B132B] mb-3 leading-snug"
                     style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
                   >
                     {pillar.title}
@@ -147,11 +148,8 @@ export default function WhyRentAwas() {
                 </div>
 
                 <div className="pt-4 border-t border-slate-200/60 flex items-center justify-between font-sans">
-                  <span className="text-2xl font-extrabold text-[#0B132B]">
-                    {pillar.stat}
-                  </span>
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    {pillar.statLabel}
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#0B132B] text-white tracking-wider">
+                    {pillar.badge}
                   </span>
                 </div>
               </motion.div>
