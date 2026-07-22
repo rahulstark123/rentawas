@@ -53,24 +53,24 @@ export default function WhyRentAwas() {
 
   const comparisons = [
     {
-      feature: "Rent Collection",
-      legacy: "Manual bank transfers & awkward WhatsApp follow-ups",
-      rentawas: "Automated multi-channel UPI, Auto-Debit & WhatsApp reminders",
+      feature: "PROPERTY & UNIT MANAGEMENT",
+      legacy: "Manual spreadsheets, physical notebook logs & fragmented property records",
+      rentawas: "Unified dashboard to manage multiple properties, buildings, floors & units with live availability tracking",
     },
     {
-      feature: "Lease Agreements",
-      legacy: "Outdated Word templates & physical stamp paper hassle",
-      rentawas: "AI-generated state-compliant digital leases in 60 seconds",
+      feature: "TENANT MANAGEMENT",
+      legacy: "Unorganized paper files, lost KYC documents & manual contact lists",
+      rentawas: "Digital tenant profiles, secure KYC document storage, lease details & complete payment history",
     },
     {
-      feature: "Maintenance & Repairs",
-      legacy: "Lost calls, unorganized complaints, delayed contractor dispatch",
-      rentawas: "Smart ticket triage, auto vendor dispatch & live SLA tracking",
+      feature: "RENT COLLECTION",
+      legacy: "Manual bank transfers, cash tracking & awkward WhatsApp follow-up reminders",
+      rentawas: "Automated multi-channel UPI, Auto-Debit, recurring rent receipts & automatic WhatsApp reminders",
     },
     {
-      feature: "Financial Accounting",
-      legacy: "Manual Excel spreadsheets prone to calculation errors",
-      rentawas: "Real-time bank feed auto-reconciliation & tax-ready ledgers",
+      feature: "MAINTENANCE REQUESTS",
+      legacy: "Unorganized phone calls, lost complaints & delayed contractor assignment",
+      rentawas: "Tenant photo ticket uploads, live status tracking & efficient manager assignment & resolution",
     },
   ];
 
@@ -112,7 +112,7 @@ export default function WhyRentAwas() {
           </p>
         </motion.div>
 
-        {/* 4 Pillars Grid Cards matching user exact specifications */}
+        {/* 4 Pillars Grid Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
           {pillars.map((pillar, idx) => {
             const IconComponent = pillar.icon;
@@ -157,7 +157,7 @@ export default function WhyRentAwas() {
           })}
         </div>
 
-        {/* Comparison Table Section: Traditional vs RentAwas */}
+        {/* Comparison Table Section: Traditional Methods vs RentAwas */}
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
