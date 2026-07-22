@@ -109,7 +109,17 @@ export default function Footer() {
           <p className="flex items-center gap-1.5 font-medium">
             <span>Engineered for high-performance operations.</span>
             <span className="text-slate-600">•</span>
-            <span>Powered by <strong className="text-white font-bold">ANSH Apps</strong></span>
+            <span>
+              Powered by{" "}
+              <a
+                href="https://anshapps.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white hover:text-[#FF6B00] font-bold underline underline-offset-2 transition-colors cursor-pointer"
+              >
+                ANSH Apps
+              </a>
+            </span>
           </p>
         </div>
       </div>
