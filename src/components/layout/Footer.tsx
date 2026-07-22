@@ -17,24 +17,25 @@ export default function Footer() {
                 className="h-10 sm:h-[44px] w-auto object-contain rounded-md group-hover:opacity-90 transition-opacity"
               />
               <span 
-                className="text-2xl font-extrabold text-white tracking-tight"
-                style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}
+                className="text-3xl font-extrabold tracking-tight font-serif"
+                style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
               >
-                Rent<span className="text-[#FF6B00]">Awas</span>
+                <span className="text-white">Rent</span>
+                <span className="text-[#FF6B00]">Awas</span>
               </span>
             </Link>
-            <p className="text-slate-400 text-sm mt-4 max-w-sm leading-relaxed">
+            <p className="text-slate-400 text-sm mt-4 max-w-sm leading-relaxed font-sans">
               The ultimate mission control for rental ecosystems. Automate rent collection,
               streamline maintenance, and maximize yield with precision.
             </p>
           </div>
 
           {/* Nav Links Col 1 */}
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 font-sans">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
               Product
             </h4>
-            <ul className="space-y-2.5 text-sm text-slate-300">
+            <ul className="space-y-2.5 text-sm text-slate-300 font-medium">
               <li>
                 <Link href="#platform" className="hover:text-white transition-colors">
                   Platform
@@ -54,11 +55,11 @@ export default function Footer() {
           </div>
 
           {/* Nav Links Col 2 */}
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 font-sans">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
               Company
             </h4>
-            <ul className="space-y-2.5 text-sm text-slate-300">
+            <ul className="space-y-2.5 text-sm text-slate-300 font-medium">
               <li>
                 <Link href="/about" className="hover:text-white transition-colors">
                   About Us
@@ -78,11 +79,11 @@ export default function Footer() {
           </div>
 
           {/* Nav Links Col 3 */}
-          <div className="md:col-span-3">
+          <div className="md:col-span-3 font-sans">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
               Legal & Support
             </h4>
-            <ul className="space-y-2.5 text-sm text-slate-300">
+            <ul className="space-y-2.5 text-sm text-slate-300 font-medium">
               <li>
                 <Link href="/privacy" className="hover:text-white transition-colors">
                   Privacy Policy
@@ -103,7 +104,7 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4">
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4 font-sans">
           <p>© {new Date().getFullYear()} RentAwas Inc. All rights reserved.</p>
           <p className="flex items-center gap-1.5 font-medium">
             <span>Engineered for high-performance operations.</span>
