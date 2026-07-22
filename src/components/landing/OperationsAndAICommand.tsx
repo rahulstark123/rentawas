@@ -5,7 +5,6 @@ import {
   Building2, 
   Wrench, 
   DollarSign, 
-  Sparkles, 
   ArrowUpRight, 
   CheckCircle2, 
   Clock, 
@@ -153,11 +152,6 @@ export default function OperationsAndAICommand() {
           <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF6B00]/10 rounded-full blur-3xl pointer-events-none"></div>
 
           <div className="max-w-3xl mx-auto text-center relative z-10">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 text-purple-300 text-xs font-bold uppercase tracking-wider mb-5 backdrop-blur-xs font-sans">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>AI Command Center</span>
-            </div>
-
             {/* Cormorant Garamond Heading */}
             <h2 
               className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight mb-4"
