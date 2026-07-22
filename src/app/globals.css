@@ -2,12 +2,12 @@
 
 @layer base {
   :root {
-    --font-heading: var(--font-jakarta);
-    --font-sans: var(--font-jakarta);
+    --font-heading: var(--font-cormorant);
+    --font-serif: var(--font-cormorant);
   }
 
   body {
-    font-family: var(--font-jakarta), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-cormorant), Georgia, serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -15,10 +15,10 @@
     color: #0F172A;
   }
 
-  /* Set Plus Jakarta Sans for all headings across the entire website */
+  /* Set Cormorant Garamond for all headings and titles across the entire application */
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-jakarta), var(--font-plus-jakarta), system-ui, sans-serif;
-    letter-spacing: -0.025em;
+    font-family: var(--font-cormorant), Georgia, serif;
+    letter-spacing: -0.015em;
   }
 }
 
