@@ -50,10 +50,14 @@ export default function LoginPage() {
       return;
     }
 
-    // Direct navigation to Dashboard
+    // Direct navigation based on role
     setTimeout(() => {
       setIsLoading(false);
-      router.push("/dashboard");
+      if (role === "tenant") {
+        router.push("/tenant/dashboard");
+      } else {
+        router.push("/dashboard");
+      }
     }, 500);
   };
 

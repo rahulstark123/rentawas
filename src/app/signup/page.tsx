@@ -56,10 +56,14 @@ export default function SignupPage() {
     setIsLoading(true);
     setSubmittedMessage(null);
 
-    // Direct navigation to Dashboard
+    // Direct navigation based on role
     setTimeout(() => {
       setIsLoading(false);
-      router.push("/dashboard");
+      if (role === "tenant") {
+        router.push("/tenant/dashboard");
+      } else {
+        router.push("/dashboard");
+      }
     }, 500);
   };
 
