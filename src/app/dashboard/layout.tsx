@@ -25,9 +25,12 @@ import {
   X,
   Sparkles,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle,
+  Receipt
 } from "lucide-react";
 import { IconAutopilotRent } from "@/components/ui/CustomIcons";
+import { useToast } from "@/components/ui/Toast";
 
 export default function DashboardLayout({
   children,
@@ -36,7 +39,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeProperty, setActiveProperty] = useState("The Regent - Wing A");
+  const [activeProperty, setActiveProperty] = useState("The Regent - Wing A (24 Units)");
   const [showPropertyMenu, setShowPropertyMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -47,6 +50,7 @@ export default function DashboardLayout({
     { name: "AI Documents", href: "/dashboard/leases", icon: FileText, spark: true },
     { name: "Tenants & Health", href: "/dashboard/tenants", icon: Users },
     { name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench, count: 3 },
+    { name: "Property Expenses", href: "/dashboard/expenses", icon: Receipt },
     { name: "Yield & Analytics", href: "/dashboard/analytics", icon: TrendingUp },
     { name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
     { name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },

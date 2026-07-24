@@ -30,6 +30,7 @@ export interface PropertyItem {
   units: number;
   occupied: number;
   monthlyYield: string;
+  ytdExpenses?: string;
   status: string;
   tag: string;
 }
@@ -55,6 +56,7 @@ export default function PropertiesPage() {
       units: 24,
       occupied: 23,
       monthlyYield: "$72,500",
+      ytdExpenses: "$1,870",
       status: "96% Occupied",
       tag: "Residential Tower",
     },
@@ -66,6 +68,7 @@ export default function PropertiesPage() {
       units: 18,
       occupied: 17,
       monthlyYield: "$54,000",
+      ytdExpenses: "$3,800",
       status: "94% Occupied",
       tag: "Luxury Apartments",
     },
@@ -75,21 +78,23 @@ export default function PropertiesPage() {
       address: "2100 Westlake Ave, Seattle, WA 98121",
       floors: 3,
       units: 12,
-      occupied: 11,
-      monthlyYield: "$32,000",
-      status: "91% Occupied",
+      occupied: 12,
+      monthlyYield: "$38,400",
+      ytdExpenses: "$1,200",
+      status: "100% Occupied",
       tag: "Executive Suites",
     },
     {
       id: "PROP-4",
       name: "Skyline Manor",
-      address: "1100 Mercer St, Seattle, WA 98109",
+      address: "400 Pine St, Seattle, WA 98101",
       floors: 2,
       units: 8,
       occupied: 7,
-      monthlyYield: "$18,500",
-      status: "88% Occupied",
-      tag: "Boutique Housing",
+      monthlyYield: "$22,000",
+      ytdExpenses: "$350",
+      status: "87.5% Occupied",
+      tag: "Mixed Use",
     },
   ]);
 
@@ -106,6 +111,7 @@ export default function PropertiesPage() {
         units: computedUnits,
         occupied: 0,
         monthlyYield: `${newProp.avgRent}/mo`,
+        ytdExpenses: "$0",
         status: "0% Occupied (New)",
         tag: newProp.category.replace(/^[^\s]+\s/, ""), // remove emoji prefix for tag
       },
@@ -225,24 +231,31 @@ export default function PropertiesPage() {
               </div>
             </div>
 
-            {/* Metrics Breakdown with Total Floors & Total Units */}
-            <div className="grid grid-cols-3 gap-3 p-3.5 bg-slate-50 border border-slate-100 rounded-xl text-xs">
+            {/* Metrics Breakdown with Total Floors, Units, Monthly Yield & YTD Expenses */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 bg-slate-50 border border-slate-100 rounded-xl text-xs">
               <div>
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block flex items-center gap-1">
                   <Layers className="w-3 h-3 text-slate-400" />
-                  Total Floors
+                  Floors
                 </span>
-                <span className="text-sm font-black text-slate-900">{prop.floors} Floors</span>
+                <span className="text-xs font-black text-slate-900">{prop.floors} Floors</span>
               </div>
 
               <div>
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Occupied</span>
-                <span className="text-sm font-black text-emerald-600">{prop.occupied} / {prop.units} Units</span>
+                <span className="text-xs font-black text-emerald-600">{prop.occupied}/{prop.units} Units</span>
               </div>
 
               <div>
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Monthly Yield</span>
-                <span className="text-sm font-black text-slate-900">{prop.monthlyYield}</span>
+                <span className="text-xs font-black text-slate-900">{prop.monthlyYield}</span>
+              </div>
+
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">YTD Expenses</span>
+                <Link href="/dashboard/expenses" className="text-xs font-black text-[#FF6B00] hover:underline block">
+                  {prop.ytdExpenses || "$1,450"}
+                </Link>
               </div>
             </div>
 

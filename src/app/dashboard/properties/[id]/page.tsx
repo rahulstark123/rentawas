@@ -25,7 +25,11 @@ import {
   Search,
   Filter,
   X,
-  ChevronDown
+  UserPlus,
+  ChevronDown,
+  ChevronRight,
+  Receipt,
+  Paperclip
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -586,6 +590,21 @@ export default function PropertyFloorPlanPage() {
                     <p className="text-xs font-semibold text-slate-800 leading-relaxed">
                       {u.rooms}
                     </p>
+                  </div>
+
+                  {/* Unit Outlays & Expense History Badge */}
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-orange-50/60 border border-orange-200/80 text-xs">
+                    <div className="flex items-center gap-1.5 text-slate-700 font-bold">
+                      <Receipt className="w-4 h-4 text-[#FF6B00]" />
+                      <span>Unit Outlays: <strong className="text-slate-900">$1,450</strong></span>
+                    </div>
+                    <Link 
+                      href="/dashboard/expenses"
+                      className="text-[11px] font-bold text-[#FF6B00] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>1 Bill Attached</span>
+                      <Paperclip className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
 
                   {/* Tenant Details (If Occupied) */}
