@@ -89,7 +89,7 @@ export default function DashboardOverviewPage() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>New AI Lease</span>
+            <span>New AI Document</span>
           </Link>
         </div>
       </div>

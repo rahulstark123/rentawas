@@ -44,7 +44,7 @@ export default function DashboardLayout({
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "Properties & Units", href: "/dashboard/properties", icon: Building2 },
     { name: "Autopilot Rent", href: "/dashboard/payments", icon: Zap, badge: "AUTO" },
-    { name: "AI Lease Architect", href: "/dashboard/leases", icon: FileText, spark: true },
+    { name: "AI Documents", href: "/dashboard/leases", icon: FileText, spark: true },
     { name: "Tenants & Health", href: "/dashboard/tenants", icon: Users },
     { name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench, count: 3 },
     { name: "Yield & Analytics", href: "/dashboard/analytics", icon: TrendingUp },

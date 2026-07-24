@@ -25,7 +25,7 @@ import {
 export interface SupportTicket {
   id: string;
   subject: string;
-  category: "Autopilot Rent & Disbursals" | "AI Lease & Legal Architect" | "Tenant Reminders" | "App Bug / UI Issue" | "Account & Billing";
+  category: "Autopilot Rent & Disbursals" | "AI Documents" | "Tenant Reminders" | "App Bug / UI Issue" | "Account & Billing";
   priority: "Low" | "Medium" | "High";
   status: "In Progress" | "Resolved" | "Waiting on Landlord";
   property: string;
@@ -53,7 +53,7 @@ export default function LandlordSupportPage() {
     {
       id: "SUP-794",
       subject: "Custom E-Stamp logo alignment on Leave & License AI Contract",
-      category: "AI Lease & Legal Architect",
+      category: "AI Documents",
       priority: "Low",
       status: "Resolved",
       property: "All Properties",
@@ -302,7 +302,7 @@ export default function LandlordSupportPage() {
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   >
                     <option value="Autopilot Rent & Disbursals">Autopilot Rent & Disbursals</option>
-                    <option value="AI Lease & Legal Architect">AI Lease & Legal Architect</option>
+                    <option value="AI Documents">AI Documents</option>
                     <option value="Tenant Reminders">Tenant WhatsApp Reminders</option>
                     <option value="App Bug / UI Issue">App Bug / UI Issue</option>
                     <option value="Account & Billing">Account & Billing</option>
