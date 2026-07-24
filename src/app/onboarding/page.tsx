@@ -21,6 +21,7 @@ import {
   ChevronDown
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import CurrencySelector from "@/components/ui/CurrencySelector";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -64,7 +65,7 @@ export default function OnboardingPage() {
   const handleFinishOnboarding = (e: React.FormEvent) => {
     e.preventDefault();
     setIsFinishing(true);
-    toast("Setting up your Landlord Mission Control workspace...", "success");
+    toast(`Setting up workspace with ${currency} currency...`, "success");
 
     setTimeout(() => {
       router.push("/dashboard");
@@ -198,27 +199,15 @@ export default function OnboardingPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Searchable Open-Source 150+ World Currency Selector */}
                 <div>
                   <label className="block font-bold text-slate-300 uppercase mb-1.5">
                     Primary Currency & Ledger Locale
                   </label>
-                  <div className="relative">
-                    <select
-                      value={currency}
-                      onChange={(e) => setCurrency(e.target.value)}
-                      className="w-full appearance-none pl-3 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                    >
-                      <option value="USD ($)">USD ($) — United States Dollar</option>
-                      <option value="INR (₹)">INR (₹) — Indian Rupee</option>
-                      <option value="EUR (€)">EUR (€) — Eurozone</option>
-                      <option value="GBP (£)">GBP (£) — British Pound</option>
-                      <option value="AED (د.إ)">AED (د.إ) — UAE Dirham</option>
-                      <option value="CAD ($)">CAD ($) — Canadian Dollar</option>
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                      <ChevronDown className="w-4 h-4" />
-                    </div>
-                  </div>
+                  <CurrencySelector
+                    value={currency}
+                    onChange={setCurrency}
+                  />
                 </div>
 
                 <div>
