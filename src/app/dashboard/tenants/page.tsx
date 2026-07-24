@@ -19,6 +19,7 @@ import {
   UserPlus
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 
 export interface TenantItem {
   id: string;
@@ -26,7 +27,8 @@ export interface TenantItem {
   unit: string;
   phone: string;
   email: string;
-  leaseEnd: string;
+  leaseStart: string;
+  leaseEnd?: string;
   healthScore: number;
   status: "Excellent" | "Good" | "Fair" | "Attention";
   onTimeRate: string;
@@ -37,12 +39,24 @@ export default function TenantsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // New Tenant Form State
+  // Property & Units Mappings
+  const propertyUnitsMap: Record<string, string[]> = {
+    "The Regent - Wing A": ["Unit 101", "Unit 104", "Unit 201", "Unit 302", "Unit 304", "Unit 401", "Unit 502"],
+    "Downtown Horizon Suites": ["Suite 101", "Suite 104", "Suite 202", "Suite 301", "Suite 408"],
+    "Oakwood Executive Residency": ["Unit 101", "Unit 105", "Unit 201", "Unit 301"],
+    "Skyline Manor": ["Unit 101", "Unit 201"]
+  };
+
+  // Form State
   const [name, setName] = useState("");
-  const [propertyUnit, setPropertyUnit] = useState("The Regent - Unit 401");
+  const [selectedProperty, setSelectedProperty] = useState("The Regent - Wing A");
+  const [selectedUnit, setSelectedUnit] = useState("Unit 401");
+  const [selectedCountry, setSelectedCountry] = useState<Country>(
+    ALL_COUNTRIES.find((c) => c.code === "US") || ALL_COUNTRIES[0]
+  );
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [leaseEnd, setLeaseEnd] = useState("2027-07-31");
+  const [leaseStart, setLeaseStart] = useState("2026-08-01");
   const [monthlyRent, setMonthlyRent] = useState("2850");
   const [paymentChannel, setPaymentChannel] = useState("Autopilot ACH Direct");
 
@@ -53,6 +67,7 @@ export default function TenantsPage() {
       unit: "The Regent - Unit 302",
       phone: "+1 (555) 234-5678",
       email: "eleanor.vance@example.com",
+      leaseStart: "2024-07-01",
       leaseEnd: "2027-06-30",
       healthScore: 98,
       status: "Excellent",
@@ -64,6 +79,7 @@ export default function TenantsPage() {
       unit: "The Regent - Unit 104",
       phone: "+1 (555) 876-5432",
       email: "marcus.s@example.com",
+      leaseStart: "2024-11-15",
       leaseEnd: "2026-11-15",
       healthScore: 94,
       status: "Good",
@@ -75,6 +91,7 @@ export default function TenantsPage() {
       unit: "Horizon Suites - Unit 408",
       phone: "+1 (555) 345-6789",
       email: "sophia.m@example.com",
+      leaseStart: "2025-02-01",
       leaseEnd: "2027-01-31",
       healthScore: 96,
       status: "Excellent",
@@ -86,6 +103,7 @@ export default function TenantsPage() {
       unit: "Oakwood - Unit 201",
       phone: "+1 (555) 901-2345",
       email: "david.c@example.com",
+      leaseStart: "2025-08-15",
       leaseEnd: "2026-08-15",
       healthScore: 82,
       status: "Fair",
@@ -99,24 +117,38 @@ export default function TenantsPage() {
       t.unit.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handlePropertyChange = (newProp: string) => {
+    setSelectedProperty(newProp);
+    const availableUnits = propertyUnitsMap[newProp] || [];
+    if (availableUnits.length > 0) {
+      setSelectedUnit(availableUnits[0]);
+    }
+  };
+
   const handleAddTenant = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
 
+    const fullPhoneNumber = phone.trim()
+      ? `${selectedCountry.dialCode} ${phone.trim()}`
+      : `${selectedCountry.dialCode} (555) 019-2834`;
+
+    const combinedUnitLabel = `${selectedProperty} - ${selectedUnit}`;
+
     const newTenant: TenantItem = {
       id: `TEN-${Math.floor(100 + Math.random() * 900)}`,
       name,
-      unit: propertyUnit,
-      phone: phone || "+1 (555) 000-0000",
+      unit: combinedUnitLabel,
+      phone: fullPhoneNumber,
       email,
-      leaseEnd,
+      leaseStart,
       healthScore: 95,
       status: "Excellent",
       onTimeRate: "100%",
     };
 
     setTenants([newTenant, ...tenants]);
-    toast(`Tenant ${name} successfully assigned to ${propertyUnit}!`, "success");
+    toast(`Tenant ${name} assigned to ${combinedUnitLabel} starting ${leaseStart}!`, "success");
     setName("");
     setEmail("");
     setPhone("");
@@ -193,8 +225,8 @@ export default function TenantsPage() {
                 <span className="font-extrabold text-slate-900">{t.onTimeRate}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Lease Expiry</span>
-                <span className="font-extrabold text-slate-900">{t.leaseEnd}</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Lease Start Date</span>
+                <span className="font-extrabold text-slate-900">{t.leaseStart}</span>
               </div>
             </div>
 
@@ -231,7 +263,7 @@ export default function TenantsPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-extrabold text-slate-900 leading-none">Add New Tenant Resident</h3>
-                  <p className="text-xs text-slate-500 mt-1">Assign resident to unit & configure lease telemetry.</p>
+                  <p className="text-xs text-slate-500 mt-1">Assign resident to property unit & configure lease start date.</p>
                 </div>
               </div>
               <button
@@ -256,20 +288,20 @@ export default function TenantsPage() {
                 />
               </div>
 
+              {/* 2 Separate Dropdowns: Property and Room / Unit */}
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Assigned Property & Unit</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Target Property</label>
                   <div className="relative">
                     <select
-                      value={propertyUnit}
-                      onChange={(e) => setPropertyUnit(e.target.value)}
+                      value={selectedProperty}
+                      onChange={(e) => handlePropertyChange(e.target.value)}
                       className="w-full appearance-none pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                     >
-                      <option value="The Regent - Unit 401">The Regent — Unit 401</option>
-                      <option value="The Regent - Unit 302">The Regent — Unit 302</option>
-                      <option value="Downtown Horizon - Suite 202">Downtown Horizon — Suite 202</option>
-                      <option value="Oakwood Residency - Unit 105">Oakwood Residency — Unit 105</option>
-                      <option value="Skyline Manor - Unit 101">Skyline Manor — Unit 101</option>
+                      <option value="The Regent - Wing A">The Regent - Wing A</option>
+                      <option value="Downtown Horizon Suites">Downtown Horizon Suites</option>
+                      <option value="Oakwood Executive Residency">Oakwood Executive Residency</option>
+                      <option value="Skyline Manor">Skyline Manor</option>
                     </select>
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
                       <ChevronDown className="w-4 h-4" />
@@ -278,15 +310,33 @@ export default function TenantsPage() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent ($ / ₹)</label>
-                  <input
-                    type="number"
-                    value={monthlyRent}
-                    onChange={(e) => setMonthlyRent(e.target.value)}
-                    placeholder="2850"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Room / Unit</label>
+                  <div className="relative">
+                    <select
+                      value={selectedUnit}
+                      onChange={(e) => setSelectedUnit(e.target.value)}
+                      className="w-full appearance-none pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    >
+                      {(propertyUnitsMap[selectedProperty] || []).map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
+                  </div>
                 </div>
+              </div>
+
+              {/* Phone Field with Flag & Country Code Dropdown */}
+              <div className="relative z-30">
+                <label className="block font-bold text-slate-700 uppercase mb-1">Phone Number (with Country Code)</label>
+                <CountryPhoneInput
+                  value={phone}
+                  onChange={setPhone}
+                  selectedCountry={selectedCountry}
+                  onCountryChange={setSelectedCountry}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3.5">
@@ -303,12 +353,12 @@ export default function TenantsPage() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Phone Number</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent ($ / ₹)</label>
                   <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+1 (555) 912-3840"
+                    type="number"
+                    value={monthlyRent}
+                    onChange={(e) => setMonthlyRent(e.target.value)}
+                    placeholder="2850"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
@@ -316,11 +366,12 @@ export default function TenantsPage() {
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Lease Expiry Date</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Lease Start Date</label>
                   <input
                     type="date"
-                    value={leaseEnd}
-                    onChange={(e) => setLeaseEnd(e.target.value)}
+                    required
+                    value={leaseStart}
+                    onChange={(e) => setLeaseStart(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>

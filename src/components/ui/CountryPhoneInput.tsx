@@ -277,9 +277,9 @@ export default function CountryPhoneInput({
 
   return (
     <div className="space-y-1.5" ref={dropdownRef}>
-      <div className="flex gap-2 relative">
+      <div className="flex gap-2 relative z-30">
         {/* Country Selector Dropdown Trigger */}
-        <div className="relative">
+        <div className="relative z-50">
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
@@ -292,7 +292,7 @@ export default function CountryPhoneInput({
 
           {/* Searchable Country Picker Dropdown Overlay */}
           {isOpen && (
-            <div className="absolute top-full left-0 mt-1.5 w-80 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-80">
+            <div className="absolute top-full left-0 mt-1.5 w-72 sm:w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[9999] overflow-hidden flex flex-col max-h-72">
               {/* Search Box Header */}
               <div className="p-2.5 border-b border-slate-100 bg-slate-50/80">
                 <div className="relative">
