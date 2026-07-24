@@ -34,7 +34,7 @@ export default function TenantLayout({
     { name: "My Resident Overview", href: "/tenant/dashboard", icon: LayoutDashboard },
     { name: "Pay Rent & Receipts", href: "/tenant/payments", icon: CreditCard, badge: "DUE SOON" },
     { name: "Maintenance Requests", href: "/tenant/maintenance", icon: Wrench, count: 1 },
-    { name: "My Lease Agreement", href: "/tenant/lease", icon: FileText },
+    { name: "My Documents", href: "/tenant/documents", icon: FileText, count: 8 },
     { name: "Building Notices", href: "/tenant/notices", icon: Megaphone, count: 2 },
   ];
 

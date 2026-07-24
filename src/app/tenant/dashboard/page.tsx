@@ -138,10 +138,10 @@ export default function TenantDashboardPage() {
 
           <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
             <Link
-              href="/tenant/lease"
+              href="/tenant/documents"
               className="text-xs font-bold text-purple-700 hover:underline uppercase tracking-wider"
             >
-              View Full Signed Lease PDF
+              View All My Documents (8 Files)
             </Link>
           </div>
         </div>
