@@ -51,7 +51,6 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isScreenTooSmall, setIsScreenTooSmall] = useState(false);
-  const [overrideSmallScreen, setOverrideSmallScreen] = useState(false);
 
   const [activeProperty, setActiveProperty] = useState("The Regent - Wing A (24 Units)");
   const [showPropertyMenu, setShowPropertyMenu] = useState(false);
@@ -107,7 +106,7 @@ export default function DashboardLayout({
   ];
 
   // Render Full Page Notice when screen width is below 1000px
-  if (isScreenTooSmall && !overrideSmallScreen) {
+  if (isScreenTooSmall) {
     return (
       <div className="min-h-screen w-screen bg-[#0B132B] text-white flex flex-col items-center justify-center p-6 sm:p-10 font-sans relative overflow-hidden select-none">
         
@@ -159,7 +158,7 @@ export default function DashboardLayout({
           </div>
 
           {/* Action Buttons */}
-          <div className="space-y-3 pt-2">
+          <div className="pt-2">
             <button
               onClick={() => {
                 navigator.clipboard.writeText("https://app.rentawas.com");
@@ -169,13 +168,6 @@ export default function DashboardLayout({
             >
               <Copy className="w-4 h-4" />
               <span>Copy Desktop Portal Link</span>
-            </button>
-
-            <button
-              onClick={() => setOverrideSmallScreen(true)}
-              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold rounded-xl transition-all cursor-pointer"
-            >
-              Proceed Anyway in Compact View
             </button>
           </div>
 
