@@ -134,11 +134,11 @@ export default function LandlordSupportPage() {
             </h1>
             <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
               <Zap className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
-              <span>Priority Support Active (&lt; 45m SLA)</span>
+              <span>Support Desk Active 24/7</span>
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Generate support tickets, report application issues, and get priority technical assistance 24/7.
+            Generate support tickets, report application issues, and get technical assistance 24/7.
           </p>
         </div>
 
@@ -151,14 +151,14 @@ export default function LandlordSupportPage() {
         </button>
       </div>
 
-      {/* Priority Support Channels Ribbon */}
+      {/* Support Channels Ribbon */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
         <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center gap-3">
           <div className="p-3 rounded-xl bg-orange-50 text-[#FF6B00] shrink-0">
             <Phone className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">24/7 Priority Toll-Free Line</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">24/7 Toll-Free Support Line</span>
             <span className="font-extrabold text-slate-900 text-sm block">+1 (800) 555-AWAS</span>
             <span className="text-[11px] text-emerald-600 font-bold">Direct Landlord Line Active</span>
           </div>
@@ -169,7 +169,7 @@ export default function LandlordSupportPage() {
             <MessageSquare className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">WhatsApp Priority Desk</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">WhatsApp Support Desk</span>
             <span className="font-extrabold text-slate-900 text-sm block">+1 (555) 019-2834</span>
             <span className="text-[11px] text-purple-600 font-bold">Instant Agent Chat</span>
           </div>

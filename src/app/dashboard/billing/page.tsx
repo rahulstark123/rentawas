@@ -222,7 +222,7 @@ export default function LandlordBillingPage() {
                 "Automated WhatsApp & SMS Rent Reminders",
                 "Automated 5% Late Fee Enforcement",
                 "2 Property Manager & Accountant Roles",
-                "Priority Support SLA (< 2 hours)",
+                "24/7 Dedicated Customer Support",
               ].map((feat, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-slate-200 font-medium">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
