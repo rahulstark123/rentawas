@@ -3,13 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Building2, Plus, Users, DollarSign, MapPin, CheckCircle2, ChevronRight } from "lucide-react";
+import AddPropertyModal, { PropertyData } from "@/components/ui/AddPropertyModal";
 
 export default function PropertiesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newPropName, setNewPropName] = useState("");
-  const [newPropUnits, setNewPropUnits] = useState("10");
 
-  const propertyList = [
+  const [propertyList, setPropertyList] = useState([
     {
       id: "PROP-1",
       name: "The Regent - Wing A",
@@ -50,7 +49,23 @@ export default function PropertiesPage() {
       status: "88% Occupied",
       tag: "Boutique Housing",
     },
-  ];
+  ]);
+
+  const handleAddProperty = (newProp: PropertyData) => {
+    setPropertyList([
+      {
+        id: newProp.id,
+        name: newProp.name,
+        address: newProp.address,
+        units: newProp.units,
+        occupied: 0,
+        monthlyYield: `${newProp.avgRent}/mo`,
+        status: "0% Occupied (New)",
+        tag: newProp.category,
+      },
+      ...propertyList,
+    ]);
+  };
 
   return (
     <div className="space-y-8">
@@ -136,55 +151,11 @@ export default function PropertiesPage() {
       </div>
 
       {/* Add Property Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="text-xl font-bold text-slate-900">Add New Property to Portfolio</h3>
-            <p className="text-xs text-slate-500">Enter details to generate hierarchical unit mapping.</p>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Property Name</label>
-                <input
-                  type="text"
-                  value={newPropName}
-                  onChange={(e) => setNewPropName(e.target.value)}
-                  placeholder="e.g. Cedar Heights Apartments"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Total Unit Count</label>
-                <input
-                  type="number"
-                  value={newPropUnits}
-                  onChange={(e) => setNewPropUnits(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-3">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  alert(`Property ${newPropName || "New Property"} added successfully!`);
-                  setShowAddModal(false);
-                }}
-                className="px-4 py-2 text-xs font-bold text-white bg-[#FF6B00] rounded-xl shadow-xs uppercase tracking-wider"
-              >
-                Add Property
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AddPropertyModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAddProperty={handleAddProperty}
+      />
     </div>
   );
 }

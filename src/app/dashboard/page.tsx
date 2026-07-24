@@ -22,11 +22,13 @@ import {
   ChevronRight,
   DollarSign
 } from "lucide-react";
+import AddPropertyModal from "@/components/ui/AddPropertyModal";
 import { IconAutopilotRent } from "@/components/ui/CustomIcons";
 
 export default function DashboardOverviewPage() {
   const [filter, setFilter] = useState<"all" | "paid" | "pending" | "overdue">("all");
   const [remindersSent, setRemindersSent] = useState(false);
+  const [showAddPropertyModal, setShowAddPropertyModal] = useState(false);
 
   const transactions = [
     { id: "TX-901", tenant: "Eleanor Vance", unit: "Regent Wing A - #302", amount: "$3,200", dueDate: "2026-07-25", status: "paid", channel: "Auto-Debit (ACH)" },
@@ -66,6 +68,14 @@ export default function DashboardOverviewPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowAddPropertyModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all uppercase tracking-wider cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-orange-400" />
+            <span>Add Property</span>
+          </button>
+
           <Link
             href="/dashboard/payments"
             className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs transition-all uppercase tracking-wider"
@@ -382,6 +392,11 @@ export default function DashboardOverviewPage() {
         </div>
 
       </div>
+
+      <AddPropertyModal
+        isOpen={showAddPropertyModal}
+        onClose={() => setShowAddPropertyModal(false)}
+      />
     </div>
   );
 }
