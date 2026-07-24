@@ -91,11 +91,6 @@ export default function OnboardingPage() {
             <span className="text-[#FF6B00]">Awas</span>
           </span>
         </Link>
-
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-300">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>256-Bit Encrypted Setup</span>
-        </div>
       </header>
 
       {/* Main Wizard Container */}
