@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion, Variants } from "framer-motion";
 import { 
@@ -177,9 +178,11 @@ export default function FeaturesBento() {
             className="md:col-span-6 bg-white rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 group"
           >
             <div className="max-w-sm">
-              <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-                <IconAutopilotRent className="w-5 h-5" />
-              </div>
+              <Link href="/login" aria-label="Autopilot Rent Login" className="inline-block cursor-pointer group/icon">
+                <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-105 group-hover/icon:bg-emerald-100/80 transition-all">
+                  <IconAutopilotRent className="w-5 h-5" />
+                </div>
+              </Link>
               <h3 className="text-xl font-bold text-slate-900 mb-2">
                 Autopilot Rent
               </h3>
