@@ -12,10 +12,14 @@ import {
   Check, 
   Building,
   CheckCircle2,
-  ChevronDown
+  ChevronDown,
+  Layers,
+  MapPin,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CurrencySelector from "@/components/ui/CurrencySelector";
+import { PROPERTY_CATEGORIES } from "@/components/ui/AddPropertyModal";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -28,11 +32,68 @@ export default function OnboardingPage() {
   const [currency, setCurrency] = useState("USD ($)");
   const [portfolioScale, setPortfolioScale] = useState("6-25 Units (Multi-Family)");
 
-  // Step 2 State: Add First Property
+  // Step 2 State: Add First Property (Matches AddPropertyModal inside the app)
   const [propertyName, setPropertyName] = useState("The Regent Executive Residency");
-  const [propertyType, setPropertyType] = useState("Multi-Family Apartment Complex");
-  const [unitCount, setUnitCount] = useState("12");
+  const [category, setCategory] = useState(PROPERTY_CATEGORIES[0]);
+  const [floors, setFloors] = useState("4");
+  const [unitsPerFloor, setUnitsPerFloor] = useState("3");
+  const [pincode, setPincode] = useState("94102");
   const [propertyAddress, setPropertyAddress] = useState("742 Evergreen Terrace, San Francisco, CA");
+  
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+  const [locationMessage, setLocationMessage] = useState<string | null>(null);
+
+  const numFloors = Number(floors) || 1;
+  const numUnitsPerFloor = Number(unitsPerFloor) || 1;
+  const totalCalculatedUnits = numFloors * numUnitsPerFloor;
+
+  // Auto-fetch location from PIN / ZIP code globally
+  const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const code = e.target.value;
+    setPincode(code);
+    const cleanCode = code.trim().toUpperCase();
+
+    if (cleanCode.length >= 4) {
+      setIsFetchingLocation(true);
+      setLocationMessage(null);
+
+      try {
+        if (/^\d{6}$/.test(cleanCode)) {
+          const res = await fetch(`https://api.postalpincode.in/pincode/${cleanCode}`);
+          const data = await res.json();
+          if (data && data[0] && data[0].Status === "Success" && data[0].PostOffice?.length > 0) {
+            const po = data[0].PostOffice[0];
+            const autoAddr = `${po.Name}, ${po.District}, ${po.State}, India`;
+            setPropertyAddress(autoAddr);
+            setLocationMessage(`Auto-filled: ${po.Name}, ${po.District}, ${po.State}`);
+            toast(`Location auto-filled for Pincode ${cleanCode}!`, "success");
+            setIsFetchingLocation(false);
+            return;
+          }
+        }
+
+        if (/^\d{5}$/.test(cleanCode)) {
+          const res = await fetch(`https://api.zippopotam.us/us/${cleanCode}`);
+          if (res.ok) {
+            const data = await res.json();
+            const place = data.places[0];
+            const autoAddr = `${place["place name"]}, ${place["state abbreviation"]}, United States`;
+            setPropertyAddress(autoAddr);
+            setLocationMessage(`Auto-filled: ${place["place name"]}, ${place["state abbreviation"]}`);
+            toast(`Location auto-filled for ZIP ${cleanCode}!`, "success");
+            setIsFetchingLocation(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Location fetch error", err);
+      } finally {
+        setIsFetchingLocation(false);
+      }
+    } else {
+      setLocationMessage(null);
+    }
+  };
 
   const handleNext = () => {
     if (currentStep === 1) {
@@ -51,7 +112,7 @@ export default function OnboardingPage() {
       return;
     }
     setIsFinishing(true);
-    toast(`Setting up workspace with ${currency} currency & ${propertyName}...`, "success");
+    toast(`Setting up workspace with ${currency} currency & ${propertyName} (${totalCalculatedUnits} units across ${floors} floors)...`, "success");
 
     setTimeout(() => {
       router.push("/dashboard");
@@ -90,10 +151,10 @@ export default function OnboardingPage() {
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             {currentStep === 1 && "Step 1: Workspace & Portfolio Identity"}
-            {currentStep === 2 && "Step 2: Add Your First Property & Units"}
+            {currentStep === 2 && "Step 2: Add Your First Property & Floor Plan"}
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto">
-            Configure your property telemetry and portfolio structure in 2 quick steps.
+            Configure your property telemetry, floor layout, and portfolio structure in 2 quick steps.
           </p>
 
           {/* Progress Bar Tabs (2 Steps Only) */}
@@ -201,12 +262,12 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* STEP 2: ADD FIRST PROPERTY & UNITS */}
+          {/* STEP 2: ADD FIRST PROPERTY & UNITS (Matches AddPropertyModal inside app) */}
           {currentStep === 2 && (
             <div className="space-y-4 text-xs animate-in fade-in duration-200">
               <div>
                 <label className="block font-bold text-slate-300 uppercase mb-1.5">
-                  First Property Name
+                  Building / Property Name
                 </label>
                 <div className="relative">
                   <Building2 className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -221,55 +282,108 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1.5">
-                    Property Type
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={propertyType}
-                      onChange={(e) => setPropertyType(e.target.value)}
-                      className="w-full appearance-none pl-3 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                    >
-                      <option value="Multi-Family Apartment Complex">Multi-Family Apartment Complex</option>
-                      <option value="Single Family Rental House">Single Family Rental House</option>
-                      <option value="Commercial Office Building">Commercial Office Building</option>
-                      <option value="Student Housing / PG Co-Living">Student Housing / PG Co-Living</option>
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                      <ChevronDown className="w-4 h-4" />
-                    </div>
+              {/* Property Category (Matches PROPERTY_CATEGORIES inside app) */}
+              <div>
+                <label className="block font-bold text-slate-300 uppercase mb-1.5">
+                  Property Category & Type
+                </label>
+                <div className="relative">
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full appearance-none pl-3 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    {PROPERTY_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                    <ChevronDown className="w-4 h-4" />
                   </div>
                 </div>
+              </div>
 
+              {/* Floor Plan Metrics: Total Floors & Units Per Floor */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1.5">
-                    Total Units / Rooms
+                  <label className="block font-bold text-slate-300 uppercase mb-1.5 flex items-center gap-1">
+                    <Layers className="w-3.5 h-3.5 text-[#FF6B00]" />
+                    <span>Total Floors</span>
                   </label>
                   <input
                     type="number"
                     required
-                    value={unitCount}
-                    onChange={(e) => setUnitCount(e.target.value)}
-                    placeholder="12"
+                    min="1"
+                    value={floors}
+                    onChange={(e) => setFloors(e.target.value)}
+                    placeholder="4"
+                    className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-300 uppercase mb-1.5 flex items-center justify-between">
+                    <span>Units / Rooms per Floor</span>
+                    <span className="text-[10px] text-amber-400 font-extrabold normal-case">
+                      ={totalCalculatedUnits} Total Units
+                    </span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={unitsPerFloor}
+                    onChange={(e) => setUnitsPerFloor(e.target.value)}
+                    placeholder="3"
                     className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-300 uppercase mb-1.5">
-                  Property Street Address & Location
-                </label>
-                <input
-                  type="text"
-                  value={propertyAddress}
-                  onChange={(e) => setPropertyAddress(e.target.value)}
-                  placeholder="e.g. 742 Evergreen Terrace, San Francisco, CA"
-                  className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
+              {/* PIN / ZIP Code with Location Auto-Detect */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-300 uppercase mb-1.5">
+                    Postal / PIN Code
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={pincode}
+                      onChange={handlePincodeChange}
+                      placeholder="94102 / 110001"
+                      className="w-full px-3.5 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                    {isFetchingLocation && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#FF6B00]">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-300 uppercase mb-1.5 flex items-center justify-between">
+                    <span>Full Street Address</span>
+                    {locationMessage && (
+                      <span className="text-[10px] text-emerald-400 font-bold truncate max-w-[180px]">
+                        {locationMessage}
+                      </span>
+                    )}
+                  </label>
+                  <div className="relative">
+                    <MapPin className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type="text"
+                      value={propertyAddress}
+                      onChange={(e) => setPropertyAddress(e.target.value)}
+                      placeholder="742 Evergreen Terrace, San Francisco, CA"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                </div>
               </div>
+
             </div>
           )}
 
