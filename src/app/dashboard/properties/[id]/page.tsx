@@ -23,9 +23,30 @@ import {
   MapPin,
   Sparkles,
   Search,
-  Filter
+  Filter,
+  X,
+  ChevronDown
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+
+// Interface for unit item
+export interface UnitItem {
+  unitNo: string;
+  type: string;
+  sqft: string;
+  rooms: string;
+  rent: string;
+  status: "Occupied" | "Vacant";
+  tenant: {
+    name: string;
+    contact: string;
+    phone: string;
+    email: string;
+    moveIn: string;
+    leaseEnd: string;
+    health: string;
+  } | null;
+}
 
 // Mock data repository of properties
 const PROPERTIES_DB: Record<string, {
@@ -93,20 +114,46 @@ export default function PropertyFloorPlanPage() {
   const propId = (params?.id as string) || "PROP-1";
   const property = PROPERTIES_DB[propId] || PROPERTIES_DB["PROP-1"];
 
-  const totalFloors = property.floors || 4;
-  const floorsList = Array.from({ length: totalFloors }, (_, i) => totalFloors - i); // Top floor down to 1st
-
+  const [floorsCount, setFloorsCount] = useState<number>(property.floors || 4);
   const [selectedFloor, setSelectedFloor] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "occupied" | "vacant">("all");
 
-  // Generate deterministic units per floor based on property category
-  const getFloorUnits = (floorNum: number) => {
+  // Dynamic Units State indexed by Floor Number
+  const [floorUnitsMap, setFloorUnitsMap] = useState<Record<number, UnitItem[]>>({});
+
+  // Modals state
+  const [showAddFloorModal, setShowAddFloorModal] = useState(false);
+  const [showAddUnitModal, setShowAddUnitModal] = useState(false);
+
+  // Add Floor Modal Form State
+  const [newFloorUsage, setNewFloorUsage] = useState("Residential Living Suites");
+
+  // Add Unit Modal Form State
+  const [unitFloorTarget, setUnitFloorTarget] = useState<number>(1);
+  const [newUnitNo, setNewUnitNo] = useState("");
+  const [newUnitType, setNewUnitType] = useState("2 BHK Executive Suite");
+  const [newSqft, setNewSqft] = useState("950 sq ft");
+  const [newRooms, setNewRooms] = useState("2 Bedrooms • 2 Baths • Living Room • Kitchen • Balcony");
+  const [newRent, setNewRent] = useState("3200");
+  const [newStatus, setNewStatus] = useState<"Occupied" | "Vacant">("Vacant");
+  const [newTenantName, setNewTenantName] = useState("");
+
+  const floorsList = Array.from({ length: floorsCount }, (_, i) => floorsCount - i); // Top floor down to 1st
+
+  // Generate initial units if not already in state
+  const getFloorUnits = (floorNum: number): UnitItem[] => {
+    if (floorUnitsMap[floorNum]) {
+      return floorUnitsMap[floorNum];
+    }
+
     const isCommercial = property.tag.toLowerCase().includes("commercial") || property.tag.toLowerCase().includes("office");
     const isCoLiving = property.tag.toLowerCase().includes("student") || property.tag.toLowerCase().includes("co-living");
 
+    let initialUnits: UnitItem[] = [];
+
     if (isCommercial) {
-      return [
+      initialUnits = [
         {
           unitNo: `Suite ${floorNum}01`,
           type: "Executive Corporate Suite",
@@ -134,10 +181,8 @@ export default function PropertyFloorPlanPage() {
           tenant: null,
         },
       ];
-    }
-
-    if (isCoLiving) {
-      return [
+    } else if (isCoLiving) {
+      initialUnits = [
         {
           unitNo: `Room ${floorNum}01-A`,
           type: "Twin Sharing Deluxe Pod",
@@ -173,83 +218,85 @@ export default function PropertyFloorPlanPage() {
           },
         },
       ];
+    } else {
+      // Default Residential Apartments
+      initialUnits = [
+        {
+          unitNo: `Unit ${floorNum}01`,
+          type: "2 BHK Executive Suite",
+          sqft: "980 sq ft",
+          rooms: "2 Bedrooms • 2 Baths • Living Room • Kitchen • Balcony",
+          rent: "$3,200/mo",
+          status: "Occupied",
+          tenant: {
+            name: "Eleanor Vance",
+            contact: "Primary Resident",
+            phone: "+1 (555) 234-5678",
+            email: "eleanor.vance@gmail.com",
+            moveIn: "2025-08-01",
+            leaseEnd: "2026-07-31",
+            health: "Autopilot ACH — 100% On-Time",
+          },
+        },
+        {
+          unitNo: `Unit ${floorNum}02`,
+          type: "3 BHK Premium Corner",
+          sqft: "1,350 sq ft",
+          rooms: "3 Bedrooms • 3 Baths • Modular Kitchen • 2 Balconies",
+          rent: "$4,100/mo",
+          status: floorNum % 2 === 0 ? "Vacant" : "Occupied",
+          tenant: floorNum % 2 === 0 ? null : {
+            name: "Marcus Sterling",
+            contact: "Primary Resident",
+            phone: "+1 (555) 492-0192",
+            email: "marcus.s@sterling.co",
+            moveIn: "2024-11-15",
+            leaseEnd: "2026-11-14",
+            health: "Autopilot UPI — Paid",
+          },
+        },
+        {
+          unitNo: `Unit ${floorNum}03`,
+          type: "1 BHK Studio Apartment",
+          sqft: "650 sq ft",
+          rooms: "1 Bedroom • 1 Bath • Open Plan Kitchen",
+          rent: "$2,450/mo",
+          status: "Occupied",
+          tenant: {
+            name: "Sophia Martinez",
+            contact: "Primary Resident",
+            phone: "+1 (555) 718-2940",
+            email: "sophia.m@designstudio.com",
+            moveIn: "2026-01-10",
+            leaseEnd: "2027-01-09",
+            health: "Autopilot ACH — On Time",
+          },
+        },
+        {
+          unitNo: `Unit ${floorNum}04`,
+          type: "2 BHK Penthouse View",
+          sqft: "1,050 sq ft",
+          rooms: "2 Bedrooms • 2 Baths • Terrace View • Covered Parking",
+          rent: "$3,600/mo",
+          status: "Occupied",
+          tenant: {
+            name: "David Chen",
+            contact: "Primary Resident",
+            phone: "+1 (555) 902-1182",
+            email: "david.c@chentech.org",
+            moveIn: "2025-05-01",
+            leaseEnd: "2026-04-30",
+            health: "Pending Reminders",
+          },
+        },
+      ];
     }
 
-    // Default Residential Apartments
-    return [
-      {
-        unitNo: `Unit ${floorNum}01`,
-        type: "2 BHK Executive Suite",
-        sqft: "980 sq ft",
-        rooms: "2 Bedrooms • 2 Baths • Living Room • Kitchen • Balcony",
-        rent: "$3,200/mo",
-        status: "Occupied",
-        tenant: {
-          name: "Eleanor Vance",
-          contact: "Primary Resident",
-          phone: "+1 (555) 234-5678",
-          email: "eleanor.vance@gmail.com",
-          moveIn: "2025-08-01",
-          leaseEnd: "2026-07-31",
-          health: "Autopilot ACH — 100% On-Time",
-        },
-      },
-      {
-        unitNo: `Unit ${floorNum}02`,
-        type: "3 BHK Premium Corner",
-        sqft: "1,350 sq ft",
-        rooms: "3 Bedrooms • 3 Baths • Modular Kitchen • 2 Balconies",
-        rent: "$4,100/mo",
-        status: floorNum % 2 === 0 ? "Vacant" : "Occupied",
-        tenant: floorNum % 2 === 0 ? null : {
-          name: "Marcus Sterling",
-          contact: "Primary Resident",
-          phone: "+1 (555) 492-0192",
-          email: "marcus.s@sterling.co",
-          moveIn: "2024-11-15",
-          leaseEnd: "2026-11-14",
-          health: "Autopilot UPI — Paid",
-        },
-      },
-      {
-        unitNo: `Unit ${floorNum}03`,
-        type: "1 BHK Studio Apartment",
-        sqft: "650 sq ft",
-        rooms: "1 Bedroom • 1 Bath • Open Plan Kitchen",
-        rent: "$2,450/mo",
-        status: "Occupied",
-        tenant: {
-          name: "Sophia Martinez",
-          contact: "Primary Resident",
-          phone: "+1 (555) 718-2940",
-          email: "sophia.m@designstudio.com",
-          moveIn: "2026-01-10",
-          leaseEnd: "2027-01-09",
-          health: "Autopilot ACH — On Time",
-        },
-      },
-      {
-        unitNo: `Unit ${floorNum}04`,
-        type: "2 BHK Penthouse View",
-        sqft: "1,050 sq ft",
-        rooms: "2 Bedrooms • 2 Baths • Terrace View • Covered Parking",
-        rent: "$3,600/mo",
-        status: "Occupied",
-        tenant: {
-          name: "David Chen",
-          contact: "Primary Resident",
-          phone: "+1 (555) 902-1182",
-          email: "david.c@chentech.org",
-          moveIn: "2025-05-01",
-          leaseEnd: "2026-04-30",
-          health: "Pending Reminders",
-        },
-      },
-    ];
+    return initialUnits;
   };
 
-  const rawUnits = getFloorUnits(selectedFloor);
-  const currentUnits = rawUnits.filter((u) => {
+  const currentRawUnits = getFloorUnits(selectedFloor);
+  const currentUnits = currentRawUnits.filter((u) => {
     if (filterStatus === "occupied" && u.status !== "Occupied") return false;
     if (filterStatus === "vacant" && u.status !== "Vacant") return false;
     if (searchQuery.trim()) {
@@ -258,6 +305,74 @@ export default function PropertyFloorPlanPage() {
     }
     return true;
   });
+
+  // Handler: Add Floor Level
+  const handleAddFloorSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newFloorNumber = floorsCount + 1;
+    setFloorsCount(newFloorNumber);
+    setSelectedFloor(newFloorNumber);
+
+    // Initialize default units for new floor
+    const defaultUnits: UnitItem[] = [
+      {
+        unitNo: `Unit ${newFloorNumber}01`,
+        type: newFloorUsage,
+        sqft: "1,100 sq ft",
+        rooms: "2 Bedrooms • 2 Baths • Balcony",
+        rent: "$3,400/mo",
+        status: "Vacant",
+        tenant: null,
+      },
+      {
+        unitNo: `Unit ${newFloorNumber}02`,
+        type: newFloorUsage,
+        sqft: "1,250 sq ft",
+        rooms: "3 Bedrooms • 2 Baths • Balcony",
+        rent: "$3,800/mo",
+        status: "Vacant",
+        tenant: null,
+      },
+    ];
+
+    setFloorUnitsMap((prev) => ({ ...prev, [newFloorNumber]: defaultUnits }));
+    toast(`Floor ${newFloorNumber} added to ${property.name}!`, "success");
+    setShowAddFloorModal(false);
+  };
+
+  // Handler: Add Unit
+  const handleAddUnitSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetFl = unitFloorTarget || selectedFloor;
+    const finalUnitNo = newUnitNo.trim() || `Unit ${targetFl}0${(getFloorUnits(targetFl).length + 1)}`;
+
+    const newUnitObj: UnitItem = {
+      unitNo: finalUnitNo,
+      type: newUnitType,
+      sqft: newSqft || "950 sq ft",
+      rooms: newRooms || "2 Bedrooms • 2 Baths • Kitchen",
+      rent: `$${newRent}/mo`,
+      status: newStatus,
+      tenant: newStatus === "Occupied" ? {
+        name: newTenantName.trim() || "New Resident",
+        contact: "Primary Resident",
+        phone: "+1 (555) 019-2831",
+        email: "resident@rentawas.com",
+        moveIn: "2026-08-01",
+        leaseEnd: "2027-07-31",
+        health: "Autopilot ACH — Active",
+      } : null,
+    };
+
+    const existingUnits = getFloorUnits(targetFl);
+    const updatedUnits = [newUnitObj, ...existingUnits];
+
+    setFloorUnitsMap((prev) => ({ ...prev, [targetFl]: updatedUnits }));
+    toast(`${finalUnitNo} created on Floor ${targetFl}!`, "success");
+    setNewUnitNo("");
+    setNewTenantName("");
+    setShowAddUnitModal(false);
+  };
 
   return (
     <div className="space-y-8 font-sans">
@@ -290,7 +405,7 @@ export default function PropertyFloorPlanPage() {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => toast(`Adding new floor level to ${property.name}...`, "info")}
+            onClick={() => setShowAddFloorModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all uppercase tracking-wider cursor-pointer"
           >
             <Plus className="w-4 h-4 text-orange-400" />
@@ -298,7 +413,10 @@ export default function PropertyFloorPlanPage() {
           </button>
 
           <button
-            onClick={() => toast(`Adding unit to Floor ${selectedFloor}...`, "success")}
+            onClick={() => {
+              setUnitFloorTarget(selectedFloor);
+              setShowAddUnitModal(true);
+            }}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -311,11 +429,11 @@ export default function PropertyFloorPlanPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs">
         <div>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Total Floors</span>
-          <span className="text-xl font-black text-slate-900">{property.floors} Floors</span>
+          <span className="text-xl font-black text-slate-900">{floorsCount} Floors</span>
         </div>
         <div>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Total Unit Inventory</span>
-          <span className="text-xl font-black text-slate-900">{property.units} Units</span>
+          <span className="text-xl font-black text-slate-900">{floorsCount * 4} Units</span>
         </div>
         <div>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Occupancy Rate</span>
@@ -337,7 +455,7 @@ export default function PropertyFloorPlanPage() {
               <Layers className="w-4 h-4 text-[#FF6B00]" />
               <span>Building Floors (Elevator)</span>
             </h3>
-            <span className="text-xs font-bold text-slate-500">{totalFloors} Levels</span>
+            <span className="text-xs font-bold text-slate-500">{floorsCount} Levels</span>
           </div>
 
           <div className="space-y-2.5">
@@ -355,10 +473,10 @@ export default function PropertyFloorPlanPage() {
                 >
                   <div>
                     <span className="text-sm font-extrabold block">
-                      Floor {fl} {fl === totalFloors ? "(Penthouse Suite)" : fl === 1 ? "(Ground Floor)" : ""}
+                      Floor {fl} {fl === floorsCount ? "(Top Penthouse)" : fl === 1 ? "(Ground Floor)" : ""}
                     </span>
                     <span className={`text-xs ${isSelected ? "text-slate-300" : "text-slate-500"}`}>
-                      {property.tag.includes("Commercial") ? "2 Executive Suites" : "4 Residential Apartments"}
+                      {property.tag.includes("Commercial") ? "2 Executive Suites" : `${getFloorUnits(fl).length} Units Configured`}
                     </span>
                   </div>
 
@@ -373,6 +491,14 @@ export default function PropertyFloorPlanPage() {
               );
             })}
           </div>
+
+          <button
+            onClick={() => setShowAddFloorModal(true)}
+            className="w-full py-2.5 border border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-50 text-[#FF6B00] rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Add New Floor Level</span>
+          </button>
         </div>
 
         {/* Right Main Column: Full Floor Breakdown & Units (8 Cols) */}
@@ -496,7 +622,7 @@ export default function PropertyFloorPlanPage() {
 
                       <div className="flex items-center gap-2 pt-1">
                         <button
-                          onClick={() => toast(`Calling ${u.tenant.name} (${u.tenant.phone})...`, "info")}
+                          onClick={() => toast(`Calling ${u.tenant?.name} (${u.tenant?.phone})...`, "info")}
                           className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <Phone className="w-3.5 h-3.5 text-emerald-400" />
@@ -538,6 +664,255 @@ export default function PropertyFloorPlanPage() {
         </div>
 
       </div>
+
+      {/* ------------------- MODAL 1: ADD FLOOR LEVEL MODAL ------------------- */}
+      {showAddFloorModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <form
+            onSubmit={handleAddFloorSubmit}
+            className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative font-sans"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-orange-50 text-[#FF6B00]">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 leading-none">Add Floor Level</h3>
+                  <p className="text-xs text-slate-500 mt-1">Append new floor level to {property.name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddFloorModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">New Floor Designation</label>
+                <input
+                  type="text"
+                  disabled
+                  value={`Floor ${floorsCount + 1} (Level ${floorsCount + 1})`}
+                  className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Floor Primary Usage Category</label>
+                <div className="relative">
+                  <select
+                    value={newFloorUsage}
+                    onChange={(e) => setNewFloorUsage(e.target.value)}
+                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    <option value="Residential Living Suites">Residential Living Suites</option>
+                    <option value="Executive Corporate Office">Executive Corporate Office</option>
+                    <option value="Boutique Penthouse Terrace">Boutique Penthouse Terrace</option>
+                    <option value="Fitness & Amenity Lounge">Fitness & Amenity Lounge</option>
+                    <option value="Covered Parking & Storage">Covered Parking & Storage</option>
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-orange-50/60 border border-orange-200 rounded-xl text-[11px] text-slate-600 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#FF6B00] shrink-0" />
+                <span>Will auto-generate 2 starter unit slots on Floor {floorsCount + 1}.</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowAddFloorModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create Floor Level</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ------------------- MODAL 2: ADD UNIT MODAL ------------------- */}
+      {showAddUnitModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <form
+            onSubmit={handleAddUnitSubmit}
+            className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 sm:p-8 space-y-4 shadow-2xl relative font-sans"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-orange-50 text-[#FF6B00]">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 leading-none">Add New Unit</h3>
+                  <p className="text-xs text-slate-500 mt-1">Add unit specification to Floor {unitFloorTarget}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddUnitModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Target Floor Level</label>
+                  <div className="relative">
+                    <select
+                      value={unitFloorTarget}
+                      onChange={(e) => setUnitFloorTarget(Number(e.target.value))}
+                      className="w-full appearance-none pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    >
+                      {floorsList.map((fl) => (
+                        <option key={fl} value={fl}>Floor {fl}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Unit Number / Code</label>
+                  <input
+                    type="text"
+                    value={newUnitNo}
+                    onChange={(e) => setNewUnitNo(e.target.value)}
+                    placeholder={`e.g. Unit ${unitFloorTarget}05`}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Unit Category Layout</label>
+                <div className="relative">
+                  <select
+                    value={newUnitType}
+                    onChange={(e) => setNewUnitType(e.target.value)}
+                    className="w-full appearance-none pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    <option value="2 BHK Executive Suite">2 BHK Executive Suite</option>
+                    <option value="3 BHK Premium Corner">3 BHK Premium Corner</option>
+                    <option value="1 BHK Studio Apartment">1 BHK Studio Apartment</option>
+                    <option value="Penthouse Terrace Suite">Penthouse Terrace Suite</option>
+                    <option value="Corporate Office Cabin">Corporate Office Cabin</option>
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Area (sq ft)</label>
+                  <input
+                    type="text"
+                    value={newSqft}
+                    onChange={(e) => setNewSqft(e.target.value)}
+                    placeholder="e.g. 950 sq ft"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Base Rent ($ / ₹)</label>
+                  <input
+                    type="number"
+                    value={newRent}
+                    onChange={(e) => setNewRent(e.target.value)}
+                    placeholder="3200"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Room Specs Breakdown</label>
+                <input
+                  type="text"
+                  value={newRooms}
+                  onChange={(e) => setNewRooms(e.target.value)}
+                  placeholder="e.g. 2 Bedrooms • 2 Baths • Living Room • Balcony"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Occupancy Status</label>
+                  <div className="relative">
+                    <select
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value as any)}
+                      className="w-full appearance-none pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    >
+                      <option value="Vacant">Vacant (Ready)</option>
+                      <option value="Occupied">Occupied (Assign Resident)</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+
+                {newStatus === "Occupied" && (
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Primary Resident Name</label>
+                    <input
+                      type="text"
+                      value={newTenantName}
+                      onChange={(e) => setNewTenantName(e.target.value)}
+                      placeholder="e.g. Alexander Wright"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowAddUnitModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create Unit</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
     </div>
   );
