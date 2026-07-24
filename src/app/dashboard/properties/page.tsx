@@ -19,6 +19,7 @@ import {
   Layers
 } from "lucide-react";
 import AddPropertyModal, { PropertyData } from "@/components/ui/AddPropertyModal";
+import FloorPlanDrawer from "@/components/ui/FloorPlanDrawer";
 import { useToast } from "@/components/ui/Toast";
 
 export interface PropertyItem {
@@ -38,6 +39,9 @@ export default function PropertiesPage() {
   const { toast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  // Floor Plan Drawer State
+  const [selectedFloorPlanProp, setSelectedFloorPlanProp] = useState<PropertyItem | null>(null);
 
   // Edit Modal State
   const [editingProp, setEditingProp] = useState<PropertyItem | null>(null);
@@ -244,13 +248,13 @@ export default function PropertiesPage() {
 
             {/* Actions Footer */}
             <div className="flex items-center justify-between pt-2">
-              <button 
-                onClick={() => toast(`Managing floor plans for ${prop.name} (${prop.floors} Floors)`, "info")}
-                className="text-xs font-bold text-slate-700 hover:text-slate-950 flex items-center gap-1 cursor-pointer"
+              <Link 
+                href={`/dashboard/properties/${prop.id}`}
+                className="text-xs font-bold text-[#FF6B00] hover:text-[#E56000] flex items-center gap-1 cursor-pointer"
               >
                 <span>View Floor Plans & Units</span>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
-              </button>
+                <ChevronRight className="w-4 h-4 text-[#FF6B00]" />
+              </Link>
             </div>
           </div>
         ))}
