@@ -248,14 +248,6 @@ export default function DashboardLayout({
 
           {/* Actions & Notifications */}
           <div className="flex items-center gap-3">
-            {/* Quick Action Button */}
-            <Link
-              href="/dashboard/leases"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold transition-all shadow-xs cursor-pointer uppercase tracking-wider"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Lease</span>
-            </Link>
 
             {/* Notifications Trigger */}
             <div className="relative">
