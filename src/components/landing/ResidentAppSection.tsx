@@ -3,155 +3,224 @@
 import Image from "next/image";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Home, Wrench, User, CreditCard, Megaphone } from "lucide-react";
+import { 
+  Home, 
+  Wrench, 
+  User, 
+  CreditCard, 
+  Megaphone, 
+  Building2, 
+  TrendingUp, 
+  DollarSign, 
+  CheckCircle2, 
+  Zap, 
+  FileText, 
+  ArrowUpRight,
+  Sparkles,
+  ShieldCheck,
+  Laptop
+} from "lucide-react";
 import { IconOneTapPayments, IconSmartAnnouncements } from "@/components/ui/CustomIcons";
 
 export default function ResidentAppSection() {
-  const [useLiveUI, setUseLiveUI] = useState(false);
+  const [activeTab, setActiveTab] = useState<"dashboard" | "tenant" | "documents">("dashboard");
 
   return (
     <section id="solutions" className="py-20 md:py-28 bg-[#F8FAFC] overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 sm:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
-          {/* Left Column: Phone Mockup Frame (5 cols) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
+          
+          {/* Left Column: Sleek Laptop Mockup Frame (7 cols) */}
           <motion.div 
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.6 }}
-            className="lg:col-span-5 flex flex-col items-center justify-center relative"
+            className="lg:col-span-7 flex flex-col items-center justify-center relative font-sans"
           >
-            {/* Static Phone Outer Bezel Container */}
-            <div className="relative w-full max-w-[320px] sm:max-w-[340px] aspect-[9/18.5] bg-[#0B132B] rounded-[48px] p-3 shadow-2xl border-4 border-slate-900 group">
-              {/* Dynamic Island / Notch */}
-              <div className="absolute top-6 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full z-30 flex items-center justify-end px-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-800 border border-slate-700"></span>
+            {/* Laptop Screen Body */}
+            <div className="relative w-full max-w-[620px] bg-slate-950 rounded-t-2xl p-2.5 sm:p-3 shadow-2xl border-[3px] border-slate-800/90 group">
+              
+              {/* Web Camera Lens */}
+              <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rounded-full border border-slate-700/80 z-30 flex items-center justify-center">
+                <span className="w-0.5 h-0.5 rounded-full bg-blue-900 animate-pulse"></span>
               </div>
 
-              {/* Phone Screen Area */}
-              <div className="relative w-full h-full rounded-[40px] overflow-hidden bg-white text-left font-sans">
-                {useLiveUI ? (
-                  /* Rendered Interactive Mobile Interface */
-                  <div className="w-full h-full pt-10 pb-4 px-4 bg-slate-50 flex flex-col justify-between overflow-y-auto">
-                    {/* App Header */}
+              {/* Laptop Screen Container (Browser Window) */}
+              <div className="relative w-full aspect-[16/10] bg-white rounded-t-xl rounded-b-sm overflow-hidden text-left font-sans flex flex-col shadow-inner">
+                
+                {/* Browser Top Bar */}
+                <div className="h-8 bg-slate-900 border-b border-slate-800 px-3 flex items-center justify-between shrink-0 select-none">
+                  {/* macOS Window Controls */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500/90 inline-block"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500/90 inline-block"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/90 inline-block"></span>
+                  </div>
+
+                  {/* Browser Address Bar */}
+                  <div className="flex-1 max-w-[280px] mx-auto bg-slate-800/90 border border-slate-700/80 rounded-md px-3 py-0.5 text-[10px] font-mono text-slate-300 flex items-center justify-center gap-1.5 shadow-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="text-slate-400">https://</span>
+                    <span className="text-white font-bold">app.rentawas.com</span>
+                    <span className="text-slate-400">/dashboard</span>
+                  </div>
+
+                  {/* Live Status Badge */}
+                  <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-2 py-0.5 rounded-full uppercase tracking-wider hidden sm:inline-block">
+                    Live Platform
+                  </span>
+                </div>
+
+                {/* Dashboard Page Content Mockup inside Laptop Screen */}
+                <div className="flex-1 bg-slate-50 p-4 sm:p-5 overflow-y-auto space-y-4">
+                  
+                  {/* Top Dashboard Header inside Screen */}
+                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
                     <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xl font-extrabold text-[#0B132B]">RentAwas</span>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] text-slate-400">Welcome,</p>
-                          <p className="text-xs font-bold text-slate-800">Sarah Chen</p>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm sm:text-base font-black text-slate-900">Mission Control Overview</span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-extrabold uppercase">Autopilot Active</span>
                       </div>
-
-                      {/* Rent Due Balance Card */}
-                      <div className="bg-[#181E2A] text-white rounded-2xl p-4 mb-4 shadow-sm">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs text-slate-400">Rent Due</p>
-                          <p className="text-[10px] text-slate-400 font-medium">Due: Oct 05, 2024</p>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <p className="text-xl font-extrabold text-white">₹18,500</p>
-                          <button className="px-3.5 py-1.5 rounded-lg bg-[#FF6B00] text-white text-xs font-bold hover:bg-[#E56000]">
-                            Pay Now
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Quick Actions 3 Grid */}
-                      <p className="text-xs font-bold text-slate-800 mb-2">Quick Actions</p>
-                      <div className="grid grid-cols-3 gap-2 mb-4">
-                        <button className="bg-[#0B132B] text-white rounded-xl p-3 flex flex-col items-center justify-center gap-1 text-center hover:opacity-90">
-                          <CreditCard className="w-4 h-4 text-sky-400" />
-                          <span className="text-[10px] font-semibold leading-tight">Pay Rent</span>
-                        </button>
-                        <button className="bg-[#0B132B] text-white rounded-xl p-3 flex flex-col items-center justify-center gap-1 text-center hover:opacity-90">
-                          <Wrench className="w-4 h-4 text-orange-400" />
-                          <span className="text-[10px] font-semibold leading-tight">Raise Ticket</span>
-                        </button>
-                        <button className="bg-[#0B132B] text-white rounded-xl p-3 flex flex-col items-center justify-center gap-1 text-center hover:opacity-90">
-                          <Megaphone className="w-4 h-4 text-purple-400" />
-                          <span className="text-[10px] font-semibold leading-tight">Announcements</span>
-                        </button>
-                      </div>
-
-                      {/* Announcements Card */}
-                      <div className="bg-white border border-slate-200/80 rounded-xl p-3 mb-3 shadow-2xs">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                          Announcements
-                        </p>
-                        <p className="text-xs font-semibold text-slate-800">
-                          Water Shutdown Maintenance - Oct 10, 9AM-1PM
-                        </p>
-                      </div>
-
-                      {/* Maintenance Request Card */}
-                      <div className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-2xs">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                          Maintenance Requests
-                        </p>
-                        <p className="text-xs font-semibold text-slate-800">
-                          Ticket #1645 - AC Repair | <span className="text-amber-600">In Progress</span>
-                        </p>
-                      </div>
+                      <p className="text-[10px] text-slate-500">Real-time yield telemetry for The Regent Portfolio.</p>
                     </div>
 
-                    {/* Bottom Nav Bar */}
-                    <div className="pt-2 border-t border-slate-200/80 flex items-center justify-around text-slate-400">
-                      <div className="flex flex-col items-center text-[#0B132B]">
-                        <Home className="w-4 h-4" />
-                        <span className="text-[9px] font-bold mt-0.5">Home</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <CreditCard className="w-4 h-4" />
-                        <span className="text-[9px] mt-0.5">Payments</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <Wrench className="w-4 h-4" />
-                        <span className="text-[9px] mt-0.5">Maintenance</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <User className="w-4 h-4" />
-                        <span className="text-[9px] mt-0.5">Profile</span>
-                      </div>
+                    <div className="flex items-center gap-1.5">
+                      <button 
+                        onClick={() => setActiveTab("dashboard")}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                          activeTab === "dashboard" ? "bg-slate-900 text-white" : "bg-white text-slate-700 border border-slate-200"
+                        }`}
+                      >
+                        Overview
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab("tenant")}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                          activeTab === "tenant" ? "bg-[#FF6B00] text-white" : "bg-white text-slate-700 border border-slate-200"
+                        }`}
+                      >
+                        Resident View
+                      </button>
                     </div>
                   </div>
-                ) : (
-                  /* Photo Mockup Image matching reference */
-                  <div className="relative w-full h-full">
-                    <Image
-                      src="/resident-app.png"
-                      alt="RentAwas Resident Mobile App Screen"
-                      fill
-                      priority
-                      className="object-cover object-center"
-                    />
-                  </div>
-                )}
+
+                  {/* Dynamic Screen Content based on Active Tab */}
+                  {activeTab === "dashboard" ? (
+                    <div className="space-y-3">
+                      {/* Metric Cards Row */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">Monthly Rent Collected</span>
+                          <div className="text-base font-black text-slate-900 mt-0.5">$148,500</div>
+                          <div className="text-[9px] text-emerald-600 font-bold flex items-center gap-0.5 mt-0.5">
+                            <ArrowUpRight className="w-3 h-3" />
+                            <span>+11.2% this month</span>
+                          </div>
+                        </div>
+
+                        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">Collection Rate</span>
+                          <div className="text-base font-black text-emerald-600 mt-0.5">98.6%</div>
+                          <div className="text-[9px] text-slate-500 font-medium mt-0.5">Auto-Debit ACH</div>
+                        </div>
+
+                        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">Active Properties</span>
+                          <div className="text-base font-black text-slate-900 mt-0.5">4 Buildings</div>
+                          <div className="text-[9px] text-slate-500 font-medium mt-0.5">62 Total Units</div>
+                        </div>
+                      </div>
+
+                      {/* Autopilot Recent Transactions Table */}
+                      <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs space-y-2">
+                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase">
+                          <span>Live Autopilot Rent Disbursal Feed</span>
+                          <span className="text-emerald-600">Updated 2m ago</span>
+                        </div>
+
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg text-[11px]">
+                            <div>
+                              <span className="font-bold text-slate-900 block">Eleanor Vance — Unit 302</span>
+                              <span className="text-[9px] text-slate-500">The Regent • Auto-Debit (ACH)</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-black text-slate-900 block">$3,200</span>
+                              <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Disbursed</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg text-[11px]">
+                            <div>
+                              <span className="font-bold text-slate-900 block">Marcus Sterling — Suite 104</span>
+                              <span className="text-[9px] text-slate-500">Downtown Horizon • UPI Gateway</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-black text-slate-900 block">$2,850</span>
+                              <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Disbursed</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Tenant Resident View inside Laptop Screen */
+                    <div className="space-y-3">
+                      <div className="bg-slate-900 text-white rounded-xl p-3 flex items-center justify-between shadow-sm">
+                        <div>
+                          <span className="text-[10px] text-slate-400 uppercase font-bold block">Current Rent Due</span>
+                          <span className="text-lg font-black text-white">$1,250.00</span>
+                        </div>
+                        <button className="px-3 py-1.5 bg-[#FF6B00] text-white font-bold text-xs rounded-lg shadow-xs">
+                          Pay Rent Now
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="p-2.5 bg-white border border-slate-200 rounded-xl">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block">Maintenance Ticket</span>
+                          <span className="text-xs font-bold text-slate-800 block mt-0.5">AC Filter Replacement</span>
+                          <span className="text-[9px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded inline-block mt-1">Vendor Dispatched</span>
+                        </div>
+                        <div className="p-2.5 bg-white border border-slate-200 rounded-xl">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block">Lease Agreement</span>
+                          <span className="text-xs font-bold text-slate-800 block mt-0.5">Residential Lease 2026</span>
+                          <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded inline-block mt-1">Verified & Signed</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
               </div>
+
             </div>
 
-            {/* View Mode Toggle Pill under phone */}
-            <button
-              onClick={() => setUseLiveUI(!useLiveUI)}
-              className="mt-4 text-xs font-semibold text-slate-600 hover:text-slate-900 underline transition-colors cursor-pointer font-sans"
-            >
-              {useLiveUI ? "Switch to Photo View" : "Switch to Interactive Mobile Screen"}
-            </button>
+            {/* Laptop Metallic Base / Keyboard Deck */}
+            <div className="w-full max-w-[700px] h-3.5 sm:h-4 bg-gradient-to-b from-slate-700 via-slate-800 to-slate-900 rounded-b-xl border-t border-slate-600/80 shadow-xl relative flex items-center justify-center">
+              {/* Trackpad Opening Notch */}
+              <div className="w-20 sm:w-24 h-1.5 bg-slate-950 rounded-b-md border border-slate-700/60 shadow-inner"></div>
+            </div>
+
+            {/* Screen View Mode Switcher Pill */}
+            <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-600 font-sans">
+              <Laptop className="w-4 h-4 text-[#FF6B00]" />
+              <span>Interactive Desktop & Laptop Dashboard View</span>
+            </div>
           </motion.div>
 
-          {/* Right Column: Text & Features (7 cols) */}
+          {/* Right Column: Text & Features (5 cols) */}
           <motion.div 
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.6 }}
-            className="lg:col-span-7"
+            className="lg:col-span-5"
           >
             {/* Category Tag */}
             <span className="text-xs sm:text-sm font-bold text-[#FF6B00] uppercase tracking-wider block mb-3 font-sans">
-              RESIDENT APP
+              ENTERPRISE PLATFORM
             </span>
 
             {/* Cormorant Garamond Headline */}
@@ -162,47 +231,47 @@ export default function ResidentAppSection() {
               Delight your tenants with the platform they deserve.
             </h2>
 
-            {/* Inter Subheadline */}
-            <p className="text-slate-600 font-normal text-base sm:text-lg max-w-xl leading-relaxed mb-10 font-sans">
-              Give residents a premium mobile experience. Rent payments, maintenance reporting, and community updates, all in their pocket.
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed mb-8 font-sans">
+              Give landlords and tenants a state-of-the-art desktop & web experience. Instant rent disbursals, maintenance reporting, and legal documents all in one places.
             </p>
 
-            {/* Feature Item 1 */}
-            <div className="flex items-start gap-4 mb-8 font-sans">
-              <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 text-sky-700 flex items-center justify-center shrink-0 mt-1 shadow-2xs font-bold">
+            {/* Feature List 1: One-Tap Payments */}
+            <div className="flex items-start gap-4 mb-6 font-sans">
+              <div className="p-3 rounded-2xl bg-[#FF6B00]/10 text-[#FF6B00] shrink-0 mt-0.5">
                 <IconOneTapPayments className="w-6 h-6" />
               </div>
               <div>
                 <h3 
-                  className="text-xl sm:text-2xl font-bold text-slate-900 mb-1"
+                  className="text-lg font-bold text-[#0B132B] mb-1"
                   style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
                 >
-                  One-Tap Payments
+                  One-Tap Autopilot Payments
                 </h3>
-                <p className="text-slate-600 font-normal text-sm sm:text-base leading-relaxed font-sans">
-                  Support for Apple Pay, Google Pay, and automatic bank transfers.
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                  Support for Apple Pay, Google Pay, Razorpay UPI, and automatic ACH bank transfers.
                 </p>
               </div>
             </div>
 
-            {/* Feature Item 2 */}
+            {/* Feature List 2: Smart Announcements */}
             <div className="flex items-start gap-4 font-sans">
-              <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 text-sky-700 flex items-center justify-center shrink-0 mt-1 shadow-2xs font-bold">
+              <div className="p-3 rounded-2xl bg-[#FF6B00]/10 text-[#FF6B00] shrink-0 mt-0.5">
                 <IconSmartAnnouncements className="w-6 h-6" />
               </div>
               <div>
                 <h3 
-                  className="text-xl sm:text-2xl font-bold text-slate-900 mb-1"
+                  className="text-lg font-bold text-[#0B132B] mb-1"
                   style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
                 >
-                  Smart Announcements
+                  Smart Building Announcements & AI Docs
                 </h3>
-                <p className="text-slate-600 font-normal text-sm sm:text-base leading-relaxed font-sans">
-                  Geo-targeted push notifications for building maintenance or events.
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                  Geo-targeted push notifications, maintenance dispatch, and automated legal lease generation.
                 </p>
               </div>
             </div>
           </motion.div>
+
         </div>
       </div>
     </section>
