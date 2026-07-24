@@ -31,7 +31,12 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Monitor,
+  Smartphone,
+  Laptop,
+  Copy,
+  AlertTriangle
 } from "lucide-react";
 import { IconAutopilotRent } from "@/components/ui/CustomIcons";
 import { useToast } from "@/components/ui/Toast";
@@ -42,19 +47,30 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isScreenTooSmall, setIsScreenTooSmall] = useState(false);
+  const [overrideSmallScreen, setOverrideSmallScreen] = useState(false);
+
   const [activeProperty, setActiveProperty] = useState("The Regent - Wing A (24 Units)");
   const [showPropertyMenu, setShowPropertyMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Auto-collapse sidebar when viewport width drops below 1200px
+  // Viewport width detection (< 1000px unavailable screen, < 1200px collapsed sidebar)
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1200) {
+      const width = window.innerWidth;
+      if (width < 1000) {
+        setIsScreenTooSmall(true);
         setIsCollapsed(true);
       } else {
-        setIsCollapsed(false);
+        setIsScreenTooSmall(false);
+        if (width < 1200) {
+          setIsCollapsed(true);
+        } else {
+          setIsCollapsed(false);
+        }
       }
     };
 
@@ -89,6 +105,84 @@ export default function DashboardLayout({
     { id: 2, title: "Maintenance Request #402", desc: "Plumbing issue reported in Unit 304 (Urgent)", time: "1h ago", icon: Wrench, color: "text-orange-500 bg-orange-50" },
     { id: 3, title: "Lease Expiring Soon", desc: "Unit 201 lease expires in 25 days. Draft renewal ready.", time: "3h ago", icon: FileText, color: "text-purple-500 bg-purple-50" },
   ];
+
+  // Render Full Page Notice when screen width is below 1000px
+  if (isScreenTooSmall && !overrideSmallScreen) {
+    return (
+      <div className="min-h-screen w-screen bg-[#0B132B] text-white flex flex-col items-center justify-center p-6 sm:p-10 font-sans relative overflow-hidden select-none">
+        
+        {/* Ambient Glow Effects */}
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#FF6B00]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-md w-full bg-[#141A26] border border-slate-800 rounded-3xl p-6 sm:p-8 text-center space-y-6 shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-300">
+          
+          {/* Brand Logo Header */}
+          <div className="flex items-center justify-center gap-2">
+            <Image src="/logo.png" alt="RentAwas Logo" width={40} height={40} className="h-10 w-auto" />
+            <span 
+              className="text-2xl font-extrabold tracking-tight font-cormorant" 
+              style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
+            >
+              <span className="text-white">Rent</span>
+              <span className="text-[#FF6B00]">Awas</span>
+            </span>
+          </div>
+
+          {/* Graphic Icon Display */}
+          <div className="relative w-20 h-20 mx-auto bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center text-[#FF6B00] shadow-inner">
+            <Monitor className="w-10 h-10" />
+            <div className="absolute -bottom-1 -right-1 bg-amber-500 text-slate-950 p-1.5 rounded-full border-2 border-[#141A26]">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+          </div>
+
+          {/* Headline & Explanation */}
+          <div className="space-y-2">
+            <h2 className="text-xl font-extrabold text-white tracking-tight">
+              Desktop Screen Required
+            </h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              As of now, we are not available for small screen sizes under <strong className="text-amber-400">1000px</strong>.
+            </p>
+          </div>
+
+          {/* Notice Box */}
+          <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-2xl text-left text-xs space-y-2">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Laptop className="w-3.5 h-3.5 text-[#FF6B00]" />
+              <span>Recommended Resolution</span>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              RentAwas Landlord Mission Control requires a laptop or desktop computer (<strong className="text-white">≥ 1000px width</strong>) for property floor plan telemetry and financial ledgers.
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-3 pt-2">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText("https://app.rentawas.com");
+                toast("Desktop Portal URL copied to clipboard!", "success");
+              }}
+              className="w-full py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Copy className="w-4 h-4" />
+              <span>Copy Desktop Portal Link</span>
+            </button>
+
+            <button
+              onClick={() => setOverrideSmallScreen(true)}
+              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold rounded-xl transition-all cursor-pointer"
+            >
+              Proceed Anyway in Compact View
+            </button>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#F8FAFC] text-slate-900 flex flex-col md:flex-row font-sans selection:bg-orange-100 selection:text-orange-600">
@@ -129,7 +223,7 @@ export default function DashboardLayout({
       >
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           
-          {/* Brand Logo Header & Collapse Trigger */}
+          {/* Brand Logo Header */}
           <div className={`p-4 border-b border-slate-800 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
             <Link href="/" className="flex items-center gap-2 group truncate">
               <Image
