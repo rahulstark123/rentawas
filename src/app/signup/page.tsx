@@ -62,7 +62,7 @@ export default function SignupPage() {
       if (role === "tenant") {
         router.push("/tenant/dashboard");
       } else {
-        router.push("/dashboard");
+        router.push("/onboarding");
       }
     }, 500);
   };
