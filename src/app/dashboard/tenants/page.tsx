@@ -22,7 +22,10 @@ import {
   ArrowLeft,
   FileCheck,
   IdCard,
-  Sparkles
+  Sparkles,
+  Pencil,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
@@ -46,6 +49,8 @@ export default function TenantsPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingTenantId, setEditingTenantId] = useState<string | null>(null);
+  const [deletingTenant, setDeletingTenant] = useState<TenantItem | null>(null);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   // Property & Units Mappings
@@ -153,6 +158,48 @@ export default function TenantsPage() {
     }
   };
 
+  const handleOpenAddModal = () => {
+    setEditingTenantId(null);
+    setName("");
+    setEmail("");
+    setPhone("");
+    setCurrentStep(1);
+    setShowAddModal(true);
+  };
+
+  const handleOpenEditModal = (t: TenantItem) => {
+    setEditingTenantId(t.id);
+    setName(t.name);
+    setEmail(t.email);
+    // Parse phone digit string if available
+    setPhone(t.phone.replace(/^\+\d+\s*/, ""));
+    
+    // Split property and unit if combined with dash
+    const parts = t.unit.split(" - ");
+    if (parts.length === 2 && propertyUnitsMap[parts[0]]) {
+      setSelectedProperty(parts[0]);
+      setSelectedUnit(parts[1]);
+    } else {
+      setSelectedProperty("The Regent - Wing A");
+      setSelectedUnit("Unit 401");
+    }
+
+    setLeaseStart(t.leaseStart);
+    setCurrentStep(1);
+    setShowAddModal(true);
+  };
+
+  const handleDeleteTenant = (t: TenantItem) => {
+    setDeletingTenant(t);
+  };
+
+  const confirmDeleteTenant = () => {
+    if (!deletingTenant) return;
+    setTenants(tenants.filter((item) => item.id !== deletingTenant.id));
+    toast(`Resident ${deletingTenant.name} removed from tenant registry.`, "info");
+    setDeletingTenant(null);
+  };
+
   const handleNextStep = () => {
     if (currentStep === 1) {
       if (!name.trim() || !email.trim()) {
@@ -175,30 +222,50 @@ export default function TenantsPage() {
 
     const combinedUnitLabel = `${selectedProperty} - ${selectedUnit}`;
 
-    const newTenant: TenantItem = {
-      id: `TEN-${Math.floor(100 + Math.random() * 900)}`,
-      name,
-      unit: combinedUnitLabel,
-      phone: fullPhoneNumber,
-      email,
-      leaseStart,
-      healthScore: 98,
-      status: "Excellent",
-      onTimeRate: "100%",
-      govIdAttached: !!govIdFile,
-      leaseDocAttached: !!leaseFile,
-    };
+    if (editingTenantId) {
+      // Update existing tenant
+      setTenants(
+        tenants.map((t) =>
+          t.id === editingTenantId
+            ? {
+                ...t,
+                name,
+                unit: combinedUnitLabel,
+                phone: fullPhoneNumber,
+                email,
+                leaseStart,
+              }
+            : t
+        )
+      );
+      toast(`Tenant ${name} updated successfully!`, "success");
+    } else {
+      // Add new tenant
+      const newTenant: TenantItem = {
+        id: `TEN-${Math.floor(100 + Math.random() * 900)}`,
+        name,
+        unit: combinedUnitLabel,
+        phone: fullPhoneNumber,
+        email,
+        leaseStart,
+        healthScore: 98,
+        status: "Excellent",
+        onTimeRate: "100%",
+        govIdAttached: !!govIdFile,
+        leaseDocAttached: !!leaseFile,
+      };
+      setTenants([newTenant, ...tenants]);
+      toast(
+        `Tenant ${name} onboarded to ${combinedUnitLabel} starting ${leaseStart}!`,
+        "success"
+      );
+    }
 
-    setTenants([newTenant, ...tenants]);
-    toast(
-      `Tenant ${name} onboarded to ${combinedUnitLabel} starting ${leaseStart} with verified Government ID & Lease Agreement!`,
-      "success"
-    );
-    
-    // Reset form
+    // Reset form & close modal
     setName("");
     setEmail("");
     setPhone("");
+    setEditingTenantId(null);
     setCurrentStep(1);
     setShowAddModal(false);
   };
@@ -233,10 +300,7 @@ export default function TenantsPage() {
           </div>
 
           <button
-            onClick={() => {
-              setCurrentStep(1);
-              setShowAddModal(true);
-            }}
+            onClick={handleOpenAddModal}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer shrink-0"
           >
             <UserPlus className="w-4 h-4" />
@@ -248,10 +312,10 @@ export default function TenantsPage() {
       {/* Tenant Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredTenants.map((t) => (
-          <div key={t.id} className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4 hover:shadow-md transition-shadow">
+          <div key={t.id} className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4 hover:shadow-md transition-shadow relative">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#0B132B] text-white font-bold text-sm flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-[#0B132B] text-white font-bold text-sm flex items-center justify-center shrink-0">
                   {t.name.split(" ").map(n => n[0]).join("")}
                 </div>
                 <div>
@@ -260,13 +324,32 @@ export default function TenantsPage() {
                 </div>
               </div>
 
-              {/* Health Score Badge */}
-              <div className="text-right">
-                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-black text-emerald-700">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>{t.healthScore} / 100</span>
+              {/* Health Score & Quick Edit/Delete */}
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-black text-emerald-700">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{t.healthScore} / 100</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5 font-bold uppercase">{t.status} Rating</div>
                 </div>
-                <div className="text-[10px] text-slate-400 mt-0.5 font-bold uppercase">{t.status} Rating</div>
+
+                <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
+                  <button
+                    onClick={() => handleOpenEditModal(t)}
+                    title="Edit Tenant"
+                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTenant(t)}
+                    title="Delete Tenant"
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -300,13 +383,55 @@ export default function TenantsPage() {
                     Lease Signed
                   </span>
                 )}
+                <button
+                  onClick={() => toast(`Opening communication channel for ${t.name}...`, "info")}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer uppercase tracking-wider ml-1"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Message</span>
+                </button>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* ------------------- MULTI-STEP WIZARD MODAL: ADD NEW TENANT ------------------- */}
+      {/* ------------------- DELETE CONFIRMATION MODAL ------------------- */}
+      {deletingTenant && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl relative text-center">
+            <div className="w-14 h-14 mx-auto rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-extrabold text-slate-900">Remove Tenant Resident?</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Are you sure you want to remove <strong className="text-slate-900">{deletingTenant.name}</strong> from <strong className="text-slate-900">{deletingTenant.unit}</strong>? This action will archive their lease record and payment history.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeletingTenant(null)}
+                className="px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer w-full"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteTenant}
+                className="px-4 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-xs uppercase tracking-wider transition-all cursor-pointer w-full"
+              >
+                Yes, Remove Resident
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------- MULTI-STEP WIZARD MODAL: ADD / EDIT TENANT ------------------- */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
           <form
@@ -320,7 +445,9 @@ export default function TenantsPage() {
                   <UserPlus className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-extrabold text-slate-900 leading-none">Add New Tenant Resident</h3>
+                  <h3 className="text-lg font-extrabold text-slate-900 leading-none">
+                    {editingTenantId ? "Edit Tenant Profile & Lease" : "Add New Tenant Resident"}
+                  </h3>
                   <p className="text-xs text-slate-500 mt-1">Multi-step resident onboarding & document verification.</p>
                 </div>
               </div>
@@ -694,7 +821,7 @@ export default function TenantsPage() {
                     className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <UserPlus className="w-4 h-4" />
-                    <span>Complete Resident Onboarding</span>
+                    <span>{editingTenantId ? "Save Changes" : "Complete Resident Onboarding"}</span>
                   </button>
                 )}
               </div>
