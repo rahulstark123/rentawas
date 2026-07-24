@@ -116,7 +116,10 @@ export const LEGAL_DOCUMENTS: LegalDocumentTemplate[] = [
   },
 ];
 
+import { useToast } from "@/components/ui/Toast";
+
 export default function AILeaseArchitectPage() {
+  const { toast } = useToast();
   const [selectedDoc, setSelectedDoc] = useState<LegalDocumentTemplate>(LEGAL_DOCUMENTS[0]);
   const [jurisdiction, setJurisdiction] = useState(LEGAL_DOCUMENTS[0].jurisdictions[0]);
   const [previewTheme, setPreviewTheme] = useState<"dark" | "light">("dark");
@@ -141,17 +144,20 @@ export default function AILeaseArchitectPage() {
   const handleDocChange = (doc: LegalDocumentTemplate) => {
     setSelectedDoc(doc);
     setJurisdiction(doc.jurisdictions[0]);
+    toast(`Template switched to ${doc.title.split(". ")[1]}`, "info");
   };
 
   const handleGenerate = () => {
     setIsGenerating(true);
     setTimeout(() => {
       setIsGenerating(false);
+      toast(`AI successfully generated ${selectedDoc.title.split(". ")[1]}!`, "success");
     }, 700);
   };
 
   const handleCopy = () => {
     setCopied(true);
+    toast("Legal contract text copied to clipboard!", "success");
     setTimeout(() => setCopied(false), 2000);
   };
 

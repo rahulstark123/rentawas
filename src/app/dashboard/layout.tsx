@@ -15,6 +15,7 @@ import {
   TrendingUp, 
   Settings, 
   CreditCard,
+  HelpCircle,
   Bell, 
   Search, 
   Plus, 
@@ -49,6 +50,7 @@ export default function DashboardLayout({
     { name: "Yield & Analytics", href: "/dashboard/analytics", icon: TrendingUp },
     { name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
     { name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },
+    { name: "Help & Support", href: "/dashboard/support", icon: HelpCircle },
   ];
 
   const properties = [

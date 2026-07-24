@@ -20,7 +20,10 @@ import {
 } from "lucide-react";
 import { IconAutopilotRent } from "@/components/ui/CustomIcons";
 
+import { useToast } from "@/components/ui/Toast";
+
 export default function WorkspaceSettingsPage() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"general" | "payouts" | "automations" | "team" | "security">("general");
 
   // General Settings State
@@ -58,6 +61,7 @@ export default function WorkspaceSettingsPage() {
 
   const handleSave = () => {
     setIsSaved(true);
+    toast("Workspace settings saved successfully!", "success");
     setTimeout(() => setIsSaved(false), 3000);
   };
 
@@ -74,6 +78,7 @@ export default function WorkspaceSettingsPage() {
         status: "Pending Invite",
       },
     ]);
+    toast(`Invitation sent to ${inviteEmail}`, "info");
     setInviteEmail("");
     setShowInviteModal(false);
   };
