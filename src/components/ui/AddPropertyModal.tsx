@@ -1,7 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Building2, X, Plus, MapPin, DollarSign, ShieldCheck, ChevronDown, Loader2, CheckCircle2, Search } from "lucide-react";
+import { useState } from "react";
+import { 
+  Building2, 
+  X, 
+  Plus, 
+  MapPin, 
+  DollarSign, 
+  ShieldCheck, 
+  ChevronDown, 
+  Loader2, 
+  CheckCircle2, 
+  Layers, 
+  Bed, 
+  Sparkles,
+  Maximize2
+} from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
 export interface PropertyData {
@@ -11,7 +25,9 @@ export interface PropertyData {
   pincode: string;
   address: string;
   floors: number;
+  unitsPerFloor: number;
   units: number;
+  roomLayout: string;
   avgRent: string;
 }
 
@@ -36,6 +52,14 @@ export const PROPERTY_CATEGORIES = [
   "🚗 Parking Garage / Storage Lots",
 ];
 
+export const ROOM_LAYOUT_OPTIONS = [
+  "2 BHK Deluxe (2 Beds • 2 Baths • Living • Kitchen • Balcony)",
+  "3 BHK Luxury Corner (3 Beds • 3 Baths • Living • Modular Kitchen • 2 Balconies)",
+  "1 BHK Executive Studio (1 Bed • 1 Bath • Kitchenette)",
+  "Corporate Office Workspace (1 Conf Room • 4 Cabins • 12 Workstations)",
+  "Co-Living Twin Pod (2 Single Beds • Study Desks • Attached Bath)",
+];
+
 export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: AddPropertyModalProps) {
   const { toast } = useToast();
   const [name, setName] = useState("");
@@ -43,12 +67,19 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
   const [pincode, setPincode] = useState("");
   const [address, setAddress] = useState("");
   const [floors, setFloors] = useState("4");
-  const [avgRent, setAvgRent] = useState("3000");
+  const [unitsPerFloor, setUnitsPerFloor] = useState("4");
+  const [roomLayout, setRoomLayout] = useState(ROOM_LAYOUT_OPTIONS[0]);
+  const [avgRent, setAvgRent] = useState("3200");
 
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const numFloors = Number(floors) || 1;
+  const numUnitsPerFloor = Number(unitsPerFloor) || 1;
+  const totalUnits = numFloors * numUnitsPerFloor;
+  const estYield = (totalUnits * (Number(avgRent) || 0)).toLocaleString();
 
   // Auto-fetch location from PIN / ZIP code globally
   const handlePincodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,9 +155,6 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
     e.preventDefault();
     if (!name.trim()) return;
 
-    const numFloors = Number(floors) || 4;
-    const computedUnits = numFloors * 4;
-
     const newProp: PropertyData = {
       id: `PROP-${Math.floor(10 + Math.random() * 90)}`,
       name,
@@ -134,7 +162,9 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
       pincode,
       address: address || "Primary City Location",
       floors: numFloors,
-      units: computedUnits,
+      unitsPerFloor: numUnitsPerFloor,
+      units: totalUnits,
+      roomLayout,
       avgRent: `$${avgRent}`,
     };
 
@@ -142,7 +172,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
       onAddProperty(newProp);
     }
 
-    toast(`Property "${name}" created with ${numFloors} floors (${computedUnits} units)!`, "success");
+    toast(`Property "${name}" created with ${numFloors} floors (${totalUnits} total units & rooms)!`, "success");
     setName("");
     setPincode("");
     setAddress("");
@@ -153,7 +183,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
     <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
       <form
         onSubmit={handleSubmit}
-        className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 sm:p-8 space-y-5 shadow-2xl relative overflow-hidden font-sans"
+        className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto font-sans"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -166,7 +196,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
                 Add New Property to Portfolio
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Enter Pincode for global auto-address lookup & unit mapping.
+                Configure Building Name, Category, Floors, Units per Floor, and Room Details.
               </p>
             </div>
           </div>
@@ -182,7 +212,8 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
 
         {/* Form Fields */}
         <div className="space-y-4 text-xs">
-          {/* Property Name */}
+          
+          {/* Section 1: Property Identity */}
           <div>
             <label className="block font-bold text-slate-700 uppercase mb-1">
               Property / Building Name
@@ -197,7 +228,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
             />
           </div>
 
-          {/* Property Category Dropdown */}
+          {/* Property Category */}
           <div>
             <label className="block font-bold text-slate-700 uppercase mb-1">
               Property Category (12 Options)
@@ -218,7 +249,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
             </div>
           </div>
 
-          {/* Global Pincode / ZIP Code with Auto-Fetch */}
+          {/* Global Pincode & Address */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block font-bold text-slate-700 uppercase">
@@ -253,10 +284,9 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
             )}
           </div>
 
-          {/* Full Street Address Auto-populated */}
           <div>
             <label className="block font-bold text-slate-700 uppercase mb-1">
-              Full Street Address (Auto-Filled or Custom)
+              Full Street Address
             </label>
             <textarea
               rows={2}
@@ -267,35 +297,96 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
             />
           </div>
 
-          {/* Floors & Avg Rent */}
-          <div className="grid grid-cols-2 gap-3.5">
-            <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Total Floors</label>
-              <input
-                type="number"
-                min={1}
-                max={100}
-                value={floors}
-                onChange={(e) => setFloors(e.target.value)}
-                placeholder="e.g. 4 Floors"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-              />
+          {/* Section 2: Floors & Room Layout Configuration */}
+          <div className="pt-2 border-t border-slate-100 space-y-3.5">
+            <h4 className="text-xs font-extrabold text-[#FF6B00] uppercase tracking-wider flex items-center gap-1.5">
+              <Layers className="w-4 h-4" />
+              <span>Floors & Room Architecture Configuration</span>
+            </h4>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Total Floors</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={floors}
+                  onChange={(e) => setFloors(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Units / Floor</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={unitsPerFloor}
+                  onChange={(e) => setUnitsPerFloor(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Rent / Unit ($ / ₹)</label>
+                <input
+                  type="number"
+                  value={avgRent}
+                  onChange={(e) => setAvgRent(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Avg Base Rent ($ / ₹)</label>
-              <input
-                type="number"
-                value={avgRent}
-                onChange={(e) => setAvgRent(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-              />
+              <label className="block font-bold text-slate-700 uppercase mb-1">
+                Default Room Layout & Amenities Breakdown
+              </label>
+              <div className="relative">
+                <select
+                  value={roomLayout}
+                  onChange={(e) => setRoomLayout(e.target.value)}
+                  className="w-full appearance-none pl-3 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                >
+                  {ROOM_LAYOUT_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                  <ChevronDown className="w-4 h-4" />
+                </div>
+              </div>
             </div>
+
+            {/* Live Building Architecture Preview Summary */}
+            <div className="p-3.5 bg-slate-900 text-white rounded-2xl space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-[#FF6B00]" />
+                  Building Inventory Auto-Generation Preview
+                </span>
+                <span className="text-xs font-extrabold text-orange-400">${estYield} / mo Yield</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold">Total Building Inventory</span>
+                  <span className="font-extrabold text-white">{numFloors} Floors × {numUnitsPerFloor} Units = {totalUnits} Units</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold">Configured Room Layout</span>
+                  <span className="font-semibold text-slate-200 truncate block">{roomLayout.split("(")[0]}</span>
+                </div>
+              </div>
+            </div>
+
           </div>
 
           <div className="p-3 bg-orange-50/60 border border-orange-200 rounded-xl text-[11px] text-slate-600 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-[#FF6B00] shrink-0" />
-            <span>Autopilot Rent disbursal routing will auto-link for this new building.</span>
+            <span>Autopilot Rent disbursal routing will auto-link for all {totalUnits} units.</span>
           </div>
         </div>
 
@@ -313,7 +404,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
             className="px-6 py-2.5 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-md shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            <span>Create Property</span>
+            <span>Create Property ({totalUnits} Units)</span>
           </button>
         </div>
       </form>
