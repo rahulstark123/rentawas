@@ -26,10 +26,10 @@ export default function LandlordBillingPage() {
 
   // Billing History
   const invoices = [
-    { id: "INV-2026-007", date: "Jul 24, 2026", plan: "Pro Autopilot (Monthly)", amount: "$49.00 USD", status: "Paid", card: "Visa •••• 4242" },
-    { id: "INV-2026-006", date: "Jun 24, 2026", plan: "Pro Autopilot (Monthly)", amount: "$49.00 USD", status: "Paid", card: "Visa •••• 4242" },
-    { id: "INV-2026-005", date: "May 24, 2026", plan: "Pro Autopilot (Monthly)", amount: "$49.00 USD", status: "Paid", card: "Visa •••• 4242" },
-    { id: "INV-2026-004", date: "Apr 24, 2026", plan: "Pro Autopilot (Monthly)", amount: "$49.00 USD", status: "Paid", card: "Visa •••• 4242" },
+    { id: "INV-2026-007", date: "Jul 24, 2026", plan: "Pro Autopilot (Monthly)", amount: "$18.00 USD", status: "Paid", card: "Visa •••• 4242" },
+    { id: "INV-2026-006", date: "Jun 24, 2026", plan: "Pro Autopilot (Monthly)", amount: "$18.00 USD", status: "Paid", card: "Visa •••• 4242" },
+    { id: "INV-2026-005", date: "May 24, 2026", plan: "Pro Autopilot (Monthly)", amount: "$18.00 USD", status: "Paid", card: "Visa •••• 4242" },
+    { id: "INV-2026-004", date: "Apr 24, 2026", plan: "Pro Autopilot (Monthly)", amount: "$18.00 USD", status: "Paid", card: "Visa •••• 4242" },
   ];
 
   return (
@@ -69,7 +69,7 @@ export default function LandlordBillingPage() {
               <Zap className="w-6 h-6 text-[#FF6B00] fill-[#FF6B00]" />
             </h2>
             <p className="text-xs text-slate-300">
-              $49.00 / Month • Full Autopilot Rent Disbursals + 10 AI Legal Document Architect + WhatsApp Reminders
+              $18.00 / Month • Full Autopilot Rent Disbursals + 10 AI Legal Document Architect + WhatsApp Reminders
             </p>
           </div>
 
@@ -190,7 +190,7 @@ export default function LandlordBillingPage() {
           </button>
         </div>
 
-        {/* Tier 2: Pro Autopilot ($49/mo) — CURRENT PLAN */}
+        {/* Tier 2: Pro Autopilot ($18/mo) — CURRENT PLAN */}
         <div className="bg-slate-900 text-white border-2 border-[#FF6B00] rounded-2xl p-6 sm:p-8 shadow-xl flex flex-col justify-between space-y-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 bg-[#FF6B00] text-white font-extrabold text-[9px] uppercase px-3 py-1 rounded-bl-xl tracking-widest">
             MOST POPULAR • CURRENT PLAN
@@ -210,7 +210,7 @@ export default function LandlordBillingPage() {
             </div>
 
             <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-black text-white">{isAnnual ? "$39" : "$49"}</span>
+              <span className="text-3xl font-black text-white">{isAnnual ? "$14" : "$18"}</span>
               <span className="text-xs text-slate-300 font-bold">/ month {isAnnual ? "(billed annually)" : ""}</span>
             </div>
 
@@ -241,7 +241,7 @@ export default function LandlordBillingPage() {
           </button>
         </div>
 
-        {/* Tier 3: Institutional / Enterprise ($149/mo) */}
+        {/* Tier 3: Institutional / Enterprise ($39/mo) */}
         <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs flex flex-col justify-between space-y-6">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -257,7 +257,7 @@ export default function LandlordBillingPage() {
             </div>
 
             <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-black text-slate-900">{isAnnual ? "$119" : "$149"}</span>
+              <span className="text-3xl font-black text-slate-900">{isAnnual ? "$31" : "$39"}</span>
               <span className="text-xs text-slate-500 font-bold">/ month {isAnnual ? "(billed annually)" : ""}</span>
             </div>
 
