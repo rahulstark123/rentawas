@@ -73,7 +73,7 @@ export default function ResidentAppSection() {
                 </div>
 
                 {/* Dashboard Page Content Mockup inside Laptop Screen */}
-                <div className="flex-1 bg-slate-50 p-4 sm:p-5 overflow-y-auto space-y-4">
+                <div className="flex-1 bg-slate-50 p-3 sm:p-4 overflow-hidden space-y-3">
                   
                   {/* Top Dashboard Header inside Screen */}
                   <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
