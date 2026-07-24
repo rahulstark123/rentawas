@@ -10,14 +10,8 @@ import {
   ArrowRight, 
   ArrowLeft, 
   Check, 
-  Zap, 
-  ShieldCheck, 
-  Globe, 
-  DollarSign, 
-  CreditCard,
   Building,
   CheckCircle2,
-  Lock,
   ChevronDown
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
@@ -26,7 +20,7 @@ import CurrencySelector from "@/components/ui/CurrencySelector";
 export default function OnboardingPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [isFinishing, setIsFinishing] = useState(false);
 
   // Step 1 State: Workspace & Organization Setup
@@ -40,12 +34,6 @@ export default function OnboardingPage() {
   const [unitCount, setUnitCount] = useState("12");
   const [propertyAddress, setPropertyAddress] = useState("742 Evergreen Terrace, San Francisco, CA");
 
-  // Step 3 State: Autopilot Rent Collection & Bank Payout
-  const [paymentGateway, setPaymentGateway] = useState("Autopilot ACH Direct (Zero Fee)");
-  const [accountHolder, setAccountHolder] = useState("Apex Property Holdings LLC");
-  const [accountNumber, setAccountNumber] = useState("•••• •••• 4920");
-  const [autoRemindersEnabled, setAutoRemindersEnabled] = useState(true);
-
   const handleNext = () => {
     if (currentStep === 1) {
       if (!orgName.trim()) {
@@ -53,19 +41,17 @@ export default function OnboardingPage() {
         return;
       }
       setCurrentStep(2);
-    } else if (currentStep === 2) {
-      if (!propertyName.trim()) {
-        toast("Please provide your First Property Name.", "info");
-        return;
-      }
-      setCurrentStep(3);
     }
   };
 
   const handleFinishOnboarding = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!propertyName.trim()) {
+      toast("Please provide your First Property Name.", "info");
+      return;
+    }
     setIsFinishing(true);
-    toast(`Setting up workspace with ${currency} currency...`, "success");
+    toast(`Setting up workspace with ${currency} currency & ${propertyName}...`, "success");
 
     setTimeout(() => {
       router.push("/dashboard");
@@ -105,14 +91,13 @@ export default function OnboardingPage() {
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             {currentStep === 1 && "Step 1: Workspace & Portfolio Identity"}
             {currentStep === 2 && "Step 2: Add Your First Property & Units"}
-            {currentStep === 3 && "Step 3: Autopilot Rent Collection Payouts"}
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto">
-            Configure your property telemetry, automated rent billing, and payout ledger in 3 simple steps.
+            Configure your property telemetry and portfolio structure in 2 quick steps.
           </p>
 
-          {/* Progress Bar Tabs */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 bg-[#141A26] p-2 rounded-2xl border border-slate-800 text-xs max-w-lg mx-auto mt-4">
+          {/* Progress Bar Tabs (2 Steps Only) */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 bg-[#141A26] p-2 rounded-2xl border border-slate-800 text-xs max-w-md mx-auto mt-4">
             <div
               onClick={() => setCurrentStep(1)}
               className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-bold cursor-pointer transition-all ${
@@ -128,7 +113,7 @@ export default function OnboardingPage() {
               ) : (
                 <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] shrink-0">1</span>
               )}
-              <span className="truncate">Workspace</span>
+              <span className="truncate">Workspace Info</span>
             </div>
 
             <div
@@ -138,31 +123,11 @@ export default function OnboardingPage() {
               className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-bold cursor-pointer transition-all ${
                 currentStep === 2
                   ? "bg-[#FF6B00] text-white shadow-lg shadow-orange-500/20"
-                  : currentStep > 2
-                  ? "bg-slate-800 text-emerald-400"
                   : "text-slate-500"
               }`}
             >
-              {currentStep > 2 ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              ) : (
-                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] shrink-0">2</span>
-              )}
+              <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] shrink-0">2</span>
               <span className="truncate">First Property</span>
-            </div>
-
-            <div
-              onClick={() => {
-                if (orgName.trim() && propertyName.trim()) setCurrentStep(3);
-              }}
-              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-bold cursor-pointer transition-all ${
-                currentStep === 3
-                  ? "bg-[#FF6B00] text-white shadow-lg shadow-orange-500/20"
-                  : "text-slate-500"
-              }`}
-            >
-              <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] shrink-0">3</span>
-              <span className="truncate">Rent Collection</span>
             </div>
           </div>
         </div>
@@ -308,86 +273,13 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* STEP 3: AUTOPILOT RENT COLLECTION & BANK PAYOUTS */}
-          {currentStep === 3 && (
-            <div className="space-y-4 text-xs animate-in fade-in duration-200">
-              <div>
-                <label className="block font-bold text-slate-300 uppercase mb-1.5">
-                  Preferred Rent Payout Channel
-                </label>
-                <div className="relative">
-                  <select
-                    value={paymentGateway}
-                    onChange={(e) => setPaymentGateway(e.target.value)}
-                    className="w-full appearance-none pl-3 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="Autopilot ACH Direct (Zero Fee)">Autopilot ACH Direct (Zero Transaction Fee)</option>
-                    <option value="Razorpay UPI Instant Gateway">Razorpay UPI Instant Gateway (India)</option>
-                    <option value="Stripe Bank Connect">Stripe Bank Connect (Global)</option>
-                    <option value="Direct Wire / Swift Transfer">Direct Wire / SWIFT Bank Transfer</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                    <ChevronDown className="w-4 h-4" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1.5">
-                    Payout Account Holder Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={accountHolder}
-                    onChange={(e) => setAccountHolder(e.target.value)}
-                    placeholder="e.g. Apex Property Holdings LLC"
-                    className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-300 uppercase mb-1.5">
-                    Account / Routing / IFSC Code
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                    placeholder="•••• •••• 4920"
-                    className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-              </div>
-
-              {/* Auto Reminders Toggle */}
-              <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Zap className="w-5 h-5 text-[#FF6B00] shrink-0" />
-                  <div>
-                    <span className="font-bold text-white block">Automated Monthly Rent Billing</span>
-                    <span className="text-[11px] text-slate-400">Send WhatsApp & Email payment links on the 1st of every month.</span>
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={autoRemindersEnabled}
-                  onChange={(e) => setAutoRemindersEnabled(e.target.checked)}
-                  className="w-4 h-4 accent-[#FF6B00] cursor-pointer"
-                />
-              </div>
-            </div>
-          )}
-
           {/* Navigation Controls */}
           <div className="flex items-center justify-between pt-4 border-t border-slate-800/80">
             <div>
               {currentStep > 1 && (
                 <button
                   type="button"
-                  onClick={() => setCurrentStep((currentStep - 1) as any)}
+                  onClick={() => setCurrentStep(1)}
                   className="px-4 py-2.5 text-xs font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
@@ -397,13 +289,13 @@ export default function OnboardingPage() {
             </div>
 
             <div>
-              {currentStep < 3 ? (
+              {currentStep === 1 ? (
                 <button
                   type="button"
                   onClick={handleNext}
                   className="px-6 py-3 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-lg shadow-orange-500/20 uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer"
                 >
-                  <span>Next: {currentStep === 1 ? "First Property" : "Rent Collection"}</span>
+                  <span>Next: First Property</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
