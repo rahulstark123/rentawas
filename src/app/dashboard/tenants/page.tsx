@@ -473,7 +473,7 @@ export default function TenantsPage() {
                 }`}
               >
                 <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">1</span>
-                <span className="truncate">1. Basic Info</span>
+                <span className="truncate">Basic Info</span>
               </div>
 
               <div
@@ -489,7 +489,7 @@ export default function TenantsPage() {
                 }`}
               >
                 <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">2</span>
-                <span className="truncate">2. Gov ID</span>
+                <span className="truncate">Gov ID</span>
               </div>
 
               <div
@@ -503,7 +503,7 @@ export default function TenantsPage() {
                 }`}
               >
                 <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">3</span>
-                <span className="truncate">3. Lease Docs</span>
+                <span className="truncate">Lease Docs</span>
               </div>
             </div>
 
