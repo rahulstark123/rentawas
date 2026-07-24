@@ -28,10 +28,19 @@ export default function WorkspaceSettingsPage() {
 
   // General Settings State
   const [orgName, setOrgName] = useState("Grand Regency Management LLC");
+  const [companyType, setCompanyType] = useState("LLC (Limited Liability Company)");
+  const [taxId, setTaxId] = useState("EIN 92-8491029 / GSTIN 27AAACR1234F1Z9");
+  const [registeredAddress, setRegisteredAddress] = useState("1420 5th Ave, Suite 3000, Seattle, WA 98101");
+  const [landlordName, setLandlordName] = useState("Alexander Wright");
+  const [landlordRole, setLandlordRole] = useState("Managing Director & Asset Owner");
   const [currency, setCurrency] = useState("USD ($)");
   const [jurisdiction, setJurisdiction] = useState("Seattle, WA (USA)");
   const [companyEmail, setCompanyEmail] = useState("support@regencymanagement.com");
   const [companyPhone, setCompanyPhone] = useState("+1 (555) 019-2834");
+  const [customSubdomain, setCustomSubdomain] = useState("regency.rentawas.com");
+  const [tagline, setTagline] = useState("Premier Residential & Executive Asset Management");
+  const [timezone, setTimezone] = useState("(UTC-08:00) Pacific Time (US & Canada)");
+  const [fiscalYearStart, setFiscalYearStart] = useState("January (Standard Calendar Year)");
 
   // Payout Settings State
   const [bankName, setBankName] = useState("JPMorgan Chase Bank");
@@ -145,100 +154,278 @@ export default function WorkspaceSettingsPage() {
 
       {/* Tab 1: Organization & Profile */}
       {activeTab === "general" && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
-          <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-[#FF6B00]" />
-            <span>Organization Profile & Global Preferences</span>
-          </h3>
+        <div className="space-y-6 font-sans">
+          
+          {/* Card 1: Company Legal Identity & Tax Registration */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
+            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-[#FF6B00]" />
+              <span>Company Legal Identity & Tax Information</span>
+            </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-            <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                Organization / Company Legal Name
-              </label>
-              <input
-                type="text"
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-              />
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Organization / Business Legal Name
+                </label>
+                <input
+                  type="text"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
 
-            <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                Default Operating Currency
-              </label>
-              <div className="relative">
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                >
-                  <option value="USD ($)">USD ($) — United States Dollar</option>
-                  <option value="INR (₹)">INR (₹) — Indian Rupee</option>
-                  <option value="GBP (£)">GBP (£) — British Pound</option>
-                  <option value="EUR (€)">EUR (€) — Eurozone Euro</option>
-                  <option value="AED (AED)">AED (AED) — UAE Dirham</option>
-                  <option value="AUD ($)">AUD ($) — Australian Dollar</option>
-                </select>
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                  <ChevronDown className="w-4 h-4" />
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Business Entity Registration Type
+                </label>
+                <div className="relative">
+                  <select
+                    value={companyType}
+                    onChange={(e) => setCompanyType(e.target.value)}
+                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    <option value="LLC (Limited Liability Company)">LLC (Limited Liability Company)</option>
+                    <option value="Private Limited Company (Pvt Ltd)">Private Limited Company (Pvt Ltd)</option>
+                    <option value="Sole Proprietorship">Sole Proprietorship</option>
+                    <option value="REIT / Real Estate Trust">REIT / Real Estate Investment Trust</option>
+                    <option value="Individual Landlord">Individual Landlord (Self Managed)</option>
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                Primary Municipal Jurisdiction
-              </label>
-              <input
-                type="text"
-                value={jurisdiction}
-                onChange={(e) => setJurisdiction(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-              />
-            </div>
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Tax Registration / EIN / GSTIN / PAN Number
+                </label>
+                <input
+                  type="text"
+                  value={taxId}
+                  onChange={(e) => setTaxId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
 
-            <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                Support Email Address
-              </label>
-              <input
-                type="email"
-                value={companyEmail}
-                onChange={(e) => setCompanyEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                Portfolio Contact Phone
-              </label>
-              <input
-                type="tel"
-                value={companyPhone}
-                onChange={(e) => setCompanyPhone(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                Company Stamp / Logo Branding
-              </label>
-              <div className="p-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl flex items-center justify-between text-xs text-slate-500">
-                <span>Upload official seal / header logo (PNG or SVG)</span>
-                <button
-                  type="button"
-                  onClick={() => alert("Logo upload triggered!")}
-                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-100 cursor-pointer"
-                >
-                  Upload File
-                </button>
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Registered Legal Business Address
+                </label>
+                <input
+                  type="text"
+                  value={registeredAddress}
+                  onChange={(e) => setRegisteredAddress(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
               </div>
             </div>
           </div>
+
+          {/* Card 2: Primary Landlord Admin Profile */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
+            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+              <Users className="w-5 h-5 text-purple-600" />
+              <span>Primary Landlord Profile & Contact Details</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Primary Admin / Landlord Full Name
+                </label>
+                <input
+                  type="text"
+                  value={landlordName}
+                  onChange={(e) => setLandlordName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Owner Title / Role
+                </label>
+                <input
+                  type="text"
+                  value={landlordRole}
+                  onChange={(e) => setLandlordRole(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Support Email Address
+                </label>
+                <input
+                  type="email"
+                  value={companyEmail}
+                  onChange={(e) => setCompanyEmail(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Portfolio Direct Contact Phone
+                </label>
+                <input
+                  type="tel"
+                  value={companyPhone}
+                  onChange={(e) => setCompanyPhone(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Workspace Branding & Portal Subdomain */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
+            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+              <Globe className="w-5 h-5 text-blue-600" />
+              <span>Workspace Branding & Custom Portal Links</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Custom Resident Portal URL
+                </label>
+                <div className="flex items-center">
+                  <span className="px-3 py-2.5 bg-slate-200 text-slate-600 font-bold border border-r-0 border-slate-200 rounded-l-xl text-xs">https://</span>
+                  <input
+                    type="text"
+                    value={customSubdomain}
+                    onChange={(e) => setCustomSubdomain(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-r-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Company Header Tagline / Slogan
+                </label>
+                <input
+                  type="text"
+                  value={tagline}
+                  onChange={(e) => setTagline(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Official E-Stamp Seal & Logo Branding
+                </label>
+                <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+                  <div>
+                    <span className="font-bold text-slate-900 block">Upload Official Seal / Letterhead Logo (PNG, SVG, JPG)</span>
+                    <span className="text-[11px] text-slate-500">Will auto-embed on generated AI Lease Contracts, Rent Receipts, and Disbursal Invoices.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toast("Company E-Stamp logo uploaded!", "success")}
+                    className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 hover:bg-slate-100 shadow-2xs transition-colors cursor-pointer shrink-0"
+                  >
+                    Upload Logo File
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: Regional Preferences & Fiscal Calendar */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
+            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-emerald-600" />
+              <span>Regional Preferences & Fiscal Calendar</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Default Operating Currency
+                </label>
+                <div className="relative">
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    <option value="USD ($)">USD ($) — United States Dollar</option>
+                    <option value="INR (₹)">INR (₹) — Indian Rupee</option>
+                    <option value="GBP (£)">GBP (£) — British Pound</option>
+                    <option value="EUR (€)">EUR (€) — Eurozone Euro</option>
+                    <option value="AED (AED)">AED (AED) — UAE Dirham</option>
+                    <option value="AUD ($)">AUD ($) — Australian Dollar</option>
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Primary Municipal Jurisdiction
+                </label>
+                <input
+                  type="text"
+                  value={jurisdiction}
+                  onChange={(e) => setJurisdiction(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Workspace Operating Timezone
+                </label>
+                <div className="relative">
+                  <select
+                    value={timezone}
+                    onChange={(e) => setTimezone(e.target.value)}
+                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    <option value="(UTC-08:00) Pacific Time (US & Canada)">(UTC-08:00) Pacific Time (US & Canada)</option>
+                    <option value="(UTC+05:30) Indian Standard Time (IST)">(UTC+05:30) Indian Standard Time (IST)</option>
+                    <option value="(UTC+00:00) London (GMT / BST)">(UTC+00:00) London (GMT / BST)</option>
+                    <option value="(UTC+04:00) Dubai (GST)">(UTC+04:00) Dubai (GST)</option>
+                    <option value="(UTC-05:00) Eastern Time (US & Canada)">(UTC-05:00) Eastern Time (US & Canada)</option>
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Fiscal Year Start Month
+                </label>
+                <div className="relative">
+                  <select
+                    value={fiscalYearStart}
+                    onChange={(e) => setFiscalYearStart(e.target.value)}
+                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    <option value="January (Standard Calendar Year)">January (Standard Calendar Year)</option>
+                    <option value="April (India / UK Fiscal Year)">April (India / UK Fiscal Year)</option>
+                    <option value="July (Q3 Fiscal Start)">July (Q3 Fiscal Start)</option>
+                    <option value="October (Q4 Fiscal Start)">October (Q4 Fiscal Start)</option>
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       )}
 
