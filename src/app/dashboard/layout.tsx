@@ -14,6 +14,7 @@ import {
   Wrench, 
   TrendingUp, 
   Settings, 
+  CreditCard,
   Bell, 
   Search, 
   Plus, 
@@ -47,6 +48,7 @@ export default function DashboardLayout({
     { name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench, count: 3 },
     { name: "Yield & Analytics", href: "/dashboard/analytics", icon: TrendingUp },
     { name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
+    { name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },
   ];
 
   const properties = [
