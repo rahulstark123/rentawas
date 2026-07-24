@@ -10,6 +10,7 @@ export interface PropertyData {
   category: string;
   pincode: string;
   address: string;
+  floors: number;
   units: number;
   avgRent: string;
 }
@@ -41,7 +42,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
   const [category, setCategory] = useState(PROPERTY_CATEGORIES[0]);
   const [pincode, setPincode] = useState("");
   const [address, setAddress] = useState("");
-  const [units, setUnits] = useState("16");
+  const [floors, setFloors] = useState("4");
   const [avgRent, setAvgRent] = useState("3000");
 
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
@@ -123,13 +124,17 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
     e.preventDefault();
     if (!name.trim()) return;
 
+    const numFloors = Number(floors) || 4;
+    const computedUnits = numFloors * 4;
+
     const newProp: PropertyData = {
       id: `PROP-${Math.floor(10 + Math.random() * 90)}`,
       name,
       category,
       pincode,
       address: address || "Primary City Location",
-      units: Number(units) || 12,
+      floors: numFloors,
+      units: computedUnits,
       avgRent: `$${avgRent}`,
     };
 
@@ -137,7 +142,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
       onAddProperty(newProp);
     }
 
-    toast(`Property "${name}" created with ${units} units!`, "success");
+    toast(`Property "${name}" created with ${numFloors} floors (${computedUnits} units)!`, "success");
     setName("");
     setPincode("");
     setAddress("");
@@ -262,16 +267,17 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
             />
           </div>
 
-          {/* Units & Avg Rent */}
+          {/* Floors & Avg Rent */}
           <div className="grid grid-cols-2 gap-3.5">
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Total Unit Count</label>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Total Floors</label>
               <input
                 type="number"
                 min={1}
-                max={500}
-                value={units}
-                onChange={(e) => setUnits(e.target.value)}
+                max={100}
+                value={floors}
+                onChange={(e) => setFloors(e.target.value)}
+                placeholder="e.g. 4 Floors"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
               />
             </div>

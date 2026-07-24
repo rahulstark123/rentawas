@@ -2,17 +2,52 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Building2, Plus, Users, DollarSign, MapPin, CheckCircle2, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { 
+  Building2, 
+  Plus, 
+  Users, 
+  DollarSign, 
+  MapPin, 
+  CheckCircle2, 
+  ChevronRight, 
+  MoreVertical, 
+  Edit, 
+  Trash2, 
+  TrendingUp,
+  X,
+  Layers
+} from "lucide-react";
 import AddPropertyModal, { PropertyData } from "@/components/ui/AddPropertyModal";
+import { useToast } from "@/components/ui/Toast";
+
+export interface PropertyItem {
+  id: string;
+  name: string;
+  address: string;
+  floors: number;
+  units: number;
+  occupied: number;
+  monthlyYield: string;
+  status: string;
+  tag: string;
+}
 
 export default function PropertiesPage() {
+  const router = useRouter();
+  const { toast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  const [propertyList, setPropertyList] = useState([
+  // Edit Modal State
+  const [editingProp, setEditingProp] = useState<PropertyItem | null>(null);
+
+  const [propertyList, setPropertyList] = useState<PropertyItem[]>([
     {
       id: "PROP-1",
       name: "The Regent - Wing A",
       address: "1420 5th Ave, Seattle, WA 98101",
+      floors: 6,
       units: 24,
       occupied: 23,
       monthlyYield: "$72,500",
@@ -23,6 +58,7 @@ export default function PropertiesPage() {
       id: "PROP-2",
       name: "Downtown Horizon Suites",
       address: "800 Bellevue Way NE, Bellevue, WA 98004",
+      floors: 4,
       units: 18,
       occupied: 17,
       monthlyYield: "$54,000",
@@ -33,6 +69,7 @@ export default function PropertiesPage() {
       id: "PROP-3",
       name: "Oakwood Executive Residency",
       address: "2100 Westlake Ave, Seattle, WA 98121",
+      floors: 3,
       units: 12,
       occupied: 11,
       monthlyYield: "$32,000",
@@ -43,6 +80,7 @@ export default function PropertiesPage() {
       id: "PROP-4",
       name: "Skyline Manor",
       address: "1100 Mercer St, Seattle, WA 98109",
+      floors: 2,
       units: 8,
       occupied: 7,
       monthlyYield: "$18,500",
@@ -52,19 +90,38 @@ export default function PropertiesPage() {
   ]);
 
   const handleAddProperty = (newProp: PropertyData) => {
+    const numFloors = newProp.floors || 4;
+    const computedUnits = newProp.units || numFloors * 4;
+
     setPropertyList([
       {
         id: newProp.id,
         name: newProp.name,
         address: newProp.address,
-        units: newProp.units,
+        floors: numFloors,
+        units: computedUnits,
         occupied: 0,
         monthlyYield: `${newProp.avgRent}/mo`,
         status: "0% Occupied (New)",
-        tag: newProp.category,
+        tag: newProp.category.replace(/^[^\s]+\s/, ""), // remove emoji prefix for tag
       },
       ...propertyList,
     ]);
+  };
+
+  const handleDeleteProperty = (id: string, name: string) => {
+    setPropertyList(propertyList.filter((p) => p.id !== id));
+    setActiveMenuId(null);
+    toast(`Property "${name}" removed from portfolio!`, "info");
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProp) return;
+
+    setPropertyList(propertyList.map((p) => p.id === editingProp.id ? editingProp : p));
+    toast(`Property "${editingProp.name}" updated successfully!`, "success");
+    setEditingProp(null);
   };
 
   return (
@@ -76,7 +133,7 @@ export default function PropertiesPage() {
             Properties & Inventory
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Nested hierarchical views of buildings, floors, and individual unit availability.
+            Hierarchical portfolio management of buildings, total floors, and unit availability.
           </p>
         </div>
 
@@ -94,7 +151,7 @@ export default function PropertiesPage() {
         {propertyList.map((prop) => (
           <div
             key={prop.id}
-            className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs hover:shadow-md transition-all space-y-5"
+            className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs hover:shadow-md transition-all space-y-5 relative"
           >
             <div className="flex items-start justify-between">
               <div>
@@ -108,21 +165,77 @@ export default function PropertiesPage() {
                 </p>
               </div>
 
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                {prop.status}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                  {prop.status}
+                </span>
+
+                {/* 3-Dots Options Menu Button */}
+                <div className="relative">
+                  <button
+                    onClick={() => setActiveMenuId(activeMenuId === prop.id ? null : prop.id)}
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                    title="Property Actions"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+
+                  {/* Context Menu Dropdown */}
+                  {activeMenuId === prop.id && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 font-sans animate-in fade-in duration-150">
+                      <button
+                        onClick={() => {
+                          setEditingProp(prop);
+                          setActiveMenuId(null);
+                        }}
+                        className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 flex items-center gap-2 cursor-pointer"
+                      >
+                        <Edit className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Edit Property</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActiveMenuId(null);
+                          toast(`Loading yield analytics for ${prop.name}...`, "info");
+                          router.push("/dashboard/analytics");
+                        }}
+                        className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 flex items-center gap-2 cursor-pointer"
+                      >
+                        <TrendingUp className="w-3.5 h-3.5 text-purple-600" />
+                        <span>View Analytics</span>
+                      </button>
+
+                      <div className="border-t border-slate-100 my-1" />
+
+                      <button
+                        onClick={() => handleDeleteProperty(prop.id, prop.name)}
+                        className="w-full px-3.5 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Property</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Metrics Breakdown */}
+            {/* Metrics Breakdown with Total Floors & Total Units */}
             <div className="grid grid-cols-3 gap-3 p-3.5 bg-slate-50 border border-slate-100 rounded-xl text-xs">
               <div>
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Total Units</span>
-                <span className="text-sm font-black text-slate-900">{prop.units}</span>
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block flex items-center gap-1">
+                  <Layers className="w-3 h-3 text-slate-400" />
+                  Total Floors
+                </span>
+                <span className="text-sm font-black text-slate-900">{prop.floors} Floors</span>
               </div>
+
               <div>
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Occupied</span>
-                <span className="text-sm font-black text-emerald-600">{prop.occupied} Units</span>
+                <span className="text-sm font-black text-emerald-600">{prop.occupied} / {prop.units} Units</span>
               </div>
+
               <div>
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Monthly Yield</span>
                 <span className="text-sm font-black text-slate-900">{prop.monthlyYield}</span>
@@ -132,18 +245,11 @@ export default function PropertiesPage() {
             {/* Actions Footer */}
             <div className="flex items-center justify-between pt-2">
               <button 
-                onClick={() => alert(`Managing unit layout for ${prop.name}`)}
+                onClick={() => toast(`Managing floor plans for ${prop.name} (${prop.floors} Floors)`, "info")}
                 className="text-xs font-bold text-slate-700 hover:text-slate-950 flex items-center gap-1 cursor-pointer"
               >
                 <span>View Floor Plans & Units</span>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
-              </button>
-
-              <button
-                onClick={() => alert(`Editing property configuration for ${prop.name}`)}
-                className="px-3 py-1.5 text-xs font-bold text-[#FF6B00] border border-orange-200 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer uppercase tracking-wider"
-              >
-                Configure
               </button>
             </div>
           </div>
@@ -156,6 +262,85 @@ export default function PropertiesPage() {
         onClose={() => setShowAddModal(false)}
         onAddProperty={handleAddProperty}
       />
+
+      {/* Edit Property Modal */}
+      {editingProp && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <form onSubmit={handleSaveEdit} className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-xl font-bold text-slate-900">Edit Property Details</h3>
+              <button
+                type="button"
+                onClick={() => setEditingProp(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Building Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editingProp.name}
+                  onChange={(e) => setEditingProp({ ...editingProp, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Full Address</label>
+                <input
+                  type="text"
+                  value={editingProp.address}
+                  onChange={(e) => setEditingProp({ ...editingProp, address: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Total Floors</label>
+                  <input
+                    type="number"
+                    value={editingProp.floors}
+                    onChange={(e) => setEditingProp({ ...editingProp, floors: Number(e.target.value) || 1, units: (Number(e.target.value) || 1) * 4 })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Yield</label>
+                  <input
+                    type="text"
+                    value={editingProp.monthlyYield}
+                    onChange={(e) => setEditingProp({ ...editingProp, monthlyYield: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setEditingProp(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-xs font-bold text-white bg-[#FF6B00] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
