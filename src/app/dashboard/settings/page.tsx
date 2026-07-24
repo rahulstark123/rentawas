@@ -24,7 +24,7 @@ import { useToast } from "@/components/ui/Toast";
 
 export default function WorkspaceSettingsPage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"general" | "payouts" | "automations" | "team" | "security">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "payouts" | "automations" | "team">("general");
 
   // General Settings State
   const [orgName, setOrgName] = useState("Grand Regency Management LLC");
@@ -120,8 +120,7 @@ export default function WorkspaceSettingsPage() {
           { id: "general", label: "Organization & Profile", icon: Building2 },
           { id: "payouts", label: "Autopilot Payouts & Banking", icon: CreditCard, badge: "INSTANT" },
           { id: "automations", label: "Reminders & Late Fees", icon: Bell },
-          { id: "team", label: "Team & Role Access", icon: Users, count: team.length },
-          { id: "security", label: "Security & Audit Logs", icon: ShieldCheck },
+          { id: "team", label: "Team Members", icon: Users, count: team.length },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -652,47 +651,6 @@ export default function WorkspaceSettingsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 5: Security & Audit Logs */}
-      {activeTab === "security" && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
-          <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-emerald-600" />
-            <span>Security & Cryptographic Audit Logs</span>
-          </h3>
-
-          <div className="space-y-4 text-xs">
-            <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl flex items-center justify-between">
-              <div>
-                <div className="font-bold text-emerald-900">Two-Factor Authentication (2FA) Enforced</div>
-                <div className="text-[11px] text-emerald-700 mt-0.5">All landlord login sessions require authenticator app or SMS code.</div>
-              </div>
-              <span className="px-3 py-1 bg-emerald-600 text-white font-extrabold text-[10px] rounded-lg uppercase">
-                Active
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block font-bold text-slate-700 uppercase">Recent Session Logins</label>
-              <div className="space-y-2">
-                {[
-                  { device: "Chrome on macOS (Seattle, WA)", time: "Current Session", status: "Active Now" },
-                  { device: "RentAwas iOS App (iPhone 15 Pro)", time: "Today at 08:14 AM", status: "Verified" },
-                  { device: "Firefox on Windows (Mumbai, IN)", time: "Yesterday at 11:42 PM", status: "Verified" },
-                ].map((s, idx) => (
-                  <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-slate-900">{s.device}</div>
-                      <div className="text-[10px] text-slate-500">{s.time}</div>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-600 uppercase">{s.status}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       )}
