@@ -9,7 +9,10 @@ import {
   Wrench, 
   FileText, 
   RefreshCw, 
-  ChevronDown
+  ChevronDown,
+  Building2,
+  TrendingUp,
+  Search
 } from "lucide-react";
 import { 
   IconCloudStorage, 
@@ -33,14 +36,14 @@ export default function PricingAndFAQ() {
   };
 
   const includedFeatures = [
-    { icon: IconCloudStorage, label: "Secure Cloud Storage" },
-    { icon: IconMobileDevice, label: "Mobile Friendly" },
-    { icon: Bell, label: "Automatic Rent Reminders" },
-    { icon: Users, label: "Tenant Portal" },
-    { icon: Wrench, label: "Maintenance Tracking" },
-    { icon: FileText, label: "Digital Lease Management" },
+    { icon: IconCloudStorage, label: "Cloud Workspace Ledgers" },
+    { icon: Building2, label: "Floor & Unit Inventory Matrix" },
+    { icon: TrendingUp, label: "Net Operating Income (NOI)" },
+    { icon: Users, label: "Tenant Resident Portal" },
+    { icon: Wrench, label: "Maintenance Board & Kanban" },
+    { icon: FileText, label: "Digital Lease Documents" },
     { icon: RefreshCw, label: "Regular Product Updates" },
-    { icon: IconBankSecurity, label: "Bank-grade Security" },
+    { icon: Search, label: "Global Command Search (Ctrl+K)" },
   ];
 
   const faqs = [
