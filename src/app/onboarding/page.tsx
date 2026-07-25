@@ -28,17 +28,17 @@ export default function OnboardingPage() {
   const [isFinishing, setIsFinishing] = useState(false);
 
   // Step 1 State: Workspace & Organization Setup
-  const [orgName, setOrgName] = useState("Apex Property Management");
+  const [orgName, setOrgName] = useState("");
   const [currency, setCurrency] = useState("USD ($)");
   const [portfolioScale, setPortfolioScale] = useState("6-25 Units (Multi-Family)");
 
-  // Step 2 State: Add First Property (Matches AddPropertyModal inside the app)
-  const [propertyName, setPropertyName] = useState("The Regent Executive Residency");
+  // Step 2 State: Add First Property (Clean empty fields for tenant/landlord entry)
+  const [propertyName, setPropertyName] = useState("");
   const [category, setCategory] = useState(PROPERTY_CATEGORIES[0]);
-  const [floors, setFloors] = useState("4");
-  const [unitsPerFloor, setUnitsPerFloor] = useState("3");
-  const [pincode, setPincode] = useState("94102");
-  const [propertyAddress, setPropertyAddress] = useState("742 Evergreen Terrace, San Francisco, CA");
+  const [floors, setFloors] = useState("");
+  const [unitsPerFloor, setUnitsPerFloor] = useState("");
+  const [pincode, setPincode] = useState("");
+  const [propertyAddress, setPropertyAddress] = useState("");
   
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
@@ -285,7 +285,7 @@ export default function OnboardingPage() {
                     required
                     value={propertyName}
                     onChange={(e) => setPropertyName(e.target.value)}
-                    placeholder="e.g. The Regent Executive Residency"
+                    placeholder="e.g. The Regent Executive Residency or Wing A"
                     className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
@@ -325,7 +325,7 @@ export default function OnboardingPage() {
                     min="1"
                     value={floors}
                     onChange={(e) => setFloors(e.target.value)}
-                    placeholder="4"
+                    placeholder="e.g. 4"
                     className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
@@ -343,7 +343,7 @@ export default function OnboardingPage() {
                     min="1"
                     value={unitsPerFloor}
                     onChange={(e) => setUnitsPerFloor(e.target.value)}
-                    placeholder="3"
+                    placeholder="e.g. 4"
                     className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
@@ -360,7 +360,7 @@ export default function OnboardingPage() {
                       type="text"
                       value={pincode}
                       onChange={handlePincodeChange}
-                      placeholder="94102 / 110001"
+                      placeholder="e.g. 560001 or 90210"
                       className="w-full px-3.5 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                     {isFetchingLocation && (
@@ -386,7 +386,7 @@ export default function OnboardingPage() {
                       type="text"
                       value={propertyAddress}
                       onChange={(e) => setPropertyAddress(e.target.value)}
-                      placeholder="742 Evergreen Terrace, San Francisco, CA"
+                      placeholder="e.g. 1420 5th Ave, Seattle, WA"
                       className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
