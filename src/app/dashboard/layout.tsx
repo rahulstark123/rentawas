@@ -81,7 +81,7 @@ export default function DashboardLayout({
   const navItems = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "Properties & Units", href: "/dashboard/properties", icon: Building2 },
-    { name: "Autopilot Rent", href: "/dashboard/payments", icon: Zap, badge: "AUTO" },
+    { name: "Rent Payments", href: "/dashboard/payments", icon: CreditCard },
     { name: "AI Documents", href: "/dashboard/leases", icon: FileText, spark: true },
     { name: "Tenants & Health", href: "/dashboard/tenants", icon: Users },
     { name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench, count: 3 },

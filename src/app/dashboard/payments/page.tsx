@@ -4,11 +4,7 @@ import { useState } from "react";
 import { Zap, DollarSign, Download, ArrowUpRight, CheckCircle2, ShieldCheck, CreditCard, RefreshCw } from "lucide-react";
 import { IconAutopilotRent } from "@/components/ui/CustomIcons";
 
-export default function AutopilotPaymentsPage() {
-  const [autoReminders, setAutoReminders] = useState(true);
-  const [autoLateFees, setAutoLateFees] = useState(true);
-  const [instantPayout, setInstantPayout] = useState(true);
-
+export default function RentPaymentsPage() {
   const transactions = [
     { id: "PAY-801", tenant: "Eleanor Vance", property: "The Regent - #302", amount: "$3,200", date: "2026-07-24", status: "Completed", method: "ACH Auto-Debit" },
     { id: "PAY-802", tenant: "Marcus Sterling", property: "The Regent - #104", amount: "$2,850", date: "2026-07-23", status: "Completed", method: "Razorpay UPI" },
@@ -72,60 +68,6 @@ export default function AutopilotPaymentsPage() {
           </div>
           <div className="text-xs text-slate-500 font-medium mt-1">
             UPI, ACH, Stripe, Razorpay
-          </div>
-        </div>
-      </div>
-
-      {/* Rules Config Controls */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-        <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
-          Autopilot Collection Rules & Controls
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
-          <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900">Multi-Channel Reminders</span>
-              <input
-                type="checkbox"
-                checked={autoReminders}
-                onChange={(e) => setAutoReminders(e.target.checked)}
-                className="w-4 h-4 rounded text-[#FF6B00] accent-[#FF6B00] cursor-pointer"
-              />
-            </div>
-            <p className="text-slate-500 text-[11px]">
-              Sends automated WhatsApp, SMS & email notices 5 days before due date.
-            </p>
-          </div>
-
-          <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900">Automated Late Fee Rules</span>
-              <input
-                type="checkbox"
-                checked={autoLateFees}
-                onChange={(e) => setAutoLateFees(e.target.checked)}
-                className="w-4 h-4 rounded text-[#FF6B00] accent-[#FF6B00] cursor-pointer"
-              />
-            </div>
-            <p className="text-slate-500 text-[11px]">
-              Applies standard statutory late fee of 5% on 6th day past due date.
-            </p>
-          </div>
-
-          <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900">Instant Same-Day Payout</span>
-              <input
-                type="checkbox"
-                checked={instantPayout}
-                onChange={(e) => setInstantPayout(e.target.checked)}
-                className="w-4 h-4 rounded text-[#FF6B00] accent-[#FF6B00] cursor-pointer"
-              />
-            </div>
-            <p className="text-slate-500 text-[11px]">
-              Routes collected rent directly into your bank account within 2 hours.
-            </p>
           </div>
         </div>
       </div>
