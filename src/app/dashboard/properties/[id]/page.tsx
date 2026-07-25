@@ -571,9 +571,8 @@ export default function PropertyFloorPlanPage() {
 
                   {/* Rooms & Amenity Specification */}
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1.5">
-                    <div className="flex items-center justify-between text-slate-500 font-bold text-[10px] uppercase tracking-wider">
+                    <div className="text-slate-500 font-bold text-[10px] uppercase tracking-wider">
                       <span>Room Breakdown & Layout</span>
-                      <span className="text-slate-800 font-mono">{u.sqft}</span>
                     </div>
                     <p className="text-xs font-semibold text-slate-800 leading-relaxed">
                       {u.rooms}
