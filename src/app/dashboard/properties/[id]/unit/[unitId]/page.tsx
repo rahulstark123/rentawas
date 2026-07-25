@@ -88,6 +88,7 @@ export default function RoomTelemetryFullPage() {
   const property = PROPERTIES_DB[propId] || PROPERTIES_DB["PROP-1"];
 
   const [activeTab, setActiveTab] = useState<"resident" | "docs" | "history" | "maintenance" | "bills">("resident");
+  const [workspaceCurrency, setWorkspaceCurrency] = useState("$");
 
   // Active occupants list
   const [occupants, setOccupants] = useState<OccupantItem[]>([
@@ -873,16 +874,23 @@ export default function RoomTelemetryFullPage() {
                   </div>
 
                   <div>
-                    <label className="block font-bold text-[#FF6B00] uppercase mb-1">Individual Monthly Rent ($ / ₹) *</label>
-                    <input
-                      type="number"
-                      required
-                      min={0}
-                      value={monthlyRent}
-                      onChange={(e) => setMonthlyRent(e.target.value)}
-                      placeholder="1000"
-                      className="w-full px-3 py-2 bg-white border border-[#FF6B00] rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                    />
+                    <label className="block font-bold text-[#FF6B00] uppercase mb-1">
+                      Individual Monthly Rent ({workspaceCurrency}) *
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-700 font-extrabold text-sm pointer-events-none">
+                        {workspaceCurrency}
+                      </div>
+                      <input
+                        type="number"
+                        required
+                        min={0}
+                        value={monthlyRent}
+                        onChange={(e) => setMonthlyRent(e.target.value)}
+                        placeholder="1000"
+                        className="w-full pl-8 pr-3 py-2 bg-white border border-[#FF6B00] rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      />
+                    </div>
                   </div>
                 </div>
 
