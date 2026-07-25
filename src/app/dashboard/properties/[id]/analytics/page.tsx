@@ -83,17 +83,37 @@ export default function PropertyDedicatedAnalyticsPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Date Range Selector */}
+            {/* Fiscal Year & Time Horizon Filter Selector */}
             <div className="relative">
               <select
                 value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
+                onChange={(e) => {
+                  setDateRange(e.target.value);
+                  toast(`Filter updated to ${e.target.value}`, "info");
+                }}
                 className="appearance-none pl-3.5 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
               >
-                <option value="Fiscal Year 2026">Fiscal Year 2026</option>
-                <option value="Last 12 Months">Last 12 Months</option>
-                <option value="Q3 2026">Q3 2026 (Current Quarter)</option>
-                <option value="All Time">All Time Historical</option>
+                <optgroup label="Fiscal Years (April – March)">
+                  <option value="FY 2026 – 2027 (Current FY)">FY 2026 – 2027 (Current FY)</option>
+                  <option value="FY 2025 – 2026 (Previous FY)">FY 2025 – 2026 (Previous FY)</option>
+                  <option value="FY 2024 – 2025 (Historical FY)">FY 2024 – 2025 (Historical FY)</option>
+                </optgroup>
+
+                <optgroup label="Fiscal Quarters (FY 2026-27)">
+                  <option value="FY 2026-27 Q1 (Apr – Jun 2026)">FY 2026-27 Q1 (Apr – Jun 2026)</option>
+                  <option value="FY 2026-27 Q2 (Jul – Sep 2026)">FY 2026-27 Q2 (Jul – Sep 2026)</option>
+                  <option value="FY 2026-27 Q3 (Oct – Dec 2026)">FY 2026-27 Q3 (Oct – Dec 2026)</option>
+                  <option value="FY 2026-27 Q4 (Jan – Mar 2027)">FY 2026-27 Q4 (Jan – Mar 2027)</option>
+                </optgroup>
+
+                <optgroup label="Calendar Years & Trailing Periods">
+                  <option value="Calendar Year 2026">Calendar Year 2026 (Jan – Dec)</option>
+                  <option value="Calendar Year 2025">Calendar Year 2025 (Jan – Dec)</option>
+                  <option value="Trailing 12 Months (T12M)">Trailing 12 Months (T12M)</option>
+                  <option value="Trailing 6 Months (T6M)">Trailing 6 Months (T6M)</option>
+                  <option value="Trailing 30 Days">Trailing 30 Days (Current Month)</option>
+                  <option value="All-Time Historical">All-Time Historical (Since Inception)</option>
+                </optgroup>
               </select>
               <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
                 <ChevronDown className="w-4 h-4" />
