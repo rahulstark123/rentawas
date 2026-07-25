@@ -89,6 +89,9 @@ export default function SignupPage() {
       });
 
       setIsLoading(false);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("signup_portfolio_scale", portfolioSize);
+      }
       if (role === "tenant") {
         router.push("/tenant/dashboard");
       } else {

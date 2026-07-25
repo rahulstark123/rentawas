@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -42,6 +42,19 @@ export default function OnboardingPage() {
   
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
+
+  // Sync Portfolio Scale filled during Signup Page
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedScale = localStorage.getItem("signup_portfolio_scale");
+      if (savedScale) {
+        if (savedScale === "1-5") setPortfolioScale("1-5 Units (Single Owner)");
+        else if (savedScale === "6-20") setPortfolioScale("6-25 Units (Multi-Family)");
+        else if (savedScale === "21-50") setPortfolioScale("26-100 Units (Commercial)");
+        else if (savedScale === "50+") setPortfolioScale("100+ Units (Institutional)");
+      }
+    }
+  }, []);
 
   const numFloors = Number(floors) || 1;
   const numUnitsPerFloor = Number(unitsPerFloor) || 1;
