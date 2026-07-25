@@ -86,7 +86,7 @@ export default function RoomTelemetryFullPage() {
               <div>
                 <div className="flex items-center gap-2.5">
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                    {unitId} Telemetry & History
+                    {unitId} Details & History
                   </h1>
                   <span className="px-3 py-1 rounded-full text-xs font-black bg-[#FF6B00] text-white">
                     $3,200/mo
@@ -108,11 +108,11 @@ export default function RoomTelemetryFullPage() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => toast(`Generating full telemetry audit report for ${unitId}...`, "info")}
+              onClick={() => toast(`Generating full room report for ${unitId}...`, "info")}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all uppercase tracking-wider cursor-pointer"
             >
               <Download className="w-4 h-4 text-orange-400" />
-              <span>Export Telemetry PDF</span>
+              <span>Export Room Report PDF</span>
             </button>
           </div>
         </div>

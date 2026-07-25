@@ -163,7 +163,7 @@ export default function OnboardingPage() {
             {currentStep === 2 && "Step 2: Add Your First Property & Floor Plan"}
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto">
-            Configure your property telemetry, floor layout, and portfolio structure in 2 quick steps.
+            Configure your property details, floor layout, and portfolio structure in 2 quick steps.
           </p>
 
           {/* Progress Bar Tabs (2 Steps Only) */}
