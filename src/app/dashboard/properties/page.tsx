@@ -238,7 +238,7 @@ export default function PropertiesPage() {
                         onClick={() => {
                           setActiveMenuId(null);
                           toast(`Loading yield analytics for ${prop.name}...`, "info");
-                          router.push("/dashboard/analytics");
+                          router.push(`/dashboard/properties/${prop.id}/analytics`);
                         }}
                         className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 flex items-center gap-2 cursor-pointer"
                       >
