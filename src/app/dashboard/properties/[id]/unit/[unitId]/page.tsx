@@ -90,6 +90,7 @@ export default function RoomTelemetryFullPage() {
   const [activeTab, setActiveTab] = useState<"resident" | "docs" | "history" | "maintenance" | "bills">("resident");
   const [workspaceCurrency, setWorkspaceCurrency] = useState("$");
   const [selectedDocOccupantId, setSelectedDocOccupantId] = useState<string>("");
+  const [selectedBillOccupantId, setSelectedBillOccupantId] = useState<string>("all");
 
   // Active occupants list
   const [occupants, setOccupants] = useState<OccupantItem[]>([
@@ -834,44 +835,138 @@ export default function RoomTelemetryFullPage() {
         </div>
       )}
 
-      {/* TAB 5: BILLS & INVOICES */}
-      {activeTab === "bills" && (
-        <div className="space-y-6 animate-in fade-in duration-200 text-xs">
-          <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-emerald-900">
-            <div className="flex items-center gap-2.5 font-bold text-sm">
-              <Receipt className="w-5 h-5 text-emerald-600" />
-              <span>Monthly Billing Status: All Invoices Settled</span>
-            </div>
-            <span className="font-black text-sm">$0.00 Outstanding</span>
-          </div>
+      {/* TAB 5: BILLS & INVOICES (PER-RESIDENT FINANCIAL LEDGER) */}
+      {activeTab === "bills" && (() => {
+        const isAll = selectedBillOccupantId === "all" || !selectedBillOccupantId;
+        const currentBillOccupant = occupants.find((o) => o.id === selectedBillOccupantId);
 
-          <div className="space-y-3">
-            {[
-              { inv: "INV-2026-07", title: "July Combined Room Rent Invoice", amount: `$${totalRoomRent.toLocaleString()}`, date: "24 Jul 2026", status: "Paid ✓" },
-              { inv: "UTIL-2026-07", title: "Sub-meter Water & Power Utility Bill", amount: "$145.00", date: "20 Jul 2026", status: "Paid ✓" },
-              { inv: "INV-2026-06", title: "June Combined Room Rent Invoice", amount: `$${totalRoomRent.toLocaleString()}`, date: "24 Jun 2026", status: "Paid ✓" },
-            ].map((b) => (
-              <div key={b.inv} className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-2xs">
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-bold text-slate-900 text-sm">{b.inv} — {b.title}</span>
-                    <span className="font-black text-[#FF6B00]">{b.amount}</span>
-                  </div>
-                  <div className="text-xs text-slate-400 mt-0.5">Paid Date: {b.date}</div>
-                </div>
+        // Filter or generate bills per occupant
+        const displayInvoices = isAll
+          ? [
+              { inv: "INV-2026-07-COMB", resident: "All Occupants", title: "July Combined Room Rent Invoice", amount: `$${totalRoomRent.toLocaleString()}.00`, date: "24 Jul 2026", status: "Paid ✓", method: "Autopilot Consolidated" },
+              { inv: "UTIL-2026-07", resident: "Room Sub-meter", title: "Water & Power Sub-meter Bill", amount: "$145.00", date: "20 Jul 2026", status: "Paid ✓", method: "Split Equal" },
+              { inv: "INV-2026-06-COMB", resident: "All Occupants", title: "June Combined Room Rent Invoice", amount: `$${totalRoomRent.toLocaleString()}.00`, date: "24 Jun 2026", status: "Paid ✓", method: "Autopilot Consolidated" },
+            ]
+          : [
+              { inv: `INV-2026-07-${currentBillOccupant?.name.charAt(0)}`, resident: currentBillOccupant?.name, title: `July Monthly Rent Invoice — ${currentBillOccupant?.name}`, amount: `$${(currentBillOccupant?.individualRent || 1000).toLocaleString()}.00`, date: "24 Jul 2026", status: "Paid ✓", method: "ACH Auto-Debit" },
+              { inv: `UTIL-2026-07-${currentBillOccupant?.name.charAt(0)}`, resident: currentBillOccupant?.name, title: `Sub-meter Electricity & Water Share`, amount: "$72.50", date: "20 Jul 2026", status: "Paid ✓", method: "UPI Gateway" },
+              { inv: `INV-2026-06-${currentBillOccupant?.name.charAt(0)}`, resident: currentBillOccupant?.name, title: `June Monthly Rent Invoice — ${currentBillOccupant?.name}`, amount: `$${(currentBillOccupant?.individualRent || 1000).toLocaleString()}.00`, date: "24 Jun 2026", status: "Paid ✓", method: "ACH Auto-Debit" },
+            ];
 
+        return (
+          <div className="space-y-6 animate-in fade-in duration-200 text-xs">
+            
+            {/* Resident Billing Switcher Bar */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-[#FF6B00]" />
+                  <span>Select Resident for Individual Financial Ledger</span>
+                </span>
+                <span className="text-xs font-bold text-[#FF6B00]">
+                  {occupants.length} Active Occupants
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2.5 overflow-x-auto custom-scrollbar pb-1">
                 <button
-                  onClick={() => toast(`Downloading PDF invoice receipt for ${b.inv}...`, "success")}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer"
+                  onClick={() => setSelectedBillOccupantId("all")}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer whitespace-nowrap border ${
+                    isAll
+                      ? "bg-slate-900 text-white border-slate-900 shadow-md"
+                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                  }`}
                 >
-                  <Download className="w-4 h-4" />
-                  <span>PDF Invoice</span>
+                  <span>🏢 All Occupants Combined (${totalRoomRent.toLocaleString()}/mo)</span>
+                </button>
+
+                {occupants.map((occ) => {
+                  const isSelected = selectedBillOccupantId === occ.id;
+                  return (
+                    <button
+                      key={occ.id}
+                      onClick={() => setSelectedBillOccupantId(occ.id)}
+                      className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer whitespace-nowrap border ${
+                        isSelected
+                          ? "bg-slate-900 text-white border-slate-900 shadow-md"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${
+                        isSelected ? "bg-[#FF6B00] text-white" : "bg-slate-200 text-slate-800"
+                      }`}>
+                        {occ.name.charAt(0)}
+                      </div>
+                      <span>{occ.name} (${occ.individualRent.toLocaleString()}/mo)</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Billing Summary Banner */}
+            <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-emerald-900 shadow-2xs">
+              <div className="flex items-center gap-3 font-bold text-sm">
+                <Receipt className="w-6 h-6 text-emerald-600 shrink-0" />
+                <div>
+                  <span className="block text-sm">
+                    {isAll
+                      ? `Combined Ledger for ${unitId}`
+                      : `${currentBillOccupant?.name}'s Individual Ledger`}
+                  </span>
+                  <span className="text-xs text-emerald-700 font-medium">
+                    {isAll
+                      ? `Monthly Revenue: $${totalRoomRent.toLocaleString()}/mo across ${occupants.length} residents`
+                      : `Monthly Individual Rent: $${(currentBillOccupant?.individualRent || 0).toLocaleString()}/mo (${currentBillOccupant?.bedSlot})`}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="font-black text-sm bg-emerald-100 px-3.5 py-1 rounded-xl text-emerald-900">
+                  $0.00 Outstanding
+                </span>
+                
+                <button
+                  onClick={() => toast(`Generating custom invoice for ${isAll ? unitId : currentBillOccupant?.name}...`, "info")}
+                  className="px-4 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer uppercase tracking-wider whitespace-nowrap"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Issue Invoice</span>
                 </button>
               </div>
-            ))}
+            </div>
+
+            {/* Invoices List */}
+            <div className="space-y-3">
+              {displayInvoices.map((b) => (
+                <div key={b.inv} className="p-5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-2xs">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-extrabold text-slate-900 text-sm">{b.inv} — {b.title}</span>
+                      <span className="font-black text-[#FF6B00] text-base">{b.amount}</span>
+                    </div>
+                    <div className="text-xs text-slate-500 flex items-center gap-3 font-medium">
+                      <span>Paid Date: {b.date}</span>
+                      <span>•</span>
+                      <span className="text-emerald-600 font-bold">{b.status} ({b.method})</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => toast(`Downloading PDF invoice receipt for ${b.inv}...`, "success")}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>PDF Receipt</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ------------------- MODAL 1: 3-STEP ADD / EDIT TENANT MODAL ------------------- */}
       {showAddTenantModal && (
