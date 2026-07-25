@@ -106,7 +106,7 @@ export default function FeaturesBento() {
             </div>
           </motion.div>
 
-          {/* Card 2: AI Lease Architect */}
+          {/* Card 2: Digital Leases & Agreements */}
           <motion.div 
             variants={cardVariants}
             whileHover={{ y: -3 }}
@@ -119,21 +119,21 @@ export default function FeaturesBento() {
                 <IconLeaseAI className="w-5 h-5" />
               </div>
               <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">
-                AI Lease Architect
+                Digital Leases & Agreements
               </h3>
               <p className="text-slate-300 font-normal text-sm md:text-base leading-relaxed mb-8">
-                Generate legally compliant, localized lease agreements in seconds using our proprietary LLM trained on property law.
+                Manage lease contracts, expiration reminders, security deposit ledgers, and legal documents.
               </p>
             </div>
 
-            {/* Simulated AI Command Bar */}
+            {/* Simulated Command Bar */}
             <div className="bg-[#0C1019] border border-slate-800 rounded-lg p-3 flex items-center gap-2 font-mono text-xs text-slate-300">
-              <span className="text-purple-400 font-semibold">{typedText}</span>
+              <span className="text-purple-400 font-semibold">Active Lease Document • Unit 302</span>
               <span className="w-2 h-4 bg-purple-400 animate-pulse"></span>
             </div>
           </motion.div>
 
-          {/* Card 3: Maintenance */}
+          {/* Card 3: Maintenance Workflow */}
           <motion.div 
             variants={cardVariants}
             whileHover={{ y: -3 }}
@@ -144,15 +144,15 @@ export default function FeaturesBento() {
                 <IconMaintenance className="w-5 h-5" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">
-                Maintenance
+                Maintenance Board
               </h3>
               <p className="text-slate-600 font-normal text-xs sm:text-sm leading-relaxed">
-                Real-time ticket tracking with automated vendor dispatch.
+                3-stage tenant issue resolution workflow with Kanban board and table data views.
               </p>
             </div>
           </motion.div>
 
-          {/* Card 4: Tenant Health */}
+          {/* Card 4: Tenant Health Score */}
           <motion.div 
             variants={cardVariants}
             whileHover={{ y: -3 }}
@@ -163,31 +163,31 @@ export default function FeaturesBento() {
                 <IconTenantHealth className="w-5 h-5" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">
-                Tenant Health
+                Tenant Health Score
               </h3>
               <p className="text-slate-600 font-normal text-xs sm:text-sm leading-relaxed">
-                Credit scoring and behavioral history at a glance.
+                Real-time tenant health scoring (0-100%), directory profiles, and unit assignments.
               </p>
             </div>
           </motion.div>
 
-          {/* Card 5: Autopilot Rent */}
+          {/* Card 5: Rent Payments & Collections */}
           <motion.div 
             variants={cardVariants}
             whileHover={{ y: -3 }}
             className="md:col-span-6 bg-white rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 group"
           >
             <div className="max-w-sm">
-              <Link href="/login" aria-label="Autopilot Rent Login" className="inline-block cursor-pointer group/icon">
+              <Link href="/login" aria-label="Rent Payments Login" className="inline-block cursor-pointer group/icon">
                 <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-105 group-hover/icon:bg-emerald-100/80 transition-all">
                   <IconAutopilotRent className="w-5 h-5" />
                 </div>
               </Link>
               <h3 className="text-xl font-bold text-slate-900 mb-2">
-                Autopilot Rent
+                Rent Payments & Collections
               </h3>
               <p className="text-slate-600 font-normal text-xs sm:text-sm leading-relaxed">
-                Collection rates increased by 40% with automated reminders and multi-channel payment gateways.
+                Track paid, pending, and overdue transactions across multi-channel gateways like UPI, Cards, and ACH.
               </p>
             </div>
 
