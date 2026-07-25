@@ -288,59 +288,90 @@ export default function DashboardOverviewPage() {
         {/* Right Sidebar Widgets Section (4 Cols) */}
         <div className="lg:col-span-4 space-y-6">
           
-          {/* AI Insights & Lease Renewal Card */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4 relative overflow-hidden">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900">AI Lease Recommendations</h4>
-                <p className="text-[11px] text-slate-500">Automated Legal Yield Intelligence</p>
-              </div>
-            </div>
-
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-              <div className="font-bold text-slate-900 flex items-center justify-between">
-                <span>Unit 201 Renewal</span>
-                <span className="text-purple-600 font-extrabold">+4.2% Yield</span>
-              </div>
-              <p className="text-slate-600 text-[11px]">
-                Lease expires in 25 days. Seattle rental market trend suggests adjusting rate to $2,720/mo.
-              </p>
-              <Link
-                href="/dashboard/leases"
-                className="inline-block mt-1 w-full text-center py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg text-xs transition-colors uppercase tracking-wider cursor-pointer"
-              >
-                Auto-Generate Renewal
-              </Link>
-            </div>
-          </div>
-
-          {/* Urgent Maintenance Dispatch Widget */}
+          {/* Card 1: Property Portfolio Summary */}
           <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-orange-50 text-orange-600">
-                  <Wrench className="w-5 h-5" />
+                <div className="p-2 rounded-xl bg-orange-50 text-[#FF6B00]">
+                  <Building2 className="w-5 h-5" />
                 </div>
-                <h4 className="text-sm font-bold text-slate-900">Urgent Maintenance</h4>
+                <div>
+                  <h4 className="text-sm font-extrabold text-slate-900">Portfolio Summary</h4>
+                  <p className="text-[11px] text-slate-500">Live property occupancy rates</p>
+                </div>
               </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 uppercase">
-                High Priority
+              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 uppercase">
+                94% Occupied
               </span>
             </div>
 
-            <div className="p-3.5 bg-orange-50/50 border border-orange-200/80 rounded-xl space-y-2 text-xs">
-              <div className="font-bold text-slate-900">Ticket #402 — Plumbing Leak</div>
-              <div className="text-slate-600 text-[11px]">Regent Wing A, Unit 304 • Reported 1h ago</div>
-              <Link
-                href="/dashboard/maintenance"
-                className="inline-block mt-1 w-full text-center py-2 bg-slate-900 hover:bg-black text-white font-bold rounded-lg text-xs transition-colors uppercase tracking-wider cursor-pointer"
-              >
-                Dispatch Local Vendor
-              </Link>
+            <div className="space-y-2.5 text-xs">
+              {[
+                { name: "The Regent - Wing A", count: "23 / 24 Units", pct: 96 },
+                { name: "Downtown Horizon Suites", count: "16 / 16 Units", pct: 100 },
+                { name: "Oakwood Executive", count: "11 / 12 Units", pct: 92 },
+              ].map((p, idx) => (
+                <div key={idx} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                  <div className="flex items-center justify-between font-bold text-slate-900">
+                    <span>{p.name}</span>
+                    <span className="text-slate-600 font-extrabold text-[11px]">{p.count}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#FF6B00] rounded-full" style={{ width: `${p.pct}%` }} />
+                  </div>
+                </div>
+              ))}
             </div>
+
+            <Link
+              href="/dashboard/properties"
+              className="inline-block w-full text-center py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-all uppercase tracking-wider cursor-pointer shadow-2xs"
+            >
+              Manage Properties Portfolio →
+            </Link>
+          </div>
+
+          {/* Card 2: Upcoming Lease Expirations */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-extrabold text-slate-900">Upcoming Expirations</h4>
+                  <p className="text-[11px] text-slate-500">Leases ending within 60 days</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 uppercase">
+                2 Due Soon
+              </span>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="p-3 bg-purple-50/50 border border-purple-100 rounded-xl space-y-1">
+                <div className="flex items-center justify-between font-bold text-slate-900">
+                  <span>Eleanor Vance</span>
+                  <span className="text-purple-700 font-extrabold text-[11px]">25 Days Left</span>
+                </div>
+                <div className="text-[11px] text-slate-500">Regent Wing A • Unit 302 ($3,200/mo)</div>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                <div className="flex items-center justify-between font-bold text-slate-900">
+                  <span>David Chen</span>
+                  <span className="text-slate-600 font-bold text-[11px]">40 Days Left</span>
+                </div>
+                <div className="text-[11px] text-slate-500">Oakwood Executive • Unit 201 ($2,600/mo)</div>
+              </div>
+            </div>
+
+            <Link
+              href="/dashboard/leases"
+              className="inline-block w-full text-center py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs transition-all uppercase tracking-wider cursor-pointer shadow-2xs"
+            >
+              View Lease Documents & Renewals →
+            </Link>
           </div>
 
         </div>
