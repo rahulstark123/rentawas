@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
@@ -40,6 +40,20 @@ export default function PropertiesPage() {
   const { toast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const menuContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-close 3-dots action menu on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (activeMenuId && menuContainerRef.current && !menuContainerRef.current.contains(event.target as Node)) {
+        setActiveMenuId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [activeMenuId]);
 
   // Floor Plan Drawer State
   const [selectedFloorPlanProp, setSelectedFloorPlanProp] = useState<PropertyItem | null>(null);
@@ -197,7 +211,7 @@ export default function PropertiesPage() {
                 </span>
 
                 {/* 3-Dots Options Menu Button */}
-                <div className="relative">
+                <div className="relative" ref={activeMenuId === prop.id ? menuContainerRef : null}>
                   <button
                     onClick={() => setActiveMenuId(activeMenuId === prop.id ? null : prop.id)}
                     className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
