@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -57,6 +57,19 @@ export default function DashboardLayout({
   const [showPropertyMenu, setShowPropertyMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Click Outside Listener for Profile Dropdown
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (showProfileMenu && profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showProfileMenu]);
 
   // Global Keyboard Shortcut: Ctrl + K or Cmd + K to trigger search
   useEffect(() => {
@@ -403,49 +416,71 @@ export default function DashboardLayout({
           {/* Actions & Notifications */}
           <div className="flex items-center gap-3">
 
-            {/* Notifications Trigger */}
-            <div className="relative">
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FF6B00] border border-white" />
-              </button>
-
-              {/* Notifications Dropdown Overlay */}
-              {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 z-50 space-y-3 font-sans animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <h3 className="text-xs font-extrabold uppercase text-slate-900 tracking-wider">Notifications</h3>
-                    <span className="text-[10px] font-bold text-[#FF6B00] bg-orange-50 px-2 py-0.5 rounded">3 New</span>
-                  </div>
-
-                  <div className="space-y-2">
-                    {notifications.map((n) => {
-                      const Icon = n.icon;
-                      return (
-                        <div key={n.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5 hover:bg-slate-100/80 transition-colors">
-                          <div className={`p-2 rounded-lg shrink-0 ${n.color}`}>
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <div className="text-xs font-bold text-slate-900 leading-tight">{n.title}</div>
-                            <div className="text-[11px] text-slate-500 mt-0.5 leading-snug">{n.desc}</div>
-                            <div className="text-[9px] font-semibold text-slate-400 mt-1">{n.time}</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Profile Avatar */}
-            <div className="w-8 h-8 rounded-full bg-[#0B132B] text-white font-bold text-xs flex items-center justify-center shadow-xs">
+          {/* Profile Menu Trigger & Dropdown */}
+          <div className="relative" ref={showProfileMenu ? profileMenuRef : null}>
+            <button
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              className="w-9 h-9 rounded-full bg-[#0B132B] text-white font-extrabold text-xs flex items-center justify-center shadow-xs hover:ring-2 hover:ring-[#FF6B00] transition-all cursor-pointer"
+              title="Account & Profile Options"
+            >
               AW
-            </div>
+            </button>
+
+            {/* Profile Dropdown Menu */}
+            {showProfileMenu && (
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200/90 rounded-2xl shadow-2xl p-2 z-50 space-y-1 font-sans animate-in fade-in duration-150">
+                {/* User Summary Header */}
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-slate-900 text-xs">Alexander Wright</span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-[#FF6B00] text-white uppercase">PRO</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium truncate">alexander.wright@rentawas.com</div>
+                </div>
+
+                <div className="border-t border-slate-100 my-1" />
+
+                {/* Options List */}
+                <Link
+                  href="/dashboard/settings"
+                  onClick={() => setShowProfileMenu(false)}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 rounded-xl flex items-center gap-2.5 cursor-pointer transition-colors"
+                >
+                  <Settings className="w-4 h-4 text-slate-500" />
+                  <span>Workspace Settings</span>
+                </Link>
+
+                <Link
+                  href="/dashboard/billing"
+                  onClick={() => setShowProfileMenu(false)}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 rounded-xl flex items-center gap-2.5 cursor-pointer transition-colors"
+                >
+                  <CreditCard className="w-4 h-4 text-slate-500" />
+                  <span>Plans & Subscription</span>
+                </Link>
+
+                <Link
+                  href="/dashboard/support"
+                  onClick={() => setShowProfileMenu(false)}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 rounded-xl flex items-center gap-2.5 cursor-pointer transition-colors"
+                >
+                  <HelpCircle className="w-4 h-4 text-slate-500" />
+                  <span>Help & Support</span>
+                </Link>
+
+                <div className="border-t border-slate-100 my-1" />
+
+                <Link
+                  href="/login"
+                  onClick={() => setShowProfileMenu(false)}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl flex items-center gap-2.5 cursor-pointer transition-colors"
+                >
+                  <LogOut className="w-4 h-4 text-rose-600" />
+                  <span>Log Out</span>
+                </Link>
+              </div>
+            )}
+          </div>
           </div>
         </header>
 
