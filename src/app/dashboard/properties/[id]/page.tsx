@@ -545,19 +545,15 @@ export default function PropertyFloorPlanPage() {
                         <h3 className="text-lg font-extrabold text-slate-900">{u.unitNo}</h3>
                         <span className="text-sm font-black text-[#FF6B00]">{u.rent}</span>
                         
-                        {/* EYE ICON: Room Telemetry & History Trigger */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedDetailUnit(u);
-                            setDetailTab("resident");
-                          }}
-                          className="p-1.5 rounded-lg bg-orange-50 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-bold ml-1"
-                          title="View Room Telemetry, Resident Details, Docs, History & Maintenance"
+                        {/* EYE ICON: Full Details Page Link */}
+                        <Link
+                          href={`/dashboard/properties/${propId}/unit/${encodeURIComponent(u.unitNo)}`}
+                          className="p-1.5 px-2.5 rounded-lg bg-orange-50 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-bold ml-1 shadow-2xs"
+                          title="View Full Room Telemetry & History Page"
                         >
                           <Eye className="w-4 h-4" />
-                          <span className="text-[10px] uppercase tracking-wider font-extrabold hidden sm:inline">Telemetry</span>
-                        </button>
+                          <span>Details</span>
+                        </Link>
                       </div>
                       <p className="text-xs font-semibold text-slate-600 mt-0.5">{u.type}</p>
                     </div>
@@ -640,16 +636,13 @@ export default function PropertyFloorPlanPage() {
                           <span>Call Resident</span>
                         </button>
 
-                        <button
-                          onClick={() => {
-                            setSelectedDetailUnit(u);
-                            setDetailTab("resident");
-                          }}
-                          className="px-3 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                        <Link
+                          href={`/dashboard/properties/${propId}/unit/${encodeURIComponent(u.unitNo)}`}
+                          className="px-3.5 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          <span>View Telemetry</span>
-                        </button>
+                          <span>Details</span>
+                        </Link>
                       </div>
                     </div>
                   ) : (
