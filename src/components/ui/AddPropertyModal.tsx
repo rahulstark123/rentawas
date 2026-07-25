@@ -36,6 +36,7 @@ interface AddPropertyModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddProperty?: (newProp: PropertyData) => void;
+  initialData?: PropertyData | null;
 }
 
 export const PROPERTY_CATEGORIES = [
@@ -87,7 +88,7 @@ export const ROOM_LAYOUT_OPTIONS = [
   "Other / Custom Layout (Specify your own custom architecture...)"
 ];
 
-export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: AddPropertyModalProps) {
+export default function AddPropertyModal({ isOpen, onClose, onAddProperty, initialData }: AddPropertyModalProps) {
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [category, setCategory] = useState(PROPERTY_CATEGORIES[0]);
@@ -106,8 +107,41 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
 
+  // Sync initialData if editing
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || "");
+      setCategory(initialData.category || PROPERTY_CATEGORIES[0]);
+      setPincode(initialData.pincode || "");
+      setAddress(initialData.address || "");
+      setFloors(initialData.floors ? initialData.floors.toString() : "4");
+      setDefaultUnitsPerFloor(initialData.unitsPerFloor ? initialData.unitsPerFloor.toString() : "3");
+      setRoomLayout(initialData.roomLayout || ROOM_LAYOUT_OPTIONS[0]);
+
+      if (initialData.floorBreakdown && initialData.floorBreakdown.length > 0) {
+        setIsPerFloorCustom(true);
+        setFloorUnitCounts(initialData.floorBreakdown.map((f) => f.units));
+      } else {
+        setIsPerFloorCustom(false);
+      }
+    } else {
+      setName("");
+      setCategory(PROPERTY_CATEGORIES[0]);
+      setPincode("");
+      setAddress("");
+      setFloors("4");
+      setDefaultUnitsPerFloor("3");
+      setIsPerFloorCustom(false);
+      setFloorUnitCounts([3, 3, 3, 3]);
+      setRoomLayout(ROOM_LAYOUT_OPTIONS[0]);
+      setCustomRoomLayout("");
+    }
+  }, [initialData, isOpen]);
+
   // Sync floorUnitCounts array when total floors or default units per floor changes
   useEffect(() => {
+    if (initialData && isPerFloorCustom) return;
+
     const numFloors = Math.max(1, Math.min(100, Number(floors) || 1));
     const defaultUnits = Math.max(1, Number(defaultUnitsPerFloor) || 1);
 
@@ -122,7 +156,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
       }
       return updated;
     });
-  }, [floors, defaultUnitsPerFloor]);
+  }, [floors, defaultUnitsPerFloor, initialData, isPerFloorCustom]);
 
   if (!isOpen) return null;
 
@@ -191,17 +225,16 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
         }
       }
 
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(cleanCode)}&format=json&limit=1`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.length > 0) {
-          const displayName = data[0].display_name;
-          setAddress(displayName);
-          setLocationMessage(`Auto-filled: ${displayName.split(",").slice(0, 3).join(",")}`);
-          toast(`Global location detected for postal code ${cleanCode}!`, "success");
-          setIsFetchingLocation(false);
-          return;
-        }
+      const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(cleanCode)}&format=json&addressdetails=1`);
+      const geoData = await geoRes.json();
+      if (geoData && geoData.length > 0) {
+        const place = geoData[0];
+        const displayName = place.display_name;
+        setAddress(displayName);
+        setLocationMessage(`Auto-filled: ${displayName.split(",").slice(0, 3).join(",")}`);
+        toast(`Global location detected for postal code ${cleanCode}!`, "success");
+        setIsFetchingLocation(false);
+        return;
       }
 
       setLocationMessage("Pincode entered. Please complete street address.");
@@ -221,8 +254,9 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
       units: count,
     }));
 
+    const isEditMode = !!initialData;
     const newProp: PropertyData = {
-      id: `PROP-${Math.floor(10 + Math.random() * 90)}`,
+      id: initialData?.id || `PROP-${Math.floor(10 + Math.random() * 90)}`,
       name,
       category,
       pincode,
@@ -232,17 +266,19 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
       units: totalUnits,
       roomLayout: finalRoomLayout,
       floorBreakdown,
+      avgRent: initialData?.avgRent,
     };
 
     if (onAddProperty) {
       onAddProperty(newProp);
     }
 
-    toast(`Property "${name}" created with ${numFloors} floors & ${totalUnits} total rooms across custom floor plans!`, "success");
-    setName("");
-    setPincode("");
-    setAddress("");
-    setCustomRoomLayout("");
+    toast(
+      isEditMode
+        ? `Property "${name}" updated successfully!`
+        : `Property "${name}" created with ${numFloors} floors & ${totalUnits} total rooms across custom floor plans!`,
+      "success"
+    );
     onClose();
   };
 
@@ -260,10 +296,10 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
             </div>
             <div>
               <h3 className="text-lg font-extrabold text-slate-900 leading-none">
-                Add New Property to Portfolio
+                {initialData ? "Edit Property Details" : "Add Property Setup"}
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Configure property location, per-floor room breakdown, and architecture.
+                {initialData ? `Update architecture configuration for ${initialData.name}` : "Configure building layout, floor counts & room allocation matrix"}
               </p>
             </div>
           </div>
@@ -536,8 +572,8 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
               type="submit"
               className="px-5 py-2.5 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-md shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
             >
-              <Plus className="w-4 h-4" />
-              <span>Create Property</span>
+              {initialData ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              <span>{initialData ? "Save Property Changes" : "Create Property"}</span>
             </button>
           </div>
         </div>

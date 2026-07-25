@@ -38,7 +38,9 @@ import {
   AlertTriangle,
   ShieldAlert,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  BarChart3,
+  TrendingUp
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
@@ -87,7 +89,7 @@ export default function RoomTelemetryFullPage() {
   const unitId = decodeURIComponent(rawUnitId);
   const property = PROPERTIES_DB[propId] || PROPERTIES_DB["PROP-1"];
 
-  const [activeTab, setActiveTab] = useState<"resident" | "docs" | "history" | "maintenance" | "bills">("resident");
+  const [activeTab, setActiveTab] = useState<"analytics" | "resident" | "docs" | "history" | "maintenance" | "bills">("analytics");
   const [workspaceCurrency, setWorkspaceCurrency] = useState("$");
   const [selectedDocOccupantId, setSelectedDocOccupantId] = useState<string>("");
   const [selectedBillOccupantId, setSelectedBillOccupantId] = useState<string>("all");
@@ -424,6 +426,7 @@ export default function RoomTelemetryFullPage() {
       {/* Full Page Section Navigation Tabs */}
       <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl overflow-x-auto custom-scrollbar">
         {[
+          { id: "analytics", label: "Analytics", icon: BarChart3 },
           { id: "resident", label: "Occupants & User Rents", icon: Users },
           { id: "docs", label: "Tenant Documents", icon: FileCheck },
           { id: "history", label: "Room History & Past Residents", icon: History },
@@ -448,6 +451,149 @@ export default function RoomTelemetryFullPage() {
           );
         })}
       </div>
+
+      {/* TAB 0: ROOM DATA ANALYTICS */}
+      {activeTab === "analytics" && (
+        <div className="space-y-6 animate-in fade-in duration-200 text-xs">
+          
+          {/* Key Performance Indicators (KPI Grid) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-2">
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="font-bold uppercase text-[10px] tracking-wider">Monthly Room Yield</span>
+                <TrendingUp className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div className="text-2xl font-black text-slate-900">
+                ${totalRoomRent.toLocaleString()}<span className="text-xs font-bold text-slate-400">/mo</span>
+              </div>
+              <div className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                <span>▲ +12.5% vs property average</span>
+              </div>
+            </div>
+
+            <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-2">
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="font-bold uppercase text-[10px] tracking-wider">Average Rent Per Resident</span>
+                <Users className="w-4 h-4 text-blue-500" />
+              </div>
+              <div className="text-2xl font-black text-slate-900">
+                ${(occupants.length ? Math.round(totalRoomRent / occupants.length) : 0).toLocaleString()}
+              </div>
+              <div className="text-[11px] text-slate-500 font-medium">
+                Across {occupants.length} active resident slots
+              </div>
+            </div>
+
+            <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-2">
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="font-bold uppercase text-[10px] tracking-wider">Lifetime Gross Revenue</span>
+                <DollarSign className="w-4 h-4 text-[#FF6B00]" />
+              </div>
+              <div className="text-2xl font-black text-[#FF6B00]">$42,800</div>
+              <div className="text-[11px] text-slate-500 font-medium">Accumulated since 2021</div>
+            </div>
+
+            <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-2">
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="font-bold uppercase text-[10px] tracking-wider">Occupancy Rate</span>
+                <UserCheck className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div className="text-2xl font-black text-emerald-600">100%</div>
+              <div className="text-[11px] text-emerald-700 font-bold">Full capacity • Zero vacancy</div>
+            </div>
+          </div>
+
+          {/* Section 2: Revenue Contribution & Resident Share Analysis */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Card A: Per-Resident Revenue Breakdown */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-sm">Resident Rent Revenue Share</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Individual rent contribution for {unitId}</p>
+                </div>
+                <span className="px-3 py-1 bg-orange-50 text-[#FF6B00] font-black rounded-full text-xs">
+                  ${totalRoomRent.toLocaleString()}/mo
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                {occupants.map((occ) => {
+                  const percentage = totalRoomRent > 0 ? Math.round((occ.individualRent / totalRoomRent) * 100) : 0;
+                  return (
+                    <div key={occ.id} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-900">{occ.name} ({occ.bedSlot})</span>
+                        <span className="font-extrabold text-[#FF6B00]">
+                          ${occ.individualRent.toLocaleString()}/mo ({percentage}%)
+                        </span>
+                      </div>
+                      <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#FF6B00] to-amber-500 rounded-full transition-all duration-500"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Card B: Monthly Income vs Expenses Trend Chart */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-sm">6-Month Revenue vs Expense Trend</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Monthly gross revenue vs maintenance outlay</p>
+                </div>
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">
+                  96.8% Net Yield
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  { month: "Feb 2026", revenue: 2200, expense: 65 },
+                  { month: "Mar 2026", revenue: 2200, expense: 0 },
+                  { month: "Apr 2026", revenue: 2200, expense: 120 },
+                  { month: "May 2026", revenue: 2200, expense: 0 },
+                  { month: "Jun 2026", revenue: 2200, expense: 45 },
+                  { month: "Jul 2026", revenue: 2200, expense: 145 },
+                ].map((m) => (
+                  <div key={m.month} className="flex items-center gap-3 text-xs">
+                    <span className="w-16 font-bold text-slate-600 shrink-0">{m.month}</span>
+                    <div className="flex-1 flex items-center gap-1.5">
+                      <div className="h-4 bg-[#FF6B00] rounded text-[10px] font-extrabold text-white flex items-center justify-end px-2" style={{ width: "85%" }}>
+                        ${m.revenue}
+                      </div>
+                      {m.expense > 0 && (
+                        <div className="h-4 bg-rose-500 rounded text-[9px] font-bold text-white flex items-center justify-center px-1" style={{ width: `${Math.max(10, (m.expense / 2200) * 100)}%` }}>
+                          ${m.expense}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Section 3: Performance Insights & Summary */}
+          <div className="p-5 bg-slate-900 text-white rounded-3xl space-y-2 border border-slate-800 shadow-xl">
+            <div className="flex items-center gap-2.5 text-amber-400 font-extrabold text-xs uppercase tracking-wider">
+              <Sparkles className="w-4 h-4" />
+              <span>Room Performance & Financial Analysis</span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed font-medium">
+              {unitId} is generating <strong>${totalRoomRent.toLocaleString()}/mo</strong> with a 100% tenant retention rate over the past 12 months. Maintenance costs remain low at under 3.5% of total income, making this unit one of the highest performing rooms in {property.name}.
+            </p>
+          </div>
+
+        </div>
+      )}
 
       {/* TAB 1: OCCUPANTS & PER-USER CUSTOM RENTS */}
       {activeTab === "resident" && (

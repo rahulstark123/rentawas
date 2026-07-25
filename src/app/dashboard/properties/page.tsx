@@ -125,13 +125,29 @@ export default function PropertiesPage() {
     toast(`Property "${name}" removed from portfolio!`, "info");
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingProp) return;
-
-    setPropertyList(propertyList.map((p) => p.id === editingProp.id ? editingProp : p));
-    toast(`Property "${editingProp.name}" updated successfully!`, "success");
-    setEditingProp(null);
+  const handleSaveEditProperty = (updatedData: any) => {
+    if (editingProp) {
+      setPropertyList((prev) =>
+        prev.map((p) =>
+          p.id === editingProp.id
+            ? {
+                ...p,
+                name: updatedData.name,
+                address: updatedData.address,
+                floors: updatedData.floors,
+                units: updatedData.units,
+                category: updatedData.category,
+                pincode: updatedData.pincode,
+                roomLayout: updatedData.roomLayout,
+                floorBreakdown: updatedData.floorBreakdown,
+              }
+            : p
+        )
+      );
+      setEditingProp(null);
+    } else {
+      handleAddProperty(updatedData);
+    }
   };
 
   return (
@@ -280,84 +296,13 @@ export default function PropertiesPage() {
         onAddProperty={handleAddProperty}
       />
 
-      {/* Edit Property Modal */}
-      {editingProp && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <form onSubmit={handleSaveEdit} className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-xl font-bold text-slate-900">Edit Property Details</h3>
-              <button
-                type="button"
-                onClick={() => setEditingProp(null)}
-                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Building Name</label>
-                <input
-                  type="text"
-                  required
-                  value={editingProp.name}
-                  onChange={(e) => setEditingProp({ ...editingProp, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Full Address</label>
-                <input
-                  type="text"
-                  value={editingProp.address}
-                  onChange={(e) => setEditingProp({ ...editingProp, address: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Total Floors</label>
-                  <input
-                    type="number"
-                    value={editingProp.floors}
-                    onChange={(e) => setEditingProp({ ...editingProp, floors: Number(e.target.value) || 1, units: (Number(e.target.value) || 1) * 4 })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Yield</label>
-                  <input
-                    type="text"
-                    value={editingProp.monthlyYield}
-                    onChange={(e) => setEditingProp({ ...editingProp, monthlyYield: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setEditingProp(null)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 text-xs font-bold text-white bg-[#FF6B00] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer"
-              >
-                Save Changes
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* Edit Property Modal (Uses exact same rich AddPropertyModal component) */}
+      <AddPropertyModal
+        isOpen={!!editingProp}
+        onClose={() => setEditingProp(null)}
+        initialData={editingProp as any}
+        onAddProperty={handleSaveEditProperty}
+      />
     </div>
   );
 }
