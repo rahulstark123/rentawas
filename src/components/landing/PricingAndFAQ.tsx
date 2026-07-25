@@ -12,7 +12,8 @@ import {
   ChevronDown,
   Building2,
   TrendingUp,
-  Search
+  Search,
+  MessageSquareHeart
 } from "lucide-react";
 import { 
   IconCloudStorage, 
@@ -20,11 +21,13 @@ import {
   IconBankSecurity 
 } from "@/components/ui/CustomIcons";
 import ComingSoonModal from "@/components/ui/ComingSoonModal";
+import FeedbackModal from "@/components/ui/FeedbackModal";
 
 export default function PricingAndFAQ() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("Free Trial Registration");
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
   const triggerModal = (title: string) => {
     setModalTitle(title);
@@ -395,6 +398,44 @@ export default function PricingAndFAQ() {
             })}
           </div>
         </div>
+
+        {/* Feedback Section Right Below FAQ */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="max-w-3xl mx-auto mt-16 bg-gradient-to-r from-slate-900 via-[#0B132B] to-slate-900 rounded-2xl md:rounded-3xl p-8 sm:p-10 text-center text-white shadow-xl border border-slate-800 relative overflow-hidden group"
+        >
+          {/* Subtle Glow Background Effect */}
+          <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#FF6B00]/15 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div className="relative z-10 flex flex-col items-center">
+            <div className="w-12 h-12 rounded-2xl bg-[#FF6B00]/20 border border-[#FF6B00]/30 text-[#FF6B00] flex items-center justify-center mb-4 shadow-md group-hover:scale-105 transition-transform">
+              <MessageSquareHeart className="w-6 h-6" />
+            </div>
+
+            <h3 
+              className="text-2xl sm:text-3xl font-bold text-white mb-2 tracking-tight"
+              style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
+            >
+              Your Feedback is Important to Us
+            </h3>
+
+            <p className="text-slate-300 font-normal text-xs sm:text-sm max-w-lg mb-6 leading-relaxed">
+              We are constantly striving to make RentAwas better for landlords and tenants. Have a feature request, suggestion, or feedback? We’d love to hear from you.
+            </p>
+
+            <button
+              onClick={() => setIsFeedbackModalOpen(true)}
+              className="px-6 py-3 bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2"
+            >
+              <MessageSquareHeart className="w-4 h-4" />
+              <span>Share Your Feedback</span>
+            </button>
+          </div>
+        </motion.div>
       </div>
 
       {/* Modal Trigger Component */}
@@ -402,6 +443,12 @@ export default function PricingAndFAQ() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={modalTitle}
+      />
+
+      {/* Interactive Feedback Modal */}
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
       />
     </section>
   );
