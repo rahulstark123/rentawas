@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -10,4 +5,100 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum Role {
+  OWNER
+  TENANT
+}
+
+model Profile {
+  id           String      @id // Maps 1:1 with Supabase auth.users.id
+  email        String      @unique
+  fullName     String
+  phone        String?
+  role         Role        @default(OWNER)
+  avatarUrl    String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  workspaces   Workspace[] @relation("WorkspaceOwner")
+  tenancies    Tenant[]
+}
+
+model Workspace {
+  wid            Int        @id @default(autoincrement()) // Auto-incrementing integer workspace ID (1, 2, 3...)
+  name           String     // Workspace / Company Name
+  currency       String     @default("USD ($)")
+  portfolioScale String?
+  
+  ownerId        String
+  owner          Profile    @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  properties     Property[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([ownerId])
+}
+
+model Property {
+  id            String    @id @default(cuid())
+  name          String
+  category      String
+  pincode       String?
+  address       String
+  floors        Int       @default(1)
+  unitsPerFloor Int       @default(4)
+  totalUnits    Int       @default(4)
+  avgRent       Float     @default(0)
+  
+  workspaceId   Int
+  workspace     Workspace @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+  
+  units         Unit[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([workspaceId])
+}
+
+model Unit {
+  id          String   @id @default(cuid())
+  unitNumber  String   // e.g. "Unit 101"
+  floorNumber Int      @default(1)
+  rent        Float    @default(0)
+  isOccupied  Boolean  @default(false)
+  
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  tenants     Tenant[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([propertyId])
+}
+
+model Tenant {
+  id            String   @id @default(cuid())
+  name          String
+  email         String
+  phone         String
+  leaseStart    DateTime
+  leaseEnd      DateTime?
+  healthScore   Int      @default(95)
+  monthlyRent   Float    @default(0)
+  
+  profileId     String?
+  profile       Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  
+  unitId        String?
+  unit          Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([unitId])
 }

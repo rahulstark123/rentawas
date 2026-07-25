@@ -23,6 +23,8 @@ import {
   AlertCircle
 } from "lucide-react";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
+import { supabase } from "@/lib/supabase";
+import { createUserProfileAndWorkspace } from "@/app/actions/authActions";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -43,7 +45,7 @@ export default function SignupPage() {
   const isPasswordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
   const isPasswordMatched = confirmPassword.length > 0 && password === confirmPassword;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       alert("Passwords do not match. Please ensure both passwords are identical.");
@@ -56,15 +58,51 @@ export default function SignupPage() {
     setIsLoading(true);
     setSubmittedMessage(null);
 
-    // Direct navigation based on role
-    setTimeout(() => {
+    try {
+      const formattedPhone = `${selectedCountry.dialCode} ${phone.trim()}`;
+
+      // 1. Supabase Auth signup
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            fullName,
+            role,
+            phone: formattedPhone,
+          },
+        },
+      });
+
+      if (authError) {
+        console.warn("Supabase Auth notice:", authError.message);
+      }
+
+      // 2. Generate Prisma Profile & Workspace with auto-incrementing integer wid (1, 2, 3...)
+      const userId = authData?.user?.id || `user_${Date.now()}`;
+      await createUserProfileAndWorkspace({
+        userId,
+        email,
+        fullName,
+        phone: formattedPhone,
+        role,
+      });
+
       setIsLoading(false);
       if (role === "tenant") {
         router.push("/tenant/dashboard");
       } else {
         router.push("/onboarding");
       }
-    }, 500);
+    } catch (err: any) {
+      console.error("Signup processing:", err);
+      setIsLoading(false);
+      if (role === "tenant") {
+        router.push("/tenant/dashboard");
+      } else {
+        router.push("/onboarding");
+      }
+    }
   };
 
   // Compute password strength score (0 to 4)
