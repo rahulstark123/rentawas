@@ -6,15 +6,14 @@ import {
   X, 
   Plus, 
   MapPin, 
-  DollarSign, 
   ShieldCheck, 
   ChevronDown, 
   Loader2, 
   CheckCircle2, 
   Layers, 
-  Bed, 
   Sparkles,
-  Maximize2
+  Info,
+  PenTool
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -28,7 +27,7 @@ export interface PropertyData {
   unitsPerFloor: number;
   units: number;
   roomLayout: string;
-  avgRent: string;
+  avgRent?: string;
 }
 
 interface AddPropertyModalProps {
@@ -81,6 +80,9 @@ export const ROOM_LAYOUT_OPTIONS = [
   // Industrial & Specialty Units
   "Industrial Warehouse & Logistics Bay (High Ceiling • Loading Dock • Mezzanine Office)",
   "Self-Storage Lockable Bay (10x10 Climate Controlled)",
+
+  // Custom User Layout
+  "Other / Custom Layout (Specify your own custom architecture...)"
 ];
 
 export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: AddPropertyModalProps) {
@@ -92,7 +94,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
   const [floors, setFloors] = useState("4");
   const [unitsPerFloor, setUnitsPerFloor] = useState("4");
   const [roomLayout, setRoomLayout] = useState(ROOM_LAYOUT_OPTIONS[0]);
-  const [avgRent, setAvgRent] = useState("3200");
+  const [customRoomLayout, setCustomRoomLayout] = useState("");
 
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
@@ -102,7 +104,11 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
   const numFloors = Number(floors) || 1;
   const numUnitsPerFloor = Number(unitsPerFloor) || 1;
   const totalUnits = numFloors * numUnitsPerFloor;
-  const estYield = (totalUnits * (Number(avgRent) || 0)).toLocaleString();
+
+  const isCustomLayout = roomLayout.startsWith("Other / Custom Layout");
+  const finalRoomLayout = isCustomLayout 
+    ? (customRoomLayout.trim() || "Custom Architecture Layout") 
+    : roomLayout;
 
   // Auto-fetch location from PIN / ZIP code globally
   const handlePincodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,7 +128,6 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
     setLocationMessage(null);
 
     try {
-      // 1. Try Indian Postal Code API if 6-digit number
       if (/^\d{6}$/.test(cleanCode)) {
         const res = await fetch(`https://api.postalpincode.in/pincode/${cleanCode}`);
         const data = await res.json();
@@ -137,7 +142,6 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
         }
       }
 
-      // 2. Try US Zippopotam API if 5-digit number
       if (/^\d{5}$/.test(cleanCode)) {
         const res = await fetch(`https://api.zippopotam.us/us/${cleanCode}`);
         if (res.ok) {
@@ -152,7 +156,6 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
         }
       }
 
-      // 3. Fallback: Global OpenStreetMap / Nominatim search
       const res = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(cleanCode)}&format=json&limit=1`);
       if (res.ok) {
         const data = await res.json();
@@ -187,8 +190,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
       floors: numFloors,
       unitsPerFloor: numUnitsPerFloor,
       units: totalUnits,
-      roomLayout,
-      avgRent: `$${avgRent}`,
+      roomLayout: finalRoomLayout,
     };
 
     if (onAddProperty) {
@@ -199,6 +201,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
     setName("");
     setPincode("");
     setAddress("");
+    setCustomRoomLayout("");
     onClose();
   };
 
@@ -219,7 +222,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
                 Add New Property to Portfolio
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Configure Building Name, Category, Floors, Units per Floor, and Room Details.
+                Configure property name, location pincode, total floors, and room architecture.
               </p>
             </div>
           </div>
@@ -227,26 +230,24 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Fields */}
+        {/* Section 1: Property Identity */}
         <div className="space-y-4 text-xs">
-          
-          {/* Section 1: Property Identity */}
           <div>
             <label className="block font-bold text-slate-700 uppercase mb-1">
-              Property / Building Name
+              Building / Property Name *
             </label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Cedar Heights Residency"
+              placeholder="e.g. Grand Regency Executive Suites"
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
             />
           </div>
@@ -327,7 +328,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
               <span>Floors & Room Architecture Configuration</span>
             </h4>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1">Total Floors</label>
                 <input
@@ -341,7 +342,12 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Units / Floor</label>
+                <label className="block font-bold text-slate-700 uppercase mb-1 flex items-center justify-between">
+                  <span>Units / Floor</span>
+                  <span className="text-[10px] text-[#FF6B00] font-extrabold normal-case">
+                    ={totalUnits} Total Units
+                  </span>
+                </label>
                 <input
                   type="number"
                   min={1}
@@ -351,27 +357,25 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Rent / Unit ($ / ₹)</label>
-                <input
-                  type="number"
-                  value={avgRent}
-                  onChange={(e) => setAvgRent(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
-              </div>
+            {/* Room Rent Note */}
+            <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-start gap-2 text-blue-900">
+              <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <span className="text-[11px] leading-relaxed">
+                <strong>Room Rent Configuration:</strong> Rent varies per room & floor. You can set individual room rents inside the Property Floor Plan view.
+              </span>
             </div>
 
             <div>
               <label className="block font-bold text-slate-700 uppercase mb-1">
-                Default Room Layout & Amenities Breakdown
+                Default Room Layout & Architecture
               </label>
               <div className="relative">
                 <select
                   value={roomLayout}
                   onChange={(e) => setRoomLayout(e.target.value)}
-                  className="w-full appearance-none pl-3 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  className="w-full appearance-none pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                 >
                   {ROOM_LAYOUT_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
@@ -383,52 +387,49 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
               </div>
             </div>
 
-            {/* Live Building Architecture Preview Summary */}
-            <div className="p-3.5 bg-slate-900 text-white rounded-2xl space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-[#FF6B00]" />
-                  Building Inventory Auto-Generation Preview
-                </span>
-                <span className="text-xs font-extrabold text-orange-400">${estYield} / mo Yield</span>
+            {/* Custom Layout Input Field */}
+            {isCustomLayout && (
+              <div className="p-3.5 bg-orange-50/70 border border-orange-200 rounded-2xl space-y-1.5 animate-in fade-in duration-150">
+                <label className="block font-bold text-slate-800 uppercase text-[11px] flex items-center gap-1.5">
+                  <PenTool className="w-3.5 h-3.5 text-[#FF6B00]" />
+                  <span>Specify Your Custom Room Layout</span>
+                </label>
+                <input
+                  type="text"
+                  required={isCustomLayout}
+                  value={customRoomLayout}
+                  onChange={(e) => setCustomRoomLayout(e.target.value)}
+                  placeholder="e.g. 3 Bed Suite + Private Terrace & Office Studio"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
               </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-bold">Total Building Inventory</span>
-                  <span className="font-extrabold text-white">{numFloors} Floors × {numUnitsPerFloor} Units = {totalUnits} Units</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-bold">Configured Room Layout</span>
-                  <span className="font-semibold text-slate-200 truncate block">{roomLayout.split("(")[0]}</span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <div className="p-3 bg-orange-50/60 border border-orange-200 rounded-xl text-[11px] text-slate-600 flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-[#FF6B00] shrink-0" />
-            <span>Autopilot Rent disbursal routing will auto-link for all {totalUnits} units.</span>
+            )}
           </div>
         </div>
 
-        {/* Modal Actions */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-6 py-2.5 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-md shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create Property ({totalUnits} Units)</span>
-          </button>
+        {/* Footer Actions */}
+        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+          <div className="flex items-center gap-1.5 text-slate-400 text-xs font-semibold">
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <span>Auto-generates {totalUnits} unit cards</span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2.5 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-md shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create Property</span>
+            </button>
+          </div>
         </div>
       </form>
     </div>
