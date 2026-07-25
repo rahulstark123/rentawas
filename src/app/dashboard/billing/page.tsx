@@ -158,7 +158,7 @@ export default function LandlordBillingPage() {
 
             <div>
               <h3 className="text-xl font-bold text-slate-900">Starter Landlord</h3>
-              <p className="text-xs text-slate-500 mt-1">For DIY property owners managing up to 3 units.</p>
+              <p className="text-xs text-slate-500 mt-1">For DIY property owners managing up to 3 properties.</p>
             </div>
 
             <div className="flex items-baseline gap-1">
@@ -168,10 +168,10 @@ export default function LandlordBillingPage() {
 
             <div className="space-y-2.5 pt-3 border-t border-slate-100 text-xs">
               {[
-                "Up to 3 Property Units",
+                "Up to 3 Properties",
+                "Up to 15 Rental Units",
                 "Manual Rent Invoice Issuance",
                 "Standard 1-Page Lease Template",
-                "Email Support SLA (48 hours)",
                 "Basic Maintenance Logs",
               ].map((feat, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-slate-700 font-medium">
@@ -222,7 +222,6 @@ export default function LandlordBillingPage() {
                 "Automated WhatsApp & SMS Rent Reminders",
                 "Automated 5% Late Fee Enforcement",
                 "2 Property Manager & Accountant Roles",
-                "24/7 Dedicated Customer Support",
               ].map((feat, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-slate-200 font-medium">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
@@ -234,7 +233,7 @@ export default function LandlordBillingPage() {
 
           <button
             disabled
-            className="w-full py-3 bg-[#FF6B00] text-white font-bold text-xs rounded-xl shadow-md uppercase tracking-wider opacity-90 cursor-default flex items-center justify-center gap-2"
+            className="w-full py-3 bg-[#FF6B00] text-[#FFFFFF] font-bold text-xs rounded-xl shadow-md uppercase tracking-wider opacity-90 cursor-default flex items-center justify-center gap-2"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>Current Active Plan</span>
@@ -268,7 +267,6 @@ export default function LandlordBillingPage() {
                 "Unlimited Team Roles & Audit Logs",
                 "Custom Branded Tenant Portals",
                 "Dedicated Portfolio Account Manager",
-                "24/7 Emergency Phone Support",
               ].map((feat, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-slate-700 font-medium">
                   <Check className="w-4 h-4 text-purple-600 shrink-0" />

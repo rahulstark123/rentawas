@@ -131,11 +131,11 @@ export default function PricingAndFAQ() {
               <ul className="space-y-3 mb-8 text-xs sm:text-sm text-slate-600 font-medium">
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Up to 5 Properties</span>
+                  <span>Up to 3 Properties</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Up to 25 Rental Units</span>
+                  <span>Up to 15 Rental Units</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -155,15 +155,7 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>5 GB Document Storage</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Basic Reports</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Email Support</span>
+                  <span>Basic Reports & Ledgers</span>
                 </li>
               </ul>
             </div>
@@ -218,11 +210,11 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Advanced Reports</span>
+                  <span>Advanced Reports & Analytics</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Owner Portal</span>
+                  <span>Owner Portal & Statements</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
@@ -234,15 +226,7 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>50 GB Document Storage</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
                   <span>Up to 5 Team Members</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Priority Support</span>
                 </li>
               </ul>
             </div>
@@ -293,7 +277,7 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>API Access</span>
+                  <span>API Access & Webhooks</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -305,15 +289,7 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>200 GB Document Storage</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Advanced Analytics</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Dedicated Support</span>
+                  <span>Advanced Portfolio Analytics</span>
                 </li>
               </ul>
             </div>
