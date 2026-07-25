@@ -88,12 +88,12 @@ export default function LandlordBillingPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between font-bold">
               <span className="text-slate-300">Units Managed Limit</span>
-              <span className="text-white">24 / 50 Units</span>
+              <span className="text-white">24 / 75 Units</span>
             </div>
             <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
-              <div className="h-full bg-gradient-to-r from-[#FF6B00] to-amber-400 rounded-full w-[48%]" />
+              <div className="h-full bg-gradient-to-r from-[#FF6B00] to-amber-400 rounded-full w-[32%]" />
             </div>
-            <div className="text-[10px] text-slate-400">26 units remaining in Pro quota</div>
+            <div className="text-[10px] text-slate-400">51 units remaining in Pro quota</div>
           </div>
 
           <div className="space-y-1">
@@ -217,12 +217,13 @@ export default function LandlordBillingPage() {
 
             <div className="space-y-2.5 pt-3 border-t border-slate-800 text-xs">
               {[
-                "Up to 50 Property Units",
+                "Up to 75 Rental Units",
                 "Floor-by-Floor & Unit-by-Unit Grid Matrix",
                 "Dedicated Property Yield Analytics",
                 "Tenant Health Score Tracking (0-100%)",
                 "Expense Categorization & NOI Calculator",
                 "Multi-Period Fiscal Year Filtering (FY/Quarters)",
+                "100 AI Credits / month",
               ].map((feat, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-slate-200 font-medium">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
@@ -269,6 +270,7 @@ export default function LandlordBillingPage() {
                 "Global Command Palette (Ctrl + K)",
                 "Multiple Workspace Manager Roles",
                 "Advanced Portfolio Financial Analytics",
+                "500 AI Credits / month",
               ].map((feat, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-slate-700 font-medium">
                   <Check className="w-4 h-4 text-purple-600 shrink-0" />

@@ -202,7 +202,7 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5 font-bold text-slate-900">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Up to 100 Rental Units</span>
+                  <span>Up to 75 Rental Units</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
@@ -227,6 +227,10 @@ export default function PricingAndFAQ() {
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
                   <span>Multi-Period Fiscal Year Filtering</span>
+                </li>
+                <li className="flex items-center gap-2.5 font-bold text-purple-700">
+                  <Check className="w-4 h-4 text-purple-600 shrink-0" />
+                  <span>100 AI Credits / month</span>
                 </li>
               </ul>
             </div>
@@ -290,6 +294,10 @@ export default function PricingAndFAQ() {
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span>Advanced Portfolio Analytics</span>
+                </li>
+                <li className="flex items-center gap-2.5 font-bold text-purple-700">
+                  <Check className="w-4 h-4 text-purple-600 shrink-0" />
+                  <span>500 AI Credits / month</span>
                 </li>
               </ul>
             </div>
