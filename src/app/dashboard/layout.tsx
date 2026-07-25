@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { IconAutopilotRent } from "@/components/ui/CustomIcons";
 import { useToast } from "@/components/ui/Toast";
+import GlobalSearchModal from "@/components/ui/GlobalSearchModal";
 
 export default function DashboardLayout({
   children,
@@ -55,6 +56,19 @@ export default function DashboardLayout({
   const [activeProperty, setActiveProperty] = useState("The Regent - Wing A (24 Units)");
   const [showPropertyMenu, setShowPropertyMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+
+  // Global Keyboard Shortcut: Ctrl + K or Cmd + K to trigger search
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setShowSearchModal((prev) => !prev);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Viewport width detection (< 1000px unavailable screen, < 1200px collapsed sidebar)
   useEffect(() => {
@@ -372,14 +386,18 @@ export default function DashboardLayout({
             {isCollapsed ? <PanelLeftOpen className="w-5 h-5 text-[#FF6B00]" /> : <PanelLeftClose className="w-5 h-5 text-slate-500" />}
           </button>
 
-          {/* Global Search Bar */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search properties, tenants, leases, or tickets (Press / to search)..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200/90 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00] transition-all"
-            />
+          {/* Global Search Command Trigger Bar */}
+          <div 
+            onClick={() => setShowSearchModal(true)}
+            className="relative flex-1 max-w-md cursor-pointer group"
+          >
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-[#FF6B00] transition-colors" />
+            <div className="w-full pl-10 pr-16 py-2 bg-slate-50 border border-slate-200/90 rounded-xl text-xs font-medium text-slate-500 flex items-center justify-between group-hover:bg-white group-hover:border-slate-300 transition-all">
+              <span className="truncate">Search properties, residents, maintenance...</span>
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] font-mono font-bold bg-white border border-slate-200 text-slate-500 rounded shadow-2xs">
+                <span className="text-[9px]">Ctrl</span> K
+              </kbd>
+            </div>
           </div>
 
           {/* Actions & Notifications */}
@@ -436,6 +454,12 @@ export default function DashboardLayout({
           {children}
         </main>
       </div>
+
+      {/* Global Search Modal Command Palette (Ctrl + K) */}
+      <GlobalSearchModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+      />
 
     </div>
   );
