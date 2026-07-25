@@ -29,7 +29,15 @@ import {
   ChevronDown,
   ChevronRight,
   Receipt,
-  Paperclip
+  Paperclip,
+  Eye,
+  History,
+  Wrench,
+  FileCheck,
+  ExternalLink,
+  Download,
+  AlertTriangle,
+  UserCheck
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -130,6 +138,10 @@ export default function PropertyFloorPlanPage() {
   const [showAddFloorModal, setShowAddFloorModal] = useState(false);
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
 
+  // Room Telemetry Details Drawer / Modal State
+  const [selectedDetailUnit, setSelectedDetailUnit] = useState<UnitItem | null>(null);
+  const [detailTab, setDetailTab] = useState<"resident" | "docs" | "history" | "maintenance" | "bills">("resident");
+
   // Add Floor Modal Form State
   const [newFloorUsage, setNewFloorUsage] = useState("Residential Living Suites");
 
@@ -143,7 +155,7 @@ export default function PropertyFloorPlanPage() {
   const [newStatus, setNewStatus] = useState<"Occupied" | "Vacant">("Vacant");
   const [newTenantName, setNewTenantName] = useState("");
 
-  const floorsList = Array.from({ length: floorsCount }, (_, i) => floorsCount - i); // Top floor down to 1st
+  const floorsList = Array.from({ length: floorsCount }, (_, i) => floorsCount - i);
 
   // Generate initial units if not already in state
   const getFloorUnits = (floorNum: number): UnitItem[] => {
@@ -152,101 +164,62 @@ export default function PropertyFloorPlanPage() {
     }
 
     const isCommercial = property.tag.toLowerCase().includes("commercial") || property.tag.toLowerCase().includes("office");
-    const isCoLiving = property.tag.toLowerCase().includes("student") || property.tag.toLowerCase().includes("co-living");
 
     let initialUnits: UnitItem[] = [];
 
     if (isCommercial) {
       initialUnits = [
         {
-          unitNo: `Suite ${floorNum}01`,
-          type: "Executive Corporate Suite",
+          unitNo: `Unit ${floorNum}01`,
+          type: "Commercial Office Suite A",
           sqft: "1,850 sq ft",
-          rooms: "1 Conf Room • 4 Cabins • 16 Workstations • Pantry",
-          rent: "$6,500/mo",
+          rooms: "4 Workstation Cabins • 1 Conference Room • Server Rack • Kitchenette",
+          rent: "$6,200/mo",
           status: "Occupied",
           tenant: {
-            name: "Apex Global Tech Solutions Ltd.",
-            contact: "Sarah Jenkins (Admin Lead)",
-            phone: "+1 (555) 392-1049",
-            email: "s.jenkins@apextech.io",
-            moveIn: "2024-03-01",
-            leaseEnd: "2027-02-28",
-            health: "Autopilot ACH — On Time",
+            name: "Apex Global Financial LLC",
+            contact: "Corporate Tenant",
+            phone: "+1 (555) 392-1029",
+            email: "finance@apexglobal.com",
+            moveIn: "2023-03-01",
+            leaseEnd: "2026-02-28",
+            health: "Auto-Debit — Active",
           },
         },
         {
-          unitNo: `Suite ${floorNum}02`,
-          type: "Open Floor Workspace",
+          unitNo: `Unit ${floorNum}02`,
+          type: "Retail Frontage Shop",
           sqft: "1,200 sq ft",
-          rooms: "2 Private Cabins • 12 Workstations",
-          rent: "$4,200/mo",
+          rooms: "Open Retail Display • Storage Bay • Private Restroom",
+          rent: "$4,800/mo",
           status: "Vacant",
           tenant: null,
         },
       ];
-    } else if (isCoLiving) {
-      initialUnits = [
-        {
-          unitNo: `Room ${floorNum}01-A`,
-          type: "Twin Sharing Deluxe Pod",
-          sqft: "320 sq ft",
-          rooms: "2 Single Beds • Study Desks • Attached Bath",
-          rent: "$950/mo",
-          status: "Occupied",
-          tenant: {
-            name: "Rohan Sharma & Alex Vance",
-            contact: "Resident Scholars",
-            phone: "+1 (555) 839-2019",
-            email: "rohan.s@university.edu",
-            moveIn: "2025-08-15",
-            leaseEnd: "2026-06-30",
-            health: "Autopilot UPI — Paid",
-          },
-        },
-        {
-          unitNo: `Room ${floorNum}01-B`,
-          type: "Private Studio Pod",
-          sqft: "250 sq ft",
-          rooms: "1 Queen Bed • Kitchenette • Attached Bath",
-          rent: "$1,250/mo",
-          status: "Occupied",
-          tenant: {
-            name: "Claire Dupont",
-            contact: "Postgrad Fellow",
-            phone: "+1 (555) 902-3810",
-            email: "claire.d@mit.edu",
-            moveIn: "2025-09-01",
-            leaseEnd: "2026-08-31",
-            health: "Autopilot ACH — On Time",
-          },
-        },
-      ];
     } else {
-      // Default Residential Apartments
       initialUnits = [
         {
           unitNo: `Unit ${floorNum}01`,
           type: "2 BHK Executive Suite",
           sqft: "980 sq ft",
-          rooms: "2 Bedrooms • 2 Baths • Living Room • Kitchen • Balcony",
+          rooms: "2 Bedrooms • 2 Baths • Living • Modular Kitchen • Balcony",
           rent: "$3,200/mo",
           status: "Occupied",
           tenant: {
             name: "Eleanor Vance",
             contact: "Primary Resident",
             phone: "+1 (555) 234-5678",
-            email: "eleanor.vance@gmail.com",
-            moveIn: "2025-08-01",
-            leaseEnd: "2026-07-31",
-            health: "Autopilot ACH — 100% On-Time",
+            email: "eleanor.vance@company.com",
+            moveIn: "2025-01-15",
+            leaseEnd: "2026-01-14",
+            health: "ACH — Auto Paid",
           },
         },
         {
           unitNo: `Unit ${floorNum}02`,
-          type: "3 BHK Premium Corner",
-          sqft: "1,350 sq ft",
-          rooms: "3 Bedrooms • 3 Baths • Modular Kitchen • 2 Balconies",
+          type: "3 BHK Deluxe Corner",
+          sqft: "1,250 sq ft",
+          rooms: "3 Bedrooms • 3 Baths • Living • Kitchen • 2 Balconies",
           rent: "$4,100/mo",
           status: floorNum % 2 === 0 ? "Vacant" : "Occupied",
           tenant: floorNum % 2 === 0 ? null : {
@@ -256,7 +229,7 @@ export default function PropertyFloorPlanPage() {
             email: "marcus.s@sterling.co",
             moveIn: "2024-11-15",
             leaseEnd: "2026-11-14",
-            health: "Autopilot UPI — Paid",
+            health: "UPI — Instant Paid",
           },
         },
         {
@@ -273,7 +246,7 @@ export default function PropertyFloorPlanPage() {
             email: "sophia.m@designstudio.com",
             moveIn: "2026-01-10",
             leaseEnd: "2027-01-09",
-            health: "Autopilot ACH — On Time",
+            health: "ACH — On Time",
           },
         },
         {
@@ -317,7 +290,6 @@ export default function PropertyFloorPlanPage() {
     setFloorsCount(newFloorNumber);
     setSelectedFloor(newFloorNumber);
 
-    // Initialize default units for new floor
     const defaultUnits: UnitItem[] = [
       {
         unitNo: `Unit ${newFloorNumber}01`,
@@ -364,7 +336,7 @@ export default function PropertyFloorPlanPage() {
         email: "resident@rentawas.com",
         moveIn: "2026-08-01",
         leaseEnd: "2027-07-31",
-        health: "Autopilot ACH — Active",
+        health: "ACH — Active",
       } : null,
     };
 
@@ -449,48 +421,54 @@ export default function PropertyFloorPlanPage() {
         </div>
       </div>
 
-      {/* Main Full Page Content Grid (Left Elevator Column 4 cols + Right Main Area 8 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Main Floor Plan Architecture Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* Left Column: Floor Elevator Selector (4 Cols) */}
-        <div className="lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-4 h-fit">
+        {/* Left Column: Vertical Floor Navigation (4 Cols) */}
+        <div className="lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <Layers className="w-4 h-4 text-[#FF6B00]" />
-              <span>Building Floors (Elevator)</span>
+              <span>Building Floors ({floorsCount})</span>
             </h3>
-            <span className="text-xs font-bold text-slate-500">{floorsCount} Levels</span>
+            <span className="text-[10px] font-bold text-slate-400">Select to Filter</span>
           </div>
 
-          <div className="space-y-2.5">
-            {floorsList.map((fl) => {
-              const isSelected = selectedFloor === fl;
+          <div className="space-y-2">
+            {floorsList.map((flNum) => {
+              const isSelected = selectedFloor === flNum;
+              const unitsOnFl = getFloorUnits(flNum);
+              const occupiedOnFl = unitsOnFl.filter((u) => u.status === "Occupied").length;
+
               return (
                 <button
-                  key={fl}
-                  onClick={() => setSelectedFloor(fl)}
-                  className={`w-full p-4 rounded-2xl text-left border transition-all cursor-pointer flex items-center justify-between ${
+                  key={flNum}
+                  onClick={() => setSelectedFloor(flNum)}
+                  className={`w-full p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                     isSelected
-                      ? "bg-slate-900 text-white border-slate-900 shadow-md scale-[1.01]"
-                      : "bg-slate-50 text-slate-800 border-slate-200/90 hover:border-orange-300 hover:bg-orange-50/40"
+                      ? "bg-slate-900 text-white border-slate-900 shadow-md"
+                      : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-900"
                   }`}
                 >
-                  <div>
-                    <span className="text-sm font-extrabold block">
-                      Floor {fl} {fl === floorsCount ? "(Top Penthouse)" : fl === 1 ? "(Ground Floor)" : ""}
-                    </span>
-                    <span className={`text-xs ${isSelected ? "text-slate-300" : "text-slate-500"}`}>
-                      {property.tag.includes("Commercial") ? "2 Executive Suites" : `${getFloorUnits(fl).length} Units Configured`}
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${
+                        isSelected ? "bg-[#FF6B00] text-white" : "bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      F{flNum}
+                    </div>
+                    <div>
+                      <div className="font-bold text-xs">
+                        {flNum === 1 ? "Floor 1 (Ground Level)" : `Floor ${flNum}`}
+                      </div>
+                      <div className={`text-[10px] ${isSelected ? "text-slate-300" : "text-slate-500"}`}>
+                        {occupiedOnFl}/{unitsOnFl.length} Units Occupied
+                      </div>
+                    </div>
                   </div>
 
-                  <span
-                    className={`px-3 py-1 rounded-lg text-xs font-black ${
-                      isSelected ? "bg-[#FF6B00] text-white" : "bg-white text-slate-900 border border-slate-200"
-                    }`}
-                  >
-                    F-{fl}
-                  </span>
+                  <ChevronRight className={`w-4 h-4 ${isSelected ? "text-[#FF6B00]" : "text-slate-400"}`} />
                 </button>
               );
             })}
@@ -560,12 +538,26 @@ export default function PropertyFloorPlanPage() {
                     isOccupied ? "border-slate-200/90" : "border-amber-200 bg-amber-50/20"
                   }`}
                 >
-                  {/* Unit Title & Status Badge */}
+                  {/* Unit Title & Status Badge with Eye Icon Telemetry Button */}
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-lg font-extrabold text-slate-900">{u.unitNo}</h3>
                         <span className="text-sm font-black text-[#FF6B00]">{u.rent}</span>
+                        
+                        {/* EYE ICON: Room Telemetry & History Trigger */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDetailUnit(u);
+                            setDetailTab("resident");
+                          }}
+                          className="p-1.5 rounded-lg bg-orange-50 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-bold ml-1"
+                          title="View Room Telemetry, Resident Details, Docs, History & Maintenance"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span className="text-[10px] uppercase tracking-wider font-extrabold hidden sm:inline">Telemetry</span>
+                        </button>
                       </div>
                       <p className="text-xs font-semibold text-slate-600 mt-0.5">{u.type}</p>
                     </div>
@@ -649,11 +641,14 @@ export default function PropertyFloorPlanPage() {
                         </button>
 
                         <button
-                          onClick={() => toast(`Generating AI Lease renewal notice for ${u.unitNo}...`, "success")}
+                          onClick={() => {
+                            setSelectedDetailUnit(u);
+                            setDetailTab("resident");
+                          }}
                           className="px-3 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
                         >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span>AI Docs</span>
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View Telemetry</span>
                         </button>
                       </div>
                     </div>
@@ -664,7 +659,7 @@ export default function PropertyFloorPlanPage() {
                         Unit Available for Lease
                       </div>
                       <p className="text-[11px] text-slate-500">
-                        List unit on Autopilot Portal or assign a new resident.
+                        List unit on Portal or assign a new resident.
                       </p>
                       <button
                         onClick={() => toast(`Opening Tenant Onboarding form for ${u.unitNo}...`, "success")}
@@ -684,6 +679,326 @@ export default function PropertyFloorPlanPage() {
 
       </div>
 
+      {/* ------------------- ROOM TELEMETRY & HISTORY MODAL (EYE ICON TRIGGER) ------------------- */}
+      {selectedDetailUnit && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-3xl w-full p-6 sm:p-8 space-y-6 shadow-2xl relative max-h-[92vh] overflow-y-auto font-sans">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-orange-50 text-[#FF6B00]">
+                  <Building2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-extrabold text-slate-900">{selectedDetailUnit.unitNo} Telemetry & History</h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#FF6B00] text-white">
+                      {selectedDetailUnit.rent}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {selectedDetailUnit.type} • {selectedDetailUnit.sqft} • {property.name}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedDetailUnit(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 5-Tabs Navigation */}
+            <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl overflow-x-auto custom-scrollbar">
+              {[
+                { id: "resident", label: "Who is Living", icon: Users },
+                { id: "docs", label: "Tenant Docs", icon: FileCheck },
+                { id: "history", label: "Room History", icon: History },
+                { id: "maintenance", label: "Maintenance", icon: Wrench },
+                { id: "bills", label: "Bills & Ledger", icon: Receipt },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = detailTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setDetailTab(tab.id as any)}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      isActive
+                        ? "bg-white text-slate-900 shadow-xs"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? "text-[#FF6B00]" : "text-slate-400"}`} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* TAB 1: WHO IS LIVING (RESIDENT INFO) */}
+            {detailTab === "resident" && (
+              <div className="space-y-5 animate-in fade-in duration-150 text-xs">
+                {selectedDetailUnit.tenant ? (
+                  <div className="bg-slate-900 text-white rounded-2xl p-6 space-y-4 shadow-lg">
+                    <div className="flex items-start justify-between border-b border-slate-800 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#FF6B00] text-white flex items-center justify-center text-lg font-black shadow-md">
+                          {selectedDetailUnit.tenant.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="text-base font-extrabold text-white">{selectedDetailUnit.tenant.name}</h4>
+                          <p className="text-xs text-slate-400 mt-0.5">{selectedDetailUnit.tenant.contact} • Active Resident</p>
+                        </div>
+                      </div>
+
+                      <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        {selectedDetailUnit.tenant.health}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="p-3.5 bg-slate-800/80 rounded-xl space-y-1">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold">Contact Phone</span>
+                        <div className="text-xs font-bold text-white flex items-center gap-2">
+                          <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>{selectedDetailUnit.tenant.phone}</span>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 bg-slate-800/80 rounded-xl space-y-1">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold">Email Address</span>
+                        <div className="text-xs font-bold text-white flex items-center gap-2">
+                          <Mail className="w-3.5 h-3.5 text-blue-400" />
+                          <span>{selectedDetailUnit.tenant.email}</span>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 bg-slate-800/80 rounded-xl space-y-1">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold">Lease Start Date</span>
+                        <div className="text-xs font-bold text-slate-200">{selectedDetailUnit.tenant.moveIn}</div>
+                      </div>
+
+                      <div className="p-3.5 bg-slate-800/80 rounded-xl space-y-1">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold">Lease Expiry Date</span>
+                        <div className="text-xs font-bold text-amber-400">{selectedDetailUnit.tenant.leaseEnd}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        onClick={() => toast(`Calling ${selectedDetailUnit.tenant?.name}...`, "info")}
+                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <Phone className="w-4 h-4" />
+                        <span>Direct Call</span>
+                      </button>
+
+                      <button
+                        onClick={() => toast(`Sending email notification to ${selectedDetailUnit.tenant?.email}...`, "info")}
+                        className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <Mail className="w-4 h-4 text-blue-400" />
+                        <span>Send Email</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 bg-amber-50/60 border border-amber-200 rounded-2xl text-center space-y-3">
+                    <UserCheck className="w-10 h-10 text-amber-600 mx-auto" />
+                    <h4 className="text-sm font-bold text-slate-900">Room Currently Vacant</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      No active resident is living in {selectedDetailUnit.unitNo}. Assign a new tenant to generate lease documents.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: TENANT DOCS & VERIFICATION */}
+            {detailTab === "docs" && (
+              <div className="space-y-4 animate-in fade-in duration-150 text-xs">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="font-bold text-slate-900 block text-xs">Government ID Verification</span>
+                      <span className="text-[11px] text-slate-500">Aadhaar / Passport / Driver's License — State Database Verified</span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px]">
+                    VERIFIED ✓
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { title: "Signed Rental Lease Agreement", size: "2.4 MB • PDF Document", status: "Signed & Active" },
+                    { title: "Police Background Verification", size: "1.1 MB • Official Seal", status: "Clear" },
+                    { title: "Government Identity Proof", size: "850 KB • Aadhaar / Passport", status: "Verified" },
+                    { title: "Security Deposit Receipt", size: "420 KB • Digital Ledger", status: "Deposited" },
+                  ].map((doc, idx) => (
+                    <div key={idx} className="p-3.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-2xs">
+                      <div className="flex items-center gap-2.5">
+                        <FileText className="w-5 h-5 text-[#FF6B00] shrink-0" />
+                        <div>
+                          <span className="font-bold text-slate-900 block text-xs">{doc.title}</span>
+                          <span className="text-[10px] text-slate-400">{doc.size}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => toast(`Downloading ${doc.title}...`, "success")}
+                        className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer"
+                        title="Download Document"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: ROOM HISTORY */}
+            {detailTab === "history" && (
+              <div className="space-y-4 animate-in fade-in duration-150 text-xs">
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
+                  <span className="font-bold text-slate-900">Total Historical Yield from {selectedDetailUnit.unitNo}</span>
+                  <span className="font-black text-emerald-600 text-sm">$42,800 Generated</span>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">Past Resident Timeline</h4>
+
+                  {[
+                    { name: selectedDetailUnit.tenant?.name || "Current Occupant", period: "Nov 2024 – Present", rent: selectedDetailUnit.rent, status: "Active Occupant", review: "5.0 ★ Excellent" },
+                    { name: "Elena Rostova", period: "Jan 2023 – Oct 2024 (21 mos)", rent: "$3,100/mo", status: "Lease Completed", review: "4.9 ★ Clean Move-out" },
+                    { name: "James Peterson", period: "Feb 2021 – Dec 2022 (22 mos)", rent: "$2,900/mo", status: "Lease Completed", review: "4.8 ★ Deposit Refunded" },
+                  ].map((h, idx) => (
+                    <div key={idx} className="p-4 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-slate-100 font-bold text-slate-700 flex items-center justify-center text-xs">
+                          {h.name.charAt(0)}
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-900 block text-xs">{h.name}</span>
+                          <span className="text-[11px] text-slate-500">{h.period} • {h.rent}</span>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 block mb-0.5">
+                          {h.status}
+                        </span>
+                        <span className="text-[10px] text-emerald-600 font-bold">{h.review}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: MAINTENANCE & TICKETS */}
+            {detailTab === "maintenance" && (
+              <div className="space-y-4 animate-in fade-in duration-150 text-xs">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-slate-900">Maintenance & Repair Log for {selectedDetailUnit.unitNo}</h4>
+                  <button
+                    onClick={() => toast(`Opening Maintenance ticket creation for ${selectedDetailUnit.unitNo}...`, "info")}
+                    className="px-3 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Log New Ticket</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {[
+                    { id: "TKT-402", issue: "HVAC Air Conditioning Filter Cleaning", priority: "Medium", status: "In Progress", date: "24 Jul 2026", tech: "Apex Climate Co." },
+                    { id: "TKT-319", issue: "Master Bathroom Faucet Replacement", priority: "Low", status: "Completed ✓", date: "12 Jan 2026", tech: "QuickPlumb Services ($120)" },
+                    { id: "TKT-208", issue: "Balcony Sliding Door Latch Repair", priority: "Low", status: "Completed ✓", date: "04 Aug 2025", tech: "Handyman Pro ($65)" },
+                  ].map((t) => (
+                    <div key={t.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Wrench className="w-4 h-4 text-[#FF6B00] shrink-0" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-slate-900">{t.id}: {t.issue}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">{t.date} • Technician: {t.tech}</div>
+                        </div>
+                      </div>
+
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                        t.status.includes("Completed") ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                      }`}>
+                        {t.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: BILLS & UTILITY INVOICES */}
+            {detailTab === "bills" && (
+              <div className="space-y-4 animate-in fade-in duration-150 text-xs">
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-emerald-900">
+                  <div className="flex items-center gap-2 font-bold">
+                    <Receipt className="w-4 h-4 text-emerald-600" />
+                    <span>Monthly Billing Status: All Invoices Paid</span>
+                  </div>
+                  <span className="font-black text-xs">$0.00 Outstanding</span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {[
+                    { inv: "INV-2026-07", title: "July Monthly Rent Invoice", amount: selectedDetailUnit.rent, date: "24 Jul 2026", status: "Paid ✓" },
+                    { inv: "UTIL-2026-07", title: "Sub-meter Water & Power Utility Bill", amount: "$145.00", date: "20 Jul 2026", status: "Paid ✓" },
+                    { inv: "INV-2026-06", title: "June Monthly Rent Invoice", amount: selectedDetailUnit.rent, date: "24 Jun 2026", status: "Paid ✓" },
+                  ].map((b) => (
+                    <div key={b.inv} className="p-3.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-2xs">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900">{b.inv} — {b.title}</span>
+                          <span className="font-black text-[#FF6B00]">{b.amount}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">Paid Date: {b.date}</div>
+                      </div>
+
+                      <button
+                        onClick={() => toast(`Downloading PDF invoice receipt for ${b.inv}...`, "success")}
+                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg text-xs flex items-center gap-1 cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>PDF Invoice</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-end pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setSelectedDetailUnit(null)}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer uppercase tracking-wider"
+              >
+                Close Telemetry
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* ------------------- MODAL 1: ADD FLOOR LEVEL MODAL ------------------- */}
       {showAddFloorModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
@@ -698,52 +1013,31 @@ export default function PropertyFloorPlanPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 leading-none">Add Floor Level</h3>
-                  <p className="text-xs text-slate-500 mt-1">Append new floor level to {property.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Floor {floorsCount + 1} will be added to {property.name}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAddFloorModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs">
+            <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">New Floor Designation</label>
-                <input
-                  type="text"
-                  disabled
-                  value={`Floor ${floorsCount + 1} (Level ${floorsCount + 1})`}
-                  className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-not-allowed"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Floor Primary Usage Category</label>
-                <div className="relative">
-                  <select
-                    value={newFloorUsage}
-                    onChange={(e) => setNewFloorUsage(e.target.value)}
-                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="Residential Living Suites">Residential Living Suites</option>
-                    <option value="Executive Corporate Office">Executive Corporate Office</option>
-                    <option value="Boutique Penthouse Terrace">Boutique Penthouse Terrace</option>
-                    <option value="Fitness & Amenity Lounge">Fitness & Amenity Lounge</option>
-                    <option value="Covered Parking & Storage">Covered Parking & Storage</option>
-                  </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                    <ChevronDown className="w-4 h-4" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3 bg-orange-50/60 border border-orange-200 rounded-xl text-[11px] text-slate-600 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                <span>Will auto-generate 2 starter unit slots on Floor {floorsCount + 1}.</span>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Floor Usage & Designation</label>
+                <select
+                  value={newFloorUsage}
+                  onChange={(e) => setNewFloorUsage(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                >
+                  <option value="Residential Living Suites">Residential Living Suites</option>
+                  <option value="Penthouse & Sky Villas">Penthouse & Sky Villas</option>
+                  <option value="Commercial Office Space">Commercial Office Space</option>
+                  <option value="Student Housing / Co-Living">Student Housing / Co-Living</option>
+                </select>
               </div>
             </div>
 
@@ -760,7 +1054,7 @@ export default function PropertyFloorPlanPage() {
                 className="px-5 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
-                <span>Create Floor Level</span>
+                <span>Create Floor {floorsCount + 1}</span>
               </button>
             </div>
           </form>
@@ -772,7 +1066,7 @@ export default function PropertyFloorPlanPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
           <form
             onSubmit={handleAddUnitSubmit}
-            className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 sm:p-8 space-y-4 shadow-2xl relative font-sans"
+            className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative font-sans max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
@@ -780,85 +1074,47 @@ export default function PropertyFloorPlanPage() {
                   <Building2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 leading-none">Add New Unit</h3>
-                  <p className="text-xs text-slate-500 mt-1">Add unit specification to Floor {unitFloorTarget}</p>
+                  <h3 className="text-lg font-bold text-slate-900 leading-none">Add Unit / Room</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Creating unit on Floor {unitFloorTarget}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAddUnitModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Target Floor Level</label>
-                  <div className="relative">
-                    <select
-                      value={unitFloorTarget}
-                      onChange={(e) => setUnitFloorTarget(Number(e.target.value))}
-                      className="w-full appearance-none pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                    >
-                      {floorsList.map((fl) => (
-                        <option key={fl} value={fl}>Floor {fl}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                      <ChevronDown className="w-4 h-4" />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Unit Number / Code</label>
-                  <input
-                    type="text"
-                    value={newUnitNo}
-                    onChange={(e) => setNewUnitNo(e.target.value)}
-                    placeholder={`e.g. Unit ${unitFloorTarget}05`}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Target Floor</label>
+                <select
+                  value={unitFloorTarget}
+                  onChange={(e) => setUnitFloorTarget(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                >
+                  {floorsList.map((fl) => (
+                    <option key={fl} value={fl}>Floor {fl}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Unit Category Layout</label>
-                <div className="relative">
-                  <select
-                    value={newUnitType}
-                    onChange={(e) => setNewUnitType(e.target.value)}
-                    className="w-full appearance-none pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="2 BHK Executive Suite">2 BHK Executive Suite</option>
-                    <option value="3 BHK Premium Corner">3 BHK Premium Corner</option>
-                    <option value="1 BHK Studio Apartment">1 BHK Studio Apartment</option>
-                    <option value="Penthouse Terrace Suite">Penthouse Terrace Suite</option>
-                    <option value="Corporate Office Cabin">Corporate Office Cabin</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                    <ChevronDown className="w-4 h-4" />
-                  </div>
-                </div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Unit Number / Code</label>
+                <input
+                  type="text"
+                  value={newUnitNo}
+                  onChange={(e) => setNewUnitNo(e.target.value)}
+                  placeholder={`e.g. Unit ${unitFloorTarget}05`}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Area (sq ft)</label>
-                  <input
-                    type="text"
-                    value={newSqft}
-                    onChange={(e) => setNewSqft(e.target.value)}
-                    placeholder="e.g. 950 sq ft"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Base Rent ($ / ₹)</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent ($ / ₹)</label>
                   <input
                     type="number"
                     value={newRent}
@@ -867,50 +1123,32 @@ export default function PropertyFloorPlanPage() {
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Room Specs Breakdown</label>
-                <input
-                  type="text"
-                  value={newRooms}
-                  onChange={(e) => setNewRooms(e.target.value)}
-                  placeholder="e.g. 2 Bedrooms • 2 Baths • Living Room • Balcony"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Occupancy Status</label>
-                  <div className="relative">
-                    <select
-                      value={newStatus}
-                      onChange={(e) => setNewStatus(e.target.value as any)}
-                      className="w-full appearance-none pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                    >
-                      <option value="Vacant">Vacant (Ready)</option>
-                      <option value="Occupied">Occupied (Assign Resident)</option>
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                      <ChevronDown className="w-4 h-4" />
-                    </div>
-                  </div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Initial Status</label>
+                  <select
+                    value={newStatus}
+                    onChange={(e) => setNewStatus(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  >
+                    <option value="Vacant">Vacant</option>
+                    <option value="Occupied">Occupied</option>
+                  </select>
                 </div>
-
-                {newStatus === "Occupied" && (
-                  <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Primary Resident Name</label>
-                    <input
-                      type="text"
-                      value={newTenantName}
-                      onChange={(e) => setNewTenantName(e.target.value)}
-                      placeholder="e.g. Alexander Wright"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                    />
-                  </div>
-                )}
               </div>
+
+              {newStatus === "Occupied" && (
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Primary Resident Name</label>
+                  <input
+                    type="text"
+                    value={newTenantName}
+                    onChange={(e) => setNewTenantName(e.target.value)}
+                    placeholder="e.g. Alexander Wright"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
