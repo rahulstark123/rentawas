@@ -38,7 +38,7 @@ export default function MaintenancePage() {
   const { toast } = useToast();
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
+  const [viewMode, setViewMode] = useState<"kanban" | "table">("table");
 
   const [tickets, setTickets] = useState<TicketItem[]>([
     {
