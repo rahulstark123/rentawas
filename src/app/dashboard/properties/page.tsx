@@ -110,7 +110,7 @@ export default function PropertiesPage() {
         floors: numFloors,
         units: computedUnits,
         occupied: 0,
-        monthlyYield: `${newProp.avgRent}/mo`,
+        monthlyYield: `${newProp.avgRent || "$0"}/mo`,
         ytdExpenses: "$0",
         status: "0% Occupied (New)",
         tag: newProp.category.replace(/^[^\s]+\s/, ""), // remove emoji prefix for tag

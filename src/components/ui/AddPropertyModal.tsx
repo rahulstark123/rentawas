@@ -1,19 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Building2, 
   X, 
   Plus, 
+  Minus,
   MapPin, 
   ShieldCheck, 
   ChevronDown, 
   Loader2, 
   CheckCircle2, 
   Layers, 
-  Sparkles,
   Info,
-  PenTool
+  PenTool,
+  SlidersHorizontal
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -28,6 +29,7 @@ export interface PropertyData {
   units: number;
   roomLayout: string;
   avgRent?: string;
+  floorBreakdown?: { floor: number; units: number }[];
 }
 
 interface AddPropertyModalProps {
@@ -92,23 +94,56 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
   const [pincode, setPincode] = useState("");
   const [address, setAddress] = useState("");
   const [floors, setFloors] = useState("4");
-  const [unitsPerFloor, setUnitsPerFloor] = useState("4");
+  const [defaultUnitsPerFloor, setDefaultUnitsPerFloor] = useState("3");
+  
+  // Custom per-floor room counts state
+  const [isPerFloorCustom, setIsPerFloorCustom] = useState(false);
+  const [floorUnitCounts, setFloorUnitCounts] = useState<number[]>([3, 3, 3, 3]);
+
   const [roomLayout, setRoomLayout] = useState(ROOM_LAYOUT_OPTIONS[0]);
   const [customRoomLayout, setCustomRoomLayout] = useState("");
 
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
 
+  // Sync floorUnitCounts array when total floors or default units per floor changes
+  useEffect(() => {
+    const numFloors = Math.max(1, Math.min(100, Number(floors) || 1));
+    const defaultUnits = Math.max(1, Number(defaultUnitsPerFloor) || 1);
+
+    setFloorUnitCounts((prev) => {
+      const updated = [...prev];
+      if (updated.length < numFloors) {
+        while (updated.length < numFloors) {
+          updated.push(defaultUnits);
+        }
+      } else if (updated.length > numFloors) {
+        return updated.slice(0, numFloors);
+      }
+      return updated;
+    });
+  }, [floors, defaultUnitsPerFloor]);
+
   if (!isOpen) return null;
 
-  const numFloors = Number(floors) || 1;
-  const numUnitsPerFloor = Number(unitsPerFloor) || 1;
-  const totalUnits = numFloors * numUnitsPerFloor;
+  const numFloors = Math.max(1, Number(floors) || 1);
+  const totalUnits = isPerFloorCustom
+    ? floorUnitCounts.reduce((acc, curr) => acc + curr, 0)
+    : numFloors * (Number(defaultUnitsPerFloor) || 1);
 
   const isCustomLayout = roomLayout.startsWith("Other / Custom Layout");
   const finalRoomLayout = isCustomLayout 
     ? (customRoomLayout.trim() || "Custom Architecture Layout") 
     : roomLayout;
+
+  const handleUpdateFloorCount = (index: number, newCount: number) => {
+    const validCount = Math.max(1, Math.min(50, newCount));
+    setFloorUnitCounts((prev) => {
+      const next = [...prev];
+      next[index] = validCount;
+      return next;
+    });
+  };
 
   // Auto-fetch location from PIN / ZIP code globally
   const handlePincodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,6 +216,11 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
     e.preventDefault();
     if (!name.trim()) return;
 
+    const floorBreakdown = floorUnitCounts.map((count, i) => ({
+      floor: i + 1,
+      units: count,
+    }));
+
     const newProp: PropertyData = {
       id: `PROP-${Math.floor(10 + Math.random() * 90)}`,
       name,
@@ -188,16 +228,17 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
       pincode,
       address: address || "Primary City Location",
       floors: numFloors,
-      unitsPerFloor: numUnitsPerFloor,
+      unitsPerFloor: isPerFloorCustom ? Math.round(totalUnits / numFloors) : Number(defaultUnitsPerFloor),
       units: totalUnits,
       roomLayout: finalRoomLayout,
+      floorBreakdown,
     };
 
     if (onAddProperty) {
       onAddProperty(newProp);
     }
 
-    toast(`Property "${name}" created with ${numFloors} floors (${totalUnits} total units & rooms)!`, "success");
+    toast(`Property "${name}" created with ${numFloors} floors & ${totalUnits} total rooms across custom floor plans!`, "success");
     setName("");
     setPincode("");
     setAddress("");
@@ -222,7 +263,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
                 Add New Property to Portfolio
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Configure property name, location pincode, total floors, and room architecture.
+                Configure property location, per-floor room breakdown, and architecture.
               </p>
             </div>
           </div>
@@ -321,20 +362,26 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
             />
           </div>
 
-          {/* Section 2: Floors & Room Layout Configuration */}
-          <div className="pt-2 border-t border-slate-100 space-y-3.5">
-            <h4 className="text-xs font-extrabold text-[#FF6B00] uppercase tracking-wider flex items-center gap-1.5">
-              <Layers className="w-4 h-4" />
-              <span>Floors & Room Architecture Configuration</span>
-            </h4>
+          {/* Section 2: Floors & Per-Floor Room Architecture */}
+          <div className="pt-2 border-t border-slate-100 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-extrabold text-[#FF6B00] uppercase tracking-wider flex items-center gap-1.5">
+                <Layers className="w-4 h-4" />
+                <span>Floors & Room Architecture</span>
+              </h4>
+
+              <span className="text-xs font-black text-slate-900 bg-amber-100/70 border border-amber-200 px-2.5 py-0.5 rounded-full">
+                ={totalUnits} Total Units / Rooms
+              </span>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Total Floors</label>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Total Building Floors</label>
                 <input
                   type="number"
                   min={1}
-                  max={100}
+                  max={50}
                   value={floors}
                   onChange={(e) => setFloors(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
@@ -342,22 +389,85 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: Add
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1 flex items-center justify-between">
-                  <span>Units / Floor</span>
-                  <span className="text-[10px] text-[#FF6B00] font-extrabold normal-case">
-                    ={totalUnits} Total Units
-                  </span>
+                <label className="block font-bold text-slate-700 uppercase mb-1">
+                  Default Rooms per Floor
                 </label>
                 <input
                   type="number"
                   min={1}
                   max={50}
-                  value={unitsPerFloor}
-                  onChange={(e) => setUnitsPerFloor(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  disabled={isPerFloorCustom}
+                  value={defaultUnitsPerFloor}
+                  onChange={(e) => setDefaultUnitsPerFloor(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] disabled:opacity-50"
                 />
               </div>
             </div>
+
+            {/* Toggle Switch: Customize Rooms Per Floor Individually */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-[#FF6B00]" />
+                <div>
+                  <span className="font-bold text-slate-900 block text-xs">Specify room counts per floor individually</span>
+                  <span className="text-[10px] text-slate-500">Enable if Floor 1 has 3 rooms, Floor 2 has 2 rooms, etc.</span>
+                </div>
+              </div>
+
+              <input
+                type="checkbox"
+                checked={isPerFloorCustom}
+                onChange={(e) => setIsPerFloorCustom(e.target.checked)}
+                className="w-4 h-4 accent-[#FF6B00] cursor-pointer"
+              />
+            </div>
+
+            {/* Per-Floor Room Counter Grid */}
+            {isPerFloorCustom && (
+              <div className="p-4 bg-orange-50/50 border border-orange-200/80 rounded-2xl space-y-3 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between text-xs border-b border-orange-200/60 pb-2">
+                  <span className="font-bold text-slate-900 uppercase text-[11px]">Individual Floor Room Breakdown</span>
+                  <span className="text-[10px] text-orange-700 font-extrabold">
+                    {numFloors} Floors Configured
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-44 overflow-y-auto pr-1 custom-scrollbar">
+                  {floorUnitCounts.map((count, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs shadow-2xs"
+                    >
+                      <span className="font-bold text-slate-800">
+                        {idx === 0 ? "Floor 1 (Ground)" : `Floor ${idx + 1}`}
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFloorCount(idx, count - 1)}
+                          className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 font-bold cursor-pointer"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+
+                        <span className="w-8 text-center font-black text-slate-900 text-xs">
+                          {count} {count === 1 ? "Room" : "Rooms"}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFloorCount(idx, count + 1)}
+                          className="w-6 h-6 rounded-lg bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[#FF6B00] font-bold cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Room Rent Note */}
             <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-start gap-2 text-blue-900">
