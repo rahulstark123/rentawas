@@ -53,11 +53,34 @@ export const PROPERTY_CATEGORIES = [
 ];
 
 export const ROOM_LAYOUT_OPTIONS = [
-  "2 BHK Deluxe (2 Beds • 2 Baths • Living • Kitchen • Balcony)",
+  // Residential Apartments & Homes
+  "1 RK Studio (Room + Kitchenette • 1 Bath)",
+  "1 BHK Executive Studio (1 Bed • 1 Bath • Kitchenette • Balcony)",
+  "1.5 BHK Compact (1 Master Bed • 1 Study/Kid Room • 1 Bath)",
+  "2 BHK Deluxe (2 Beds • 2 Baths • Living • Modular Kitchen • Balcony)",
+  "2.5 BHK Family (2 Beds • 1 Study • 2 Baths • Living • Kitchen)",
   "3 BHK Luxury Corner (3 Beds • 3 Baths • Living • Modular Kitchen • 2 Balconies)",
-  "1 BHK Executive Studio (1 Bed • 1 Bath • Kitchenette)",
-  "Corporate Office Workspace (1 Conf Room • 4 Cabins • 12 Workstations)",
-  "Co-Living Twin Pod (2 Single Beds • Study Desks • Attached Bath)",
+  "3.5 BHK Sky Suite (3 Beds • Servants Room • 3.5 Baths • Dual Balconies)",
+  "4 BHK Grand Residence (4 Master Bedrooms • 4 Baths • Puja Room • Terrace)",
+  "Duplex Villa / Townhouse (3 Bedrooms • Private Garden • Garage)",
+  "Penthouse Suite (4 Bedrooms • Private Pool / Deck • 360 View)",
+
+  // Student Housing & Co-Living / Hostels
+  "Single Private Occupancy Room (1 Single Bed • Workstation • Ensuite Bath)",
+  "Co-Living Twin Sharing Pod (2 Single Beds • Dual Study Desks • Shared Bath)",
+  "Co-Living Triple Occupancy Room (3 Bunk/Single Beds • Lockers • Ensuite Bath)",
+  "Quad Sharing Hostel Dorm (4 Bunk Beds • Individual Lockers • Common Bath)",
+
+  // Commercial Offices & Retail
+  "Corporate Executive Office (1 Conference Room • 4 Private Cabins • 12 Workstations)",
+  "Co-Working Flexi Desk Bay (Shared Open Floor • 20 Workstations)",
+  "Commercial Retail Shop (Ground Floor Frontage • Storage Room • Restroom)",
+  "Medical / Clinic Diagnostic Suite (Waiting Lounge • 3 Doctor Consultation Rooms)",
+  "Restaurant & Cloud Kitchen Unit (Kitchen Infrastructure • Dining Space • Storage)",
+
+  // Industrial & Specialty Units
+  "Industrial Warehouse & Logistics Bay (High Ceiling • Loading Dock • Mezzanine Office)",
+  "Self-Storage Lockable Bay (10x10 Climate Controlled)",
 ];
 
 export default function AddPropertyModal({ isOpen, onClose, onAddProperty }: AddPropertyModalProps) {
