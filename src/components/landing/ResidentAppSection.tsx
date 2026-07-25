@@ -235,7 +235,7 @@ export default function ResidentAppSection() {
               Give landlords and tenants a state-of-the-art desktop & web experience. Instant rent disbursals, maintenance reporting, and legal documents all in one places.
             </p>
 
-            {/* Feature List 1: One-Tap Payments */}
+            {/* Feature List 1: Instant Digital Rent Payments */}
             <div className="flex items-start gap-4 mb-6 font-sans">
               <div className="p-3 rounded-2xl bg-[#FF6B00]/10 text-[#FF6B00] shrink-0 mt-0.5">
                 <IconOneTapPayments className="w-6 h-6" />
@@ -245,10 +245,10 @@ export default function ResidentAppSection() {
                   className="text-lg font-bold text-[#0B132B] mb-1"
                   style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
                 >
-                  One-Tap Autopilot Payments
+                  Instant Digital Rent Payments
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-                  Support for Apple Pay, Google Pay, Razorpay UPI, and automatic ACH bank transfers.
+                  Support for UPI Gateway, Cards, and Direct Bank Transfers with live transaction logging.
                 </p>
               </div>
             </div>
