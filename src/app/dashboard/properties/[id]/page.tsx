@@ -384,8 +384,8 @@ export default function PropertyFloorPlanPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => {
-              toast(`Loading financial yield & occupancy analytics for ${property.name}...`, "info");
-              router.push("/dashboard/analytics");
+              toast(`Loading dedicated analytics for ${property.name}...`, "info");
+              router.push(`/dashboard/properties/${property.id}/analytics`);
             }}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/90 hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-xl shadow-2xs transition-all uppercase tracking-wider cursor-pointer"
           >
