@@ -32,7 +32,13 @@ import {
   ChevronDown,
   IdCard,
   Upload,
-  ChevronRight
+  ChevronRight,
+  LogOut,
+  Star,
+  AlertTriangle,
+  ShieldAlert,
+  Calendar,
+  AlertCircle
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
@@ -51,6 +57,16 @@ export interface OccupantItem {
   govIdNumber?: string;
   govIdFile?: string;
   leaseDocFile?: string;
+}
+
+export interface PastHistoryRecord {
+  name: string;
+  period: string;
+  rent: string;
+  status: "Active Occupant" | "Lease Completed" | "Removed / Evicted";
+  review?: string;
+  rating?: number;
+  removalReason?: string;
 }
 
 // Mock data repository of properties
@@ -73,7 +89,7 @@ export default function RoomTelemetryFullPage() {
 
   const [activeTab, setActiveTab] = useState<"resident" | "docs" | "history" | "maintenance" | "bills">("resident");
 
-  // Multi-tenant occupancy state
+  // Active occupants list
   const [occupants, setOccupants] = useState<OccupantItem[]>([
     {
       id: "OCC-1",
@@ -107,7 +123,13 @@ export default function RoomTelemetryFullPage() {
     },
   ]);
 
-  // Modal State for 3-Step Add Tenant Modal
+  // Historical Timeline Log
+  const [roomHistory, setRoomHistory] = useState<PastHistoryRecord[]>([
+    { name: "Elena Rostova", period: "Jan 2023 – Oct 2024 (21 mos)", rent: "$1,800/mo", status: "Lease Completed", review: "Clean Move-out. Paid rent on time via UPI.", rating: 5 },
+    { name: "James Peterson", period: "Feb 2021 – Dec 2022 (22 mos)", rent: "$1,600/mo", status: "Lease Completed", review: "Deposit refunded in full. Excellent tenant.", rating: 5 },
+  ]);
+
+  // Modal State 1: 3-Step Add / Edit Tenant Modal
   const [showAddTenantModal, setShowAddTenantModal] = useState(false);
   const [editingOccupantId, setEditingOccupantId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
@@ -132,7 +154,25 @@ export default function RoomTelemetryFullPage() {
   const [docType, setDocType] = useState("Signed Residential Lease Agreement");
   const [leaseFile, setLeaseFile] = useState<string | null>(null);
 
-  // Calculated total combined room revenue from all residents
+  // ---------------- MODAL 2: NORMAL LEASE EXIT & RATING REVIEW MODAL STATE ----------------
+  const [showNormalExitModal, setShowNormalExitModal] = useState(false);
+  const [exitOccupant, setExitOccupant] = useState<OccupantItem | null>(null);
+  const [exitMoveOutDate, setExitMoveOutDate] = useState("2026-07-25");
+  const [depositSettlement, setDepositSettlement] = useState("Full Deposit Refunded");
+  const [keysReturned, setKeysReturned] = useState(true);
+  const [starRating, setStarRating] = useState(5);
+  const [reviewNotes, setReviewNotes] = useState("");
+
+  // ---------------- MODAL 3: REMOVE / EVICT OCCUPANT MODAL STATE ----------------
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [removeOccupantTarget, setRemoveOccupantTarget] = useState<OccupantItem | null>(null);
+  const [removalReason, setRemovalReason] = useState("Non-Payment of Rent / Financial Default");
+  const [removalDate, setRemovalDate] = useState("2026-07-25");
+  const [dueAmount, setDueAmount] = useState("0");
+  const [incidentNotes, setIncidentNotes] = useState("");
+  const [flagTenant, setFlagTenant] = useState(true);
+
+  // Calculated total combined room revenue from all active residents
   const totalRoomRent = occupants.reduce((acc, curr) => acc + curr.individualRent, 0);
 
   const openAddTenantModal = () => {
@@ -231,9 +271,71 @@ export default function RoomTelemetryFullPage() {
     setShowAddTenantModal(false);
   };
 
-  const handleDeleteOccupant = (id: string, name: string) => {
-    setOccupants((prev) => prev.filter((o) => o.id !== id));
-    toast(`Removed ${name} from ${unitId}.`, "info");
+  // ---------------- HANDLER 1: NORMAL LEASE EXIT & RATING ----------------
+  const openNormalExitModal = (occ: OccupantItem) => {
+    setExitOccupant(occ);
+    setExitMoveOutDate("2026-07-25");
+    setDepositSettlement("Full Deposit Refunded");
+    setKeysReturned(true);
+    setStarRating(5);
+    setReviewNotes(`Tenant ${occ.name} completed lease tenure cleanly and maintained room in great condition.`);
+    setShowNormalExitModal(true);
+  };
+
+  const handleNormalExitSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!exitOccupant) return;
+
+    // Add to Room History Timeline
+    const historyEntry: PastHistoryRecord = {
+      name: exitOccupant.name,
+      period: `${exitOccupant.moveIn} – ${exitMoveOutDate}`,
+      rent: `$${exitOccupant.individualRent.toLocaleString()}/mo`,
+      status: "Lease Completed",
+      review: reviewNotes || "Normal lease exit completed.",
+      rating: starRating,
+    };
+
+    setRoomHistory((prev) => [historyEntry, ...prev]);
+    setOccupants((prev) => prev.filter((o) => o.id !== exitOccupant.id));
+
+    toast(`Resident ${exitOccupant.name} offboarded cleanly. Review saved with ${starRating}★ rating!`, "success");
+    setShowNormalExitModal(false);
+    setExitOccupant(null);
+  };
+
+  // ---------------- HANDLER 2: REMOVE / EVICT OCCUPANT ----------------
+  const openRemoveModal = (occ: OccupantItem) => {
+    setRemoveOccupantTarget(occ);
+    setRemovalReason("Non-Payment of Rent / Financial Default");
+    setRemovalDate("2026-07-25");
+    setDueAmount("1200");
+    setIncidentNotes(`Occupant removed due to non-payment of rent and lease policy breach.`);
+    setFlagTenant(true);
+    setShowRemoveModal(true);
+  };
+
+  const handleRemoveSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!removeOccupantTarget) return;
+
+    // Add to Room History Timeline marked as Removed
+    const historyEntry: PastHistoryRecord = {
+      name: removeOccupantTarget.name,
+      period: `${removeOccupantTarget.moveIn} – ${removalDate}`,
+      rent: `$${removeOccupantTarget.individualRent.toLocaleString()}/mo`,
+      status: "Removed / Evicted",
+      removalReason: removalReason,
+      review: `REMOVAL NOTICE: ${removalReason}. Notes: ${incidentNotes}`,
+      rating: 1,
+    };
+
+    setRoomHistory((prev) => [historyEntry, ...prev]);
+    setOccupants((prev) => prev.filter((o) => o.id !== removeOccupantTarget.id));
+
+    toast(`Occupant ${removeOccupantTarget.name} removed from ${unitId}. Eviction record logged.`, "info");
+    setShowRemoveModal(false);
+    setRemoveOccupantTarget(null);
   };
 
   return (
@@ -352,10 +454,10 @@ export default function RoomTelemetryFullPage() {
           <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs">
             <div>
               <h3 className="text-base font-extrabold text-slate-900">
-                Individual Per-Occupant Rent Breakdown
+                Individual Per-Occupant Rent & Offboarding Options
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Each resident in {unitId} has their own individual rent amount configured.
+                Manage occupants, custom user rents, normal lease exits, or forced removals for {unitId}.
               </p>
             </div>
 
@@ -425,30 +527,43 @@ export default function RoomTelemetryFullPage() {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
+                {/* Action Buttons Row 1: Edit & Call */}
                 <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
                   <button
                     onClick={() => openEditTenantModal(occ)}
                     className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Edit3 className="w-3.5 h-3.5 text-[#FF6B00]" />
-                    <span>Edit Resident Details</span>
+                    <span>Edit Profile & Rent</span>
                   </button>
 
                   <button
                     onClick={() => toast(`Calling ${occ.name} (${occ.phone})...`, "info")}
-                    className="p-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-colors cursor-pointer"
-                    title="Call Resident"
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
                   >
-                    <Phone className="w-4 h-4" />
+                    <Phone className="w-4 h-4 text-emerald-400" />
+                    <span>Call</span>
+                  </button>
+                </div>
+
+                {/* Action Buttons Row 2: 2 Explicit Exit Options (Normal Exit vs Remove Occupant) */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openNormalExitModal(occ)}
+                    className="py-2.5 px-3 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Normal Exit & Review</span>
                   </button>
 
                   <button
-                    onClick={() => handleDeleteOccupant(occ.id, occ.name)}
-                    className="p-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 rounded-xl transition-colors cursor-pointer"
-                    title="Remove Occupant"
+                    type="button"
+                    onClick={() => openRemoveModal(occ)}
+                    className="py-2.5 px-3 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                    <span>Remove Occupant</span>
                   </button>
                 </div>
               </div>
@@ -524,7 +639,7 @@ export default function RoomTelemetryFullPage() {
         </div>
       )}
 
-      {/* TAB 3: ROOM HISTORY */}
+      {/* TAB 3: ROOM HISTORY WITH RATINGS & REVIEWS */}
       {activeTab === "history" && (
         <div className="space-y-6 animate-in fade-in duration-200 text-xs">
           <div className="p-5 bg-white border border-slate-200/90 rounded-2xl flex items-center justify-between shadow-2xs">
@@ -534,32 +649,47 @@ export default function RoomTelemetryFullPage() {
 
           <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
             <h3 className="font-extrabold text-slate-900 uppercase text-xs tracking-wider border-b border-slate-100 pb-3">
-              Chronological Past Resident Timeline
+              Chronological Past Resident Timeline & Landlord Ratings
             </h3>
 
             <div className="space-y-3">
-              {[
-                { name: "Eleanor Vance & Sarah Connor (Active)", period: "Nov 2024 – Present", rent: `$${totalRoomRent.toLocaleString()}/mo`, status: "Active Occupants", review: "5.0 ★ Excellent" },
-                { name: "Elena Rostova", period: "Jan 2023 – Oct 2024 (21 mos)", rent: "$1,800/mo", status: "Lease Completed", review: "4.9 ★ Clean Move-out" },
-                { name: "James Peterson", period: "Feb 2021 – Dec 2022 (22 mos)", rent: "$1,600/mo", status: "Lease Completed", review: "4.8 ★ Deposit Refunded" },
-              ].map((h, idx) => (
-                <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-slate-200 font-extrabold text-slate-700 flex items-center justify-center text-sm">
-                      {h.name.charAt(0)}
+              {roomHistory.map((h, idx) => (
+                <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-slate-200 font-extrabold text-slate-800 flex items-center justify-center text-sm">
+                        {h.name.charAt(0)}
+                      </div>
+                      <div>
+                        <span className="font-bold text-slate-900 block text-sm">{h.name}</span>
+                        <span className="text-xs text-slate-500">{h.period} • {h.rent}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="font-bold text-slate-900 block text-sm">{h.name}</span>
-                      <span className="text-xs text-slate-500">{h.period} • {h.rent}</span>
+
+                    <div className="text-right">
+                      <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold block mb-1 ${
+                        h.status === "Lease Completed"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-rose-100 text-rose-800"
+                      }`}>
+                        {h.status}
+                      </span>
+
+                      {h.rating && (
+                        <div className="flex items-center justify-end gap-0.5 text-amber-500">
+                          {Array.from({ length: h.rating }).map((_, i) => (
+                            <Star key={i} className="w-3 h-3 fill-amber-400" />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div className="text-right">
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-200 text-slate-800 inline-block mb-1">
-                      {h.status}
-                    </span>
-                    <span className="text-xs text-emerald-600 font-bold block">{h.review}</span>
-                  </div>
+                  {h.review && (
+                    <div className="p-2.5 bg-white border border-slate-200 rounded-lg text-slate-700 text-xs italic">
+                      &ldquo;{h.review}&rdquo;
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -650,7 +780,7 @@ export default function RoomTelemetryFullPage() {
         </div>
       )}
 
-      {/* ------------------- 3-STEP ADD / EDIT TENANT MODAL (SAME AS TENANTS PAGE) ------------------- */}
+      {/* ------------------- MODAL 1: 3-STEP ADD / EDIT TENANT MODAL ------------------- */}
       {showAddTenantModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
           <form
@@ -952,6 +1082,288 @@ export default function RoomTelemetryFullPage() {
                   <span>Save Resident & Rent</span>
                 </button>
               )}
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ------------------- MODAL 2: NORMAL LEASE EXIT & RATING REVIEW MODAL ------------------- */}
+      {showNormalExitModal && exitOccupant && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
+          <form
+            onSubmit={handleNormalExitSubmit}
+            className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600">
+                  <LogOut className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-slate-900 leading-none">
+                    Normal Lease Completion Exit
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Offboarding resident {exitOccupant.name} from {unitId}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowNormalExitModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              
+              {/* Departure Info Banner */}
+              <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-2xl text-emerald-900 space-y-1">
+                <span className="font-bold block text-xs">Gradual Lease Offboarding Protocol</span>
+                <p className="text-[11px] text-emerald-800">
+                  Tenant has completed their stay. Saving this offboarding form will record their timeline in room history with your landlord review rating.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Departure Move-out Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={exitMoveOutDate}
+                    onChange={(e) => setExitMoveOutDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Security Deposit Settlement</label>
+                  <select
+                    value={depositSettlement}
+                    onChange={(e) => setDepositSettlement(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    <option value="Full Deposit Refunded">Full Deposit Refunded ($100%)</option>
+                    <option value="Partial Refund (Deductions Applied)">Partial Refund (Deductions Applied)</option>
+                    <option value="Withheld Deposit">Withheld Deposit</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Keys Return Checkbox */}
+              <label className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={keysReturned}
+                  onChange={(e) => setKeysReturned(e.target.checked)}
+                  className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+                />
+                <span className="font-bold text-slate-800 text-xs">
+                  All room keys, smart access cards, and parking passes returned
+                </span>
+              </label>
+
+              {/* Landlord Star Rating System */}
+              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
+                <label className="block font-extrabold text-amber-900 uppercase text-[11px]">
+                  Landlord Rating for {exitOccupant.name} (For Future Reference)
+                </label>
+
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setStarRating(star)}
+                      className="p-1 cursor-pointer transition-transform hover:scale-110"
+                    >
+                      <Star
+                        className={`w-7 h-7 ${
+                          star <= starRating
+                            ? "fill-amber-400 text-amber-400"
+                            : "text-slate-300"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  <span className="ml-2 font-black text-amber-900 text-sm">
+                    {starRating}.0 / 5.0 Stars
+                  </span>
+                </div>
+              </div>
+
+              {/* Review & Feedback Notes */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">
+                  Landlord Review & Tenancy Feedback Notes
+                </label>
+                <textarea
+                  rows={3}
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  placeholder="e.g. Paid rent on time every month via Autopilot. Kept room clean and quiet..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowNormalExitModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="px-6 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-md uppercase tracking-wider cursor-pointer flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Complete Normal Exit & Save Review</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ------------------- MODAL 3: REMOVE / EVICT OCCUPANT MODAL ------------------- */}
+      {showRemoveModal && removeOccupantTarget && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
+          <form
+            onSubmit={handleRemoveSubmit}
+            className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-rose-50 text-rose-600">
+                  <ShieldAlert className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-slate-900 leading-none">
+                    Remove / Evict Occupant
+                  </h3>
+                  <p className="text-xs text-rose-600 font-bold mt-1">
+                    Emergency removal notice for {removeOccupantTarget.name}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowRemoveModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              
+              {/* Warning Banner */}
+              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-900 flex items-start gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block text-xs">Immediate Occupant Removal Protocol</span>
+                  <p className="text-[11px] text-rose-700">
+                    Use this option when removing an occupant due to non-payment, lease breach, or emergency. The removal reason will be archived in room history.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Primary Removal Reason *</label>
+                <select
+                  value={removalReason}
+                  onChange={(e) => setRemovalReason(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer"
+                >
+                  <option value="Non-Payment of Rent / Financial Default">Non-Payment of Rent / Financial Default</option>
+                  <option value="Breach of Lease Terms & Property Damage">Breach of Lease Terms & Property Damage</option>
+                  <option value="Excessive Noise / Disturbance to Neighbors">Excessive Noise / Disturbance to Neighbors</option>
+                  <option value="Unauthorized Occupant / Illegal Subletting">Unauthorized Occupant / Illegal Subletting</option>
+                  <option value="Mutual Early Termination Agreement">Mutual Early Termination Agreement</option>
+                  <option value="Emergency / Safety Violation">Emergency / Safety Violation</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Removal Effective Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={removalDate}
+                    onChange={(e) => setRemovalDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Outstanding Balance Dues ($ / ₹)</label>
+                  <input
+                    type="number"
+                    value={dueAmount}
+                    onChange={(e) => setDueAmount(e.target.value)}
+                    placeholder="1200"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+              </div>
+
+              {/* Incident Notes */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Incident Notes & Breach Details</label>
+                <textarea
+                  rows={3}
+                  value={incidentNotes}
+                  onChange={(e) => setIncidentNotes(e.target.value)}
+                  placeholder="Record details of the breach, formal warnings issued, or early termination agreement..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              {/* Flag Tenant Checkbox */}
+              <label className="p-3 bg-rose-50/60 border border-rose-200 rounded-xl flex items-center gap-3 cursor-pointer text-rose-900">
+                <input
+                  type="checkbox"
+                  checked={flagTenant}
+                  onChange={(e) => setFlagTenant(e.target.checked)}
+                  className="w-4 h-4 accent-rose-600 rounded cursor-pointer"
+                />
+                <span className="font-bold text-xs">
+                  ⚠️ Flag resident profile in Tenant Registry for future landlord warnings
+                </span>
+              </label>
+
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowRemoveModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="px-6 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-xl shadow-md uppercase tracking-wider cursor-pointer flex items-center gap-2"
+              >
+                <AlertTriangle className="w-4 h-4" />
+                <span>Confirm Removal & Archive Log</span>
+              </button>
             </div>
           </form>
         </div>
