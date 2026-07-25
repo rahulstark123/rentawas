@@ -253,7 +253,7 @@ export default function ResidentAppSection() {
               </div>
             </div>
 
-            {/* Feature List 2: Smart Announcements */}
+            {/* Feature List 2: Maintenance & Digital Lease Records */}
             <div className="flex items-start gap-4 font-sans">
               <div className="p-3 rounded-2xl bg-[#FF6B00]/10 text-[#FF6B00] shrink-0 mt-0.5">
                 <IconSmartAnnouncements className="w-6 h-6" />
@@ -263,10 +263,10 @@ export default function ResidentAppSection() {
                   className="text-lg font-bold text-[#0B132B] mb-1"
                   style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
                 >
-                  Smart Building Announcements & AI Docs
+                  Maintenance Board & Lease Documents
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-                  Geo-targeted push notifications, maintenance dispatch, and automated legal lease generation.
+                  Streamlined tenant maintenance ticket workflow, digital lease contracts, and resident notices.
                 </p>
               </div>
             </div>
