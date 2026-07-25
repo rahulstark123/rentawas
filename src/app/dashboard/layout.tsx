@@ -39,6 +39,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { IconAutopilotRent } from "@/components/ui/CustomIcons";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/Toast";
 import GlobalSearchModal from "@/components/ui/GlobalSearchModal";
 
@@ -59,6 +60,42 @@ export default function DashboardLayout({
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic user profile loaded from Supabase Auth
+  const [userProfile, setUserProfile] = useState({
+    name: "Alexander Wright",
+    email: "alexander.wright@rentawas.com",
+    role: "Portfolio Owner",
+    initials: "AW",
+  });
+
+  useEffect(() => {
+    async function loadUserData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const fullName = user.user_metadata?.fullName || user.email?.split("@")[0] || "Alexander Wright";
+          const emailStr = user.email || "alexander.wright@rentawas.com";
+          const roleStr = user.user_metadata?.role === "tenant" ? "Tenant Resident" : "Portfolio Owner";
+          
+          const nameParts = fullName.trim().split(" ");
+          const initials = nameParts.length >= 2 
+            ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+            : fullName.substring(0, 2).toUpperCase();
+
+          setUserProfile({
+            name: fullName,
+            email: emailStr,
+            role: roleStr,
+            initials: initials || "AW",
+          });
+        }
+      } catch (err) {
+        console.error("Auth profile fetch error:", err);
+      }
+    }
+    loadUserData();
+  }, []);
 
   // Click Outside Listener for Profile Dropdown
   useEffect(() => {
@@ -365,13 +402,13 @@ export default function DashboardLayout({
           {/* User Profile & Logout */}
           <div className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} pt-1`}>
             <div className="flex items-center gap-2.5 truncate">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#FF6B00] to-amber-400 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
-                AW
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#FF6B00] to-amber-400 text-white font-extrabold text-xs flex items-center justify-center shadow-xs shrink-0">
+                {userProfile.initials}
               </div>
               {!isCollapsed && (
                 <div className="truncate">
-                  <div className="text-xs font-bold text-white truncate">Alexander Wright</div>
-                  <div className="text-[10px] text-slate-400 truncate">Portfolio Owner</div>
+                  <div className="text-xs font-bold text-white truncate">{userProfile.name}</div>
+                  <div className="text-[10px] text-slate-400 truncate">{userProfile.role}</div>
                 </div>
               )}
             </div>
@@ -421,9 +458,9 @@ export default function DashboardLayout({
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="w-9 h-9 rounded-full bg-[#0B132B] text-white font-extrabold text-xs flex items-center justify-center shadow-xs hover:ring-2 hover:ring-[#FF6B00] transition-all cursor-pointer"
-              title="Account & Profile Options"
+              title={userProfile.name}
             >
-              AW
+              {userProfile.initials}
             </button>
 
             {/* Profile Dropdown Menu */}
@@ -432,10 +469,12 @@ export default function DashboardLayout({
                 {/* User Summary Header */}
                 <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-900 text-xs">Alexander Wright</span>
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-[#FF6B00] text-white uppercase">PRO</span>
+                    <span className="font-extrabold text-slate-900 text-xs truncate max-w-[160px]">{userProfile.name}</span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-[#FF6B00] text-white uppercase shrink-0">
+                      {userProfile.role.includes("Owner") ? "PRO" : "TENANT"}
+                    </span>
                   </div>
-                  <div className="text-[11px] text-slate-500 font-medium truncate">alexander.wright@rentawas.com</div>
+                  <div className="text-[11px] text-slate-500 font-medium truncate">{userProfile.email}</div>
                 </div>
 
                 <div className="border-t border-slate-100 my-1" />
