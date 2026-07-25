@@ -137,26 +137,24 @@ export default function DashboardOverviewPage() {
           </div>
         </div>
 
-        {/* Metric 3: Autopilot Rent */}
+        {/* Metric 3: Active Leases & Renewals */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Autopilot Rent Engine</span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <IconAutopilotRent className="w-5 h-5" />
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Leases & Renewals</span>
+            <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+              <FileText className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <span>Active</span>
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
-              <span>Auto-reminders & instant payout</span>
+            <div className="text-2xl font-black text-slate-900">48 Active</div>
+            <div className="flex items-center gap-1.5 text-xs text-purple-700 font-semibold mt-1">
+              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+              <span>3 Due for renewal in 30 days</span>
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-            <span>Next Collection Run:</span>
-            <span className="font-bold text-slate-900">Tomorrow 09:00 AM</span>
+            <span>Lease Health Compliance:</span>
+            <span className="font-bold text-emerald-600">98.2% Active</span>
           </div>
         </div>
 
