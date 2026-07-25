@@ -89,6 +89,7 @@ export default function RoomTelemetryFullPage() {
 
   const [activeTab, setActiveTab] = useState<"resident" | "docs" | "history" | "maintenance" | "bills">("resident");
   const [workspaceCurrency, setWorkspaceCurrency] = useState("$");
+  const [selectedDocOccupantId, setSelectedDocOccupantId] = useState<string>("");
 
   // Active occupants list
   const [occupants, setOccupants] = useState<OccupantItem[]>([
@@ -593,52 +594,143 @@ export default function RoomTelemetryFullPage() {
         </div>
       )}
 
-      {/* TAB 2: TENANT DOCS & VERIFICATION */}
-      {activeTab === "docs" && (
-        <div className="space-y-6 animate-in fade-in duration-200 text-xs">
-          <div className="p-5 bg-white border border-slate-200/90 rounded-2xl flex items-center justify-between shadow-2xs">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-7 h-7 text-emerald-600 shrink-0" />
-              <div>
-                <span className="font-bold text-slate-900 block text-sm">Government ID Verification Status</span>
-                <span className="text-xs text-slate-500">Aadhaar / Passport / Driver's License — State Database Verified</span>
+      {/* TAB 2: TENANT DOCS & VERIFICATION (INDIVIDUAL RESIDENT SWITCHER) */}
+      {activeTab === "docs" && (() => {
+        const currentDocOccupant = occupants.find((o) => o.id === selectedDocOccupantId) || occupants[0];
+        return (
+          <div className="space-y-6 animate-in fade-in duration-200 text-xs">
+            
+            {/* Resident Switcher Bar */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[#FF6B00]" />
+                  <span>Select Resident to View Documents</span>
+                </span>
+                <span className="text-xs font-bold text-[#FF6B00]">
+                  {occupants.length} Occupants Registered
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2.5 overflow-x-auto custom-scrollbar pb-1">
+                {occupants.map((occ) => {
+                  const isSelected = (selectedDocOccupantId || occupants[0]?.id) === occ.id;
+                  return (
+                    <button
+                      key={occ.id}
+                      onClick={() => setSelectedDocOccupantId(occ.id)}
+                      className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer whitespace-nowrap border ${
+                        isSelected
+                          ? "bg-slate-900 text-white border-slate-900 shadow-md"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${
+                        isSelected ? "bg-[#FF6B00] text-white" : "bg-slate-200 text-slate-800"
+                      }`}>
+                        {occ.name.charAt(0)}
+                      </div>
+                      <span>{occ.name}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                        isSelected ? "bg-slate-800 text-slate-300" : "bg-slate-200 text-slate-600"
+                      }`}>
+                        {occ.bedSlot}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
-            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs">
-              VERIFIED ✓
-            </span>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[
-              { title: "Signed Rental Lease Agreement", size: "2.4 MB • PDF Document", status: "Signed & Active" },
-              { title: "Police Background Verification Certificate", size: "1.1 MB • Official Seal", status: "Clear" },
-              { title: "Government Identity Proof Document", size: "850 KB • Aadhaar / Passport", status: "Verified" },
-              { title: "Security Deposit Bank Transfer Receipt", size: "420 KB • Digital Ledger", status: "Deposited" },
-            ].map((doc, idx) => (
-              <div key={idx} className="p-5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-2xs">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-orange-50 text-[#FF6B00] rounded-xl">
-                    <FileText className="w-5 h-5" />
+            {currentDocOccupant ? (
+              <div className="space-y-5">
+                {/* Government ID Banner for Selected Resident */}
+                <div className="p-5 bg-white border border-slate-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck className="w-7 h-7 text-emerald-600 shrink-0" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 text-sm">
+                          {currentDocOccupant.name}&apos;s Government ID Status
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px]">
+                          VERIFIED ✓
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-500 block mt-0.5">
+                        Document: {currentDocOccupant.govIdType || "Passport"} ({currentDocOccupant.govIdNumber || "PASS-981029"}) • State Database Verified
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-bold text-slate-900 block text-sm">{doc.title}</span>
-                    <span className="text-xs text-slate-400">{doc.size} • {doc.status}</span>
-                  </div>
+
+                  <button
+                    onClick={() => toast(`Uploading additional document for ${currentDocOccupant.name}...`, "info")}
+                    className="px-4 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer uppercase tracking-wider whitespace-nowrap"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Upload Doc for {currentDocOccupant.name.split(" ")[0]}</span>
+                  </button>
                 </div>
 
-                <button
-                  onClick={() => toast(`Downloading ${doc.title}...`, "success")}
-                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download</span>
-                </button>
+                {/* Per-Resident Document Vault Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[
+                    { 
+                      title: `Signed Tenancy Agreement — ${currentDocOccupant.name}`, 
+                      file: currentDocOccupant.leaseDocFile || `${currentDocOccupant.name.toLowerCase().replace(/\s+/g, "_")}_lease.pdf`, 
+                      size: "2.4 MB • PDF Document", 
+                      status: "Signed & Active" 
+                    },
+                    { 
+                      title: `Government ID Scan — ${currentDocOccupant.govIdType || "Passport"}`, 
+                      file: currentDocOccupant.govIdFile || `${currentDocOccupant.name.toLowerCase().replace(/\s+/g, "_")}_id_scan.pdf`, 
+                      size: "1.1 MB • Official ID", 
+                      status: "Verified ✓" 
+                    },
+                    { 
+                      title: `Police Verification Certificate`, 
+                      file: `police_clearance_${currentDocOccupant.name.toLowerCase().replace(/\s+/g, "_")}.pdf`, 
+                      size: "850 KB • Background Seal", 
+                      status: "Clear" 
+                    },
+                    { 
+                      title: `Security Deposit Receipt`, 
+                      file: `deposit_receipt_${currentDocOccupant.name.toLowerCase().replace(/\s+/g, "_")}.pdf`, 
+                      size: "420 KB • Digital Ledger", 
+                      status: "Deposited" 
+                    },
+                  ].map((doc, idx) => (
+                    <div key={idx} className="p-5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-2xs">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-orange-50 text-[#FF6B00] rounded-xl">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-900 block text-sm">{doc.title}</span>
+                          <span className="text-xs text-slate-400 font-mono">{doc.file} • {doc.size}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => toast(`Downloading ${doc.file}...`, "success")}
+                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Download</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+            ) : (
+              <div className="p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center">
+                <span className="text-xs font-bold text-slate-500">No active occupants found for this room.</span>
+              </div>
+            )}
+
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* TAB 3: ROOM HISTORY WITH RATINGS & REVIEWS */}
       {activeTab === "history" && (
