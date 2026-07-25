@@ -24,15 +24,15 @@ export default function AutopilotPaymentsPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Autopilot Rent & Payments
+              Rent Payments & Transactions
             </h1>
             <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
-              <IconAutopilotRent className="w-4 h-4 text-emerald-600" />
-              <span>Automated Gateway</span>
+              <CreditCard className="w-4 h-4 text-emerald-600" />
+              <span>Direct Bank Settlement</span>
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Collection rules, instant disbursal routing, and automated payment gateways.
+            Collection history, bank disbursal routing, and payment processing.
           </p>
         </div>
 

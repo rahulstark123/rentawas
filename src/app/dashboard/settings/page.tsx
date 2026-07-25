@@ -4,27 +4,20 @@ import { useState } from "react";
 import { 
   Building2, 
   CreditCard, 
-  Bell, 
   Users, 
   ShieldCheck, 
   Save, 
   Plus, 
-  CheckCircle2, 
-  Globe, 
   DollarSign, 
-  Zap, 
-  Lock, 
   Check, 
   Trash2,
   ChevronDown
 } from "lucide-react";
-import { IconAutopilotRent } from "@/components/ui/CustomIcons";
-
 import { useToast } from "@/components/ui/Toast";
 
 export default function WorkspaceSettingsPage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"general" | "payouts" | "automations" | "team">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "payouts" | "team">("general");
 
   // General Settings State
   const [orgName, setOrgName] = useState("Grand Regency Management LLC");
@@ -46,12 +39,6 @@ export default function WorkspaceSettingsPage() {
   const [bankName, setBankName] = useState("JPMorgan Chase Bank");
   const [accountNumber, setAccountNumber] = useState("•••• •••• •••• 8942");
   const [payoutSchedule, setPayoutSchedule] = useState("instant");
-
-  // Automations State
-  const [remindWhatsApp, setRemindWhatsApp] = useState(true);
-  const [remindSMS, setRemindSMS] = useState(true);
-  const [remindEmail, setRemindEmail] = useState(true);
-  const [lateFeePercent, setLateFeePercent] = useState("5");
 
   // Saved Feedback
   const [isSaved, setIsSaved] = useState(false);
@@ -93,7 +80,7 @@ export default function WorkspaceSettingsPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 font-sans">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -101,7 +88,7 @@ export default function WorkspaceSettingsPage() {
             Workspace & Landlord Settings
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Configure organization profile, Autopilot disbursal accounts, automated reminder rules, and team access.
+            Configure organization profile, bank payout accounts, and team access.
           </p>
         </div>
 
@@ -118,8 +105,7 @@ export default function WorkspaceSettingsPage() {
       <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl overflow-x-auto custom-scrollbar">
         {[
           { id: "general", label: "Organization & Profile", icon: Building2 },
-          { id: "payouts", label: "Autopilot Payouts & Banking", icon: CreditCard, badge: "INSTANT" },
-          { id: "automations", label: "Reminders & Late Fees", icon: Bell },
+          { id: "payouts", label: "Payouts & Bank Account", icon: CreditCard, badge: "INSTANT" },
           { id: "team", label: "Team Members", icon: Users, count: team.length },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -153,19 +139,19 @@ export default function WorkspaceSettingsPage() {
 
       {/* Tab 1: Organization & Profile */}
       {activeTab === "general" && (
-        <div className="space-y-6 font-sans">
+        <div className="space-y-6">
           
           {/* Card 1: Company Legal Identity & Tax Registration */}
           <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
             <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
               <Building2 className="w-5 h-5 text-[#FF6B00]" />
-              <span>Company Legal Identity & Tax Information</span>
+              <span>Company Legal Identity & Registration</span>
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Organization / Business Legal Name
+                  Organization / Company Name
                 </label>
                 <input
                   type="text"
@@ -177,19 +163,19 @@ export default function WorkspaceSettingsPage() {
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Business Entity Registration Type
+                  Entity / Business Type
                 </label>
                 <div className="relative">
                   <select
                     value={companyType}
                     onChange={(e) => setCompanyType(e.target.value)}
-                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                   >
                     <option value="LLC (Limited Liability Company)">LLC (Limited Liability Company)</option>
-                    <option value="Private Limited Company (Pvt Ltd)">Private Limited Company (Pvt Ltd)</option>
-                    <option value="Sole Proprietorship">Sole Proprietorship</option>
-                    <option value="REIT / Real Estate Trust">REIT / Real Estate Investment Trust</option>
-                    <option value="Individual Landlord">Individual Landlord (Self Managed)</option>
+                    <option value="Sole Proprietorship / Individual Landlord">Sole Proprietorship / Individual Landlord</option>
+                    <option value="Private Limited Corporation (Pvt Ltd / Inc)">Private Limited Corporation (Pvt Ltd / Inc)</option>
+                    <option value="Real Estate Investment Trust (REIT)">Real Estate Investment Trust (REIT)</option>
+                    <option value="Partnership Firm">Partnership Firm</option>
                   </select>
                   <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
                     <ChevronDown className="w-4 h-4" />
@@ -199,7 +185,7 @@ export default function WorkspaceSettingsPage() {
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Tax Registration / EIN / GSTIN / PAN Number
+                  Tax Identification Number (EIN / GSTIN / SSN)
                 </label>
                 <input
                   type="text"
@@ -211,7 +197,7 @@ export default function WorkspaceSettingsPage() {
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Registered Legal Business Address
+                  Registered Headquarters Address
                 </label>
                 <input
                   type="text"
@@ -223,17 +209,17 @@ export default function WorkspaceSettingsPage() {
             </div>
           </div>
 
-          {/* Card 2: Primary Landlord Admin Profile */}
+          {/* Card 2: Primary Landlord / Asset Manager Profile */}
           <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
             <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <Users className="w-5 h-5 text-purple-600" />
-              <span>Primary Landlord Profile & Contact Details</span>
+              <Users className="w-5 h-5 text-blue-600" />
+              <span>Primary Landlord & Representative Contact</span>
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Primary Admin / Landlord Full Name
+                  Primary Contact Full Name
                 </label>
                 <input
                   type="text"
@@ -245,7 +231,7 @@ export default function WorkspaceSettingsPage() {
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Owner Title / Role
+                  Official Title / Role
                 </label>
                 <input
                   type="text"
@@ -257,7 +243,7 @@ export default function WorkspaceSettingsPage() {
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Support Email Address
+                  Official Notification Email
                 </label>
                 <input
                   type="email"
@@ -269,10 +255,10 @@ export default function WorkspaceSettingsPage() {
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Portfolio Direct Contact Phone
+                  Direct Contact Phone Number
                 </label>
                 <input
-                  type="tel"
+                  type="text"
                   value={companyPhone}
                   onChange={(e) => setCompanyPhone(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
@@ -281,63 +267,7 @@ export default function WorkspaceSettingsPage() {
             </div>
           </div>
 
-          {/* Card 3: Workspace Branding & Portal Subdomain */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
-            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <Globe className="w-5 h-5 text-blue-600" />
-              <span>Workspace Branding & Custom Portal Links</span>
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Custom Resident Portal URL
-                </label>
-                <div className="flex items-center">
-                  <span className="px-3 py-2.5 bg-slate-200 text-slate-600 font-bold border border-r-0 border-slate-200 rounded-l-xl text-xs">https://</span>
-                  <input
-                    type="text"
-                    value={customSubdomain}
-                    onChange={(e) => setCustomSubdomain(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-r-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Company Header Tagline / Slogan
-                </label>
-                <input
-                  type="text"
-                  value={tagline}
-                  onChange={(e) => setTagline(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Official E-Stamp Seal & Logo Branding
-                </label>
-                <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
-                  <div>
-                    <span className="font-bold text-slate-900 block">Upload Official Seal / Letterhead Logo (PNG, SVG, JPG)</span>
-                    <span className="text-[11px] text-slate-500">Will auto-embed on generated AI Lease Contracts, Rent Receipts, and Disbursal Invoices.</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => toast("Company E-Stamp logo uploaded!", "success")}
-                    className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 hover:bg-slate-100 shadow-2xs transition-colors cursor-pointer shrink-0"
-                  >
-                    Upload Logo File
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: Regional Preferences & Fiscal Calendar */}
+          {/* Card 3: Regional Preferences & Fiscal Calendar */}
           <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
             <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-emerald-600" />
@@ -428,13 +358,13 @@ export default function WorkspaceSettingsPage() {
         </div>
       )}
 
-      {/* Tab 2: Autopilot Payouts & Banking */}
+      {/* Tab 2: Payouts & Bank Account */}
       {activeTab === "payouts" && (
         <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <IconAutopilotRent className="w-5 h-5 text-emerald-600" />
-              <span>Autopilot Disbursal & Bank Routing Accounts</span>
+              <CreditCard className="w-5 h-5 text-emerald-600" />
+              <span>Payout Bank & Settlement Accounts</span>
             </h3>
             <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
@@ -450,7 +380,7 @@ export default function WorkspaceSettingsPage() {
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-300 uppercase tracking-wider">Primary Disbursal Account</div>
+                  <div className="text-xs font-bold text-slate-300 uppercase tracking-wider">Primary Payout Account</div>
                   <div className="text-base font-extrabold text-white">{bankName}</div>
                   <div className="text-xs text-slate-400 font-mono mt-0.5">{accountNumber} • Operating Checking</div>
                 </div>
@@ -464,15 +394,15 @@ export default function WorkspaceSettingsPage() {
               </button>
             </div>
 
-            {/* Payout Trigger Frequency */}
+            {/* Payout Settlement Frequency */}
             <div className="space-y-3">
               <label className="block font-bold text-slate-700 uppercase">
-                Autopilot Disbursal Trigger Frequency
+                Payout Settlement Frequency
               </label>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  { id: "instant", title: "Instant Real-Time Routing", desc: "Collected rent is deposited to bank within 2 hours." },
+                  { id: "instant", title: "Instant Real-Time Payout", desc: "Collected rent is deposited to bank within 2 hours." },
                   { id: "daily", title: "Daily 09:00 AM Batch", desc: "Bundles all previous day rent payments into 1 transfer." },
                   { id: "weekly", title: "Weekly Settlement", desc: "Transfers accumulated balance every Monday morning." },
                 ].map((item) => (
@@ -520,77 +450,7 @@ export default function WorkspaceSettingsPage() {
         </div>
       )}
 
-      {/* Tab 3: Reminders & Late Fees */}
-      {activeTab === "automations" && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
-          <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-            <Bell className="w-5 h-5 text-[#FF6B00]" />
-            <span>Automated Rent Reminders & Statutory Late Fee Rules</span>
-          </h3>
-
-          <div className="space-y-5 text-xs">
-            {/* Reminder Channels */}
-            <div className="space-y-3">
-              <label className="block font-bold text-slate-700 uppercase">Active Reminder Channels</label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer select-none">
-                  <span className="font-bold text-slate-800">WhatsApp Notification</span>
-                  <input
-                    type="checkbox"
-                    checked={remindWhatsApp}
-                    onChange={(e) => setRemindWhatsApp(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#FF6B00] accent-[#FF6B00]"
-                  />
-                </label>
-
-                <label className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer select-none">
-                  <span className="font-bold text-slate-800">SMS Direct Dispatch</span>
-                  <input
-                    type="checkbox"
-                    checked={remindSMS}
-                    onChange={(e) => setRemindSMS(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#FF6B00] accent-[#FF6B00]"
-                  />
-                </label>
-
-                <label className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer select-none">
-                  <span className="font-bold text-slate-800">Email Digest & Invoice</span>
-                  <input
-                    type="checkbox"
-                    checked={remindEmail}
-                    onChange={(e) => setRemindEmail(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#FF6B00] accent-[#FF6B00]"
-                  />
-                </label>
-              </div>
-            </div>
-
-            {/* Late Fee Rule */}
-            <div className="p-4 bg-orange-50/60 border border-orange-200 rounded-xl space-y-2">
-              <div className="font-bold text-slate-900">Automated Late Fee Rule Configuration</div>
-              <p className="text-slate-600 text-[11px]">
-                Applies a percentage fee on tenant invoices if unpaid after the standard 5-day grace period.
-              </p>
-              <div className="flex items-center gap-3 pt-1">
-                <span className="font-bold text-slate-700">Grace Period: 5 Days</span>
-                <span className="text-slate-300">•</span>
-                <div className="flex items-center gap-1">
-                  <span className="font-bold text-slate-700">Late Fee Percentage:</span>
-                  <input
-                    type="number"
-                    value={lateFeePercent}
-                    onChange={(e) => setLateFeePercent(e.target.value)}
-                    className="w-16 px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-center text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#FF6B00]"
-                  />
-                  <span className="font-bold text-slate-700">%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 4: Team & Role Access */}
+      {/* Tab 3: Team & Role Access */}
       {activeTab === "team" && (
         <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
