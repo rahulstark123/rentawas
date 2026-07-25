@@ -334,24 +334,6 @@ export default function DashboardLayout({
 
         {/* Sidebar Footer Controls */}
         <div className="p-4 border-t border-slate-800/80 space-y-3">
-          
-          {/* Autopilot Engine Status */}
-          {!isCollapsed && (
-            <div className="bg-[#141A26] border border-slate-800/80 rounded-xl p-3 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                  <IconAutopilotRent className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Autopilot Engine</div>
-                  <div className="text-[11px] font-extrabold text-emerald-400 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Active
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* User Profile & Logout */}
           <div className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} pt-1`}>
