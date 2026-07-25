@@ -28,20 +28,29 @@ import {
   UserPlus,
   Edit3,
   Trash2,
-  X
+  X,
+  ChevronDown,
+  IdCard,
+  Upload,
+  ChevronRight
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 
 export interface OccupantItem {
   id: string;
   name: string;
-  bedSlot: string; // e.g. Bed A, Master Bedroom, Person 1 Slot
-  individualRent: number; // e.g. 1000 for Person A, 1200 for Person B
+  bedSlot: string;
+  individualRent: number;
   phone: string;
   email: string;
   moveIn: string;
   leaseEnd: string;
   paymentStatus: string;
+  govIdType?: string;
+  govIdNumber?: string;
+  govIdFile?: string;
+  leaseDocFile?: string;
 }
 
 // Mock data repository of properties
@@ -64,11 +73,11 @@ export default function RoomTelemetryFullPage() {
 
   const [activeTab, setActiveTab] = useState<"resident" | "docs" | "history" | "maintenance" | "bills">("resident");
 
-  // Multi-tenant occupancy with custom per-user individual rents!
+  // Multi-tenant occupancy state
   const [occupants, setOccupants] = useState<OccupantItem[]>([
     {
       id: "OCC-1",
-      name: "Person A — Eleanor Vance",
+      name: "Eleanor Vance",
       bedSlot: "Bed Slot A (Master Suite)",
       individualRent: 1000,
       phone: "+1 (555) 234-5678",
@@ -76,10 +85,14 @@ export default function RoomTelemetryFullPage() {
       moveIn: "2025-01-15",
       leaseEnd: "2026-01-14",
       paymentStatus: "Auto Paid (ACH)",
+      govIdType: "Passport",
+      govIdNumber: "PASS-981029",
+      govIdFile: "passport_eleanor.pdf",
+      leaseDocFile: "lease_eleanor.pdf",
     },
     {
       id: "OCC-2",
-      name: "Person B — Sarah Connor",
+      name: "Sarah Connor",
       bedSlot: "Bed Slot B (Balcony Room)",
       individualRent: 1200,
       phone: "+1 (555) 891-2345",
@@ -87,52 +100,92 @@ export default function RoomTelemetryFullPage() {
       moveIn: "2025-02-01",
       leaseEnd: "2026-01-31",
       paymentStatus: "Auto Paid (UPI)",
+      govIdType: "Aadhaar Card",
+      govIdNumber: "AAD-4910283",
+      govIdFile: "aadhaar_sarah.pdf",
+      leaseDocFile: "lease_sarah.pdf",
     },
   ]);
 
-  // Modal State for adding/editing per-user rent
-  const [showAddResidentModal, setShowAddResidentModal] = useState(false);
+  // Modal State for 3-Step Add Tenant Modal
+  const [showAddTenantModal, setShowAddTenantModal] = useState(false);
   const [editingOccupantId, setEditingOccupantId] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
-  // Form State for Resident & Per-User Rent
-  const [formName, setFormName] = useState("");
-  const [formBedSlot, setFormBedSlot] = useState("Bed Slot A");
-  const [formRent, setFormRent] = useState("1000");
-  const [formPhone, setFormPhone] = useState("");
-  const [formEmail, setFormEmail] = useState("");
-  const [formMoveIn, setFormMoveIn] = useState("2026-08-01");
-  const [formLeaseEnd, setFormLeaseEnd] = useState("2027-07-31");
+  // Step 1 Form Fields
+  const [name, setName] = useState("");
+  const [bedSlot, setBedSlot] = useState("Bed Slot A");
+  const [monthlyRent, setMonthlyRent] = useState("1000");
+  const [phone, setPhone] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<Country>(ALL_COUNTRIES[0]);
+  const [email, setEmail] = useState("");
+  const [leaseStart, setLeaseStart] = useState("2026-08-01");
+  const [paymentChannel, setPaymentChannel] = useState("Autopilot ACH Direct");
+
+  // Step 2 Form Fields (Government ID)
+  const [idType, setIdType] = useState("Passport");
+  const [idNumber, setIdNumber] = useState("");
+  const [idCountry, setIdCountry] = useState("United States");
+  const [govIdFile, setGovIdFile] = useState<string | null>(null);
+
+  // Step 3 Form Fields (Lease Docs)
+  const [docType, setDocType] = useState("Signed Residential Lease Agreement");
+  const [leaseFile, setLeaseFile] = useState<string | null>(null);
 
   // Calculated total combined room revenue from all residents
   const totalRoomRent = occupants.reduce((acc, curr) => acc + curr.individualRent, 0);
 
-  const openAddModal = () => {
+  const openAddTenantModal = () => {
     setEditingOccupantId(null);
-    setFormName("");
-    setFormBedSlot(`Bed Slot ${String.fromCharCode(65 + occupants.length)}`);
-    setFormRent("1000");
-    setFormPhone("");
-    setFormEmail("");
-    setShowAddResidentModal(true);
+    setName("");
+    setBedSlot(`Bed Slot ${String.fromCharCode(65 + occupants.length)}`);
+    setMonthlyRent("1000");
+    setPhone("");
+    setEmail("");
+    setIdNumber("");
+    setGovIdFile(null);
+    setLeaseFile(null);
+    setCurrentStep(1);
+    setShowAddTenantModal(true);
   };
 
-  const openEditModal = (occ: OccupantItem) => {
+  const openEditTenantModal = (occ: OccupantItem) => {
     setEditingOccupantId(occ.id);
-    setFormName(occ.name);
-    setFormBedSlot(occ.bedSlot);
-    setFormRent(occ.individualRent.toString());
-    setFormPhone(occ.phone);
-    setFormEmail(occ.email);
-    setFormMoveIn(occ.moveIn);
-    setFormLeaseEnd(occ.leaseEnd);
-    setShowAddResidentModal(true);
+    setName(occ.name);
+    setBedSlot(occ.bedSlot);
+    setMonthlyRent(occ.individualRent.toString());
+    setPhone(occ.phone.replace(/^\+\d+\s*/, ""));
+    setEmail(occ.email);
+    setLeaseStart(occ.moveIn);
+    setIdType(occ.govIdType || "Passport");
+    setIdNumber(occ.govIdNumber || "");
+    setGovIdFile(occ.govIdFile || null);
+    setLeaseFile(occ.leaseDocFile || null);
+    setCurrentStep(1);
+    setShowAddTenantModal(true);
   };
 
-  const handleSaveOccupant = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formName.trim()) return;
+  const handleNextStep = () => {
+    if (currentStep === 1) {
+      if (!name.trim() || !email.trim()) {
+        toast("Please fill in Resident Name and Email before proceeding.", "info");
+        return;
+      }
+      setCurrentStep(2);
+    } else if (currentStep === 2) {
+      setCurrentStep(3);
+    }
+  };
 
-    const rentVal = Number(formRent) || 0;
+  const handleAddTenantSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) return;
+
+    const fullPhoneNumber = phone.trim()
+      ? `${selectedCountry.dialCode} ${phone.trim()}`
+      : `${selectedCountry.dialCode} (555) 019-2834`;
+
+    const rentVal = Number(monthlyRent) || 0;
 
     if (editingOccupantId) {
       setOccupants((prev) =>
@@ -140,35 +193,42 @@ export default function RoomTelemetryFullPage() {
           o.id === editingOccupantId
             ? {
                 ...o,
-                name: formName,
-                bedSlot: formBedSlot,
+                name,
+                bedSlot,
                 individualRent: rentVal,
-                phone: formPhone || o.phone,
-                email: formEmail || o.email,
-                moveIn: formMoveIn,
-                leaseEnd: formLeaseEnd,
+                phone: fullPhoneNumber,
+                email,
+                moveIn: leaseStart,
+                govIdType: idType,
+                govIdNumber: idNumber,
+                govIdFile: govIdFile || o.govIdFile,
+                leaseDocFile: leaseFile || o.leaseDocFile,
               }
             : o
         )
       );
-      toast(`Updated rent for ${formName} to $${rentVal.toLocaleString()}/mo!`, "success");
+      toast(`Updated resident ${name} in ${unitId}!`, "success");
     } else {
-      const newOcc: OccupantItem = {
+      const newTenant: OccupantItem = {
         id: `OCC-${Date.now()}`,
-        name: formName,
-        bedSlot: formBedSlot,
+        name,
+        bedSlot,
         individualRent: rentVal,
-        phone: formPhone || "+1 (555) 019-2831",
-        email: formEmail || "tenant@rentawas.com",
-        moveIn: formMoveIn,
-        leaseEnd: formLeaseEnd,
+        phone: fullPhoneNumber,
+        email,
+        moveIn: leaseStart,
+        leaseEnd: "2027-07-31",
         paymentStatus: "Active",
+        govIdType: idType,
+        govIdNumber: idNumber,
+        govIdFile: govIdFile || "gov_id_scan.pdf",
+        leaseDocFile: leaseFile || "lease_contract_signed.pdf",
       };
-      setOccupants((prev) => [...prev, newOcc]);
-      toast(`Added ${formName} to ${unitId} with rent $${rentVal.toLocaleString()}/mo!`, "success");
+      setOccupants((prev) => [...prev, newTenant]);
+      toast(`Added new resident ${name} to ${unitId} with rent $${rentVal.toLocaleString()}/mo!`, "success");
     }
 
-    setShowAddResidentModal(false);
+    setShowAddTenantModal(false);
   };
 
   const handleDeleteOccupant = (id: string, name: string) => {
@@ -218,11 +278,11 @@ export default function RoomTelemetryFullPage() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={openAddModal}
+              onClick={openAddTenantModal}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
             >
               <UserPlus className="w-4 h-4" />
-              <span>Add Resident & Custom Rent</span>
+              <span>Add Tenant</span>
             </button>
 
             <button
@@ -300,11 +360,11 @@ export default function RoomTelemetryFullPage() {
             </div>
 
             <button
-              onClick={openAddModal}
+              onClick={openAddTenantModal}
               className="px-4 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer uppercase tracking-wider"
             >
-              <Plus className="w-4 h-4" />
-              <span>Add Resident & Custom Rent</span>
+              <UserPlus className="w-4 h-4" />
+              <span>Add Tenant</span>
             </button>
           </div>
 
@@ -368,11 +428,11 @@ export default function RoomTelemetryFullPage() {
                 {/* Action Buttons */}
                 <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
                   <button
-                    onClick={() => openEditModal(occ)}
+                    onClick={() => openEditTenantModal(occ)}
                     className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Edit3 className="w-3.5 h-3.5 text-[#FF6B00]" />
-                    <span>Edit User Rent</span>
+                    <span>Edit Resident Details</span>
                   </button>
 
                   <button
@@ -479,7 +539,7 @@ export default function RoomTelemetryFullPage() {
 
             <div className="space-y-3">
               {[
-                { name: "Person A & Person B (Active)", period: "Nov 2024 – Present", rent: `$${totalRoomRent.toLocaleString()}/mo`, status: "Active Occupants", review: "5.0 ★ Excellent" },
+                { name: "Eleanor Vance & Sarah Connor (Active)", period: "Nov 2024 – Present", rent: `$${totalRoomRent.toLocaleString()}/mo`, status: "Active Occupants", review: "5.0 ★ Excellent" },
                 { name: "Elena Rostova", period: "Jan 2023 – Oct 2024 (21 mos)", rent: "$1,800/mo", status: "Lease Completed", review: "4.9 ★ Clean Move-out" },
                 { name: "James Peterson", period: "Feb 2021 – Dec 2022 (22 mos)", rent: "$1,600/mo", status: "Lease Completed", review: "4.8 ★ Deposit Refunded" },
               ].map((h, idx) => (
@@ -590,134 +650,308 @@ export default function RoomTelemetryFullPage() {
         </div>
       )}
 
-      {/* ------------------- MODAL: ADD / EDIT RESIDENT & INDIVIDUAL RENT ------------------- */}
-      {showAddResidentModal && (
+      {/* ------------------- 3-STEP ADD / EDIT TENANT MODAL (SAME AS TENANTS PAGE) ------------------- */}
+      {showAddTenantModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
           <form
-            onSubmit={handleSaveOccupant}
-            className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 sm:p-7 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto"
+            onSubmit={handleAddTenantSubmit}
+            className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-orange-50 text-[#FF6B00]">
+                <div className="p-2.5 rounded-xl bg-orange-50 text-[#FF6B00]">
                   <UserPlus className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900 leading-none">
-                    {editingOccupantId ? "Edit Resident Rent" : "Add Resident & Set Rent"}
+                  <h3 className="text-lg font-extrabold text-slate-900 leading-none">
+                    {editingOccupantId ? "Edit Resident Profile & Rent" : `Add Resident to ${unitId}`}
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Configure individual rent for {unitId}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {property.name} • {unitId}
+                  </p>
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={() => setShowAddResidentModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                onClick={() => setShowAddTenantModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Resident Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g. Person A — John Doe"
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
+            {/* 3-Step Wizard Navigation Pills */}
+            <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-2xl text-xs font-bold">
+              <div
+                onClick={() => setCurrentStep(1)}
+                className={`py-2 px-3 rounded-xl text-center cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+                  currentStep === 1 ? "bg-[#FF6B00] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">1</span>
+                <span className="truncate">1. Resident & Rent</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Bed / Room Slot</label>
-                  <input
-                    type="text"
-                    value={formBedSlot}
-                    onChange={(e) => setFormBedSlot(e.target.value)}
-                    placeholder="Bed Slot A"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-[#FF6B00] uppercase mb-1">Individual Rent ($ / ₹) *</label>
-                  <input
-                    type="number"
-                    required
-                    min={0}
-                    value={formRent}
-                    onChange={(e) => setFormRent(e.target.value)}
-                    placeholder="1000"
-                    className="w-full px-3 py-2 bg-white border border-[#FF6B00] rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
+              <div
+                onClick={() => setCurrentStep(2)}
+                className={`py-2 px-3 rounded-xl text-center cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+                  currentStep === 2 ? "bg-[#FF6B00] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">2</span>
+                <span className="truncate">2. Gov ID Scan</span>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Phone Number</label>
-                <input
-                  type="text"
-                  value={formPhone}
-                  onChange={(e) => setFormPhone(e.target.value)}
-                  placeholder="+1 (555) 234-5678"
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Email Address</label>
-                <input
-                  type="email"
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                  placeholder="resident@example.com"
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Move-in Date</label>
-                  <input
-                    type="date"
-                    value={formMoveIn}
-                    onChange={(e) => setFormMoveIn(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Lease Expiry</label>
-                  <input
-                    type="date"
-                    value={formLeaseEnd}
-                    onChange={(e) => setFormLeaseEnd(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
+              <div
+                onClick={() => setCurrentStep(3)}
+                className={`py-2 px-3 rounded-xl text-center cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+                  currentStep === 3 ? "bg-[#FF6B00] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">3</span>
+                <span className="truncate">3. Lease Docs</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowAddResidentModal(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-md uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Save Individual Rent</span>
-              </button>
+            {/* STEP 1: BASIC INFO, BED SLOT & USER RENT */}
+            {currentStep === 1 && (
+              <div className="space-y-3.5 text-xs animate-in fade-in duration-150">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Full Resident Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Sarah Jenkins"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Bed Slot / Room Designation</label>
+                    <input
+                      type="text"
+                      value={bedSlot}
+                      onChange={(e) => setBedSlot(e.target.value)}
+                      placeholder="Bed Slot A (Master)"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#FF6B00] uppercase mb-1">Individual Monthly Rent ($ / ₹) *</label>
+                    <input
+                      type="number"
+                      required
+                      min={0}
+                      value={monthlyRent}
+                      onChange={(e) => setMonthlyRent(e.target.value)}
+                      placeholder="1000"
+                      className="w-full px-3 py-2 bg-white border border-[#FF6B00] rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                </div>
+
+                {/* Phone Field with Country Flag & Code */}
+                <div className="relative z-30">
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Phone Number (with Country Code)</label>
+                  <CountryPhoneInput
+                    value={phone}
+                    onChange={setPhone}
+                    selectedCountry={selectedCountry}
+                    onCountryChange={setSelectedCountry}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Contact Email Address *</label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="tenant@domain.com"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Lease Start Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={leaseStart}
+                      onChange={(e) => setLeaseStart(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Autopilot Payment Channel</label>
+                  <div className="relative">
+                    <select
+                      value={paymentChannel}
+                      onChange={(e) => setPaymentChannel(e.target.value)}
+                      className="w-full appearance-none pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    >
+                      <option value="Autopilot ACH Direct">Autopilot ACH Direct (Auto-Debit)</option>
+                      <option value="Razorpay UPI Gateway">Razorpay UPI Gateway</option>
+                      <option value="Credit / Debit Card">Credit / Debit Card</option>
+                      <option value="Manual Bank Wire Transfer">Manual Bank Wire Transfer</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: GOVERNMENT ID & VERIFICATION */}
+            {currentStep === 2 && (
+              <div className="space-y-4 text-xs animate-in fade-in duration-150">
+                <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-2xl flex items-center gap-2.5 text-blue-900">
+                  <IdCard className="w-5 h-5 text-blue-600 shrink-0" />
+                  <div>
+                    <span className="font-bold block">Government Identity Verification</span>
+                    <span className="text-[11px] text-blue-700">Upload official government-issued ID scan or photo for background audit.</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Government ID Type</label>
+                    <div className="relative">
+                      <select
+                        value={idType}
+                        onChange={(e) => setIdType(e.target.value)}
+                        className="w-full appearance-none pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                      >
+                        <option value="Passport">Passport</option>
+                        <option value="Driver's License">Driver&apos;s License</option>
+                        <option value="Aadhaar Card / National ID">Aadhaar Card / National ID</option>
+                        <option value="Social Security Card (SSN)">Social Security Card (SSN)</option>
+                        <option value="Permanent Resident Card">Permanent Resident / Green Card</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                        <ChevronDown className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">ID Code / Document Number</label>
+                    <input
+                      type="text"
+                      value={idNumber}
+                      onChange={(e) => setIdNumber(e.target.value)}
+                      placeholder="e.g. A-98102948"
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Upload Government ID Scan (Front & Back)</label>
+                  <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-center space-y-2">
+                    <Upload className="w-6 h-6 text-blue-600 mx-auto" />
+                    <div className="text-xs font-bold text-slate-800">
+                      {govIdFile ? `Attached: ${govIdFile}` : "Drag & Drop Passport, Driver's License or ID Card Scan"}
+                    </div>
+                    <p className="text-[10px] text-slate-400">Accepted formats: PDF, JPG, PNG (Max 15MB)</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGovIdFile("passport_scanned_verified.pdf");
+                        toast("Government ID scan attached to resident profile!", "success");
+                      }}
+                      className="px-3.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-100 shadow-2xs cursor-pointer"
+                    >
+                      Select ID File
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: LEASE AGREEMENT & DOCUMENTS */}
+            {currentStep === 3 && (
+              <div className="space-y-4 text-xs animate-in fade-in duration-150">
+                <div className="p-3 bg-purple-50/80 border border-purple-200 rounded-2xl flex items-center gap-2.5 text-purple-900">
+                  <FileCheck className="w-5 h-5 text-purple-600 shrink-0" />
+                  <div>
+                    <span className="font-bold block">Lease Agreement & Rental Contract Upload</span>
+                    <span className="text-[11px] text-purple-700">Attach signed tenancy agreements, paystubs, or security deposit receipts.</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Upload Signed Lease Contract</label>
+                  <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-center space-y-2">
+                    <FileText className="w-6 h-6 text-[#FF6B00] mx-auto" />
+                    <div className="text-xs font-bold text-slate-800">
+                      {leaseFile ? `Attached: ${leaseFile}` : "Drag & Drop Signed Tenancy Contract PDF"}
+                    </div>
+                    <p className="text-[10px] text-slate-400">Accepted format: PDF (Max 25MB)</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLeaseFile("signed_lease_agreement.pdf");
+                        toast("Signed lease document attached!", "success");
+                      }}
+                      className="px-3.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-100 shadow-2xs cursor-pointer"
+                    >
+                      Select Lease PDF
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Wizard Navigation Footer */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              {currentStep > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep((prev) => (prev - 1) as any)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                >
+                  Back
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowAddTenantModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+              )}
+
+              {currentStep < 3 ? (
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="px-5 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Next Step</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Save Resident & Rent</span>
+                </button>
+              )}
             </div>
           </form>
         </div>
