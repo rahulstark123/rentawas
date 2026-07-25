@@ -426,22 +426,126 @@ export default function WorkspaceSettingsPage() {
               </div>
             </div>
 
-            {/* Connected Gateways */}
-            <div className="pt-4 border-t border-slate-100 space-y-3">
-              <label className="block font-bold text-slate-700 uppercase">Connected Payment Gateways</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Connected Payment Gateways & Banking Integrations */}
+            <div className="pt-6 border-t border-slate-100 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block font-bold text-slate-900 uppercase text-xs">
+                    Bank & Payment Gateway Integrations
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Connect payment processors and direct bank APIs so tenants can pay rent via UPI, ACH, Cards, or SWIFT.
+                  </p>
+                </div>
+
+                <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold border border-blue-200">
+                  6 Integrations Supported
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { name: "Stripe ACH / Card", status: "Connected", icon: "💳" },
-                  { name: "Razorpay UPI", status: "Connected", icon: "🇮🇳" },
-                  { name: "Bank Auto-Debit", status: "Active", icon: "🏦" },
-                  { name: "Apple Pay / Google Pay", status: "Enabled", icon: "⚡" },
-                ].map((g, idx) => (
-                  <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-                    <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                      <span>{g.icon}</span>
-                      <span>{g.name}</span>
-                    </span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" title={g.status} />
+                  {
+                    id: "stripe",
+                    name: "Stripe Connect & ACH Direct",
+                    region: "🇺🇸 USA & Global",
+                    methods: "ACH Direct Debit • Credit/Debit Cards • Apple Pay • Google Pay",
+                    fee: "0.5% ACH Cap ($5 max)",
+                    settlement: "Instant / T+1 Day",
+                    status: "Connected",
+                    action: "Configure API Keys",
+                    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                  },
+                  {
+                    id: "razorpay",
+                    name: "Razorpay & UPI Instant Settlement",
+                    region: "🇮🇳 India & SE Asia",
+                    methods: "UPI (PhonePe, GPay, Paytm) • NetBanking • Credit/Debit",
+                    fee: "0% on UPI • 1.9% Cards",
+                    settlement: "Real-Time Instant UPI",
+                    status: "Connected",
+                    action: "Manage VPA & Keys",
+                    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                  },
+                  {
+                    id: "plaid",
+                    name: "Plaid Instant Bank Auth",
+                    region: "🇺🇸 🇨🇦 🇬🇧 North America & UK",
+                    methods: "12,000+ Banks (Chase, BoA, Wells Fargo, Barclays)",
+                    fee: "Zero Payout Fee",
+                    settlement: "Direct Bank Link",
+                    status: "Connected",
+                    action: "View Linked Accounts",
+                    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                  },
+                  {
+                    id: "paypal",
+                    name: "PayPal & Venmo Business",
+                    region: "🌐 200+ Countries",
+                    methods: "PayPal Wallet • Venmo • International Cards",
+                    fee: "Standard FX Rates",
+                    settlement: "Instant Wallet",
+                    status: "Available",
+                    action: "Connect Account",
+                    badgeColor: "bg-slate-100 text-slate-700 border-slate-200",
+                  },
+                  {
+                    id: "wise",
+                    name: "Wise Business Multi-Currency",
+                    region: "🇪🇺 🇬🇧 🇦🇺 Global Cross-Border",
+                    methods: "Local Bank Wires in 40+ Currencies (EUR, GBP, AUD)",
+                    fee: "Mid-market Exchange Rate",
+                    settlement: "Same-day Settlement",
+                    status: "Available",
+                    action: "Connect Wise",
+                    badgeColor: "bg-slate-100 text-slate-700 border-slate-200",
+                  },
+                  {
+                    id: "swift",
+                    name: "SWIFT & SEPA Virtual Account Numbers (VAN)",
+                    region: "🌍 GCC & Europe",
+                    methods: "Dedicated Tenant Virtual IBAN / VAN Wire Transfers",
+                    fee: "Flat $1.50 per wire",
+                    settlement: "T+1 Business Day",
+                    status: "Active",
+                    action: "Manage VAN Range",
+                    badgeColor: "bg-blue-50 text-blue-700 border-blue-200",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-4 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-3 hover:border-slate-300 transition-all"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                          {item.region}
+                        </span>
+                        <h4 className="text-sm font-bold text-slate-900 mt-0.5">{item.name}</h4>
+                      </div>
+
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${item.badgeColor}`}>
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                      {item.methods}
+                    </p>
+
+                    <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
+                      <span className="font-bold text-slate-500">
+                        Fee: <span className="text-slate-800">{item.fee}</span>
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => toast(`Opening configuration modal for ${item.name}...`, "info")}
+                        className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 font-bold hover:bg-slate-100 shadow-2xs transition-colors cursor-pointer"
+                      >
+                        {item.action}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
