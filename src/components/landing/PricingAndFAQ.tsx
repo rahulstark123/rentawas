@@ -139,19 +139,19 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Tenant Management</span>
+                  <span>Tenant Management & Profiles</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Rent Collection</span>
+                  <span>Rent Collection & Payment Logs</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Maintenance Requests</span>
+                  <span>Maintenance Ticket Tracking</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Lease Management</span>
+                  <span>Digital Lease Management</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -210,23 +210,23 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Advanced Reports & Analytics</span>
+                  <span>Floor-by-Floor Unit Matrix</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Owner Portal & Statements</span>
+                  <span>Dedicated Property Yield Analytics</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>WhatsApp Reminders</span>
-                </li>
-                <li className="flex items-center gap-2.5 font-semibold text-purple-700">
-                  <Check className="w-4 h-4 text-purple-600 shrink-0" />
-                  <span>100 AI Credits/month</span>
+                  <span>Tenant Health Score Tracking</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Up to 5 Team Members</span>
+                  <span>Expense & Net Operating Income (NOI)</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
+                  <span>Multi-Period Fiscal Year Filtering</span>
                 </li>
               </ul>
             </div>
@@ -277,15 +277,15 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>API Access & Webhooks</span>
+                  <span>Tenant Resident Portal Access</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Unlimited Team Members</span>
+                  <span>Global Command Palette (Ctrl + K)</span>
                 </li>
-                <li className="flex items-center gap-2.5 font-semibold text-purple-700">
-                  <Check className="w-4 h-4 text-purple-600 shrink-0" />
-                  <span>500 AI Credits/month</span>
+                <li className="flex items-center gap-2.5">
+                  <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>Multiple Workspace Manager Roles</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />

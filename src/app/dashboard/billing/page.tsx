@@ -170,9 +170,10 @@ export default function LandlordBillingPage() {
               {[
                 "Up to 3 Properties",
                 "Up to 15 Rental Units",
-                "Manual Rent Invoice Issuance",
-                "Standard 1-Page Lease Template",
-                "Basic Maintenance Logs",
+                "Tenant Management Directory",
+                "Manual Rent Invoice & Payment Logging",
+                "Maintenance Ticket Tracking (Table & Kanban)",
+                "Digital Lease Management",
               ].map((feat, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-slate-700 font-medium">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -201,12 +202,12 @@ export default function LandlordBillingPage() {
               <div className="p-2 rounded-xl bg-[#FF6B00] text-white">
                 <Zap className="w-5 h-5 fill-white" />
               </div>
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">PRO AUTOPILOT</span>
+              <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">PRO PLAN</span>
             </div>
 
             <div>
-              <h3 className="text-xl font-bold text-white">Pro Autopilot</h3>
-              <p className="text-xs text-slate-300 mt-1">Full automated rent collection & legal architect suite.</p>
+              <h3 className="text-xl font-bold text-white">Pro Plan</h3>
+              <p className="text-xs text-slate-300 mt-1">Full property inventory, NOI tracking & yield analytics suite.</p>
             </div>
 
             <div className="flex items-baseline gap-1">
@@ -217,11 +218,11 @@ export default function LandlordBillingPage() {
             <div className="space-y-2.5 pt-3 border-t border-slate-800 text-xs">
               {[
                 "Up to 50 Property Units",
-                "Autopilot Instant Rent Disbursal & Auto-Debit",
-                "10 AI Legal & Lease Templates (Global & India)",
-                "Automated WhatsApp & SMS Rent Reminders",
-                "Automated 5% Late Fee Enforcement",
-                "2 Property Manager & Accountant Roles",
+                "Floor-by-Floor & Unit-by-Unit Grid Matrix",
+                "Dedicated Property Yield Analytics",
+                "Tenant Health Score Tracking (0-100%)",
+                "Expense Categorization & NOI Calculator",
+                "Multi-Period Fiscal Year Filtering (FY/Quarters)",
               ].map((feat, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-slate-200 font-medium">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
@@ -263,10 +264,11 @@ export default function LandlordBillingPage() {
             <div className="space-y-2.5 pt-3 border-t border-slate-100 text-xs">
               {[
                 "Unlimited Property Units & Portfolios",
-                "Custom ERP & Accounting API Integrations",
-                "Unlimited Team Roles & Audit Logs",
-                "Custom Branded Tenant Portals",
-                "Dedicated Portfolio Account Manager",
+                "Everything in Pro Plan",
+                "Tenant Resident Portal Access",
+                "Global Command Palette (Ctrl + K)",
+                "Multiple Workspace Manager Roles",
+                "Advanced Portfolio Financial Analytics",
               ].map((feat, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-slate-700 font-medium">
                   <Check className="w-4 h-4 text-purple-600 shrink-0" />
