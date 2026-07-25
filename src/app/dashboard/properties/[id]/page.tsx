@@ -28,6 +28,8 @@ import {
   UserPlus,
   ChevronDown,
   ChevronRight,
+  TrendingUp,
+  BarChart3,
   Receipt,
   Paperclip,
   Eye,
@@ -380,6 +382,17 @@ export default function PropertyFloorPlanPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              toast(`Loading financial yield & occupancy analytics for ${property.name}...`, "info");
+              router.push("/dashboard/analytics");
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/90 hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-xl shadow-2xs transition-all uppercase tracking-wider cursor-pointer"
+          >
+            <TrendingUp className="w-4 h-4 text-[#FF6B00]" />
+            <span>Property Analytics</span>
+          </button>
+
           <button
             onClick={() => setShowAddFloorModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all uppercase tracking-wider cursor-pointer"
