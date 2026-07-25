@@ -78,19 +78,13 @@ export default function Navbar() {
           </nav>
 
           {/* Right: Actions */}
-          <div className="hidden md:flex items-center gap-5 font-sans">
-            <button
-              onClick={() => triggerModal("User & Owner Log In")}
-              className="text-xs font-bold text-slate-800 hover:text-black transition-colors px-3 py-2 cursor-pointer uppercase tracking-wider"
+          <div className="hidden md:flex items-center gap-4 font-sans">
+            <Link
+              href="/login"
+              className="text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all px-5 py-2 rounded-xl shadow-xs cursor-pointer uppercase tracking-wider"
             >
               Log In
-            </button>
-            <button
-              onClick={() => triggerModal("Add New Property Portal")}
-              className="text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all px-4.5 py-2 rounded-md shadow-2xs cursor-pointer uppercase tracking-wider"
-            >
-              Add Property
-            </button>
+            </Link>
           </div>
 
           {/* Mobile Hamburger Button */}
@@ -130,18 +124,13 @@ export default function Navbar() {
               </Link>
             </nav>
             <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
-              <button
-                onClick={() => triggerModal("User & Owner Log In")}
-                className="w-full text-center text-xs font-bold text-slate-800 py-2 rounded-md hover:bg-slate-50 cursor-pointer uppercase tracking-wider"
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full text-center text-xs font-bold text-white bg-[#FF6B00] py-2.5 rounded-xl shadow-xs cursor-pointer uppercase tracking-wider block"
               >
                 Log In
-              </button>
-              <button
-                onClick={() => triggerModal("Add New Property Portal")}
-                className="w-full text-center text-xs font-bold text-white bg-[#FF6B00] py-2.5 rounded-md shadow-xs cursor-pointer uppercase tracking-wider"
-              >
-                Add Property
-              </button>
+              </Link>
             </div>
           </div>
         )}

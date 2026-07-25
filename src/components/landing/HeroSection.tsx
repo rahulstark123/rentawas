@@ -67,14 +67,12 @@ export default function HeroSection() {
             Start Managing Free
           </button>
           <a
-            href="#demo"
-            onClick={(e) => {
-              e.preventDefault();
-              openComingSoon("Interactive Demo Dashboard");
-            }}
-            className="w-full sm:w-auto text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 active:scale-[0.98] transition-all px-6 py-3.5 rounded-md shadow-2xs text-center cursor-pointer uppercase tracking-wider"
+            href="https://anshapps.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full sm:w-auto text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 active:scale-[0.98] transition-all px-6 py-3.5 rounded-md shadow-2xs text-center cursor-pointer uppercase tracking-wider inline-flex items-center justify-center"
           >
-            View Demo
+            Visit ANSH Apps
           </a>
         </motion.div>
 
