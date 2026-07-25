@@ -180,51 +180,7 @@ export default function DashboardOverviewPage() {
         </div>
       </div>
 
-      {/* Autopilot Banner Control Hub */}
-      <div className="bg-gradient-to-r from-[#0B132B] via-[#141A26] to-[#1E293B] text-white rounded-2xl p-6 sm:p-8 border border-slate-800 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 max-w-xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-xs font-medium text-emerald-400 mb-3">
-            <IconAutopilotRent className="w-4 h-4 text-emerald-400" />
-            <span>Autopilot Rent Ecosystem v2.4</span>
-          </div>
-          <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-            Automated Collection & Reminders Active
-          </h3>
-          <p className="text-slate-300 text-xs sm:text-sm mt-1 leading-relaxed">
-            Multi-channel SMS, WhatsApp, and email reminders are scheduled for July due dates. Late fee auto-application is enabled.
-          </p>
-        </div>
-
-        <div className="relative z-10 flex flex-wrap items-center gap-3 shrink-0">
-          <button
-            onClick={handleRunReminders}
-            className="px-4.5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer uppercase tracking-wider"
-          >
-            <Send className="w-4 h-4" />
-            <span>Run Instant Reminders</span>
-          </button>
-
-          <Link
-            href="/dashboard/payments"
-            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold rounded-xl transition-all uppercase tracking-wider"
-          >
-            Configure Rules
-          </Link>
-        </div>
-
-        {remindersSent && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="absolute bottom-3 left-8 right-8 bg-emerald-500 text-white text-xs font-bold py-2 px-4 rounded-xl shadow-lg flex items-center gap-2 justify-center z-20"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Automated payment reminders dispatched to 2 pending tenants!</span>
-          </motion.div>
-        )}
-      </div>
 
       {/* Main Grid: Recent Transactions (Left 8 Cols) & AI Insights Sidebar (Right 4 Cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
