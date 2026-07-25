@@ -39,8 +39,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${cormorant.variable} ${inter.variable} antialiased`}>
-      <body className="min-h-screen bg-[#F9FAFB] text-slate-950 font-sans selection:bg-orange-100 selection:text-orange-600">
+    <html lang="en" suppressHydrationWarning className={`${cormorant.variable} ${inter.variable} antialiased`}>
+      <body suppressHydrationWarning className="min-h-screen bg-[#F9FAFB] text-slate-950 font-sans selection:bg-orange-100 selection:text-orange-600">
         <ToastProvider>
           {children}
         </ToastProvider>

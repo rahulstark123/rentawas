@@ -119,6 +119,15 @@ export default function OnboardingPage() {
     }, 1200);
   };
 
+  const handleSkipProperty = () => {
+    setIsFinishing(true);
+    toast("Workspace initialized! You can add properties anytime from Dashboard.", "info");
+
+    setTimeout(() => {
+      router.push("/dashboard");
+    }, 1000);
+  };
+
   return (
     <div className="min-h-screen bg-[#0B132B] text-white flex flex-col justify-between p-4 sm:p-8 font-sans relative overflow-hidden select-none">
       
@@ -391,14 +400,24 @@ export default function OnboardingPage() {
           <div className="flex items-center justify-between pt-4 border-t border-slate-800/80">
             <div>
               {currentStep > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className="px-4 py-2.5 text-xs font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Back</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(1)}
+                    className="px-4 py-2.5 text-xs font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Back</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSkipProperty}
+                    className="px-4 py-2.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-xl transition-all cursor-pointer underline decoration-slate-600 underline-offset-4"
+                  >
+                    Skip for Now
+                  </button>
+                </div>
               )}
             </div>
 
