@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { Role } from "@/generated/prisma/enums";
+import { Role } from "@/generated/prisma";
 
 export interface SignUpParams {
   userId: string;       // Supabase auth.users.id
