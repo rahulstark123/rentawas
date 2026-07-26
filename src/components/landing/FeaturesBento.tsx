@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion, Variants } from "framer-motion";
+import { Search } from "lucide-react";
 import { 
   IconInventory, 
   IconLeaseAI, 
@@ -87,11 +88,14 @@ export default function FeaturesBento() {
               <div className="w-10 h-10 rounded-lg bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
                 <IconInventory className="w-5 h-5" />
               </div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-extrabold uppercase tracking-wider mb-2">
+                <span>100% Free Property Listing</span>
+              </div>
               <h3 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
-                Smart Inventory
+                Smart Inventory & Free Listing
               </h3>
               <p className="text-slate-600 font-normal text-sm md:text-base leading-relaxed max-w-lg mb-8">
-                Manage buildings, floors, and individual rooms with nested hierarchical views and live availability tracking.
+                Manage buildings, floors, and rooms while listing vacant properties for <strong>100% free tenant discovery</strong> (Zero Broker Fees, like MagicBricks).
               </p>
             </div>
 
@@ -152,23 +156,28 @@ export default function FeaturesBento() {
             </div>
           </motion.div>
 
-          {/* Card 4: Tenant Health Score */}
+          {/* Card 4: Find & Search Properties Marketplace */}
           <motion.div 
             variants={cardVariants}
             whileHover={{ y: -3 }}
-            className="md:col-span-3 bg-white rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between group"
+            className="md:col-span-3 bg-white rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between group cursor-pointer"
           >
-            <div>
-              <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-                <IconTenantHealth className="w-5 h-5" />
+            <Link href="/find-property" className="block h-full flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
+                  <Search className="w-5 h-5" />
+                </div>
+                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-extrabold uppercase mb-2">
+                  <span>Zero Brokerage</span>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">
+                  Find & Search Properties
+                </h3>
+                <p className="text-slate-600 font-normal text-xs sm:text-sm leading-relaxed">
+                  Search verified rental flats, PG rooms & apartments directly from owners with zero broker fees.
+                </p>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">
-                Tenant Health Score
-              </h3>
-              <p className="text-slate-600 font-normal text-xs sm:text-sm leading-relaxed">
-                Real-time tenant health scoring (0-100%), directory profiles, and unit assignments.
-              </p>
-            </div>
+            </Link>
           </motion.div>
 
           {/* Card 5: Rent Payments & Collections */}

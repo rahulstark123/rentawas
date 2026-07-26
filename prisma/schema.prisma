@@ -411,3 +411,13 @@ model SupportTicket {
 
   @@index([workspaceId])
 }
+
+model EarlyAccessLead {
+  id            String   @id @default(cuid())
+  fullName      String
+  email         String
+  phone         String?
+  portfolioType String?  // "Landlord (1-5 Units)", "Portfolio Owner (50+ Units)", etc.
+  notes         String?
+  createdAt     DateTime @default(now())
+}

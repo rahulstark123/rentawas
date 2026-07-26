@@ -39,17 +39,21 @@ export default function PricingAndFAQ() {
   };
 
   const includedFeatures = [
+    { icon: Building2, label: "100% Free Property Listing (Zero Brokerage)" },
     { icon: IconCloudStorage, label: "Cloud Workspace Ledgers" },
     { icon: Building2, label: "Floor & Unit Inventory Matrix" },
     { icon: TrendingUp, label: "Net Operating Income (NOI)" },
     { icon: Users, label: "Tenant Resident Portal" },
     { icon: Wrench, label: "Maintenance Board & Kanban" },
     { icon: FileText, label: "Digital Lease Documents" },
-    { icon: RefreshCw, label: "Regular Product Updates" },
     { icon: Search, label: "Global Command Search (Ctrl+K)" },
   ];
 
   const faqs = [
+    {
+      q: "Is property listing really 100% free on RentAwas?",
+      a: "Yes! You can list unlimited vacant apartments, flats, PG beds, and commercial properties on RentAwas for 100% free with zero broker commissions and direct tenant inquiry leads.",
+    },
     {
       q: "Is there a free trial?",
       a: "Yes! Every plan comes with a 14-day full feature free trial. No credit card is required to sign up and start managing your properties immediately.",
@@ -135,6 +139,10 @@ export default function PricingAndFAQ() {
                 <span className="text-xs font-semibold text-slate-500 uppercase">/month</span>
               </div>
               <ul className="space-y-3 mb-8 text-xs sm:text-sm text-slate-600 font-medium">
+                <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>100% Free Property Listing</span>
+                </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span>Up to 3 Properties</span>
@@ -202,6 +210,10 @@ export default function PricingAndFAQ() {
                 <span className="text-xs font-semibold text-slate-500 uppercase">/month</span>
               </div>
               <ul className="space-y-3 mb-8 text-xs sm:text-sm text-slate-600 font-medium">
+                <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>100% Free Property Listing</span>
+                </li>
                 <li className="flex items-center gap-2.5 font-bold text-slate-900">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
                   <span>Unlimited Properties</span>
@@ -273,6 +285,14 @@ export default function PricingAndFAQ() {
                 <span className="text-xs font-semibold text-slate-500 uppercase">/month</span>
               </div>
               <ul className="space-y-3 mb-8 text-xs sm:text-sm text-slate-600 font-medium">
+                <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>100% Free Property Listing</span>
+                </li>
+                <li className="flex items-center gap-2.5 font-extrabold text-[#FF6B00] bg-orange-50/80 px-2.5 py-1 rounded-lg border border-orange-200/60">
+                  <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
+                  <span>Priority Property Listing (Featured Top Badge)</span>
+                </li>
                 <li className="flex items-center gap-2.5 font-bold text-slate-900">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span>Unlimited Properties</span>

@@ -1,0 +1,678 @@
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
+import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
+import { 
+  Search, 
+  MapPin, 
+  Building2, 
+  SlidersHorizontal, 
+  Bed, 
+  Bath, 
+  Maximize2, 
+  ShieldCheck, 
+  Star, 
+  PhoneCall, 
+  Calendar, 
+  CheckCircle2, 
+  Sparkles,
+  X,
+  User,
+  Mail,
+  Heart
+} from "lucide-react";
+import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
+import { useToast } from "@/components/ui/Toast";
+
+interface PropertyItem {
+  id: string;
+  title: string;
+  location: string;
+  city: string;
+  price: string;
+  type: string;
+  bhk: string;
+  size: string;
+  rating: number;
+  reviewsCount: number;
+  image: string;
+  tags: string[];
+  ownerName: string;
+  ownerPhone: string;
+  badge: string;
+}
+
+export default function FindPropertyPage() {
+  const { toast } = useToast();
+  const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
+  
+  // Filter States
+  const [searchLocation, setSearchLocation] = useState("");
+  const [selectedType, setSelectedType] = useState("All");
+  const [selectedBhk, setSelectedBhk] = useState("All");
+  const [selectedPrice, setSelectedPrice] = useState("All");
+
+  // Lead Contact Modal State
+  const [selectedProperty, setSelectedProperty] = useState<PropertyItem | null>(null);
+  const [leadName, setLeadName] = useState("");
+  const [leadPhone, setLeadPhone] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<Country>(
+    ALL_COUNTRIES.find((c) => c.code === "IN") || ALL_COUNTRIES[0]
+  );
+  const [moveInDate, setMoveInDate] = useState("");
+  const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+  const [leadSubmitted, setLeadSubmitted] = useState(false);
+
+  // Saved / Liked Properties
+  const [likedProperties, setLikedProperties] = useState<Record<string, boolean>>({});
+
+  const propertiesList: PropertyItem[] = [
+    {
+      id: "PROP-101",
+      title: "The Regent Luxury 2BHK Residence",
+      location: "100 Feet Road, Indiranagar",
+      city: "Bengaluru",
+      price: "₹28,500",
+      type: "Apartment",
+      bhk: "2 BHK",
+      size: "1,150 sq.ft",
+      rating: 4.9,
+      reviewsCount: 14,
+      image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80",
+      tags: ["Fully Furnished", "Zero Brokerage", "Gated Security"],
+      ownerName: "Alexander Wright (Owner)",
+      ownerPhone: "+91 98765 43210",
+      badge: "Verified Owner • Zero Fee",
+    },
+    {
+      id: "PROP-102",
+      title: "Horizon Heights Executive Studio",
+      location: "Sector 3, HSR Layout",
+      city: "Bengaluru",
+      price: "₹18,000",
+      type: "Studio",
+      bhk: "1 BHK",
+      size: "650 sq.ft",
+      rating: 4.8,
+      reviewsCount: 9,
+      image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
+      tags: ["Fully Furnished", "WiFi Included", "Power Backup"],
+      ownerName: "Priya Nair (Owner)",
+      ownerPhone: "+91 98123 45678",
+      badge: "Verified Owner • Instant Move-In",
+    },
+    {
+      id: "PROP-103",
+      title: "Royal Stays Premium PG & Co-Living",
+      location: "Cyber City, Phase 2",
+      city: "Gurgaon",
+      price: "₹12,500",
+      type: "PG / Co-Living",
+      bhk: "Single Bed",
+      size: "Private Room",
+      rating: 4.9,
+      reviewsCount: 22,
+      image: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=800&q=80",
+      tags: ["3 Meals Included", "High-Speed WiFi", "Daily Housekeeping"],
+      ownerName: "Rajesh Sharma (PG Operator)",
+      ownerPhone: "+91 97654 32109",
+      badge: "Zero Deposit Offer",
+    },
+    {
+      id: "PROP-104",
+      title: "Oakwood Residency 3BHK Penthouse",
+      location: "Central Avenue, Powai",
+      city: "Mumbai",
+      price: "₹55,000",
+      type: "Apartment",
+      bhk: "3 BHK",
+      size: "1,850 sq.ft",
+      rating: 5.0,
+      reviewsCount: 18,
+      image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      tags: ["Lake View Balcony", "Clubhouse & Gym", "2 Car Parking"],
+      ownerName: "Kavita Mehta (Owner)",
+      ownerPhone: "+91 99887 76655",
+      badge: "Verified Owner • Luxury",
+    },
+    {
+      id: "PROP-105",
+      title: "Greenview Terraces 2BHK Apartment",
+      location: "Viman Nagar",
+      city: "Pune",
+      price: "₹24,000",
+      type: "Apartment",
+      bhk: "2 BHK",
+      size: "1,050 sq.ft",
+      rating: 4.7,
+      reviewsCount: 11,
+      image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+      tags: ["Semi-Furnished", "Modular Kitchen", "Swimming Pool"],
+      ownerName: "Vikramaditya Rao (Owner)",
+      ownerPhone: "+91 96543 21098",
+      badge: "Verified Owner • Zero Brokerage",
+    },
+    {
+      id: "PROP-106",
+      title: "Urban Comfort Shared Co-Living Space",
+      location: "Financial District, Gachibowli",
+      city: "Hyderabad",
+      price: "₹8,500",
+      type: "PG / Co-Living",
+      bhk: "2 Sharing",
+      size: "Shared Suite",
+      rating: 4.8,
+      reviewsCount: 16,
+      image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80",
+      tags: ["AC Room", "Gaming Lounge", "Biometric Entry"],
+      ownerName: "Siddharth Roy (Host)",
+      ownerPhone: "+91 95432 10987",
+      badge: "Zero Deposit Offer",
+    },
+    {
+      id: "PROP-107",
+      title: "Elite Palm Towers 3BHK Luxury Flat",
+      location: "Golf Course Road, DLF Phase 5",
+      city: "Gurgaon",
+      price: "₹45,000",
+      type: "Apartment",
+      bhk: "3 BHK",
+      size: "1,600 sq.ft",
+      rating: 4.9,
+      reviewsCount: 15,
+      image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80",
+      tags: ["Fully Furnished", "Golf View", "EV Charger"],
+      ownerName: "Ananya Gupta (Owner)",
+      ownerPhone: "+91 94321 09876",
+      badge: "Verified Owner • Premium",
+    },
+    {
+      id: "PROP-108",
+      title: "Sunrise Parkview 1BHK Garden Flat",
+      location: "2nd Avenue, Anna Nagar",
+      city: "Chennai",
+      price: "₹16,500",
+      type: "Apartment",
+      bhk: "1 BHK",
+      size: "720 sq.ft",
+      rating: 4.7,
+      reviewsCount: 7,
+      image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80",
+      tags: ["Park Facing", "24/7 Water Supply", "Zero Brokerage"],
+      ownerName: "Karthik Subramanian",
+      ownerPhone: "+91 93210 98765",
+      badge: "Verified Owner • Direct Contact",
+    },
+  ];
+
+  // Filter Logic
+  const filteredProperties = propertiesList.filter((item) => {
+    // Location filter
+    const matchesLocation =
+      searchLocation === "" ||
+      item.title.toLowerCase().includes(searchLocation.toLowerCase()) ||
+      item.location.toLowerCase().includes(searchLocation.toLowerCase()) ||
+      item.city.toLowerCase().includes(searchLocation.toLowerCase());
+
+    // Type filter
+    const matchesType =
+      selectedType === "All" || item.type.toLowerCase().includes(selectedType.toLowerCase());
+
+    // BHK filter
+    const matchesBhk =
+      selectedBhk === "All" || item.bhk.toLowerCase().includes(selectedBhk.toLowerCase());
+
+    // Price filter
+    let matchesPrice = true;
+    const numericPrice = parseInt(item.price.replace(/[^\d]/g, ""), 10);
+    if (selectedPrice === "under15k") matchesPrice = numericPrice <= 15000;
+    if (selectedPrice === "15k-30k") matchesPrice = numericPrice > 15000 && numericPrice <= 30000;
+    if (selectedPrice === "30k-50k") matchesPrice = numericPrice > 30000 && numericPrice <= 50000;
+    if (selectedPrice === "above50k") matchesPrice = numericPrice > 50000;
+
+    return matchesLocation && matchesType && matchesBhk && matchesPrice;
+  });
+
+  const toggleLike = (id: string) => {
+    setLikedProperties((prev) => {
+      const isLiked = !prev[id];
+      if (isLiked) {
+        toast("Saved property to favorites!", "success");
+      }
+      return { ...prev, [id]: isLiked };
+    });
+  };
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leadName.trim() || !leadPhone.trim()) {
+      toast("Please enter your name and phone number.", "error");
+      return;
+    }
+    setIsSubmittingLead(true);
+    setTimeout(() => {
+      setIsSubmittingLead(false);
+      setLeadSubmitted(true);
+      toast("Contact request sent to property owner!", "success");
+    }, 800);
+  };
+
+  const closeContactModal = () => {
+    setSelectedProperty(null);
+    setLeadSubmitted(false);
+    setLeadName("");
+    setLeadPhone("");
+    setMoveInDate("");
+  };
+
+  return (
+    <main className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
+      <Navbar variant="dark" onOpenEarlyAccess={() => setIsEarlyAccessOpen(true)} />
+
+      {/* Top Hero Search Section */}
+      <section className="pt-28 pb-12 bg-gradient-to-b from-[#0B132B] via-[#141E38] to-[#0B132B] text-white relative overflow-hidden">
+        {/* Glow Effects */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#FF6B00]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 relative z-10 text-center space-y-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FF6B00]/20 border border-[#FF6B00]/40 text-[#FF6B00] text-xs font-black uppercase tracking-wider">
+            <Sparkles className="w-4 h-4 fill-[#FF6B00]" />
+            <span>100% Free Property Marketplace • Zero Brokerage</span>
+          </div>
+
+          <h1
+            className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-tight max-w-4xl mx-auto"
+            style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
+          >
+            Find Your Next Home — <span className="text-[#FF6B00]">Zero Brokerage</span>
+          </h1>
+
+          <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
+            Discover thousands of verified apartments, flats, PG beds, and rental homes direct from landlords & property managers on RentAwas.
+          </p>
+
+          {/* Airbnb/NoBroker-style Floating Search Bar */}
+          <div className="max-w-4xl mx-auto bg-white rounded-2xl md:rounded-3xl p-3 sm:p-4 shadow-2xl border border-slate-200 text-slate-900 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center text-left">
+            
+            {/* Search Location Input */}
+            <div className="sm:col-span-4 relative border-b sm:border-b-0 sm:border-r border-slate-200 pb-2 sm:pb-0 sm:pr-3">
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
+                Location / City
+              </label>
+              <div className="relative flex items-center">
+                <MapPin className="w-4 h-4 text-[#FF6B00] shrink-0 mr-1.5" />
+                <input
+                  type="text"
+                  value={searchLocation}
+                  onChange={(e) => setSearchLocation(e.target.value)}
+                  placeholder="e.g. Indiranagar, Gurgaon, Mumbai"
+                  className="w-full text-xs font-bold text-slate-900 focus:outline-none placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+
+            {/* Property Type Dropdown */}
+            <div className="sm:col-span-3 border-b sm:border-b-0 sm:border-r border-slate-200 pb-2 sm:pb-0 sm:pr-3">
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
+                Property Type
+              </label>
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="w-full text-xs font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
+              >
+                <option value="All">All Types</option>
+                <option value="Apartment">Apartment / Flat</option>
+                <option value="PG / Co-Living">PG / Co-Living Bed</option>
+                <option value="Studio">Studio Flat</option>
+              </select>
+            </div>
+
+            {/* BHK Filter */}
+            <div className="sm:col-span-2 border-b sm:border-b-0 sm:border-r border-slate-200 pb-2 sm:pb-0 sm:pr-3">
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
+                BHK / Room
+              </label>
+              <select
+                value={selectedBhk}
+                onChange={(e) => setSelectedBhk(e.target.value)}
+                className="w-full text-xs font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
+              >
+                <option value="All">Any BHK</option>
+                <option value="1 BHK">1 BHK</option>
+                <option value="2 BHK">2 BHK</option>
+                <option value="3 BHK">3 BHK</option>
+                <option value="Single Bed">PG Bed</option>
+              </select>
+            </div>
+
+            {/* Budget Range Filter */}
+            <div className="sm:col-span-3 flex items-center gap-2">
+              <div className="flex-1">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
+                  Monthly Rent
+                </label>
+                <select
+                  value={selectedPrice}
+                  onChange={(e) => setSelectedPrice(e.target.value)}
+                  className="w-full text-xs font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
+                >
+                  <option value="All">Any Rent</option>
+                  <option value="under15k">Under ₹15,000</option>
+                  <option value="15k-30k">₹15,000 - ₹30,000</option>
+                  <option value="30k-50k">₹30,000 - ₹50,000</option>
+                  <option value="above50k">Above ₹50,000</option>
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => toast(`Showing ${filteredProperties.length} verified listings!`, "info")}
+                className="p-3 bg-[#FF6B00] hover:bg-[#E56000] text-white rounded-xl shadow-md transition-transform active:scale-95 cursor-pointer shrink-0"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </div>
+
+          </div>
+
+          {/* Quick Category Chips */}
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs font-bold text-slate-200">
+            <button
+              onClick={() => { setSelectedType("All"); setSelectedBhk("All"); setSelectedPrice("All"); setSearchLocation(""); }}
+              className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors cursor-pointer"
+            >
+              🔥 Show All ({propertiesList.length})
+            </button>
+            <button
+              onClick={() => setSelectedType("Apartment")}
+              className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors cursor-pointer"
+            >
+              🏢 Family Apartments
+            </button>
+            <button
+              onClick={() => setSelectedType("PG / Co-Living")}
+              className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors cursor-pointer"
+            >
+              🛏️ PG & Co-Living Beds
+            </button>
+            <button
+              onClick={() => setSelectedPrice("under15k")}
+              className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors cursor-pointer"
+            >
+              💰 Under ₹15,000
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Main Property Listings Grid */}
+      <section className="py-12 md:py-16 max-w-7xl mx-auto px-6 sm:px-8 space-y-6">
+        
+        {/* Results Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              Verified Rental Properties
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Showing {filteredProperties.length} active property listings • Direct owner contact
+            </p>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>100% Zero Brokerage</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Listings Grid */}
+        {filteredProperties.length === 0 ? (
+          <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-3">
+            <Building2 className="w-12 h-12 text-slate-400 mx-auto" />
+            <h3 className="text-lg font-bold text-slate-900">No properties matched your exact filter</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              Try clearing location keywords or budget filters to explore all active rental homes.
+            </p>
+            <button
+              onClick={() => { setSelectedType("All"); setSelectedBhk("All"); setSelectedPrice("All"); setSearchLocation(""); }}
+              className="px-5 py-2.5 bg-[#FF6B00] text-white text-xs font-bold rounded-xl shadow-xs uppercase tracking-wider cursor-pointer inline-block"
+            >
+              Reset All Filters
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProperties.map((p) => (
+              <div
+                key={p.id}
+                className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs hover:shadow-lg transition-all group flex flex-col justify-between"
+              >
+                <div>
+                  {/* Property Image Container */}
+                  <div className="relative h-52 w-full bg-slate-100 overflow-hidden">
+                    <Image
+                      src={p.image}
+                      alt={p.title}
+                      fill
+                      unoptimized
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+
+                    {/* Top Overlay Badges */}
+                    <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                      <span className="px-2.5 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-[10px] font-extrabold text-white uppercase tracking-wider">
+                        {p.type}
+                      </span>
+                      <span className="px-2.5 py-1 rounded-full bg-emerald-500 text-[10px] font-extrabold text-white uppercase tracking-wider">
+                        {p.badge}
+                      </span>
+                    </div>
+
+                    {/* Like / Favorite Button */}
+                    <button
+                      onClick={() => toggleLike(p.id)}
+                      className="absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-md text-slate-700 hover:text-red-500 shadow-md transition-colors cursor-pointer"
+                    >
+                      <Heart
+                        className={`w-4 h-4 ${
+                          likedProperties[p.id] ? "fill-red-500 text-red-500" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {/* Price Tag Overlay */}
+                    <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1 rounded-xl shadow-md border border-slate-200">
+                      <span className="text-sm font-black text-slate-900">{p.price}</span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase"> / month</span>
+                    </div>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="p-5 space-y-3">
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <div className="flex items-center gap-1 font-semibold text-slate-700">
+                        <MapPin className="w-3.5 h-3.5 text-[#FF6B00]" />
+                        <span>{p.location}, {p.city}</span>
+                      </div>
+                      <div className="flex items-center gap-1 font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>{p.rating} ({p.reviewsCount})</span>
+                      </div>
+                    </div>
+
+                    <h3 className="text-base font-bold text-slate-900 group-hover:text-[#FF6B00] transition-colors leading-snug line-clamp-1">
+                      {p.title}
+                    </h3>
+
+                    {/* Key Specs */}
+                    <div className="flex items-center gap-3 text-xs font-semibold text-slate-600 py-1 border-y border-slate-100">
+                      <span className="flex items-center gap-1">
+                        <Bed className="w-3.5 h-3.5 text-slate-400" />
+                        {p.bhk}
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Maximize2 className="w-3.5 h-3.5 text-slate-400" />
+                        {p.size}
+                      </span>
+                    </div>
+
+                    {/* Amenity Pills */}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {p.tags.map((tag, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-bold text-slate-600"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Action Footer */}
+                <div className="p-5 pt-0">
+                  <button
+                    onClick={() => setSelectedProperty(p)}
+                    className="w-full py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                  >
+                    <PhoneCall className="w-3.5 h-3.5" />
+                    <span>Contact Owner Direct</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+      </section>
+
+      <Footer />
+
+      {/* Early Access Modal Trigger */}
+      <EarlyAccessModal
+        isOpen={isEarlyAccessOpen}
+        onClose={() => setIsEarlyAccessOpen(false)}
+      />
+
+      {/* Direct Owner Contact Modal */}
+      {selectedProperty && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden text-slate-900 font-sans">
+            
+            {/* Header */}
+            <div className="bg-[#0B132B] p-5 text-white relative">
+              <button
+                onClick={closeContactModal}
+                className="absolute top-4 right-4 p-1.5 text-slate-300 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider block mb-1">
+                Zero Brokerage Direct Lead
+              </span>
+              <h3 className="text-lg font-bold text-white line-clamp-1">{selectedProperty.title}</h3>
+              <p className="text-xs text-slate-300">{selectedProperty.ownerName} • {selectedProperty.price}/mo</p>
+            </div>
+
+            {/* Modal Body */}
+            {leadSubmitted ? (
+              <div className="p-7 text-center space-y-4">
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto border border-emerald-200 shadow-xs">
+                  <CheckCircle2 className="w-7 h-7" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-extrabold text-slate-900">Owner Contact Shared!</h4>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                    Thank you <strong>{leadName}</strong>. We have notified <strong>{selectedProperty.ownerName}</strong> of your interest. You can reach the owner directly at <strong>{selectedProperty.ownerPhone}</strong>!
+                  </p>
+                </div>
+                <button
+                  onClick={closeContactModal}
+                  className="w-full py-2.5 bg-[#FF6B00] text-white font-bold text-xs rounded-xl shadow-xs uppercase tracking-wider cursor-pointer"
+                >
+                  Done & Close
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleContactSubmit} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Your Full Name *
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      value={leadName}
+                      onChange={(e) => setLeadName(e.target.value)}
+                      placeholder="e.g. Alexander Wright"
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Mobile Phone Number *
+                  </label>
+                  <CountryPhoneInput
+                    value={leadPhone}
+                    onChange={setLeadPhone}
+                    selectedCountry={selectedCountry}
+                    onCountryChange={setSelectedCountry}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Expected Move-In Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="date"
+                      value={moveInDate}
+                      onChange={(e) => setMoveInDate(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingLead}
+                  className="w-full py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer disabled:opacity-70"
+                >
+                  {isSubmittingLead ? (
+                    <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <PhoneCall className="w-4 h-4" />
+                      <span>Get Owner Contact Number</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+
+          </div>
+        </div>
+      )}
+
+    </main>
+  );
+}

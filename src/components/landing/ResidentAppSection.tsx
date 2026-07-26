@@ -254,7 +254,7 @@ export default function ResidentAppSection() {
             </div>
 
             {/* Feature List 2: Maintenance & Digital Lease Records */}
-            <div className="flex items-start gap-4 font-sans">
+            <div className="flex items-start gap-4 mb-6 font-sans">
               <div className="p-3 rounded-2xl bg-[#FF6B00]/10 text-[#FF6B00] shrink-0 mt-0.5">
                 <IconSmartAnnouncements className="w-6 h-6" />
               </div>
@@ -267,6 +267,24 @@ export default function ResidentAppSection() {
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
                   Streamlined tenant maintenance ticket workflow, digital lease contracts, and resident notices.
+                </p>
+              </div>
+            </div>
+
+            {/* Feature List 3: Free Tenant Discovery & Verified Listings */}
+            <div className="flex items-start gap-4 font-sans">
+              <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0 mt-0.5 border border-emerald-100">
+                <Building2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 
+                  className="text-lg font-bold text-[#0B132B] mb-1"
+                  style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
+                >
+                  Free Tenant Search & Verified Listings
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                  List vacant properties for free and help tenants discover verified flats, apartments, and PG rooms with zero brokerage.
                 </p>
               </div>
             </div>

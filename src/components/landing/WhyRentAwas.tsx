@@ -54,23 +54,23 @@ export default function WhyRentAwas() {
   const comparisons = [
     {
       feature: "PROPERTY & UNIT MANAGEMENT",
-      legacy: "Manual spreadsheets, physical notebook logs & fragmented property records",
-      rentawas: "Unified dashboard to manage multiple properties, buildings, floors & units with live availability tracking",
+      legacy: "Manual spreadsheets, physical registers & fragmented property records",
+      rentawas: "Unified cloud dashboard to manage multiple properties, units & live availability tracking",
     },
     {
-      feature: "TENANT MANAGEMENT",
-      legacy: "Unorganized paper files, lost KYC documents & manual contact lists",
-      rentawas: "Digital tenant profiles, secure KYC document storage, lease details & complete payment history",
+      feature: "TENANT MANAGEMENT & LEASES",
+      legacy: "Unorganized paper files, lost KYC documents & complex legal jargon agreements",
+      rentawas: "Digital tenant profiles, instant simple-English AI Document generator & secure cloud storage",
     },
     {
-      feature: "RENT COLLECTION",
-      legacy: "Manual bank transfers, cash tracking & awkward WhatsApp follow-up reminders",
-      rentawas: "Automated multi-channel UPI, Auto-Debit, recurring rent receipts & automatic WhatsApp reminders",
+      feature: "RENT COLLECTION & RECEIPTING",
+      legacy: "Manual bank transfers, cash tracking & awkward manual phone payment chasing",
+      rentawas: "Multi-channel UPI, Card & Bank payouts, automated receipts & instant SMS payment reminders",
     },
     {
-      feature: "MAINTENANCE REQUESTS",
+      feature: "MAINTENANCE & SUPPORT",
       legacy: "Unorganized phone calls, lost complaints & delayed contractor assignment",
-      rentawas: "Tenant photo ticket uploads, live status tracking & efficient manager assignment & resolution",
+      rentawas: "Tenant photo ticket uploads, live status tracking & priority manager support desk",
     },
   ];
 

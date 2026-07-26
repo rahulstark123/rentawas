@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { 
@@ -26,19 +27,34 @@ export default function HeroSection() {
   };
 
   return (
-    <section className="relative pt-28 md:pt-36 pb-20 md:pb-28 overflow-hidden hero-glow">
+    <section className="relative pt-28 md:pt-36 pb-20 md:pb-28 overflow-hidden bg-gradient-to-b from-[#0B132B] via-[#141E38] to-[#F8FAFC]">
+      {/* Radial Glow Accents */}
+      <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-[#FF6B00]/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/3 left-1/4 w-[500px] h-[500px] bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+
       <div className="max-w-7xl mx-auto px-6 sm:px-8 text-center relative z-10">
-        {/* Main Headline (Both 'Manage Spaces.' and 'Elevate Lives.' use Cormorant Garamond font) */}
+        {/* 100% Free Property Listing Badge */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FF6B00]/20 border border-[#FF6B00]/40 text-[#FF6B00] text-xs font-extrabold uppercase tracking-wider mb-5 shadow-xs"
+        >
+          <Building2 className="w-4 h-4 text-[#FF6B00]" />
+          <span>100% Free Property Listing • Zero Broker Fees</span>
+        </motion.div>
+
+        {/* Main Headline (List. Manage. Grow. in Cormorant Garamond font) */}
         <motion.h1 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="text-5xl sm:text-7xl md:text-8xl font-extrabold tracking-tight text-[#0B132B] leading-[1.05] max-w-5xl mx-auto"
+          className="text-5xl sm:text-7xl md:text-8xl font-extrabold tracking-tight text-white leading-[1.05] max-w-5xl mx-auto"
           style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
         >
-          Manage Spaces.{" "}
+          List. Manage.{" "}
           <span className="block sm:inline text-[#FF6B00]" style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}>
-            Elevate Lives.
+            Grow.
           </span>
         </motion.h1>
 
@@ -47,10 +63,9 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
-          className="text-slate-600 font-normal text-base sm:text-lg md:text-xl max-w-3xl mx-auto mt-6 mb-10 leading-relaxed"
+          className="text-slate-300 font-normal text-base sm:text-lg md:text-xl max-w-3xl mx-auto mt-6 mb-10 leading-relaxed"
         >
-          The ultimate mission control for rental ecosystems. Automate rent collection,
-          streamline maintenance, and maximize yield with precision.
+          The complete property management & free property listing platform. List vacant properties for free, find tenants, collect rent, track expenses, manage maintenance, and run your rentals—all in one place.
         </motion.p>
 
         {/* Action Buttons */}
@@ -58,21 +73,29 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-3.5 max-w-md mx-auto"
+          className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-3xl mx-auto"
         >
           <button
-            onClick={() => openComingSoon("Start Managing RentAwas")}
-            className="w-full sm:w-auto text-xs font-bold text-white bg-[#0B132B] hover:bg-[#162244] active:scale-[0.98] transition-all px-6 py-3.5 rounded-md shadow-xs hover:shadow-sm text-center cursor-pointer uppercase tracking-wider"
+            onClick={() => openComingSoon("List Property For Free")}
+            className="w-full sm:w-auto text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all px-5 py-3.5 rounded-xl shadow-md shadow-orange-500/20 text-center cursor-pointer uppercase tracking-wider flex items-center justify-center gap-2 whitespace-nowrap"
           >
-            Start Managing Free
+            <Building2 className="w-4 h-4 shrink-0" />
+            <span>List Property Free</span>
           </button>
+          <Link
+            href="/find-property"
+            className="w-full sm:w-auto text-xs font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 active:scale-[0.98] transition-all px-5 py-3.5 rounded-xl shadow-xs text-center cursor-pointer uppercase tracking-wider flex items-center justify-center gap-2 whitespace-nowrap backdrop-blur-md"
+          >
+            <Search className="w-4 h-4 shrink-0 text-[#FF6B00]" />
+            <span>Find Property</span>
+          </Link>
           <a
             href="https://anshapps.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full sm:w-auto text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 active:scale-[0.98] transition-all px-6 py-3.5 rounded-md shadow-2xs text-center cursor-pointer uppercase tracking-wider inline-flex items-center justify-center"
+            className="w-full sm:w-auto text-xs font-bold text-slate-900 bg-white hover:bg-slate-100 border border-white active:scale-[0.98] transition-all px-5 py-3.5 rounded-xl shadow-md text-center cursor-pointer uppercase tracking-wider inline-flex items-center justify-center whitespace-nowrap"
           >
-            Visit ANSH Apps
+            ANSH Apps
           </a>
         </motion.div>
 

@@ -28,7 +28,7 @@ export default function OperationsAndAICommand() {
 
   const presetPrompts = [
     "Audit overdue lease agreements in Wing B",
-    "Send automated WhatsApp payment reminders to all pending tenants",
+    "Send automated SMS & Email payment reminders to all pending tenants",
     "Generate monthly income statement export for Q3",
   ];
 
