@@ -319,3 +319,25 @@ export default function CountryPhoneInput({
     </div>
   );
 }
+
+export function getDefaultCountryByLocale(countries: Country[] = ALL_COUNTRIES): Country {
+  try {
+    const tz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone || "" : "";
+    let code = "US";
+    if (tz.includes("Kolkata") || tz.includes("Calcutta")) code = "IN";
+    else if (tz.includes("London")) code = "GB";
+    else if (tz.includes("Dubai")) code = "AE";
+    else if (tz.includes("Toronto") || tz.includes("Vancouver")) code = "CA";
+    else if (tz.includes("Sydney") || tz.includes("Melbourne")) code = "AU";
+
+    const match = countries.find((c) => c.code === code);
+    if (match) return match;
+
+    const usMatch = countries.find((c) => c.code === "US");
+    if (usMatch) return usMatch;
+  } catch (err) {
+    // fallback
+  }
+
+  return countries[0];
+}

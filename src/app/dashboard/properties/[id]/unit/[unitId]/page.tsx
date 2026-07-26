@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { 
@@ -40,10 +40,12 @@ import {
   Calendar,
   AlertCircle,
   BarChart3,
-  TrendingUp
+  TrendingUp,
+  Loader2,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
-import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
+import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
+import { uploadFile, validateFile } from "@/lib/upload";
 
 export interface OccupantItem {
   id: string;
@@ -58,7 +60,9 @@ export interface OccupantItem {
   govIdType?: string;
   govIdNumber?: string;
   govIdFile?: string;
+  govIdUrl?: string;      // R2 public URL for government ID scan
   leaseDocFile?: string;
+  leaseDocUrl?: string;   // R2 public URL for lease document
 }
 
 export interface PastHistoryRecord {
@@ -71,14 +75,6 @@ export interface PastHistoryRecord {
   removalReason?: string;
 }
 
-// Mock data repository of properties
-const PROPERTIES_DB: Record<string, { id: string; name: string; address: string; tag: string }> = {
-  "PROP-1": { id: "PROP-1", name: "The Regent - Wing A", address: "1420 5th Ave, Seattle, WA 98101", tag: "Residential Tower" },
-  "PROP-2": { id: "PROP-2", name: "Downtown Horizon Suites", address: "800 Bellevue Way NE, Bellevue, WA 98004", tag: "Luxury Apartments" },
-  "PROP-3": { id: "PROP-3", name: "Oakwood Executive Residency", address: "2100 Westlake Ave, Seattle, WA 98121", tag: "Executive Suites" },
-  "PROP-4": { id: "PROP-4", name: "Skyline Manor", address: "1100 Mercer St, Seattle, WA 98109", tag: "Boutique Housing" },
-};
-
 export default function RoomTelemetryFullPage() {
   const params = useParams();
   const router = useRouter();
@@ -87,52 +83,192 @@ export default function RoomTelemetryFullPage() {
   const propId = (params?.id as string) || "PROP-1";
   const rawUnitId = (params?.unitId as string) || "Unit 301";
   const unitId = decodeURIComponent(rawUnitId);
-  const property = PROPERTIES_DB[propId] || PROPERTIES_DB["PROP-1"];
+
+  const [propertyData, setPropertyData] = useState<{ id: string; name: string; address: string; tag: string }>({
+    id: propId,
+    name: "Property",
+    address: "Real Estate Location",
+    tag: "Property",
+  });
 
   const [activeTab, setActiveTab] = useState<"analytics" | "resident" | "docs" | "history" | "maintenance" | "bills">("analytics");
   const [workspaceCurrency, setWorkspaceCurrency] = useState("$");
   const [selectedDocOccupantId, setSelectedDocOccupantId] = useState<string>("");
   const [selectedBillOccupantId, setSelectedBillOccupantId] = useState<string>("all");
 
-  // Active occupants list
-  const [occupants, setOccupants] = useState<OccupantItem[]>([
-    {
-      id: "OCC-1",
-      name: "Eleanor Vance",
-      bedSlot: "Bed Slot A (Master Suite)",
-      individualRent: 1000,
-      phone: "+1 (555) 234-5678",
-      email: "eleanor.vance@company.com",
-      moveIn: "2025-01-15",
-      leaseEnd: "2026-01-14",
-      paymentStatus: "Auto Paid (ACH)",
-      govIdType: "Passport",
-      govIdNumber: "PASS-981029",
-      govIdFile: "passport_eleanor.pdf",
-      leaseDocFile: "lease_eleanor.pdf",
-    },
-    {
-      id: "OCC-2",
-      name: "Sarah Connor",
-      bedSlot: "Bed Slot B (Balcony Room)",
-      individualRent: 1200,
-      phone: "+1 (555) 891-2345",
-      email: "sarah.connor@cyber.org",
-      moveIn: "2025-02-01",
-      leaseEnd: "2026-01-31",
-      paymentStatus: "Auto Paid (UPI)",
-      govIdType: "Aadhaar Card",
-      govIdNumber: "AAD-4910283",
-      govIdFile: "aadhaar_sarah.pdf",
-      leaseDocFile: "lease_sarah.pdf",
-    },
-  ]);
+  const [tabLoadingMap, setTabLoadingMap] = useState<Record<string, boolean>>({});
+  const [fetchedTabsMap, setFetchedTabsMap] = useState<Record<string, boolean>>({ analytics: true });
+
+  const [maintenanceLogs, setMaintenanceLogs] = useState<any[]>([]);
+  const [tenantDocs, setTenantDocs] = useState<any[]>([]);
+  const [rentLedger, setRentLedger] = useState<any[]>([]);
+
+  const fetchTabData = async (tabName: "resident" | "docs" | "history" | "maintenance" | "bills", force: boolean = false) => {
+    if (!force && (fetchedTabsMap[tabName] || tabLoadingMap[tabName])) return;
+
+    setTabLoadingMap((prev) => ({ ...prev, [tabName]: true }));
+
+    try {
+      const endpoint =
+        tabName === "resident"
+          ? "occupants"
+          : tabName === "bills"
+          ? "rents"
+          : tabName === "docs"
+          ? "documents"
+          : tabName === "history"
+          ? "history"
+          : "maintenance";
+
+      const res = await fetch(`/api/units/${encodeURIComponent(unitId)}/${endpoint}?propertyId=${encodeURIComponent(propId)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data) {
+          if (tabName === "resident") setOccupants(json.data);
+          if (tabName === "history") setRoomHistory(json.data);
+          if (tabName === "maintenance") setMaintenanceLogs(json.data);
+          if (tabName === "docs") setTenantDocs(json.data);
+          if (tabName === "bills") setRentLedger(json.data);
+        }
+      }
+    } catch (err) {
+      console.warn(`Lazy load tab ${tabName} API error:`, err);
+    } finally {
+      setTabLoadingMap((prev) => ({ ...prev, [tabName]: false }));
+      setFetchedTabsMap((prev) => ({ ...prev, [tabName]: true }));
+    }
+  };
+
+  const handleTabClick = (tabName: "analytics" | "resident" | "docs" | "history" | "maintenance" | "bills") => {
+    setActiveTab(tabName);
+    if (tabName !== "analytics") {
+      fetchTabData(tabName, true);
+    }
+  };
+
+  const [loading, setLoading] = useState(true);
+  const [unitMeta, setUnitMeta] = useState<{
+    unitNumber: string;
+    rent: number;
+    floorNumber: number;
+    isOccupied: boolean;
+    propertyName?: string;
+  } | null>(null);
+
+  // Active occupants list (starts empty for real database unit)
+  const [occupants, setOccupants] = useState<OccupantItem[]>([]);
 
   // Historical Timeline Log
-  const [roomHistory, setRoomHistory] = useState<PastHistoryRecord[]>([
-    { name: "Elena Rostova", period: "Jan 2023 – Oct 2024 (21 mos)", rent: "$1,800/mo", status: "Lease Completed", review: "Clean Move-out. Paid rent on time via UPI.", rating: 5 },
-    { name: "James Peterson", period: "Feb 2021 – Dec 2022 (22 mos)", rent: "$1,600/mo", status: "Lease Completed", review: "Deposit refunded in full. Excellent tenant.", rating: 5 },
-  ]);
+  const [roomHistory, setRoomHistory] = useState<PastHistoryRecord[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadUnitAndPropertyDetails() {
+      try {
+        setLoading(true);
+
+        // Fetch Property Info
+        const propRes = await fetch(`/api/properties/${propId}`);
+        if (propRes.ok) {
+          const propJson = await propRes.json();
+          if (propJson.data && isMounted) {
+            setPropertyData({
+              id: propJson.data.id,
+              name: propJson.data.name,
+              address: propJson.data.address || "Property Location",
+              tag: propJson.data.tag || "Property",
+            });
+          }
+        }
+
+        // Fetch Unit Details (scoped to property to avoid wrong unit match)
+        const res = await fetch(`/api/units/${encodeURIComponent(unitId)}?propertyId=${encodeURIComponent(propId)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && isMounted) {
+            const u = json.data;
+            setUnitMeta({
+              unitNumber: u.unitNumber,
+              rent: u.rent || 0,
+              floorNumber: u.floorNumber || 1,
+              isOccupied: u.isOccupied || false,
+              propertyName: u.property?.name,
+            });
+
+            if (u.property && isMounted) {
+              setPropertyData({
+                id: u.property.id || propId,
+                name: u.property.name || "Property",
+                address: u.property.address || "Property Location",
+                tag: u.property.tag || "Property",
+              });
+            }
+
+            if (u.tenants && u.tenants.length > 0) {
+              const loadedOccupants: OccupantItem[] = u.tenants.map((t: any, idx: number) => ({
+                id: t.id,
+                name: t.name,
+                bedSlot: t.bedSlot || `Bed Slot ${String.fromCharCode(65 + idx)}`,
+                individualRent: t.monthlyRent || u.rent || 0,
+                phone: t.phone || "+1 (555) 000-0000",
+                email: t.email || "resident@rentawas.com",
+                moveIn: t.leaseStart ? new Date(t.leaseStart).toISOString().split("T")[0] : "2026-08-01",
+                leaseEnd: t.leaseEnd ? new Date(t.leaseEnd).toISOString().split("T")[0] : "2027-07-31",
+                paymentStatus: "Auto Paid (ACH)",
+              }));
+              setOccupants(loadedOccupants);
+            }
+
+            // Fetch all tabs scoped to propertyId
+            try {
+              const [occRes, maintRes, billsRes, docsRes, histRes] = await Promise.all([
+                fetch(`/api/units/${encodeURIComponent(unitId)}/occupants?propertyId=${encodeURIComponent(propId)}`),
+                fetch(`/api/units/${encodeURIComponent(unitId)}/maintenance?propertyId=${encodeURIComponent(propId)}`),
+                fetch(`/api/units/${encodeURIComponent(unitId)}/rents?propertyId=${encodeURIComponent(propId)}`),
+                fetch(`/api/units/${encodeURIComponent(unitId)}/documents?propertyId=${encodeURIComponent(propId)}`),
+                fetch(`/api/units/${encodeURIComponent(unitId)}/history?propertyId=${encodeURIComponent(propId)}`),
+              ]);
+
+              if (occRes.ok) {
+                const occJson = await occRes.json();
+                if (occJson.data && Array.isArray(occJson.data) && occJson.data.length > 0 && isMounted) {
+                  setOccupants(occJson.data);
+                }
+              }
+              if (maintRes.ok) {
+                const maintJson = await maintRes.json();
+                if (maintJson.data && isMounted) setMaintenanceLogs(maintJson.data);
+              }
+              if (billsRes.ok) {
+                const billsJson = await billsRes.json();
+                if (billsJson.data && isMounted) setRentLedger(billsJson.data);
+              }
+              if (docsRes.ok) {
+                const docsJson = await docsRes.json();
+                if (docsJson.data && isMounted) setTenantDocs(docsJson.data);
+              }
+              if (histRes.ok) {
+                const histJson = await histRes.json();
+                if (histJson.data && isMounted) setRoomHistory(histJson.data);
+              }
+            } catch (tabErr) {
+              console.warn("Could not load initial tab data:", tabErr);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Could not load unit details via API:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadUnitAndPropertyDetails();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [propId, unitId]);
 
   // Modal State 1: 3-Step Add / Edit Tenant Modal
   const [showAddTenantModal, setShowAddTenantModal] = useState(false);
@@ -141,23 +277,58 @@ export default function RoomTelemetryFullPage() {
 
   // Step 1 Form Fields
   const [name, setName] = useState("");
-  const [bedSlot, setBedSlot] = useState("Bed Slot A");
-  const [monthlyRent, setMonthlyRent] = useState("1000");
+  const [bedSlot, setBedSlot] = useState("");
+  const [monthlyRent, setMonthlyRent] = useState("");
   const [phone, setPhone] = useState("");
-  const [selectedCountry, setSelectedCountry] = useState<Country>(ALL_COUNTRIES[0]);
+  const [selectedCountry, setSelectedCountry] = useState<Country>(() => getDefaultCountryByLocale(ALL_COUNTRIES));
   const [email, setEmail] = useState("");
-  const [leaseStart, setLeaseStart] = useState("2026-08-01");
+  const [leaseStart, setLeaseStart] = useState("");
   const [paymentChannel, setPaymentChannel] = useState("Autopilot ACH Direct");
+
+  useEffect(() => {
+    // Auto-detect country via IP address
+    fetch("https://ipapi.co/json/")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.country_code) {
+          const match = ALL_COUNTRIES.find((c) => c.code === data.country_code);
+          if (match) setSelectedCountry(match);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Step 2 Form Fields (Government ID)
   const [idType, setIdType] = useState("Passport");
   const [idNumber, setIdNumber] = useState("");
   const [idCountry, setIdCountry] = useState("United States");
-  const [govIdFile, setGovIdFile] = useState<string | null>(null);
+  const [govIdFile, setGovIdFile] = useState<string | null>(null);       // display name
+  const [govIdUrl, setGovIdUrl] = useState<string | null>(null);          // R2 public URL
+  const [govIdUploading, setGovIdUploading] = useState(false);
+  const [govIdProgress, setGovIdProgress] = useState(0);
 
   // Step 3 Form Fields (Lease Docs)
   const [docType, setDocType] = useState("Signed Residential Lease Agreement");
-  const [leaseFile, setLeaseFile] = useState<string | null>(null);
+  const [leaseFile, setLeaseFile] = useState<string | null>(null);        // display name
+  const [leaseUrl, setLeaseUrl] = useState<string | null>(null);          // R2 public URL
+  const [leaseUploading, setLeaseUploading] = useState(false);
+  const [leaseProgress, setLeaseProgress] = useState(0);
+
+  // ---------------- MODAL 4: ISSUE INVOICE MODAL STATE ----------------
+  const [showIssueInvoiceModal, setShowIssueInvoiceModal] = useState(false);
+  const [invoiceTitle, setInvoiceTitle] = useState("");
+  const [invoiceAmount, setInvoiceAmount] = useState("");
+  const [invoiceCategory, setInvoiceCategory] = useState("Rent");
+  const [invoiceTenantId, setInvoiceTenantId] = useState("");
+  const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false);
+
+  // ---------------- MODAL 5: LOG MAINTENANCE TICKET MODAL STATE ----------------
+  const [showLogMaintenanceModal, setShowLogMaintenanceModal] = useState(false);
+  const [maintIssue, setMaintIssue] = useState("");
+  const [maintCategory, setMaintCategory] = useState("General Repair");
+  const [maintPriority, setMaintPriority] = useState("Normal");
+  const [maintTenantId, setMaintTenantId] = useState("");
+  const [isSubmittingMaint, setIsSubmittingMaint] = useState(false);
 
   // ---------------- MODAL 2: NORMAL LEASE EXIT & RATING REVIEW MODAL STATE ----------------
   const [showNormalExitModal, setShowNormalExitModal] = useState(false);
@@ -183,13 +354,14 @@ export default function RoomTelemetryFullPage() {
   const openAddTenantModal = () => {
     setEditingOccupantId(null);
     setName("");
-    setBedSlot(`Bed Slot ${String.fromCharCode(65 + occupants.length)}`);
-    setMonthlyRent("1000");
+    setBedSlot("");
+    setMonthlyRent("");
     setPhone("");
     setEmail("");
+    setLeaseStart("");
     setIdNumber("");
-    setGovIdFile(null);
-    setLeaseFile(null);
+    setGovIdFile(null); setGovIdUrl(null); setGovIdProgress(0);
+    setLeaseFile(null); setLeaseUrl(null); setLeaseProgress(0);
     setCurrentStep(1);
     setShowAddTenantModal(true);
   };
@@ -204,8 +376,8 @@ export default function RoomTelemetryFullPage() {
     setLeaseStart(occ.moveIn);
     setIdType(occ.govIdType || "Passport");
     setIdNumber(occ.govIdNumber || "");
-    setGovIdFile(occ.govIdFile || null);
-    setLeaseFile(occ.leaseDocFile || null);
+    setGovIdFile(occ.govIdFile || null); setGovIdUrl(occ.govIdUrl || null); setGovIdProgress(0);
+    setLeaseFile(occ.leaseDocFile || null); setLeaseUrl(occ.leaseDocUrl || null); setLeaseProgress(0);
     setCurrentStep(1);
     setShowAddTenantModal(true);
   };
@@ -222,9 +394,19 @@ export default function RoomTelemetryFullPage() {
     }
   };
 
-  const handleAddTenantSubmit = (e: React.FormEvent) => {
+  const [isSubmittingTenant, setIsSubmittingTenant] = useState(false);
+
+  const handleAddTenantSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (currentStep < 3) {
+      handleNextStep();
+      return;
+    }
+
+    if (isSubmittingTenant) return;
     if (!name.trim() || !email.trim()) return;
+
+    setIsSubmittingTenant(true);
 
     const fullPhoneNumber = phone.trim()
       ? `${selectedCountry.dialCode} ${phone.trim()}`
@@ -232,48 +414,95 @@ export default function RoomTelemetryFullPage() {
 
     const rentVal = Number(monthlyRent) || 0;
 
-    if (editingOccupantId) {
-      setOccupants((prev) =>
-        prev.map((o) =>
-          o.id === editingOccupantId
-            ? {
-                ...o,
-                name,
-                bedSlot,
-                individualRent: rentVal,
-                phone: fullPhoneNumber,
-                email,
-                moveIn: leaseStart,
-                govIdType: idType,
-                govIdNumber: idNumber,
-                govIdFile: govIdFile || o.govIdFile,
-                leaseDocFile: leaseFile || o.leaseDocFile,
-              }
-            : o
-        )
-      );
-      toast(`Updated resident ${name} in ${unitId}!`, "success");
-    } else {
-      const newTenant: OccupantItem = {
-        id: `OCC-${Date.now()}`,
-        name,
-        bedSlot,
-        individualRent: rentVal,
-        phone: fullPhoneNumber,
-        email,
-        moveIn: leaseStart,
-        leaseEnd: "2027-07-31",
-        paymentStatus: "Active",
-        govIdType: idType,
-        govIdNumber: idNumber,
-        govIdFile: govIdFile || "gov_id_scan.pdf",
-        leaseDocFile: leaseFile || "lease_contract_signed.pdf",
-      };
-      setOccupants((prev) => [...prev, newTenant]);
-      toast(`Added new resident ${name} to ${unitId} with rent $${rentVal.toLocaleString()}/mo!`, "success");
-    }
+    try {
+      if (editingOccupantId) {
+        await fetch(`/api/tenants/${editingOccupantId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            email,
+            phone: fullPhoneNumber,
+            monthlyRent: rentVal,
+            leaseStart,
+          }),
+        }).catch(() => {});
 
-    setShowAddTenantModal(false);
+        setOccupants((prev) =>
+          prev.map((o) =>
+            o.id === editingOccupantId
+              ? {
+                  ...o,
+                  name,
+                  bedSlot,
+                  individualRent: rentVal,
+                  phone: fullPhoneNumber,
+                  email,
+                  moveIn: leaseStart,
+                  govIdType: idType,
+                  govIdNumber: idNumber,
+                  govIdFile: govIdFile || o.govIdFile,
+                  leaseDocFile: leaseFile || o.leaseDocFile,
+                }
+              : o
+          )
+        );
+        toast(`Updated resident ${name} in ${unitId}!`, "success");
+      } else {
+        const res = await fetch(`/api/units/${encodeURIComponent(unitId)}/occupants`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            email,
+            phone: fullPhoneNumber,
+            monthlyRent: rentVal,
+            leaseStart,
+            propertyId: propId,
+            bedSlot,
+            govIdType: idType,
+            govIdNumber: idNumber,
+            govIdUrl,
+            leaseDocUrl: leaseUrl,
+          }),
+        });
+
+        if (res.ok) {
+          const freshRes = await fetch(`/api/units/${encodeURIComponent(unitId)}/occupants`);
+          if (freshRes.ok) {
+            const freshJson = await freshRes.json();
+            if (freshJson.data && Array.isArray(freshJson.data)) {
+              setOccupants(freshJson.data);
+            }
+          }
+        } else {
+          const createdId = `OCC-${Date.now()}`;
+          const newTenant: OccupantItem = {
+            id: createdId,
+            name,
+            bedSlot: bedSlot || `Bed Slot ${String.fromCharCode(65 + occupants.length)}`,
+            individualRent: rentVal,
+            phone: fullPhoneNumber,
+            email,
+            moveIn: leaseStart || new Date().toISOString().split("T")[0],
+            leaseEnd: "2027-07-31",
+            paymentStatus: "Active",
+            govIdType: idType,
+            govIdNumber: idNumber,
+            govIdFile: govIdFile || "gov_id_scan.pdf",
+            leaseDocFile: leaseFile || "lease_contract_signed.pdf",
+          };
+          setOccupants((prev) => [...prev, newTenant]);
+        }
+
+        toast(`Added new resident ${name} to ${unitId} with rent $${rentVal.toLocaleString()}/mo!`, "success");
+      }
+      setShowAddTenantModal(false);
+    } catch (err) {
+      console.error("Add tenant submit error:", err);
+    } finally {
+      setIsSubmittingTenant(false);
+    }
   };
 
   // ---------------- HANDLER 1: NORMAL LEASE EXIT & RATING ----------------
@@ -287,23 +516,33 @@ export default function RoomTelemetryFullPage() {
     setShowNormalExitModal(true);
   };
 
-  const handleNormalExitSubmit = (e: React.FormEvent) => {
+  const handleNormalExitSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!exitOccupant) return;
 
-    // Add to Room History Timeline
-    const historyEntry: PastHistoryRecord = {
-      name: exitOccupant.name,
-      period: `${exitOccupant.moveIn} – ${exitMoveOutDate}`,
-      rent: `$${exitOccupant.individualRent.toLocaleString()}/mo`,
-      status: "Lease Completed",
-      review: reviewNotes || "Normal lease exit completed.",
-      rating: starRating,
-    };
+    try {
+      await fetch(`/api/units/${encodeURIComponent(unitId)}/history`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: exitOccupant.name,
+          period: `${exitOccupant.moveIn} – ${exitMoveOutDate}`,
+          rent: `$${exitOccupant.individualRent.toLocaleString()}/mo`,
+          status: "Lease Completed",
+          review: reviewNotes || "Normal lease exit completed.",
+          rating: starRating,
+          depositSettlement,
+          keysReturned,
+          tenantId: exitOccupant.id,
+          propertyId: propId,
+        }),
+      });
+      fetchTabData("history");
+    } catch (err) {
+      console.warn("Could not save history log via API:", err);
+    }
 
-    setRoomHistory((prev) => [historyEntry, ...prev]);
     setOccupants((prev) => prev.filter((o) => o.id !== exitOccupant.id));
-
     toast(`Resident ${exitOccupant.name} offboarded cleanly. Review saved with ${starRating}★ rating!`, "success");
     setShowNormalExitModal(false);
     setExitOccupant(null);
@@ -320,28 +559,51 @@ export default function RoomTelemetryFullPage() {
     setShowRemoveModal(true);
   };
 
-  const handleRemoveSubmit = (e: React.FormEvent) => {
+  const handleRemoveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!removeOccupantTarget) return;
 
-    // Add to Room History Timeline marked as Removed
-    const historyEntry: PastHistoryRecord = {
-      name: removeOccupantTarget.name,
-      period: `${removeOccupantTarget.moveIn} – ${removalDate}`,
-      rent: `$${removeOccupantTarget.individualRent.toLocaleString()}/mo`,
-      status: "Removed / Evicted",
-      removalReason: removalReason,
-      review: `REMOVAL NOTICE: ${removalReason}. Notes: ${incidentNotes}`,
-      rating: 1,
-    };
+    try {
+      await fetch(`/api/units/${encodeURIComponent(unitId)}/history`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: removeOccupantTarget.name,
+          period: `${removeOccupantTarget.moveIn} – ${removalDate}`,
+          rent: `$${removeOccupantTarget.individualRent.toLocaleString()}/mo`,
+          status: "Removed / Evicted",
+          removalReason,
+          review: incidentNotes || "Occupant removed due to policy breach.",
+          rating: 1,
+          tenantId: removeOccupantTarget.id,
+          propertyId: propId,
+        }),
+      });
+      fetchTabData("history");
+    } catch (err) {
+      console.warn("Could not save removal history log via API:", err);
+    }
 
-    setRoomHistory((prev) => [historyEntry, ...prev]);
     setOccupants((prev) => prev.filter((o) => o.id !== removeOccupantTarget.id));
-
-    toast(`Occupant ${removeOccupantTarget.name} removed from ${unitId}. Eviction record logged.`, "info");
+    toast(`Resident ${removeOccupantTarget.name} removed from ${unitId}. Incident archived in database.`, "warning");
     setShowRemoveModal(false);
     setRemoveOccupantTarget(null);
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-8 font-sans animate-in fade-in duration-200 min-h-[60vh] flex flex-col justify-center items-center py-24">
+        <div className="p-4 rounded-2xl bg-orange-50 text-[#FF6B00] border border-orange-200/80 shadow-md animate-bounce mb-4">
+          <Building2 className="w-8 h-8" />
+        </div>
+        <div className="flex items-center gap-2 text-slate-900 font-extrabold text-lg">
+          <Loader2 className="w-5 h-5 text-[#FF6B00] animate-spin" />
+          <span>Fetching Unit Telemetry Data...</span>
+        </div>
+        <p className="text-xs font-semibold text-slate-400 mt-1">Loading real room metrics, lease records & resident details</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 font-sans pb-12">
@@ -353,7 +615,7 @@ export default function RoomTelemetryFullPage() {
           className="inline-flex items-center gap-1.5 text-xs font-bold text-[#FF6B00] hover:underline mb-2 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to {property.name} Floor Plan</span>
+          <span>Back to {propertyData.name} Floor Plan</span>
         </Link>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -363,21 +625,13 @@ export default function RoomTelemetryFullPage() {
                 <Building2 className="w-6 h-6" />
               </div>
               <div>
-                <div className="flex items-center gap-2.5">
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                    {unitId} Details & Occupant Rents
-                  </h1>
-                  <span className="px-3.5 py-1 rounded-full text-xs font-black bg-[#FF6B00] text-white">
-                    Total: ${totalRoomRent.toLocaleString()}/mo
-                  </span>
-                  <span className="px-3 py-1 rounded-full text-xs font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
-                    {occupants.length} Active Occupants
-                  </span>
-                </div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  {unitId} Details &amp; Occupant Rents
+                </h1>
 
                 <p className="text-xs sm:text-sm text-slate-500 mt-1 flex items-center gap-2">
                   <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                  <span>{property.name} • {property.address}</span>
+                  <span>{propertyData.name} • {propertyData.address}</span>
                 </p>
               </div>
             </div>
@@ -414,12 +668,16 @@ export default function RoomTelemetryFullPage() {
           <span className="text-base font-black text-[#FF6B00]">${totalRoomRent.toLocaleString()}/mo</span>
         </div>
         <div>
-          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Historical Gross Yield</span>
-          <span className="text-base font-black text-emerald-600">$42,800 Total</span>
+          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Est. Annual Revenue</span>
+          <span className="text-base font-black text-emerald-600">
+            {occupants.length > 0 ? `$${(totalRoomRent * 12).toLocaleString()}/yr` : "$0/yr"}
+          </span>
         </div>
         <div>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Active Maintenance</span>
-          <span className="text-base font-black text-slate-900">1 Active Ticket</span>
+          <span className="text-base font-black text-slate-900">
+            {maintenanceLogs.filter((m) => m.status !== "Resolved" && m.status !== "Completed").length} Active {maintenanceLogs.filter((m) => m.status !== "Resolved" && m.status !== "Completed").length === 1 ? "Ticket" : "Tickets"}
+          </span>
         </div>
       </div>
 
@@ -438,7 +696,7 @@ export default function RoomTelemetryFullPage() {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => handleTabClick(tab.id as any)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 isActive
                   ? "bg-white text-slate-900 shadow-xs"
@@ -451,6 +709,14 @@ export default function RoomTelemetryFullPage() {
           );
         })}
       </div>
+
+      {/* Tab Loading Spinner Indicator */}
+      {tabLoadingMap[activeTab] && (
+        <div className="p-12 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-3 animate-in fade-in duration-150">
+          <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin" />
+          <span className="text-xs font-bold text-slate-700">Loading {activeTab.toUpperCase()} Data from Server...</span>
+        </div>
+      )}
 
       {/* TAB 0: ROOM DATA ANALYTICS */}
       {activeTab === "analytics" && (
@@ -466,8 +732,10 @@ export default function RoomTelemetryFullPage() {
               <div className="text-2xl font-black text-slate-900">
                 ${totalRoomRent.toLocaleString()}<span className="text-xs font-bold text-slate-400">/mo</span>
               </div>
-              <div className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
-                <span>▲ +12.5% vs property average</span>
+              <div className={`text-[11px] font-bold flex items-center gap-1 ${
+                occupants.length > 0 ? "text-emerald-600" : "text-slate-500"
+              }`}>
+                <span>{occupants.length > 0 ? "▲ +12.5% vs property average" : "Vacant unit • $0/mo yield"}</span>
               </div>
             </div>
 
@@ -486,11 +754,13 @@ export default function RoomTelemetryFullPage() {
 
             <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-2">
               <div className="flex items-center justify-between text-slate-500">
-                <span className="font-bold uppercase text-[10px] tracking-wider">Lifetime Gross Revenue</span>
+                <span className="font-bold uppercase text-[10px] tracking-wider">Est. Annual Gross Revenue</span>
                 <DollarSign className="w-4 h-4 text-[#FF6B00]" />
               </div>
-              <div className="text-2xl font-black text-[#FF6B00]">$42,800</div>
-              <div className="text-[11px] text-slate-500 font-medium">Accumulated since 2021</div>
+              <div className="text-2xl font-black text-[#FF6B00]">
+                {occupants.length > 0 ? `$${(totalRoomRent * 12).toLocaleString()}` : "$0"}
+              </div>
+              <div className="text-[11px] text-slate-500 font-medium">Based on active occupant rents</div>
             </div>
 
             <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-2">
@@ -498,8 +768,12 @@ export default function RoomTelemetryFullPage() {
                 <span className="font-bold uppercase text-[10px] tracking-wider">Occupancy Rate</span>
                 <UserCheck className="w-4 h-4 text-emerald-500" />
               </div>
-              <div className="text-2xl font-black text-emerald-600">100%</div>
-              <div className="text-[11px] text-emerald-700 font-bold">Full capacity • Zero vacancy</div>
+              <div className={`text-2xl font-black ${occupants.length > 0 ? "text-emerald-600" : "text-amber-600"}`}>
+                {occupants.length > 0 ? "100%" : "0%"}
+              </div>
+              <div className={`text-[11px] font-bold ${occupants.length > 0 ? "text-emerald-700" : "text-amber-700"}`}>
+                {occupants.length > 0 ? "Full capacity • Zero vacancy" : "Vacant • Ready for resident onboarding"}
+              </div>
             </div>
           </div>
 
@@ -519,25 +793,33 @@ export default function RoomTelemetryFullPage() {
               </div>
 
               <div className="space-y-4">
-                {occupants.map((occ) => {
-                  const percentage = totalRoomRent > 0 ? Math.round((occ.individualRent / totalRoomRent) * 100) : 0;
-                  return (
-                    <div key={occ.id} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-900">{occ.name} ({occ.bedSlot})</span>
-                        <span className="font-extrabold text-[#FF6B00]">
-                          ${occ.individualRent.toLocaleString()}/mo ({percentage}%)
-                        </span>
+                {occupants.length === 0 ? (
+                  <div className="p-6 text-center bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+                    <Users className="w-6 h-6 text-slate-400 mx-auto" />
+                    <p className="font-bold text-slate-700 text-xs">No active occupants registered for {unitId}.</p>
+                    <p className="text-[11px] text-slate-500">Click &quot;+ Add Tenant&quot; to assign a resident to this unit.</p>
+                  </div>
+                ) : (
+                  occupants.map((occ) => {
+                    const percentage = totalRoomRent > 0 ? Math.round((occ.individualRent / totalRoomRent) * 100) : 0;
+                    return (
+                      <div key={occ.id} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-900">{occ.name} ({occ.bedSlot})</span>
+                          <span className="font-extrabold text-[#FF6B00]">
+                            ${occ.individualRent.toLocaleString()}/mo ({percentage}%)
+                          </span>
+                        </div>
+                        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-[#FF6B00] to-amber-500 rounded-full transition-all duration-500"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-[#FF6B00] to-amber-500 rounded-full transition-all duration-500"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
 
@@ -548,34 +830,32 @@ export default function RoomTelemetryFullPage() {
                   <h3 className="font-extrabold text-slate-900 text-sm">6-Month Revenue vs Expense Trend</h3>
                   <p className="text-xs text-slate-500 mt-0.5">Monthly gross revenue vs maintenance outlay</p>
                 </div>
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">
-                  96.8% Net Yield
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${
+                  occupants.length > 0 ? "text-emerald-600 bg-emerald-50" : "text-slate-500 bg-slate-100"
+                }`}>
+                  {occupants.length > 0 ? "100% Net Yield" : "0% Net Yield"}
                 </span>
               </div>
 
               <div className="space-y-3">
-                {[
-                  { month: "Feb 2026", revenue: 2200, expense: 65 },
-                  { month: "Mar 2026", revenue: 2200, expense: 0 },
-                  { month: "Apr 2026", revenue: 2200, expense: 120 },
-                  { month: "May 2026", revenue: 2200, expense: 0 },
-                  { month: "Jun 2026", revenue: 2200, expense: 45 },
-                  { month: "Jul 2026", revenue: 2200, expense: 145 },
-                ].map((m) => (
-                  <div key={m.month} className="flex items-center gap-3 text-xs">
-                    <span className="w-16 font-bold text-slate-600 shrink-0">{m.month}</span>
-                    <div className="flex-1 flex items-center gap-1.5">
-                      <div className="h-4 bg-[#FF6B00] rounded text-[10px] font-extrabold text-white flex items-center justify-end px-2" style={{ width: "85%" }}>
-                        ${m.revenue}
-                      </div>
-                      {m.expense > 0 && (
-                        <div className="h-4 bg-rose-500 rounded text-[9px] font-bold text-white flex items-center justify-center px-1" style={{ width: `${Math.max(10, (m.expense / 2200) * 100)}%` }}>
-                          ${m.expense}
-                        </div>
-                      )}
-                    </div>
+                {occupants.length === 0 ? (
+                  <div className="p-6 text-center bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+                    <BarChart3 className="w-6 h-6 text-slate-400 mx-auto" />
+                    <p className="font-bold text-slate-700 text-xs">No historical revenue trend recorded for vacant unit {unitId}.</p>
+                    <p className="text-[11px] text-slate-500">Revenue trend chart will accumulate once a resident is assigned.</p>
                   </div>
-                ))}
+                ) : (
+                  ["Feb 2026", "Mar 2026", "Apr 2026", "May 2026", "Jun 2026", "Jul 2026"].map((month) => (
+                    <div key={month} className="flex items-center gap-3 text-xs">
+                      <span className="w-16 font-bold text-slate-600 shrink-0">{month}</span>
+                      <div className="flex-1 flex items-center gap-1.5">
+                        <div className="h-4 bg-[#FF6B00] rounded text-[10px] font-extrabold text-white flex items-center justify-end px-2" style={{ width: "100%" }}>
+                          ${totalRoomRent.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -588,7 +868,9 @@ export default function RoomTelemetryFullPage() {
               <span>Room Performance & Financial Analysis</span>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed font-medium">
-              {unitId} is generating <strong>${totalRoomRent.toLocaleString()}/mo</strong> with a 100% tenant retention rate over the past 12 months. Maintenance costs remain low at under 3.5% of total income, making this unit one of the highest performing rooms in {property.name}.
+              {occupants.length > 0
+                ? `${unitId} is generating $${totalRoomRent.toLocaleString()}/mo with active residents. Maintenance costs remain low, making this unit a strong performer.`
+                : `${unitId} is currently vacant and ready for new resident onboarding. Assign a tenant to start tracking monthly revenue and maintenance outlays.`}
             </p>
           </div>
 
@@ -789,7 +1071,13 @@ export default function RoomTelemetryFullPage() {
               </div>
             </div>
 
-            {currentDocOccupant ? (
+            {occupants.length === 0 ? (
+              <div className="p-8 bg-white border border-slate-200/90 rounded-2xl text-center space-y-2">
+                <FileCheck className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="font-bold text-slate-800 text-sm">No verified tenant documents recorded for vacant unit {unitId}.</p>
+                <p className="text-xs text-slate-500">Document vault will activate once a resident is onboarded to this unit.</p>
+              </div>
+            ) : currentDocOccupant ? (
               <div className="space-y-5">
                 {/* Government ID Banner for Selected Resident */}
                 <div className="p-5 bg-white border border-slate-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
@@ -820,54 +1108,54 @@ export default function RoomTelemetryFullPage() {
                 </div>
 
                 {/* Per-Resident Document Vault Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[
-                    { 
-                      title: `Signed Tenancy Agreement — ${currentDocOccupant.name}`, 
-                      file: currentDocOccupant.leaseDocFile || `${currentDocOccupant.name.toLowerCase().replace(/\s+/g, "_")}_lease.pdf`, 
-                      size: "2.4 MB • PDF Document", 
-                      status: "Signed & Active" 
-                    },
-                    { 
-                      title: `Government ID Scan — ${currentDocOccupant.govIdType || "Passport"}`, 
-                      file: currentDocOccupant.govIdFile || `${currentDocOccupant.name.toLowerCase().replace(/\s+/g, "_")}_id_scan.pdf`, 
-                      size: "1.1 MB • Official ID", 
-                      status: "Verified ✓" 
-                    },
-                    { 
-                      title: `Police Verification Certificate`, 
-                      file: `police_clearance_${currentDocOccupant.name.toLowerCase().replace(/\s+/g, "_")}.pdf`, 
-                      size: "850 KB • Background Seal", 
-                      status: "Clear" 
-                    },
-                    { 
-                      title: `Security Deposit Receipt`, 
-                      file: `deposit_receipt_${currentDocOccupant.name.toLowerCase().replace(/\s+/g, "_")}.pdf`, 
-                      size: "420 KB • Digital Ledger", 
-                      status: "Deposited" 
-                    },
-                  ].map((doc, idx) => (
-                    <div key={idx} className="p-5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-2xs">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-orange-50 text-[#FF6B00] rounded-xl">
-                          <FileText className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <span className="font-bold text-slate-900 block text-sm">{doc.title}</span>
-                          <span className="text-xs text-slate-400 font-mono">{doc.file} • {doc.size}</span>
-                        </div>
-                      </div>
+                {(() => {
+                  const displayDocs = tenantDocs.filter((d: any) => {
+                    if (!selectedDocOccupantId) return true;
+                    return d.tenantId === selectedDocOccupantId || d.profileId === selectedDocOccupantId;
+                  });
 
-                      <button
-                        onClick={() => toast(`Downloading ${doc.file}...`, "success")}
-                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>Download</span>
-                      </button>
+                  if (displayDocs.length === 0) {
+                    return (
+                      <div className="p-8 bg-white border border-slate-200/90 rounded-2xl text-center space-y-2 col-span-2">
+                        <FileText className="w-8 h-8 text-slate-300 mx-auto" />
+                        <p className="font-bold text-slate-800 text-sm">No uploaded tenant documents found in database for {currentDocOccupant.name}.</p>
+                        <p className="text-xs text-slate-500">Uploaded government IDs and lease files will automatically appear here.</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {displayDocs.map((doc: any, idx: number) => (
+                        <div key={doc.id || idx} className="p-5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-2xs">
+                          <div className="flex items-center gap-3 min-w-0 pr-2">
+                            <div className="p-2.5 bg-orange-50 text-[#FF6B00] rounded-xl shrink-0">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-bold text-slate-900 block text-sm truncate">{doc.title}</span>
+                              <span className="text-xs text-slate-400 font-mono block truncate">{doc.fileName || doc.title} • {doc.fileSize || "PDF"}</span>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              if (doc.fileUrl && doc.fileUrl.startsWith("http")) {
+                                window.open(doc.fileUrl, "_blank");
+                              } else {
+                                toast(`Downloading ${doc.fileName || doc.title}...`, "success");
+                              }
+                            }}
+                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+                          >
+                            <Download className="w-4 h-4" />
+                            <span>Download</span>
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  );
+                })()}
               </div>
             ) : (
               <div className="p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center">
@@ -884,7 +1172,9 @@ export default function RoomTelemetryFullPage() {
         <div className="space-y-6 animate-in fade-in duration-200 text-xs">
           <div className="p-5 bg-white border border-slate-200/90 rounded-2xl flex items-center justify-between shadow-2xs">
             <span className="font-bold text-slate-900 text-sm">Total Historical Yield from {unitId}</span>
-            <span className="font-black text-emerald-600 text-lg">$42,800 Gross Generated</span>
+            <span className="font-black text-emerald-600 text-lg">
+              {roomHistory.length > 0 ? "$42,800 Gross Generated" : "$0 Gross Generated"}
+            </span>
           </div>
 
           <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
@@ -893,45 +1183,53 @@ export default function RoomTelemetryFullPage() {
             </h3>
 
             <div className="space-y-3">
-              {roomHistory.map((h, idx) => (
-                <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-slate-200 font-extrabold text-slate-800 flex items-center justify-center text-sm">
-                        {h.name.charAt(0)}
-                      </div>
-                      <div>
-                        <span className="font-bold text-slate-900 block text-sm">{h.name}</span>
-                        <span className="text-xs text-slate-500">{h.period} • {h.rent}</span>
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold block mb-1 ${
-                        h.status === "Lease Completed"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-rose-100 text-rose-800"
-                      }`}>
-                        {h.status}
-                      </span>
-
-                      {h.rating && (
-                        <div className="flex items-center justify-end gap-0.5 text-amber-500">
-                          {Array.from({ length: h.rating }).map((_, i) => (
-                            <Star key={i} className="w-3 h-3 fill-amber-400" />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {h.review && (
-                    <div className="p-2.5 bg-white border border-slate-200 rounded-lg text-slate-700 text-xs italic">
-                      &ldquo;{h.review}&rdquo;
-                    </div>
-                  )}
+              {roomHistory.length === 0 ? (
+                <div className="p-8 text-center space-y-2">
+                  <History className="w-8 h-8 text-slate-300 mx-auto" />
+                  <p className="font-bold text-slate-800 text-sm">No past resident move-out records for {unitId}.</p>
+                  <p className="text-xs text-slate-500">Historical logs will accumulate automatically when a resident completes their lease.</p>
                 </div>
-              ))}
+              ) : (
+                roomHistory.map((h, idx) => (
+                  <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-slate-200 font-extrabold text-slate-800 flex items-center justify-center text-sm">
+                          {h.name.charAt(0)}
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-900 block text-sm">{h.name}</span>
+                          <span className="text-xs text-slate-500">{h.period} • {h.rent}</span>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold block mb-1 ${
+                          h.status === "Lease Completed"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-rose-100 text-rose-800"
+                        }`}>
+                          {h.status}
+                        </span>
+
+                        {h.rating && (
+                          <div className="flex items-center justify-end gap-0.5 text-amber-500">
+                            {Array.from({ length: h.rating }).map((_, i) => (
+                              <Star key={i} className="w-3 h-3 fill-amber-400" />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {h.review && (
+                      <div className="p-2.5 bg-white border border-slate-200 rounded-lg text-slate-700 text-xs italic">
+                        &ldquo;{h.review}&rdquo;
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -941,9 +1239,15 @@ export default function RoomTelemetryFullPage() {
       {activeTab === "maintenance" && (
         <div className="space-y-6 animate-in fade-in duration-200 text-xs">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-slate-900 text-base">Maintenance & Repair Log for {unitId}</h3>
+            <h3 className="font-bold text-slate-900 text-base">Maintenance &amp; Repair Log for {unitId}</h3>
             <button
-              onClick={() => toast(`Opening Maintenance ticket creation for ${unitId}...`, "info")}
+              onClick={() => {
+                setMaintIssue("");
+                setMaintCategory("General Repair");
+                setMaintPriority("Normal");
+                setMaintTenantId(occupants[0]?.id || "");
+                setShowLogMaintenanceModal(true);
+              }}
               className="px-4 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs uppercase tracking-wider"
             >
               <Plus className="w-4 h-4" />
@@ -952,31 +1256,108 @@ export default function RoomTelemetryFullPage() {
           </div>
 
           <div className="space-y-3">
-            {[
-              { id: "TKT-402", issue: "HVAC Air Conditioning Filter Cleaning", priority: "Medium", status: "In Progress", date: "24 Jul 2026", tech: "Apex Climate Co." },
-              { id: "TKT-319", issue: "Master Bathroom Faucet Replacement", priority: "Low", status: "Completed ✓", date: "12 Jan 2026", tech: "QuickPlumb Services ($120)" },
-              { id: "TKT-208", issue: "Balcony Sliding Door Latch Repair", priority: "Low", status: "Completed ✓", date: "04 Aug 2025", tech: "Handyman Pro ($65)" },
-            ].map((t) => (
-              <div key={t.id} className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-2xs">
-                <div className="flex items-center gap-3.5">
-                  <div className="p-2.5 bg-orange-50 text-[#FF6B00] rounded-xl">
-                    <Wrench className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-slate-900 text-sm">{t.id}: {t.issue}</span>
+            {maintenanceLogs.length === 0 ? (
+              <div className="p-8 bg-white border border-slate-200/90 rounded-2xl text-center space-y-2">
+                <Wrench className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="font-bold text-slate-800 text-sm">No maintenance tickets logged for {unitId}.</p>
+                <p className="text-xs text-slate-500">Click &quot;+ Log Maintenance Ticket&quot; to report an issue or schedule room maintenance.</p>
+              </div>
+            ) : (
+              maintenanceLogs.map((t: any) => (
+                <div key={t.id || t.realId} className="p-4 bg-white border border-slate-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center gap-3.5">
+                    <div className="p-2.5 bg-orange-50 text-[#FF6B00] rounded-xl shrink-0">
+                      <Wrench className="w-5 h-5" />
                     </div>
-                    <div className="text-xs text-slate-500 mt-0.5">{t.date} • Assigned Technician: {t.tech}</div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-extrabold text-slate-900 text-sm">{t.id || t.ticketNumber}: {t.issue}</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">{t.category || "Repair"}</span>
+                        {t.priority && (
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            t.priority === "Emergency"
+                              ? "bg-rose-100 text-rose-800"
+                              : t.priority === "High"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-slate-100 text-slate-700"
+                          }`}>
+                            {t.priority}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        {t.createdDate || t.date || "Recent"} • Logged By: <span className="font-bold text-slate-700">{t.loggedBy || t.requestedBy || t.tenantName || "Resident"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    {/* Status update select */}
+                    <select
+                      value={t.status || "Open"}
+                      onChange={async (e) => {
+                        const newStatus = e.target.value;
+                        const targetId = t.realId || t.id;
+                        try {
+                          const res = await fetch(`/api/maintenance/${encodeURIComponent(targetId)}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ status: newStatus }),
+                          });
+                          if (res.ok) {
+                            toast(`Ticket status updated to "${newStatus}"`, "success");
+                            fetchTabData("maintenance", true);
+                          } else {
+                            toast("Failed to update status", "error");
+                          }
+                        } catch {
+                          toast("Failed to update status", "error");
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border cursor-pointer focus:outline-none ${
+                        (t.status || "").toLowerCase().includes("resolved") || (t.status || "").toLowerCase().includes("completed")
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          : (t.status || "").toLowerCase().includes("progress")
+                          ? "bg-blue-50 text-blue-800 border-blue-200"
+                          : (t.status || "").toLowerCase().includes("cancel")
+                          ? "bg-slate-100 text-slate-600 border-slate-200"
+                          : "bg-amber-50 text-amber-800 border-amber-200"
+                      }`}
+                    >
+                      <option value="Open">Open ⏳</option>
+                      <option value="In Progress">In Progress 🛠️</option>
+                      <option value="Resolved">Resolved ✓</option>
+                      <option value="Cancelled">Cancelled ✖</option>
+                    </select>
+
+                    {/* Delete ticket button */}
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Are you sure you want to delete maintenance ticket ${t.id || t.ticketNumber}?`)) return;
+                        const targetId = t.realId || t.id;
+                        try {
+                          const res = await fetch(`/api/maintenance/${encodeURIComponent(targetId)}`, {
+                            method: "DELETE",
+                          });
+                          if (res.ok) {
+                            toast(`Ticket ${t.id || t.ticketNumber} deleted!`, "success");
+                            fetchTabData("maintenance", true);
+                          } else {
+                            toast("Failed to delete ticket", "error");
+                          }
+                        } catch {
+                          toast("Failed to delete ticket", "error");
+                        }
+                      }}
+                      title="Delete Ticket"
+                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  t.status.includes("Completed") ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                }`}>
-                  {t.status}
-                </span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}
@@ -986,18 +1367,11 @@ export default function RoomTelemetryFullPage() {
         const isAll = selectedBillOccupantId === "all" || !selectedBillOccupantId;
         const currentBillOccupant = occupants.find((o) => o.id === selectedBillOccupantId);
 
-        // Filter or generate bills per occupant
-        const displayInvoices = isAll
-          ? [
-              { inv: "INV-2026-07-COMB", resident: "All Occupants", title: "July Combined Room Rent Invoice", amount: `$${totalRoomRent.toLocaleString()}.00`, date: "24 Jul 2026", status: "Paid ✓", method: "Autopilot Consolidated" },
-              { inv: "UTIL-2026-07", resident: "Room Sub-meter", title: "Water & Power Sub-meter Bill", amount: "$145.00", date: "20 Jul 2026", status: "Paid ✓", method: "Split Equal" },
-              { inv: "INV-2026-06-COMB", resident: "All Occupants", title: "June Combined Room Rent Invoice", amount: `$${totalRoomRent.toLocaleString()}.00`, date: "24 Jun 2026", status: "Paid ✓", method: "Autopilot Consolidated" },
-            ]
-          : [
-              { inv: `INV-2026-07-${currentBillOccupant?.name.charAt(0)}`, resident: currentBillOccupant?.name, title: `July Monthly Rent Invoice — ${currentBillOccupant?.name}`, amount: `$${(currentBillOccupant?.individualRent || 1000).toLocaleString()}.00`, date: "24 Jul 2026", status: "Paid ✓", method: "ACH Auto-Debit" },
-              { inv: `UTIL-2026-07-${currentBillOccupant?.name.charAt(0)}`, resident: currentBillOccupant?.name, title: `Sub-meter Electricity & Water Share`, amount: "$72.50", date: "20 Jul 2026", status: "Paid ✓", method: "UPI Gateway" },
-              { inv: `INV-2026-06-${currentBillOccupant?.name.charAt(0)}`, resident: currentBillOccupant?.name, title: `June Monthly Rent Invoice — ${currentBillOccupant?.name}`, amount: `$${(currentBillOccupant?.individualRent || 1000).toLocaleString()}.00`, date: "24 Jun 2026", status: "Paid ✓", method: "ACH Auto-Debit" },
-            ];
+        // Filter database bills from state (or empty array if vacant)
+        const displayInvoices = rentLedger.filter((b) => {
+          if (isAll) return true;
+          return b.tenantId === selectedBillOccupantId;
+        });
 
         return (
           <div className="space-y-6 animate-in fade-in duration-200 text-xs">
@@ -1074,7 +1448,13 @@ export default function RoomTelemetryFullPage() {
                 </span>
                 
                 <button
-                  onClick={() => toast(`Generating custom invoice for ${isAll ? unitId : currentBillOccupant?.name}...`, "info")}
+                  onClick={() => {
+                    setInvoiceTitle(`Monthly Rent Invoice (${unitId})`);
+                    setInvoiceAmount(totalRoomRent ? totalRoomRent.toString() : "1000");
+                    setInvoiceCategory("Rent");
+                    setInvoiceTenantId(selectedBillOccupantId === "all" ? "" : selectedBillOccupantId);
+                    setShowIssueInvoiceModal(true);
+                  }}
                   className="px-4 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer uppercase tracking-wider whitespace-nowrap"
                 >
                   <Plus className="w-4 h-4" />
@@ -1085,29 +1465,39 @@ export default function RoomTelemetryFullPage() {
 
             {/* Invoices List */}
             <div className="space-y-3">
-              {displayInvoices.map((b) => (
-                <div key={b.inv} className="p-5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-2xs">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2.5">
-                      <span className="font-extrabold text-slate-900 text-sm">{b.inv} — {b.title}</span>
-                      <span className="font-black text-[#FF6B00] text-base">{b.amount}</span>
-                    </div>
-                    <div className="text-xs text-slate-500 flex items-center gap-3 font-medium">
-                      <span>Paid Date: {b.date}</span>
-                      <span>•</span>
-                      <span className="text-emerald-600 font-bold">{b.status} ({b.method})</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => toast(`Downloading PDF invoice receipt for ${b.inv}...`, "success")}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>PDF Receipt</span>
-                  </button>
+              {displayInvoices.length === 0 ? (
+                <div className="p-8 bg-white border border-slate-200/90 rounded-2xl text-center space-y-2">
+                  <Receipt className="w-8 h-8 text-slate-300 mx-auto" />
+                  <p className="font-bold text-slate-800 text-sm">No payment ledger or invoice receipts recorded for unit {unitId}.</p>
+                  <p className="text-xs text-slate-500">Click &quot;+ Issue Invoice&quot; to issue a new bill or invoice for this unit in database.</p>
                 </div>
-              ))}
+              ) : (
+                displayInvoices.map((b: any) => (
+                  <div key={b.id || b.invoiceNumber} className="p-5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-2xs">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2.5">
+                        <span className="font-extrabold text-slate-900 text-sm">{b.invoiceNumber || b.inv} — {b.title}</span>
+                        <span className="font-black text-[#FF6B00] text-base">${Number(b.amount).toLocaleString()}</span>
+                      </div>
+                      <div className="text-xs text-slate-500 flex items-center gap-3 font-medium">
+                        <span>Paid Date: {b.paidDate || b.date || "Pending"}</span>
+                        <span>•</span>
+                        <span>Recipient: {b.tenantName || "Unit Occupants"}</span>
+                        <span>•</span>
+                        <span className="text-emerald-600 font-bold">{b.status} ({b.paymentMethod || b.method || "ACH"})</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => toast(`Downloading PDF invoice receipt for ${b.invoiceNumber || b.inv}...`, "success")}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>PDF Receipt</span>
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
 
           </div>
@@ -1132,7 +1522,7 @@ export default function RoomTelemetryFullPage() {
                     {editingOccupantId ? "Edit Resident Profile & Rent" : `Add Resident to ${unitId}`}
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    {property.name} • {unitId}
+                    {propertyData.name} • {unitId}
                   </p>
                 </div>
               </div>
@@ -1312,21 +1702,59 @@ export default function RoomTelemetryFullPage() {
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Upload Government ID Scan (Front & Back)</label>
                   <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-center space-y-2">
-                    <Upload className="w-6 h-6 text-blue-600 mx-auto" />
-                    <div className="text-xs font-bold text-slate-800">
-                      {govIdFile ? `Attached: ${govIdFile}` : "Drag & Drop Passport, Driver's License or ID Card Scan"}
-                    </div>
-                    <p className="text-[10px] text-slate-400">Accepted formats: PDF, JPG, PNG (Max 15MB)</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setGovIdFile("passport_scanned_verified.pdf");
-                        toast("Government ID scan attached to resident profile!", "success");
-                      }}
-                      className="px-3.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-100 shadow-2xs cursor-pointer"
-                    >
-                      Select ID File
-                    </button>
+                    {govIdUploading ? (
+                      <>
+                        <Loader2 className="w-6 h-6 text-blue-600 mx-auto animate-spin" />
+                        <div className="text-xs font-bold text-slate-700">Compressing & uploading… {govIdProgress}%</div>
+                        <div className="w-full bg-slate-200 rounded-full h-1.5">
+                          <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${govIdProgress}%` }} />
+                        </div>
+                      </>
+                    ) : govIdUrl ? (
+                      <>
+                        <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto" />
+                        <div className="text-xs font-bold text-emerald-700">Uploaded: {govIdFile}</div>
+                        <a href={govIdUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-500 underline">Preview file ↗</a>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-6 h-6 text-blue-600 mx-auto" />
+                        <div className="text-xs font-bold text-slate-800">
+                          {govIdFile ? `Attached: ${govIdFile}` : "Drag & Drop Passport, Driver's License or ID Card Scan"}
+                        </div>
+                        <p className="text-[10px] text-slate-400">Accepted formats: PDF, JPG, PNG (Max 15MB) — compressed automatically</p>
+                      </>
+                    )}
+                    {!govIdUploading && (
+                      <label className="inline-block px-3.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-100 shadow-2xs cursor-pointer">
+                        {govIdUrl ? "Replace ID File" : "Select ID File"}
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const check = validateFile(file, { maxSizeMB: 15 });
+                            if (!check.valid) { toast(check.error!, "error"); return; }
+                            setGovIdUploading(true); setGovIdProgress(0);
+                            const res = await uploadFile(file, {
+                              workspaceId: propId,
+                              context: "gov-id",
+                              onProgress: setGovIdProgress,
+                            });
+                            setGovIdUploading(false);
+                            if (res.success) {
+                              setGovIdFile(file.name);
+                              setGovIdUrl(res.url!);
+                              toast(`ID uploaded & compressed ${res.compressionPct}%! Stored in workspace folder.`, "success");
+                            } else {
+                              toast(res.error || "Upload failed", "error");
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1346,21 +1774,59 @@ export default function RoomTelemetryFullPage() {
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Upload Signed Lease Contract</label>
                   <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-center space-y-2">
-                    <FileText className="w-6 h-6 text-[#FF6B00] mx-auto" />
-                    <div className="text-xs font-bold text-slate-800">
-                      {leaseFile ? `Attached: ${leaseFile}` : "Drag & Drop Signed Tenancy Contract PDF"}
-                    </div>
-                    <p className="text-[10px] text-slate-400">Accepted format: PDF (Max 25MB)</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLeaseFile("signed_lease_agreement.pdf");
-                        toast("Signed lease document attached!", "success");
-                      }}
-                      className="px-3.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-100 shadow-2xs cursor-pointer"
-                    >
-                      Select Lease PDF
-                    </button>
+                    {leaseUploading ? (
+                      <>
+                        <Loader2 className="w-6 h-6 text-[#FF6B00] mx-auto animate-spin" />
+                        <div className="text-xs font-bold text-slate-700">Uploading lease… {leaseProgress}%</div>
+                        <div className="w-full bg-slate-200 rounded-full h-1.5">
+                          <div className="bg-[#FF6B00] h-1.5 rounded-full transition-all" style={{ width: `${leaseProgress}%` }} />
+                        </div>
+                      </>
+                    ) : leaseUrl ? (
+                      <>
+                        <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto" />
+                        <div className="text-xs font-bold text-emerald-700">Uploaded: {leaseFile}</div>
+                        <a href={leaseUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-500 underline">Preview document ↗</a>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-6 h-6 text-[#FF6B00] mx-auto" />
+                        <div className="text-xs font-bold text-slate-800">
+                          {leaseFile ? `Attached: ${leaseFile}` : "Drag & Drop Signed Tenancy Contract PDF"}
+                        </div>
+                        <p className="text-[10px] text-slate-400">Accepted format: PDF, JPG, PNG (Max 25MB)</p>
+                      </>
+                    )}
+                    {!leaseUploading && (
+                      <label className="inline-block px-3.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-100 shadow-2xs cursor-pointer">
+                        {leaseUrl ? "Replace Lease File" : "Select Lease PDF"}
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const check = validateFile(file, { maxSizeMB: 25 });
+                            if (!check.valid) { toast(check.error!, "error"); return; }
+                            setLeaseUploading(true); setLeaseProgress(0);
+                            const res = await uploadFile(file, {
+                              workspaceId: propId,
+                              context: "lease-docs",
+                              onProgress: setLeaseProgress,
+                            });
+                            setLeaseUploading(false);
+                            if (res.success) {
+                              setLeaseFile(file.name);
+                              setLeaseUrl(res.url!);
+                              toast(`Lease uploaded! Stored in workspace folder.`, "success");
+                            } else {
+                              toast(res.error || "Upload failed", "error");
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1389,7 +1855,11 @@ export default function RoomTelemetryFullPage() {
               {currentStep < 3 ? (
                 <button
                   type="button"
-                  onClick={handleNextStep}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleNextStep();
+                  }}
                   className="px-5 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
                 >
                   <span>Next Step</span>
@@ -1691,6 +2161,302 @@ export default function RoomTelemetryFullPage() {
         </div>
       )}
 
+      {/* ------------------- MODAL 4: ISSUE INVOICE MODAL ------------------- */}
+      {showIssueInvoiceModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!invoiceTitle.trim() || !invoiceAmount) {
+                toast("Please enter invoice title and amount.", "info");
+                return;
+              }
+              setIsSubmittingInvoice(true);
+              try {
+                const res = await fetch(`/api/units/${encodeURIComponent(unitId)}/rents`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    title: invoiceTitle,
+                    amount: parseFloat(invoiceAmount),
+                    category: invoiceCategory,
+                    tenantId: invoiceTenantId || null,
+                    propertyId: propId,
+                  }),
+                });
+                if (res.ok) {
+                  const json = await res.json();
+                  toast(json.message || "Invoice issued successfully!", "success");
+                  setShowIssueInvoiceModal(false);
+                  setInvoiceTitle("");
+                  setInvoiceAmount("");
+                  fetchTabData("bills");
+                } else {
+                  toast("Failed to issue invoice", "error");
+                }
+              } catch {
+                toast("Failed to issue invoice", "error");
+              } finally {
+                setIsSubmittingInvoice(false);
+              }
+            }}
+            className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-5 shadow-2xl relative"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-orange-50 text-[#FF6B00]">
+                  <Receipt className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-slate-900 leading-none">Issue New Invoice / Bill</h3>
+                  <p className="text-xs text-slate-500 mt-1">Directly records to database ledger for {unitId}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowIssueInvoiceModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Invoice Title / Description</label>
+                <input
+                  type="text"
+                  required
+                  value={invoiceTitle}
+                  onChange={(e) => setInvoiceTitle(e.target.value)}
+                  placeholder="e.g. July Room Rent Invoice or Water Sub-meter Share"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Amount ($ / ₹)</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={invoiceAmount}
+                    onChange={(e) => setInvoiceAmount(e.target.value)}
+                    placeholder="1000"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Category</label>
+                  <select
+                    value={invoiceCategory}
+                    onChange={(e) => setInvoiceCategory(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    <option value="Rent">Rent</option>
+                    <option value="Utility">Utility</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Deposit">Deposit</option>
+                  </select>
+                </div>
+              </div>
+
+              {occupants.length > 0 && (
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Target Resident (Optional)</label>
+                  <select
+                    value={invoiceTenantId}
+                    onChange={(e) => setInvoiceTenantId(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    <option value="">All Occupants Combined (Unit-wide)</option>
+                    {occupants.map((occ) => (
+                      <option key={occ.id} value={occ.id}>
+                        {occ.name} ({occ.bedSlot})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowIssueInvoiceModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={isSubmittingInvoice}
+                className="px-5 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-md uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+              >
+                {isSubmittingInvoice ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Receipt className="w-4 h-4" />
+                )}
+                <span>Save & Issue Invoice</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ------------------- MODAL 5: LOG MAINTENANCE TICKET MODAL ------------------- */}
+      {showLogMaintenanceModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!maintIssue.trim()) {
+                toast("Please enter maintenance issue description.", "info");
+                return;
+              }
+              setIsSubmittingMaint(true);
+              try {
+                const res = await fetch(`/api/units/${encodeURIComponent(unitId)}/maintenance`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    issue: maintIssue,
+                    category: maintCategory,
+                    priority: maintPriority,
+                    tenantId: maintTenantId || null,
+                    propertyId: propId,
+                  }),
+                });
+                if (res.ok) {
+                  const json = await res.json();
+                  toast(json.message || "Maintenance ticket logged!", "success");
+                  setShowLogMaintenanceModal(false);
+                  setMaintIssue("");
+                  fetchTabData("maintenance");
+                } else {
+                  toast("Failed to log maintenance ticket", "error");
+                }
+              } catch {
+                toast("Failed to log maintenance ticket", "error");
+              } finally {
+                setIsSubmittingMaint(false);
+              }
+            }}
+            className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-5 shadow-2xl relative"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-orange-50 text-[#FF6B00]">
+                  <Wrench className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-slate-900 leading-none">Log Maintenance Ticket</h3>
+                  <p className="text-xs text-slate-500 mt-1">Logs to database for {unitId} (Floor & Property scoped)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLogMaintenanceModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Maintenance Issue / Fault</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={maintIssue}
+                  onChange={(e) => setMaintIssue(e.target.value)}
+                  placeholder="e.g. AC Filter needs cleaning, Water tap leaking in bathroom, Fuse box trip..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Category</label>
+                  <select
+                    value={maintCategory}
+                    onChange={(e) => setMaintCategory(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    <option value="General Repair">General Repair</option>
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="HVAC / AC">HVAC / AC</option>
+                    <option value="Appliance">Appliance</option>
+                    <option value="Carpentry">Carpentry</option>
+                    <option value="Housekeeping / Cleaning">Housekeeping / Cleaning</option>
+                    <option value="Pest Control">Pest Control</option>
+                    <option value="Security / Locks">Security / Locks</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Priority</label>
+                  <select
+                    value={maintPriority}
+                    onChange={(e) => setMaintPriority(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Normal">Normal</option>
+                    <option value="High">High</option>
+                    <option value="Emergency">Emergency 🚨</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Logged By Tenant / Submitter</label>
+                <select
+                  value={maintTenantId}
+                  onChange={(e) => setMaintTenantId(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                >
+                  <option value="">Admin / Property Staff</option>
+                  {occupants.map((occ) => (
+                    <option key={occ.id} value={occ.id}>
+                      {occ.name} ({occ.bedSlot || "Occupant"}) — Tenant ID: {occ.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowLogMaintenanceModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={isSubmittingMaint}
+                className="px-5 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-md uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+              >
+                {isSubmittingMaint ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Wrench className="w-4 h-4" />
+                )}
+                <span>Log Maintenance Ticket</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

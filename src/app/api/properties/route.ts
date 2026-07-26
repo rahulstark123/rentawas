@@ -39,7 +39,9 @@ export async function GET(request: Request) {
     const formattedProperties = properties.map((prop) => {
       const occupiedUnits = prop.units.filter((u) => u.isOccupied).length;
       const totalUnits = prop.units.length || prop.totalUnits;
-      const totalMonthlyYield = prop.units.reduce((acc, u) => acc + (u.rent || 0), 0);
+      const totalMonthlyYield = prop.units
+        .filter((u) => u.isOccupied)
+        .reduce((acc, u) => acc + (u.rent || 0), 0);
       const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
 
       return {
@@ -101,10 +103,38 @@ export async function POST(request: Request) {
     const unitsPerFloorInt = Math.max(1, parseInt(unitsPerFloor, 10) || 4);
     const totalUnitsCount = totalFloorsInt * unitsPerFloorInt;
 
+    // Ensure target Workspace exists in database to satisfy foreign key constraint
+    let workspace = await prisma.workspace.findUnique({
+      where: { wid: workspaceId },
+    });
+
+    if (!workspace) {
+      let ownerProfile = await prisma.profile.findFirst();
+      if (!ownerProfile) {
+        ownerProfile = await prisma.profile.create({
+          data: {
+            id: `owner_${Date.now()}`,
+            email: "owner@rentawas.com",
+            fullName: "Portfolio Owner",
+            role: "OWNER",
+          },
+        });
+      }
+
+      workspace = await prisma.workspace.create({
+        data: {
+          wid: workspaceId,
+          name: "Main Portfolio Workspace",
+          currency: "USD ($)",
+          ownerId: ownerProfile.id,
+        },
+      });
+    }
+
     // Create Property under specific Workspace ID (wid)
     const property = await prisma.property.create({
       data: {
-        workspaceId,
+        workspaceId: workspace.wid,
         name,
         category: category || "Residential Apartment",
         pincode: pincode || "",
@@ -126,7 +156,7 @@ export async function POST(request: Request) {
               propertyId: property.id,
               floorNumber: fl,
               unitNumber: unitNoStr,
-              rent: 2500 + fl * 200,
+              rent: 0,
               isOccupied: false,
             },
           })
@@ -139,7 +169,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: `Property "${property.name}" created under Workspace ID ${workspaceId} with ${totalUnitsCount} units!`,
+        message: `Property "${property.name}" created under Workspace ID ${workspace.wid} with ${totalUnitsCount} units!`,
         data: property,
       },
       { status: 201 }

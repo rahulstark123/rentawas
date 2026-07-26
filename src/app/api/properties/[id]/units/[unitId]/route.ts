@@ -13,7 +13,19 @@ export async function PATCH(request: Request, { params }: Params) {
     const { unitNumber, floorNumber, rent, isOccupied } = body;
 
     const existingUnit = await prisma.unit.findFirst({
-      where: { id: unitId, propertyId },
+      where: {
+        AND: [
+          ...(propertyId ? [{ propertyId }] : []),
+          {
+            OR: [
+              { id: unitId },
+              { unitNumber: unitId },
+              { unitNumber: `Unit ${unitId}` },
+              { unitNumber: unitId.replace("Unit ", "") },
+            ],
+          },
+        ],
+      },
     });
 
     if (!existingUnit) {
@@ -24,7 +36,7 @@ export async function PATCH(request: Request, { params }: Params) {
     }
 
     const updatedUnit = await prisma.unit.update({
-      where: { id: unitId },
+      where: { id: existingUnit.id },
       data: {
         ...(unitNumber && { unitNumber }),
         ...(floorNumber !== undefined && { floorNumber: parseInt(floorNumber, 10) }),
@@ -53,7 +65,19 @@ export async function DELETE(request: Request, { params }: Params) {
     const { id: propertyId, unitId } = await params;
 
     const existingUnit = await prisma.unit.findFirst({
-      where: { id: unitId, propertyId },
+      where: {
+        AND: [
+          ...(propertyId ? [{ propertyId }] : []),
+          {
+            OR: [
+              { id: unitId },
+              { unitNumber: unitId },
+              { unitNumber: `Unit ${unitId}` },
+              { unitNumber: unitId.replace("Unit ", "") },
+            ],
+          },
+        ],
+      },
     });
 
     if (!existingUnit) {
@@ -64,7 +88,7 @@ export async function DELETE(request: Request, { params }: Params) {
     }
 
     await prisma.unit.delete({
-      where: { id: unitId },
+      where: { id: existingUnit.id },
     });
 
     return NextResponse.json({

@@ -3,14 +3,16 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, MessageSquareHeart } from "lucide-react";
 import ComingSoonModal from "@/components/ui/ComingSoonModal";
+import FeedbackModal from "@/components/ui/FeedbackModal";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("Log In Portal Coming Soon!");
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -23,6 +25,11 @@ export default function Navbar() {
   const triggerModal = (title: string) => {
     setModalTitle(title);
     setIsModalOpen(true);
+    setMobileMenuOpen(false);
+  };
+
+  const openFeedback = () => {
+    setIsFeedbackOpen(true);
     setMobileMenuOpen(false);
   };
 
@@ -78,7 +85,15 @@ export default function Navbar() {
           </nav>
 
           {/* Right: Actions */}
-          <div className="hidden md:flex items-center gap-4 font-sans">
+          <div className="hidden md:flex items-center gap-3 font-sans">
+            {/* Feedback Button */}
+            <button
+              onClick={openFeedback}
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-[#FF6B00] border border-slate-200 hover:border-[#FF6B00]/40 hover:bg-orange-50 active:scale-[0.97] transition-all px-4 py-2 rounded-xl cursor-pointer uppercase tracking-wider"
+            >
+              <MessageSquareHeart size={14} />
+              Feedback
+            </button>
             <Link
               href="/login"
               className="text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all px-5 py-2 rounded-xl shadow-xs cursor-pointer uppercase tracking-wider"
@@ -124,6 +139,14 @@ export default function Navbar() {
               </Link>
             </nav>
             <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
+              {/* Mobile Feedback Button */}
+              <button
+                onClick={openFeedback}
+                className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-slate-600 border border-slate-200 py-2.5 rounded-xl cursor-pointer uppercase tracking-wider hover:bg-orange-50 hover:text-[#FF6B00] hover:border-[#FF6B00]/40 transition-all"
+              >
+                <MessageSquareHeart size={14} />
+                Feedback
+              </button>
               <Link
                 href="/login"
                 onClick={() => setMobileMenuOpen(false)}
@@ -141,6 +164,12 @@ export default function Navbar() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={modalTitle}
+      />
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
       />
     </>
   );

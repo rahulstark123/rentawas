@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { 
@@ -39,9 +39,17 @@ import {
   ExternalLink,
   Download,
   AlertTriangle,
-  UserCheck
+  UserCheck,
+  Loader2,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Copy,
+  Check,
+  Upload,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
 
 // Interface for unit item
 export interface UnitItem {
@@ -80,9 +88,9 @@ const PROPERTIES_DB: Record<string, {
     address: "1420 5th Ave, Seattle, WA 98101",
     floors: 6,
     units: 24,
-    occupied: 23,
-    monthlyYield: "$72,500",
-    status: "96% Occupied",
+    occupied: 0,
+    monthlyYield: "$0",
+    status: "0% Occupied",
     tag: "Residential Tower",
   },
   "PROP-2": {
@@ -91,9 +99,9 @@ const PROPERTIES_DB: Record<string, {
     address: "800 Bellevue Way NE, Bellevue, WA 98004",
     floors: 4,
     units: 18,
-    occupied: 17,
-    monthlyYield: "$54,000",
-    status: "94% Occupied",
+    occupied: 0,
+    monthlyYield: "$0",
+    status: "0% Occupied",
     tag: "Luxury Apartments",
   },
   "PROP-3": {
@@ -102,9 +110,9 @@ const PROPERTIES_DB: Record<string, {
     address: "2100 Westlake Ave, Seattle, WA 98121",
     floors: 3,
     units: 12,
-    occupied: 11,
-    monthlyYield: "$32,000",
-    status: "91% Occupied",
+    occupied: 0,
+    monthlyYield: "$0",
+    status: "0% Occupied",
     tag: "Executive Suites",
   },
   "PROP-4": {
@@ -113,9 +121,9 @@ const PROPERTIES_DB: Record<string, {
     address: "1100 Mercer St, Seattle, WA 98109",
     floors: 2,
     units: 8,
-    occupied: 7,
-    monthlyYield: "$18,500",
-    status: "88% Occupied",
+    occupied: 0,
+    monthlyYield: "$0",
+    status: "0% Occupied",
     tag: "Boutique Housing",
   },
 };
@@ -126,15 +134,100 @@ export default function PropertyFloorPlanPage() {
   const { toast } = useToast();
 
   const propId = (params?.id as string) || "PROP-1";
-  const property = PROPERTIES_DB[propId] || PROPERTIES_DB["PROP-1"];
+  const propertyMock = PROPERTIES_DB[propId] || PROPERTIES_DB["PROP-1"];
 
-  const [floorsCount, setFloorsCount] = useState<number>(property.floors || 4);
+  const [loading, setLoading] = useState(true);
+
+  const [propertyData, setPropertyData] = useState({
+    id: propId,
+    name: propertyMock.name,
+    address: propertyMock.address,
+    floors: propertyMock.floors,
+    units: propertyMock.units,
+    occupied: propertyMock.occupied,
+    monthlyYield: propertyMock.monthlyYield,
+    status: propertyMock.status,
+    tag: propertyMock.tag,
+  });
+
+  const [floorsCount, setFloorsCount] = useState<number>(propertyMock.floors || 4);
   const [selectedFloor, setSelectedFloor] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "occupied" | "vacant">("all");
 
   // Dynamic Units State indexed by Floor Number
   const [floorUnitsMap, setFloorUnitsMap] = useState<Record<number, UnitItem[]>>({});
+
+  // Fetch live property details & unit matrix from API
+  useEffect(() => {
+    async function loadPropertyDetails() {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/properties/${propId}?wid=1`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.success && json.data) {
+          const apiProp = json.data;
+          const totalUnitsCount = apiProp.units ? apiProp.units.length : (apiProp.totalUnits || 0);
+          const occupiedCount = apiProp.units ? apiProp.units.filter((u: any) => u.isOccupied).length : 0;
+          const totalYield = apiProp.units 
+            ? apiProp.units.filter((u: any) => u.isOccupied).reduce((acc: number, u: any) => acc + (u.rent || 0), 0) 
+            : 0;
+          const occPercent = totalUnitsCount > 0 ? Math.round((occupiedCount / totalUnitsCount) * 100) : 0;
+
+          setPropertyData({
+            id: apiProp.id,
+            name: apiProp.name,
+            address: apiProp.address,
+            floors: apiProp.floors || 1,
+            units: totalUnitsCount,
+            occupied: occupiedCount,
+            monthlyYield: `$${totalYield.toLocaleString()}`,
+            status: `${occPercent}% Occupied`,
+            tag: apiProp.category || "Property",
+          });
+
+          setFloorsCount(apiProp.floors || 1);
+
+          // Build floorUnitsMap from API units
+          if (apiProp.units && apiProp.units.length > 0) {
+            const apiFloorMap: Record<number, UnitItem[]> = {};
+            apiProp.units.forEach((u: any) => {
+              const fl = u.floorNumber || 1;
+              if (!apiFloorMap[fl]) apiFloorMap[fl] = [];
+
+              const primaryTenant = u.tenants && u.tenants.length > 0 ? u.tenants[0] : null;
+
+              apiFloorMap[fl].push({
+                unitNo: u.unitNumber,
+                type: u.type || "Standard Suite",
+                sqft: u.sqft || "850 sq ft",
+                rooms: u.rooms || "2 Bedrooms • 2 Baths • Living • Kitchen",
+                rent: `$${(u.rent || 0).toLocaleString()}/mo`,
+                status: u.isOccupied ? "Occupied" : "Vacant",
+                tenant: primaryTenant ? {
+                  name: primaryTenant.fullName || primaryTenant.name || "Resident",
+                  contact: "Primary Resident",
+                  phone: primaryTenant.phone || "+1 (555) 000-0000",
+                  email: primaryTenant.email || "resident@rentawas.com",
+                  moveIn: primaryTenant.moveInDate ? new Date(primaryTenant.moveInDate).toISOString().split("T")[0] : "2025-01-01",
+                  leaseEnd: primaryTenant.leaseEndDate ? new Date(primaryTenant.leaseEndDate).toISOString().split("T")[0] : "2026-01-01",
+                  health: "Active Tenant",
+                } : null,
+              });
+            });
+            setFloorUnitsMap(apiFloorMap);
+          }
+        }
+      } catch (err) {
+        console.warn("Could not fetch property detail API:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadPropertyDetails();
+  }, [propId]);
 
   // Modals state
   const [showAddFloorModal, setShowAddFloorModal] = useState(false);
@@ -145,7 +238,7 @@ export default function PropertyFloorPlanPage() {
   const [detailTab, setDetailTab] = useState<"resident" | "docs" | "history" | "maintenance" | "bills">("resident");
 
   // Add Floor Modal Form State
-  const [newFloorUsage, setNewFloorUsage] = useState("Residential Living Suites");
+  const [newFloorUnitsCount, setNewFloorUnitsCount] = useState("4");
 
   // Add Unit Modal Form State
   const [unitFloorTarget, setUnitFloorTarget] = useState<number>(1);
@@ -153,123 +246,155 @@ export default function PropertyFloorPlanPage() {
   const [newUnitType, setNewUnitType] = useState("2 BHK Executive Suite");
   const [newSqft, setNewSqft] = useState("950 sq ft");
   const [newRooms, setNewRooms] = useState("2 Bedrooms • 2 Baths • Living Room • Kitchen • Balcony");
-  const [newRent, setNewRent] = useState("3200");
+  const [newRent, setNewRent] = useState("");
   const [newStatus, setNewStatus] = useState<"Occupied" | "Vacant">("Vacant");
   const [newTenantName, setNewTenantName] = useState("");
 
+  // Unit Actions State (3-dots menu, Edit Unit, Delete Unit)
+  const [activeUnitMenuNo, setActiveUnitMenuNo] = useState<string | null>(null);
+  const [editingUnit, setEditingUnit] = useState<UnitItem | null>(null);
+  const [editFloorTarget, setEditFloorTarget] = useState<number>(1);
+  const [editUnitNo, setEditUnitNo] = useState("");
+  const [editRent, setEditRent] = useState("");
+  const [editStatus, setEditStatus] = useState<"Vacant" | "Occupied">("Vacant");
+  const [editTenantName, setEditTenantName] = useState("");
+
+  const [deletingUnit, setDeletingUnit] = useState<UnitItem | null>(null);
+  const [confirmUnitNameInput, setConfirmUnitNameInput] = useState("");
+  const [isUnitCopied, setIsUnitCopied] = useState(false);
+  const [isDeletingUnit, setIsDeletingUnit] = useState(false);
+
+  // Assign Tenant 3-Step Modal State
+  const [assigningUnitNo, setAssigningUnitNo] = useState<string | null>(null);
+  const [currentTenantStep, setCurrentTenantStep] = useState<1 | 2 | 3>(1);
+  const [tenantName, setTenantName] = useState("");
+  const [tenantBedSlot, setTenantBedSlot] = useState("");
+  const [tenantMonthlyRent, setTenantMonthlyRent] = useState("");
+  const [tenantPhone, setTenantPhone] = useState("");
+  const [tenantSelectedCountry, setTenantSelectedCountry] = useState<Country>(() => getDefaultCountryByLocale(ALL_COUNTRIES));
+  const [tenantEmail, setTenantEmail] = useState("");
+  const [tenantLeaseStart, setTenantLeaseStart] = useState("");
+  const [tenantIdType, setTenantIdType] = useState("Passport");
+  const [tenantIdNumber, setTenantIdNumber] = useState("");
+
+  useEffect(() => {
+    fetch("https://ipapi.co/json/")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.country_code) {
+          const match = ALL_COUNTRIES.find((c) => c.code === data.country_code);
+          if (match) setTenantSelectedCountry(match);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const openAssignTenantModal = (unitNo: string) => {
+    setAssigningUnitNo(unitNo);
+    setTenantName("");
+    setTenantBedSlot("");
+    setTenantMonthlyRent("");
+    setTenantPhone("");
+    setTenantEmail("");
+    setTenantLeaseStart("");
+    setTenantIdNumber("");
+    setCurrentTenantStep(1);
+  };
+
+  const [isSubmittingTenant, setIsSubmittingTenant] = useState(false);
+
+  const handleAssignTenantSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (currentTenantStep < 3) {
+      if (currentTenantStep === 1) {
+        if (!tenantName.trim() || !tenantEmail.trim()) {
+          toast("Please fill in Resident Name and Email before proceeding.", "info");
+          return;
+        }
+        setCurrentTenantStep(2);
+      } else if (currentTenantStep === 2) {
+        setCurrentTenantStep(3);
+      }
+      return;
+    }
+
+    if (isSubmittingTenant) return;
+    if (!tenantName.trim() || !assigningUnitNo) return;
+
+    setIsSubmittingTenant(true);
+
+    const fullPhoneNumber = tenantPhone.trim()
+      ? `${tenantSelectedCountry.dialCode} ${tenantPhone.trim()}`
+      : `${tenantSelectedCountry.dialCode} (555) 019-2834`;
+
+    const rentVal = Number(tenantMonthlyRent) || 0;
+
+    try {
+      await fetch(`/api/units/${encodeURIComponent(assigningUnitNo)}/occupants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: tenantName,
+          email: tenantEmail,
+          phone: fullPhoneNumber,
+          monthlyRent: rentVal,
+          leaseStart: tenantLeaseStart,
+          propertyId: propId,
+          floorNumber: selectedFloor,
+        }),
+      });
+    } catch (err) {
+      console.warn("Could not save tenant via API:", err);
+    } finally {
+      setIsSubmittingTenant(false);
+    }
+
+    setFloorUnitsMap((prevMap) => {
+      const currentFlUnits = prevMap[selectedFloor] || [];
+      const updatedFlUnits = currentFlUnits.map((u) => {
+        if (u.unitNo === assigningUnitNo) {
+          return {
+            ...u,
+            status: "Occupied" as const,
+            rent: rentVal > 0 ? `$${rentVal}/mo` : u.rent,
+            tenant: {
+              name: tenantName,
+              contact: "Primary Resident",
+              phone: fullPhoneNumber,
+              email: tenantEmail || "resident@rentawas.com",
+              moveIn: tenantLeaseStart || new Date().toISOString().split("T")[0],
+              leaseEnd: "2027-07-31",
+              health: "Active Tenant",
+            },
+          };
+        }
+        return u;
+      });
+      return { ...prevMap, [selectedFloor]: updatedFlUnits };
+    });
+
+    toast(`Resident "${tenantName}" assigned to ${assigningUnitNo} successfully!`, "success");
+    setAssigningUnitNo(null);
+  };
+
   const floorsList = Array.from({ length: floorsCount }, (_, i) => floorsCount - i);
 
-  // Generate initial units if not already in state
+  // Generate initial vacant units if not already in state
   const getFloorUnits = (floorNum: number): UnitItem[] => {
     if (floorUnitsMap[floorNum]) {
       return floorUnitsMap[floorNum];
     }
 
-    const isCommercial = property.tag.toLowerCase().includes("commercial") || property.tag.toLowerCase().includes("office");
-
-    let initialUnits: UnitItem[] = [];
-
-    if (isCommercial) {
-      initialUnits = [
-        {
-          unitNo: `Unit ${floorNum}01`,
-          type: "Commercial Office Suite A",
-          sqft: "1,850 sq ft",
-          rooms: "4 Workstation Cabins • 1 Conference Room • Server Rack • Kitchenette",
-          rent: "$6,200/mo",
-          status: "Occupied",
-          tenant: {
-            name: "Apex Global Financial LLC",
-            contact: "Corporate Tenant",
-            phone: "+1 (555) 392-1029",
-            email: "finance@apexglobal.com",
-            moveIn: "2023-03-01",
-            leaseEnd: "2026-02-28",
-            health: "Auto-Debit — Active",
-          },
-        },
-        {
-          unitNo: `Unit ${floorNum}02`,
-          type: "Retail Frontage Shop",
-          sqft: "1,200 sq ft",
-          rooms: "Open Retail Display • Storage Bay • Private Restroom",
-          rent: "$4,800/mo",
-          status: "Vacant",
-          tenant: null,
-        },
-      ];
-    } else {
-      initialUnits = [
-        {
-          unitNo: `Unit ${floorNum}01`,
-          type: "2 BHK Executive Suite",
-          sqft: "980 sq ft",
-          rooms: "2 Bedrooms • 2 Baths • Living • Modular Kitchen • Balcony",
-          rent: "$3,200/mo",
-          status: "Occupied",
-          tenant: {
-            name: "Eleanor Vance",
-            contact: "Primary Resident",
-            phone: "+1 (555) 234-5678",
-            email: "eleanor.vance@company.com",
-            moveIn: "2025-01-15",
-            leaseEnd: "2026-01-14",
-            health: "ACH — Auto Paid",
-          },
-        },
-        {
-          unitNo: `Unit ${floorNum}02`,
-          type: "3 BHK Deluxe Corner",
-          sqft: "1,250 sq ft",
-          rooms: "3 Bedrooms • 3 Baths • Living • Kitchen • 2 Balconies",
-          rent: "$4,100/mo",
-          status: floorNum % 2 === 0 ? "Vacant" : "Occupied",
-          tenant: floorNum % 2 === 0 ? null : {
-            name: "Marcus Sterling",
-            contact: "Primary Resident",
-            phone: "+1 (555) 492-0192",
-            email: "marcus.s@sterling.co",
-            moveIn: "2024-11-15",
-            leaseEnd: "2026-11-14",
-            health: "UPI — Instant Paid",
-          },
-        },
-        {
-          unitNo: `Unit ${floorNum}03`,
-          type: "1 BHK Studio Apartment",
-          sqft: "650 sq ft",
-          rooms: "1 Bedroom • 1 Bath • Open Plan Kitchen",
-          rent: "$2,450/mo",
-          status: "Occupied",
-          tenant: {
-            name: "Sophia Martinez",
-            contact: "Primary Resident",
-            phone: "+1 (555) 718-2940",
-            email: "sophia.m@designstudio.com",
-            moveIn: "2026-01-10",
-            leaseEnd: "2027-01-09",
-            health: "ACH — On Time",
-          },
-        },
-        {
-          unitNo: `Unit ${floorNum}04`,
-          type: "2 BHK Penthouse View",
-          sqft: "1,050 sq ft",
-          rooms: "2 Bedrooms • 2 Baths • Terrace View • Covered Parking",
-          rent: "$3,600/mo",
-          status: "Occupied",
-          tenant: {
-            name: "David Chen",
-            contact: "Primary Resident",
-            phone: "+1 (555) 902-1182",
-            email: "david.c@chentech.org",
-            moveIn: "2025-05-01",
-            leaseEnd: "2026-04-30",
-            health: "Pending Reminders",
-          },
-        },
-      ];
-    }
+    const defaultUnitsCount = 4;
+    const initialUnits: UnitItem[] = Array.from({ length: defaultUnitsCount }, (_, uIdx) => ({
+      unitNo: `Unit ${floorNum}0${uIdx + 1}`,
+      type: "Standard Suite",
+      sqft: "850 sq ft",
+      rooms: "2 Bedrooms • 2 Baths • Living • Kitchen",
+      rent: "$0/mo",
+      status: "Vacant",
+      tenant: null,
+    }));
 
     return initialUnits;
   };
@@ -292,37 +417,62 @@ export default function PropertyFloorPlanPage() {
     setFloorsCount(newFloorNumber);
     setSelectedFloor(newFloorNumber);
 
-    const defaultUnits: UnitItem[] = [
-      {
-        unitNo: `Unit ${newFloorNumber}01`,
-        type: newFloorUsage,
-        sqft: "1,100 sq ft",
-        rooms: "2 Bedrooms • 2 Baths • Balcony",
-        rent: "$3,400/mo",
-        status: "Vacant",
-        tenant: null,
-      },
-      {
-        unitNo: `Unit ${newFloorNumber}02`,
-        type: newFloorUsage,
-        sqft: "1,250 sq ft",
-        rooms: "3 Bedrooms • 2 Baths • Balcony",
-        rent: "$3,800/mo",
-        status: "Vacant",
-        tenant: null,
-      },
-    ];
+    const unitsCount = Math.max(1, parseInt(newFloorUnitsCount, 10) || 4);
+
+    const defaultUnits: UnitItem[] = Array.from({ length: unitsCount }, (_, uIdx) => ({
+      unitNo: `Unit ${newFloorNumber}0${uIdx + 1}`,
+      type: "Standard Suite",
+      sqft: "850 sq ft",
+      rooms: "2 Bedrooms • 2 Baths • Living • Kitchen",
+      rent: "$0/mo",
+      status: "Vacant",
+      tenant: null,
+    }));
 
     setFloorUnitsMap((prev) => ({ ...prev, [newFloorNumber]: defaultUnits }));
-    toast(`Floor ${newFloorNumber} added to ${property.name}!`, "success");
+    toast(`Floor ${newFloorNumber} with ${unitsCount} units added to ${propertyData.name}!`, "success");
     setShowAddFloorModal(false);
   };
 
   // Handler: Add Unit
-  const handleAddUnitSubmit = (e: React.FormEvent) => {
+  const handleAddUnitSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetFl = unitFloorTarget || selectedFloor;
-    const finalUnitNo = newUnitNo.trim() || `Unit ${targetFl}0${(getFloorUnits(targetFl).length + 1)}`;
+    const cleanNum = newUnitNo.replace(/\D/g, "");
+    const finalUnitNo = cleanNum ? `Unit ${cleanNum}` : `Unit ${targetFl}0${(getFloorUnits(targetFl).length + 1)}`;
+
+    const existingOnFloor = getFloorUnits(targetFl);
+    const isDuplicate = existingOnFloor.some((u) => u.unitNo.toLowerCase() === finalUnitNo.toLowerCase());
+
+    if (isDuplicate) {
+      toast(`Unit "${finalUnitNo}" already exists on Floor ${targetFl}! Please use a different unit number.`, "error");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/properties/${propertyData.id}/units`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          unitNumber: finalUnitNo,
+          floorNumber: targetFl,
+          rent: parseFloat(newRent) || 0,
+          isOccupied: newStatus === "Occupied",
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        if (json.error && json.error.includes("already exists")) {
+          toast(json.error, "error");
+          return;
+        }
+      }
+      if (json.success) {
+        toast(`${finalUnitNo} created on Floor ${targetFl} in database!`, "success");
+      }
+    } catch (err) {
+      console.warn("Could not save unit via API, adding locally:", err);
+    }
 
     const newUnitObj: UnitItem = {
       unitNo: finalUnitNo,
@@ -345,12 +495,26 @@ export default function PropertyFloorPlanPage() {
     const existingUnits = getFloorUnits(targetFl);
     const updatedUnits = [newUnitObj, ...existingUnits];
 
-    setFloorUnitsMap((prev) => ({ ...prev, [targetFl]: updatedUnits }));
-    toast(`${finalUnitNo} created on Floor ${targetFl}!`, "success");
     setNewUnitNo("");
+    setNewRent("");
     setNewTenantName("");
     setShowAddUnitModal(false);
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-8 font-sans animate-in fade-in duration-200 min-h-[60vh] flex flex-col justify-center items-center py-24">
+        <div className="p-4 rounded-2xl bg-orange-50 text-[#FF6B00] border border-orange-200/80 shadow-md animate-bounce mb-4">
+          <Building2 className="w-8 h-8" />
+        </div>
+        <div className="flex items-center gap-2 text-slate-900 font-extrabold text-lg">
+          <Loader2 className="w-5 h-5 text-[#FF6B00] animate-spin" />
+          <span>Fetching Property & Inventory Data...</span>
+        </div>
+        <p className="text-xs font-semibold text-slate-400 mt-1">Loading real building specs and unit floor maps</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 font-sans">
@@ -368,24 +532,24 @@ export default function PropertyFloorPlanPage() {
 
           <div className="flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {property.name}
+              {propertyData.name}
             </h1>
             <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 uppercase tracking-wider">
-              {property.tag}
+              {propertyData.tag}
             </span>
           </div>
 
           <p className="text-xs sm:text-sm text-slate-500 mt-1 flex items-center gap-2">
             <MapPin className="w-3.5 h-3.5 text-slate-400" />
-            <span>{property.address}</span>
+            <span>{propertyData.address}</span>
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={() => {
-              toast(`Loading dedicated analytics for ${property.name}...`, "info");
-              router.push(`/dashboard/properties/${property.id}/analytics`);
+              toast(`Loading dedicated analytics for ${propertyData.name}...`, "info");
+              router.push(`/dashboard/properties/${propertyData.id}/analytics`);
             }}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/90 hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-xl shadow-2xs transition-all uppercase tracking-wider cursor-pointer"
           >
@@ -394,16 +558,11 @@ export default function PropertyFloorPlanPage() {
           </button>
 
           <button
-            onClick={() => setShowAddFloorModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all uppercase tracking-wider cursor-pointer"
-          >
-            <Plus className="w-4 h-4 text-orange-400" />
-            <span>Add Floor Level</span>
-          </button>
-
-          <button
             onClick={() => {
               setUnitFloorTarget(selectedFloor);
+              setNewUnitNo("");
+              setNewRent("");
+              setNewTenantName("");
               setShowAddUnitModal(true);
             }}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
@@ -422,15 +581,15 @@ export default function PropertyFloorPlanPage() {
         </div>
         <div>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Total Unit Inventory</span>
-          <span className="text-xl font-black text-slate-900">{floorsCount * 4} Units</span>
+          <span className="text-xl font-black text-slate-900">{propertyData.units} Units</span>
         </div>
         <div>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Occupancy Rate</span>
-          <span className="text-xl font-black text-emerald-600">{property.status}</span>
+          <span className="text-xl font-black text-emerald-600">{propertyData.status}</span>
         </div>
         <div>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Monthly Gross Yield</span>
-          <span className="text-xl font-black text-slate-900">{property.monthlyYield}</span>
+          <span className="text-xl font-black text-slate-900">{propertyData.monthlyYield}</span>
         </div>
       </div>
 
@@ -492,7 +651,7 @@ export default function PropertyFloorPlanPage() {
             className="w-full py-2.5 border border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-50 text-[#FF6B00] rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Add New Floor Level</span>
+            <span>Add New Floor Level</span>
           </button>
         </div>
 
@@ -554,57 +713,116 @@ export default function PropertyFloorPlanPage() {
                   {/* Unit Title & Status Badge with Eye Icon Telemetry Button */}
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-extrabold text-slate-900">{u.unitNo}</h3>
-                        <span className="text-sm font-black text-[#FF6B00]">{u.rent}</span>
-                        
-                        {/* EYE ICON: Full Details Page Link */}
-                        <Link
-                          href={`/dashboard/properties/${propId}/unit/${encodeURIComponent(u.unitNo)}`}
-                          className="p-1.5 px-2.5 rounded-lg bg-orange-50 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-bold ml-1 shadow-2xs"
-                          title="View Full Room Telemetry & History Page"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span>Details</span>
-                        </Link>
-                      </div>
+                      <h3 className="text-lg font-extrabold text-slate-900">{u.unitNo}</h3>
                       <p className="text-xs font-semibold text-slate-600 mt-0.5">{u.type}</p>
                     </div>
 
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                        isOccupied
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-amber-50 text-amber-700 border-amber-200"
-                      }`}
-                    >
-                      {u.status}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {/* EYE ICON: Full Details Page Link */}
+                      <Link
+                        href={`/dashboard/properties/${propId}/unit/${encodeURIComponent(u.unitNo)}`}
+                        className="p-1.5 px-2.5 rounded-lg bg-orange-50 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-bold shadow-2xs"
+                        title="View Full Room Telemetry & History Page"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>Details</span>
+                      </Link>
+
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                          isOccupied
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-amber-50 text-amber-700 border-amber-200"
+                        }`}
+                      >
+                        {u.status}
+                      </span>
+
+                      {/* 3-Dots Unit Actions Dropdown */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setActiveUnitMenuNo(activeUnitMenuNo === u.unitNo ? null : u.unitNo)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                          title="Unit Actions"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+
+                        {activeUnitMenuNo === u.unitNo && (
+                          <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 font-sans animate-in fade-in duration-150">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                openAssignTenantModal(u.unitNo);
+                                setActiveUnitMenuNo(null);
+                              }}
+                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-[#FF6B00] hover:bg-orange-50 flex items-center gap-2 cursor-pointer"
+                            >
+                              <UserPlus className="w-3.5 h-3.5" />
+                              <span>+ Add Resident / Tenant</span>
+                            </button>
+
+                            <div className="border-t border-slate-100 my-1" />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingUnit(u);
+                                setEditFloorTarget(selectedFloor);
+                                setEditUnitNo(u.unitNo.replace(/\D/g, ""));
+                                setEditRent(u.rent ? u.rent.replace(/\D/g, "") : "");
+                                setEditStatus(u.status as any);
+                                setEditTenantName(u.tenant?.name || "");
+                                setActiveUnitMenuNo(null);
+                              }}
+                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 flex items-center gap-2 cursor-pointer"
+                            >
+                              <Edit className="w-3.5 h-3.5 text-blue-600" />
+                              <span>Edit Unit</span>
+                            </button>
+
+                            <div className="border-t border-slate-100 my-1" />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeletingUnit(u);
+                                setConfirmUnitNameInput("");
+                                setIsUnitCopied(false);
+                                setActiveUnitMenuNo(null);
+                              }}
+                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete Unit</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Rooms & Amenity Specification */}
-                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1.5">
-                    <div className="text-slate-500 font-bold text-[10px] uppercase tracking-wider">
-                      <span>Room Breakdown & Layout</span>
+                  {/* Unit Quick Stats Ribbon (Monthly Rent & Active Tickets) */}
+                  <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
+                    <div>
+                      <span className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider block">
+                        Monthly Rent
+                      </span>
+                      <span className="font-extrabold text-slate-900 text-sm">
+                        {u.rent && u.rent !== "$/mo" ? u.rent : "$0/mo"}
+                      </span>
                     </div>
-                    <p className="text-xs font-semibold text-slate-800 leading-relaxed">
-                      {u.rooms}
-                    </p>
-                  </div>
 
-                  {/* Unit Outlays & Expense History Badge */}
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-orange-50/60 border border-orange-200/80 text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-700 font-bold">
-                      <Receipt className="w-4 h-4 text-[#FF6B00]" />
-                      <span>Unit Outlays: <strong className="text-slate-900">$1,450</strong></span>
+                    <div>
+                      <span className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider block">
+                        Active Tickets
+                      </span>
+                      <span className="font-extrabold text-xs text-slate-800 flex items-center gap-1.5 mt-0.5">
+                        <Wrench className="w-3.5 h-3.5 text-amber-500" />
+                        <span>0 Open</span>
+                      </span>
                     </div>
-                    <Link 
-                      href="/dashboard/expenses"
-                      className="text-[11px] font-bold text-[#FF6B00] hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>1 Bill Attached</span>
-                      <Paperclip className="w-3.5 h-3.5" />
-                    </Link>
                   </div>
 
                   {/* Tenant Details (If Occupied) */}
@@ -667,10 +885,10 @@ export default function PropertyFloorPlanPage() {
                         List unit on Portal or assign a new resident.
                       </p>
                       <button
-                        onClick={() => toast(`Opening Tenant Onboarding form for ${u.unitNo}...`, "success")}
+                        onClick={() => openAssignTenantModal(u.unitNo)}
                         className="px-4 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white rounded-xl text-xs font-bold shadow-xs uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5"
                       >
-                        <Plus className="w-4 h-4" />
+                        <UserPlus className="w-4 h-4" />
                         <span>Assign Tenant to {u.unitNo}</span>
                       </button>
                     </div>
@@ -703,7 +921,7 @@ export default function PropertyFloorPlanPage() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {selectedDetailUnit.type} • {selectedDetailUnit.sqft} • {property.name}
+                    {selectedDetailUnit.type} • {selectedDetailUnit.sqft} • {propertyData.name}
                   </p>
                 </div>
               </div>
@@ -1018,7 +1236,7 @@ export default function PropertyFloorPlanPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 leading-none">Add Floor Level</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Floor {floorsCount + 1} will be added to {property.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Floor {floorsCount + 1} will be added to {propertyData.name}</p>
                 </div>
               </div>
               <button
@@ -1032,17 +1250,16 @@ export default function PropertyFloorPlanPage() {
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Floor Usage & Designation</label>
-                <select
-                  value={newFloorUsage}
-                  onChange={(e) => setNewFloorUsage(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                >
-                  <option value="Residential Living Suites">Residential Living Suites</option>
-                  <option value="Penthouse & Sky Villas">Penthouse & Sky Villas</option>
-                  <option value="Commercial Office Space">Commercial Office Space</option>
-                  <option value="Student Housing / Co-Living">Student Housing / Co-Living</option>
-                </select>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Number of Units / Rooms on Floor</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={newFloorUnitsCount}
+                  onChange={(e) => setNewFloorUnitsCount(e.target.value)}
+                  placeholder="e.g. 4"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
               </div>
             </div>
 
@@ -1095,26 +1312,41 @@ export default function PropertyFloorPlanPage() {
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1">Target Floor</label>
-                <select
-                  value={unitFloorTarget}
-                  onChange={(e) => setUnitFloorTarget(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                >
-                  {floorsList.map((fl) => (
-                    <option key={fl} value={fl}>Floor {fl}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={unitFloorTarget}
+                    onChange={(e) => setUnitFloorTarget(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 pr-9 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 appearance-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    {floorsList.map((fl) => (
+                      <option key={fl} value={fl}>Floor {fl}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Unit Number / Code</label>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Unit Number (Numeric Only)</label>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={newUnitNo}
-                  onChange={(e) => setNewUnitNo(e.target.value)}
-                  placeholder={`e.g. Unit ${unitFloorTarget}05`}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  onChange={(e) => setNewUnitNo(e.target.value.replace(/\D/g, ""))}
+                  placeholder={`e.g. ${unitFloorTarget}05`}
+                  className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 ${
+                    newUnitNo && (getFloorUnits(unitFloorTarget || selectedFloor) || []).some((u) => u.unitNo.toLowerCase() === `unit ${newUnitNo.replace(/\D/g, "")}`.toLowerCase())
+                      ? "border-red-400 focus:ring-red-500"
+                      : "border-slate-200 focus:ring-[#FF6B00]"
+                  }`}
                 />
+                {newUnitNo && (getFloorUnits(unitFloorTarget || selectedFloor) || []).some((u) => u.unitNo.toLowerCase() === `unit ${newUnitNo.replace(/\D/g, "")}`.toLowerCase()) && (
+                  <div className="p-2.5 mt-2 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+                    <span>Unit &quot;Unit {newUnitNo.replace(/\D/g, "")}&quot; already exists on Floor {unitFloorTarget || selectedFloor}! Please use a different unit number.</span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1129,21 +1361,24 @@ export default function PropertyFloorPlanPage() {
                       value={newRent}
                       onChange={(e) => setNewRent(e.target.value)}
                       placeholder="3200"
-                      className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      className="w-full pl-7 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Initial Status</label>
-                  <select
-                    value={newStatus}
-                    onChange={(e) => setNewStatus(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  >
-                    <option value="Vacant">Vacant</option>
-                    <option value="Occupied">Occupied</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value as any)}
+                      className="w-full px-3.5 py-2.5 pr-9 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 appearance-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    >
+                      <option value="Vacant">Vacant</option>
+                      <option value="Occupied">Occupied</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
@@ -1181,6 +1416,524 @@ export default function PropertyFloorPlanPage() {
         </div>
       )}
 
+      {/* ------------------- MODAL: EDIT UNIT MODAL ------------------- */}
+      {editingUnit && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const targetFl = editFloorTarget || selectedFloor;
+              const cleanNum = editUnitNo.replace(/\D/g, "");
+              const updatedUnitNo = cleanNum ? `Unit ${cleanNum}` : editingUnit.unitNo;
+
+              // Check if duplicate on target floor (unless unchanged)
+              if (
+                updatedUnitNo.toLowerCase() !== editingUnit.unitNo.toLowerCase() &&
+                (getFloorUnits(targetFl) || []).some(
+                  (u) => u.unitNo.toLowerCase() === updatedUnitNo.toLowerCase()
+                )
+              ) {
+                toast(`Unit "${updatedUnitNo}" already exists on Floor ${targetFl}!`, "error");
+                return;
+              }
+
+              const updatedUnitObj: UnitItem = {
+                ...editingUnit,
+                unitNo: updatedUnitNo,
+                rent: editRent ? `$${editRent}/mo` : "$0/mo",
+                status: editStatus,
+                tenant:
+                  editStatus === "Occupied"
+                    ? {
+                        name: editTenantName.trim() || editingUnit.tenant?.name || "Resident",
+                        contact: "Primary Resident",
+                        phone: editingUnit.tenant?.phone || "+1 (555) 000-0000",
+                        email: editingUnit.tenant?.email || "resident@rentawas.com",
+                        moveIn: editingUnit.tenant?.moveIn || "2026-08-01",
+                        leaseEnd: editingUnit.tenant?.leaseEnd || "2027-07-31",
+                        health: "Active Tenant",
+                      }
+                    : null,
+              };
+
+              // If floor changed, remove from old floor and add to new floor
+              if (targetFl !== selectedFloor) {
+                const oldFlUnits = getFloorUnits(selectedFloor).filter((u) => u.unitNo !== editingUnit.unitNo);
+                const newFlUnits = [updatedUnitObj, ...getFloorUnits(targetFl)];
+                setFloorUnitsMap((prev) => ({
+                  ...prev,
+                  [selectedFloor]: oldFlUnits,
+                  [targetFl]: newFlUnits,
+                }));
+              } else {
+                const updatedUnitsOnFl = getFloorUnits(selectedFloor).map((u) =>
+                  u.unitNo === editingUnit.unitNo ? updatedUnitObj : u
+                );
+                setFloorUnitsMap((prev) => ({ ...prev, [selectedFloor]: updatedUnitsOnFl }));
+              }
+
+              toast(`${updatedUnitNo} updated successfully!`, "success");
+              setEditingUnit(null);
+            }}
+            className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative font-sans max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-orange-50 text-[#FF6B00]">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 leading-none">Edit Unit / Room</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Editing {editingUnit.unitNo} on Floor {editFloorTarget}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingUnit(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Unit Number (Numeric Only)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={editUnitNo}
+                  onChange={(e) => setEditUnitNo(e.target.value.replace(/\D/g, ""))}
+                  placeholder={`e.g. ${editFloorTarget}05`}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent ($)</label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-extrabold text-xs pointer-events-none">
+                      $
+                    </div>
+                    <input
+                      type="number"
+                      value={editRent}
+                      onChange={(e) => setEditRent(e.target.value)}
+                      placeholder="3200"
+                      className="w-full pl-7 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Occupancy Status</label>
+                  <div className="relative">
+                    <select
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value as any)}
+                      className="w-full px-3.5 py-2.5 pr-9 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 appearance-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    >
+                      <option value="Vacant">Vacant</option>
+                      <option value="Occupied">Occupied</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              {editStatus === "Occupied" && (
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Primary Resident Name</label>
+                  <input
+                    type="text"
+                    value={editTenantName}
+                    onChange={(e) => setEditTenantName(e.target.value)}
+                    placeholder="e.g. Alexander Wright"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setEditingUnit(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+              >
+                <span>Save Unit Changes</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ------------------- MODAL: DELETE UNIT CONFIRMATION MODAL ------------------- */}
+      {deletingUnit && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl relative font-sans">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-red-50 text-red-600 border border-red-200 shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-slate-900 leading-snug">Permanently Delete {deletingUnit.unitNo}?</h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">This destructive action cannot be undone.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeletingUnit(null);
+                  setConfirmUnitNameInput("");
+                }}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Danger Warning Alert Note Box */}
+            <div className="p-4 bg-red-50/80 border border-red-200 rounded-2xl text-xs space-y-1.5 text-red-900">
+              <span className="font-extrabold uppercase tracking-wider block text-[11px] text-red-700">
+                ⚠️ Unit Deletion Notice:
+              </span>
+              <p className="text-xs leading-relaxed text-red-800 font-medium">
+                Deleting <strong>{deletingUnit.unitNo}</strong> on Floor {selectedFloor} will permanently remove this room and any associated tenant lease records.
+              </p>
+            </div>
+
+            {/* Target Unit Code Box with Copy Button */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider block">
+                Target Unit Code:
+              </span>
+              <div className="flex items-center justify-between p-3 bg-slate-100/90 border border-slate-200 rounded-2xl font-bold text-slate-900 text-sm select-all">
+                <span className="truncate pr-2">{deletingUnit.unitNo}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(deletingUnit.unitNo);
+                    setIsUnitCopied(true);
+                    setTimeout(() => setIsUnitCopied(false), 2000);
+                  }}
+                  className="p-1.5 px-3 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold shrink-0 shadow-2xs"
+                >
+                  {isUnitCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+                  <span>{isUnitCopied ? "Copied!" : "Copy Code"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Type to Confirm Field */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+                Type unit code or number to confirm:
+              </label>
+              <input
+                type="text"
+                value={confirmUnitNameInput}
+                onChange={(e) => setConfirmUnitNameInput(e.target.value)}
+                placeholder={deletingUnit.unitNo}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+              />
+            </div>
+
+            {/* Footer Action Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeletingUnit(null);
+                  setConfirmUnitNameInput("");
+                }}
+                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={
+                  (confirmUnitNameInput.trim().toLowerCase() !== deletingUnit.unitNo.toLowerCase() &&
+                   confirmUnitNameInput.trim().toLowerCase() !== deletingUnit.unitNo.replace(/\D/g, "").toLowerCase()) ||
+                  isDeletingUnit
+                }
+                onClick={async () => {
+                  setIsDeletingUnit(true);
+                  const currentUnitsOnFl = getFloorUnits(selectedFloor);
+                  const updatedFlUnits = currentUnitsOnFl.filter((u) => u.unitNo !== deletingUnit.unitNo);
+                  setFloorUnitsMap((prev) => ({ ...prev, [selectedFloor]: updatedFlUnits }));
+                  toast(`${deletingUnit.unitNo} permanently deleted from Floor ${selectedFloor}!`, "info");
+                  setIsDeletingUnit(false);
+                  setDeletingUnit(null);
+                  setConfirmUnitNameInput("");
+                }}
+                className="px-5 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 active:scale-[0.98] rounded-xl shadow-md shadow-red-500/20 uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isDeletingUnit ? (
+                  <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+                <span>{isDeletingUnit ? "Deleting..." : "Permanently Delete Unit"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ------------------- MODAL: 3-STEP ASSIGN TENANT MODAL ------------------- */}
+      {assigningUnitNo && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
+          <form
+            onSubmit={handleAssignTenantSubmit}
+            className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-orange-50 text-[#FF6B00]">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-slate-900 leading-none">
+                    Assign Resident to {assigningUnitNo}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {propertyData.name} • Floor {selectedFloor}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setAssigningUnitNo(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 3-Step Wizard Navigation Pills */}
+            <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-2xl text-xs font-bold">
+              <div
+                onClick={() => setCurrentTenantStep(1)}
+                className={`py-2 px-3 rounded-xl text-center cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+                  currentTenantStep === 1 ? "bg-[#FF6B00] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">1</span>
+                <span className="truncate">Resident & Rent</span>
+              </div>
+
+              <div
+                onClick={() => setCurrentTenantStep(2)}
+                className={`py-2 px-3 rounded-xl text-center cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+                  currentTenantStep === 2 ? "bg-[#FF6B00] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">2</span>
+                <span className="truncate">Gov ID Scan</span>
+              </div>
+
+              <div
+                onClick={() => setCurrentTenantStep(3)}
+                className={`py-2 px-3 rounded-xl text-center cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+                  currentTenantStep === 3 ? "bg-[#FF6B00] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">3</span>
+                <span className="truncate">Lease Docs</span>
+              </div>
+            </div>
+
+            {/* STEP 1: BASIC INFO, BED SLOT & USER RENT */}
+            {currentTenantStep === 1 && (
+              <div className="space-y-3.5 text-xs animate-in fade-in duration-150">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Full Resident Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={tenantName}
+                    onChange={(e) => setTenantName(e.target.value)}
+                    placeholder="e.g. Sarah Jenkins"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Bed Slot / Room Designation</label>
+                    <input
+                      type="text"
+                      value={tenantBedSlot}
+                      onChange={(e) => setTenantBedSlot(e.target.value)}
+                      placeholder="e.g. Bed Slot A (Master)"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#FF6B00] uppercase mb-1">
+                      Individual Monthly Rent ($) *
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-700 font-extrabold text-sm pointer-events-none">
+                        $
+                      </div>
+                      <input
+                        type="number"
+                        required
+                        value={tenantMonthlyRent}
+                        onChange={(e) => setTenantMonthlyRent(e.target.value)}
+                        placeholder="1000"
+                        className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-orange-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Phone Number (with Country Code)</label>
+                  <CountryPhoneInput
+                    selectedCountry={tenantSelectedCountry}
+                    onCountryChange={setTenantSelectedCountry}
+                    value={tenantPhone}
+                    onChange={setTenantPhone}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Contact Email Address *</label>
+                    <input
+                      type="email"
+                      required
+                      value={tenantEmail}
+                      onChange={(e) => setTenantEmail(e.target.value)}
+                      placeholder="tenant@domain.com"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Lease Start Date</label>
+                    <input
+                      type="date"
+                      value={tenantLeaseStart}
+                      onChange={(e) => setTenantLeaseStart(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: GOV ID SCAN */}
+            {currentTenantStep === 2 && (
+              <div className="space-y-3.5 text-xs animate-in fade-in duration-150">
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Government ID Type</label>
+                    <select
+                      value={tenantIdType}
+                      onChange={(e) => setTenantIdType(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    >
+                      <option value="Passport">Passport</option>
+                      <option value="Aadhaar Card">Aadhaar Card</option>
+                      <option value="National ID">National ID Card</option>
+                      <option value="Drivers License">Driver&apos;s License</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">ID Number / Code</label>
+                    <input
+                      type="text"
+                      value={tenantIdNumber}
+                      onChange={(e) => setTenantIdNumber(e.target.value)}
+                      placeholder="PASS-981029"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Upload ID Document (PDF / Scan)</label>
+                  <div className="p-4 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 text-center space-y-1">
+                    <Upload className="w-5 h-5 text-slate-400 mx-auto" />
+                    <span className="text-xs font-bold text-slate-700 block">Click or drag file to upload</span>
+                    <span className="text-[10px] text-slate-400">PDF, PNG, JPG up to 10MB</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: LEASE DOCS */}
+            {currentTenantStep === 3 && (
+              <div className="space-y-3.5 text-xs animate-in fade-in duration-150">
+                <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl space-y-1">
+                  <span className="font-bold text-[#FF6B00] block text-xs">Ready to Assign Resident</span>
+                  <p className="text-slate-600 text-[11px]">
+                    Review details and confirm lease assignment to {assigningUnitNo}.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Footer buttons */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setAssigningUnitNo(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              {currentTenantStep < 3 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (currentTenantStep === 1) {
+                      if (!tenantName.trim() || !tenantEmail.trim()) {
+                        toast("Please fill in Resident Name and Email before proceeding.", "info");
+                        return;
+                      }
+                      setCurrentTenantStep(2);
+                    } else if (currentTenantStep === 2) {
+                      setCurrentTenantStep(3);
+                    }
+                  }}
+                  className="px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Next Step</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Assign Resident Now</span>
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

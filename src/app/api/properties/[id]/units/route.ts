@@ -47,6 +47,24 @@ export async function POST(request: Request, { params }: Params) {
       );
     }
 
+    const targetFloor = parseInt(floorNumber, 10) || 1;
+
+    // Check duplicate unit on same floor for this property
+    const existing = await prisma.unit.findFirst({
+      where: {
+        propertyId,
+        floorNumber: targetFloor,
+        unitNumber,
+      },
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: `Unit "${unitNumber}" already exists on Floor ${targetFloor}.` },
+        { status: 400 }
+      );
+    }
+
     const unit = await prisma.unit.create({
       data: {
         propertyId,

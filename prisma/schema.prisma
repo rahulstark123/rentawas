@@ -24,6 +24,7 @@ model Profile {
   
   workspaces   Workspace[] @relation("WorkspaceOwner")
   tenancies    Tenant[]
+  documents    TenantDocument[]
 }
 
 model Workspace {
@@ -36,6 +37,12 @@ model Workspace {
   owner          Profile    @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   
   properties     Property[]
+  units          Unit[]
+  tenants        Tenant[]
+  bills          Bill[]
+  maintenances   Maintenance[]
+  roomHistories  RoomHistory[]
+  documents      TenantDocument[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
@@ -57,6 +64,11 @@ model Property {
   workspace     Workspace @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
   
   units         Unit[]
+  tenants       Tenant[]
+  bills         Bill[]
+  maintenances  Maintenance[]
+  roomHistories RoomHistory[]
+  documents     TenantDocument[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -73,11 +85,19 @@ model Unit {
   propertyId  String
   property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: SetNull)
+
   tenants     Tenant[]
+  bills       Bill[]
+  maintenances Maintenance[]
+  roomHistories RoomHistory[]
+  documents   TenantDocument[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([propertyId])
+  @@index([workspaceId])
 }
 
 model Tenant {
@@ -89,6 +109,12 @@ model Tenant {
   leaseEnd      DateTime?
   healthScore   Int      @default(95)
   monthlyRent   Float    @default(0)
+  bedSlot       String?
+  govIdType     String?
+  govIdNumber   String?
+  govIdUrl      String?
+  leaseDocUrl   String?
+  floorNumber   Int?
   
   profileId     String?
   profile       Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
@@ -96,9 +122,171 @@ model Tenant {
   unitId        String?
   unit          Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
 
+  propertyId    String?
+  property      Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  workspaceId   Int?
+  workspace     Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: SetNull)
+
+  bills         Bill[]
+  maintenances  Maintenance[]
+  roomHistories RoomHistory[]
+  documents     TenantDocument[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([profileId])
   @@index([unitId])
+  @@index([propertyId])
+  @@index([workspaceId])
+}
+
+model Feedback {
+  id          String   @id @default(cuid())
+  category    String   @default("General Feedback")
+  rating      Int      @default(5)
+  isAnonymous Boolean  @default(false)
+  name        String?
+  email       String?
+  subject     String?
+  message     String
+  createdAt   DateTime @default(now())
+}
+
+model Bill {
+  id            String    @id @default(cuid())
+  invoiceNumber String    // e.g. "INV-2026-07-COMB", "UTIL-2026-07"
+  title         String    // e.g. "July Combined Room Rent Invoice"
+  amount        Float     @default(0)
+  status        String    @default("Paid") // "Paid", "Pending", "Overdue", "Cancelled"
+  category      String    @default("Rent") // "Rent", "Utility", "Maintenance", "Deposit"
+  paymentMethod String?   @default("Autopilot Consolidated")
+  dueDate       DateTime  @default(now())
+  paidDate      DateTime?
+  notes         String?
+  floorNumber   Int?
+
+  tenantId      String?
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  unitId        String?
+  unit          Unit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  propertyId    String?
+  property      Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  workspaceId   Int?
+  workspace     Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: SetNull)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([unitId])
+  @@index([propertyId])
+  @@index([workspaceId])
+}
+
+model Maintenance {
+  id            String    @id @default(cuid())
+  ticketNumber  String    // e.g. "TKT-1001"
+  issue         String    // Maintenance issue description
+  category      String    @default("General Repair")
+  priority      String    @default("Normal")
+  status        String    @default("Open") // "Open", "In Progress", "Resolved", "Cancelled"
+  cost          Float     @default(0)
+  notes         String?
+  floorNumber   Int?
+  loggedBy      String?   // e.g. "John Doe (Tenant)", "Admin"
+
+  tenantId      String?   // Column for tenant ID who logged the ticket
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  unitId        String?   // Unit ID
+  unit          Unit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  propertyId    String?   // Property ID
+  property      Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  workspaceId   Int?      // Workspace ID
+  workspace     Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: SetNull)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([unitId])
+  @@index([propertyId])
+  @@index([workspaceId])
+}
+
+model RoomHistory {
+  id                String    @id @default(cuid())
+  name              String    // Past Resident / Occupant Name
+  period            String    // e.g. "Jan 2025 - Dec 2025"
+  rent              String    // e.g. "$1,200/mo"
+  status            String    @default("Lease Completed") // "Lease Completed", "Removed / Evicted", "Active Occupant"
+  review            String?   // Landlord rating review / notes
+  rating            Int?      @default(5) // 1-5 star rating
+  removalReason     String?   // Breach reason if evicted
+  depositSettlement String?   // e.g. "Full Deposit Refunded"
+  keysReturned      Boolean   @default(true)
+  moveIn            DateTime?
+  moveOut           DateTime?
+  floorNumber       Int?
+
+  tenantId          String?
+  tenant            Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  unitId            String?
+  unit              Unit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  propertyId        String?
+  property          Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  workspaceId       Int?
+  workspace         Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: SetNull)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([unitId])
+  @@index([propertyId])
+  @@index([workspaceId])
+}
+
+model TenantDocument {
+  id            String    @id @default(cuid())
+  title         String    // Document title e.g. "Govt ID (Passport)", "Signed Lease Agreement"
+  docType       String    @default("Lease Agreement") // "Govt ID", "Lease Agreement", "Proof of Income", etc.
+  fileUrl       String    // Cloudflare R2 public URL
+  fileName      String    // e.g. "passport_john.pdf"
+  fileSize      String?   // e.g. "1.2 MB"
+  mimeType      String?   // e.g. "application/pdf"
+  floorNumber   Int?
+
+  profileId     String?
+  profile       Profile?  @relation(fields: [profileId], references: [id], onDelete: SetNull)
+
+  tenantId      String?
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  unitId        String?
+  unit          Unit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  propertyId    String?
+  property      Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  workspaceId   Int?
+  workspace     Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: SetNull)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([profileId])
+  @@index([tenantId])
+  @@index([unitId])
+  @@index([propertyId])
+  @@index([workspaceId])
 }
