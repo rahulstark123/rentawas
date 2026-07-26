@@ -129,10 +129,21 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
 
           {/* Right: Actions */}
           <div className="hidden md:flex items-center gap-3 font-sans">
+            {/* Log In Link */}
+            <Link
+              href="/login"
+              className={`text-xs font-bold transition-all px-3.5 py-2 rounded-xl uppercase tracking-wider ${
+                isDark
+                  ? "text-slate-200 hover:text-white hover:bg-white/10 border border-slate-700/80"
+                  : "text-slate-700 hover:text-slate-950 hover:bg-slate-100 border border-slate-200"
+              }`}
+            >
+              Log In
+            </Link>
             {/* Feedback Button */}
             <button
               onClick={openFeedback}
-              className={`flex items-center gap-1.5 text-xs font-bold active:scale-[0.97] transition-all px-4 py-2 rounded-xl cursor-pointer uppercase tracking-wider ${
+              className={`flex items-center gap-1.5 text-xs font-bold active:scale-[0.97] transition-all px-3.5 py-2 rounded-xl cursor-pointer uppercase tracking-wider ${
                 isDark
                   ? "text-slate-200 border border-slate-700/80 hover:bg-white/10 hover:text-white"
                   : "text-slate-600 hover:text-[#FF6B00] border border-slate-200 hover:border-[#FF6B00]/40 hover:bg-orange-50"
@@ -148,7 +159,7 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
                 else triggerModal("Early Access Lead");
                 setMobileMenuOpen(false);
               }}
-              className="text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all px-5 py-2.5 rounded-xl shadow-md shadow-orange-500/20 cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
+              className="text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all px-4 py-2 rounded-xl shadow-md shadow-orange-500/20 cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Early Access</span>
@@ -158,12 +169,11 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
           {/* Mobile Hamburger Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className={`md:hidden p-2 rounded-md transition-colors ${
-              isDark ? "text-white hover:bg-white/10" : "text-slate-800 hover:bg-slate-100"
+            className={`p-2 rounded-lg transition-colors cursor-pointer md:hidden ${
+              isDark ? "text-white hover:bg-slate-800" : "text-slate-800 hover:bg-slate-100"
             }`}
-            aria-label="Toggle Menu"
           >
-            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
 
@@ -201,6 +211,13 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
               </Link>
             </nav>
             <div className="pt-3 border-t border-slate-800 flex flex-col gap-2.5">
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-slate-200 border border-slate-700 py-2.5 rounded-xl cursor-pointer uppercase tracking-wider hover:bg-white/10 transition-all text-center"
+              >
+                Log In
+              </Link>
               <button
                 onClick={openFeedback}
                 className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-slate-200 border border-slate-700 py-2.5 rounded-xl cursor-pointer uppercase tracking-wider hover:bg-white/10 transition-all"

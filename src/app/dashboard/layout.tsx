@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, 
@@ -42,6 +42,7 @@ import { IconAutopilotRent } from "@/components/ui/CustomIcons";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/Toast";
 import GlobalSearchModal from "@/components/ui/GlobalSearchModal";
+import ListPropertyModal from "@/components/ui/ListPropertyModal";
 
 export default function DashboardLayout({
   children,
@@ -49,6 +50,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -69,6 +71,74 @@ export default function DashboardLayout({
     role: "Portfolio Owner",
     initials: "AW",
   });
+
+  // View Mode Switcher: Manage View (Operations) vs Listing View  // Mode Switcher & Listing State
+  const [dashboardViewMode, setDashboardViewMode] = useState<"manage" | "listing">("manage");
+  const [showListingModal, setShowListingModal] = useState(false);
+  const [listingSubTab, setListingSubTab] = useState<"inquiries" | "myListings" | "addNew">("inquiries");
+  const [showAddPropertyWizard, setShowAddPropertyWizard] = useState(false);
+
+  // Inquiries / Leads Data (Who contacted / selected properties)
+  const [tenantLeads, setTenantLeads] = useState([
+    {
+      id: "LEAD-101",
+      tenantName: "Rohan Sharma",
+      phone: "+91 98765 43210",
+      email: "rohan.sharma@gmail.com",
+      propertyTitle: "The Regent Luxury 2BHK Residence",
+      moveInDate: "2026-08-10",
+      status: "Tenant Chosen",
+      date: "24 Jul 2026",
+    },
+    {
+      id: "LEAD-102",
+      tenantName: "Pooja Verma",
+      phone: "+91 98123 45678",
+      email: "pooja.v@outlook.com",
+      propertyTitle: "Horizon Heights Executive Studio",
+      moveInDate: "2026-08-01",
+      status: "Inquiry Pending",
+      date: "25 Jul 2026",
+    },
+    {
+      id: "LEAD-103",
+      tenantName: "Amitabh Sen",
+      phone: "+91 97654 32109",
+      email: "amitabh.sen@techcorp.io",
+      propertyTitle: "Royal Stays PG Bed 4",
+      moveInDate: "2026-08-15",
+      status: "Visit Scheduled",
+      date: "26 Jul 2026",
+    },
+  ]);
+
+  // Landlord Listings
+  const [myListings, setMyListings] = useState([
+    {
+      id: "LIST-1",
+      title: "The Regent Luxury 2BHK Residence",
+      rent: "₹28,500/mo",
+      bhk: "2 BHK",
+      location: "Indiranagar, Bengaluru",
+      status: "Active",
+      inquiriesCount: 14,
+    },
+    {
+      id: "LIST-2",
+      title: "Horizon Heights Executive Studio",
+      rent: "₹18,000/mo",
+      bhk: "1 BHK",
+      location: "HSR Layout, Bengaluru",
+      status: "Active",
+      inquiriesCount: 9,
+    },
+  ]);
+
+  // Form state for New Free Property Listing
+  const [newTitle, setNewTitle] = useState("");
+  const [newRent, setNewRent] = useState("");
+  const [newBhk, setNewBhk] = useState("2 BHK");
+  const [newLocation, setNewLocation] = useState("");
 
   useEffect(() => {
     async function loadWorkspacePlan() {
@@ -161,17 +231,24 @@ export default function DashboardLayout({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const navItems = [
-    { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Properties & Units", href: "/dashboard/properties", icon: Building2 },
-    { name: "Rent Payments", href: "/dashboard/payments", icon: CreditCard },
-    { name: "AI Documents", href: "/dashboard/leases", icon: FileText, spark: true },
-    { name: "Tenants & Health", href: "/dashboard/tenants", icon: Users },
-    { name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench, count: 3 },
-    { name: "Property Expenses", href: "/dashboard/expenses", icon: Receipt },
-    { name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
-    { name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },
-    { name: "Help & Support", href: "/dashboard/support", icon: HelpCircle },
+  const manageNavItems = [
+    { id: "overview", name: "Overview", href: "/dashboard", icon: LayoutDashboard },
+    { id: "properties", name: "Properties & Units", href: "/dashboard/properties", icon: Building2 },
+    { id: "payments", name: "Rent Payments", href: "/dashboard/payments", icon: CreditCard },
+    { id: "leases", name: "AI Documents", href: "/dashboard/leases", icon: FileText, spark: true },
+    { id: "tenants", name: "Tenants & Health", href: "/dashboard/tenants", icon: Users },
+    { id: "maintenance", name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench, count: 3 },
+    { id: "expenses", name: "Property Expenses", href: "/dashboard/expenses", icon: Receipt },
+    { id: "settings", name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
+    { id: "billing", name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },
+  ];
+
+  const listingNavItems = [
+    { id: "inquiries", name: "Tenant Inquiries & Leads", subTab: "inquiries", icon: Users, count: 3, badge: "FREE" },
+    { id: "myListings", name: "My Published Listings", subTab: "myListings", icon: Building2 },
+    { id: "publicSite", name: "Public Marketplace", href: "/find-property", external: true, icon: Search },
+    { id: "settings", name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
+    { id: "billing", name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },
   ];
 
   const properties = [
@@ -364,16 +441,80 @@ export default function DashboardLayout({
             </div>
           )}
 
-          {/* Navigation Links */}
-          <nav className="px-3 py-2 space-y-1">
-            {navItems.map((item) => {
+          {/* Mode Header Label */}
+          {!isCollapsed && (
+            <div className="px-4 pt-2 pb-1.5 text-[10px] font-black uppercase tracking-wider flex items-center justify-between">
+              <span className={dashboardViewMode === "listing" ? "text-[#FF6B00]" : "text-slate-400"}>
+                {dashboardViewMode === "listing" ? "🔥 Marketplace Hub" : "🏢 Rental Operations"}
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[8px] bg-white/10 text-slate-300">
+                {dashboardViewMode === "listing" ? "LISTING VIEW" : "MANAGE VIEW"}
+              </span>
+            </div>
+          )}
+
+          {/* Dynamic Navigation Links */}
+          <nav className="px-3 py-1 space-y-1">
+            {(dashboardViewMode === "listing" ? listingNavItems : manageNavItems).map((item: any) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
-              
+              const isListingItem = dashboardViewMode === "listing";
+              const isActive = pathname !== "/dashboard"
+                ? (item.href && (pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))))
+                : isListingItem
+                ? item.subTab === listingSubTab
+                : pathname === item.href;
+
+              if (isListingItem && item.subTab) {
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setListingSubTab(item.subTab as any);
+                      if (pathname !== "/dashboard") {
+                        router.push("/dashboard");
+                      }
+                      setSidebarOpen(false);
+                    }}
+                    title={isCollapsed ? item.name : undefined}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all relative group cursor-pointer text-left ${
+                      isActive
+                        ? "bg-[#FF6B00] text-white shadow-md shadow-orange-500/20"
+                        : "text-slate-400 hover:text-white hover:bg-[#141A26]"
+                    } ${isCollapsed ? "justify-center px-0" : ""}`}
+                  >
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-slate-400 group-hover:text-white"}`} />
+                    
+                    {!isCollapsed && (
+                      <span className="truncate flex-1">{item.name}</span>
+                    )}
+
+                    {!isCollapsed && item.spark && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-0.5">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        FREE
+                      </span>
+                    )}
+
+                    {!isCollapsed && item.badge && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-400">
+                        {item.badge}
+                      </span>
+                    )}
+
+                    {!isCollapsed && item.count && (
+                      <span className="w-4 h-4 rounded-full bg-orange-500 text-white text-[9px] font-bold flex items-center justify-center">
+                        {item.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              }
+
               return (
                 <Link
-                  key={item.name}
-                  href={item.href}
+                  key={item.id || item.name}
+                  href={item.href || "#"}
+                  target={item.external ? "_blank" : undefined}
                   onClick={() => setSidebarOpen(false)}
                   title={isCollapsed ? item.name : undefined}
                   className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all relative group cursor-pointer ${
@@ -471,7 +612,49 @@ export default function DashboardLayout({
           {/* Actions & Notifications */}
           <div className="flex items-center gap-3">
 
-            {/* Active Plan Badge before Profile Icon */}
+            {/* View Mode Switcher Toggle: Manage View vs Listing View (Positioned right before STARTER PLAN badge) */}
+            <div className="bg-slate-100 p-1 rounded-xl border border-slate-200/90 flex items-center gap-1 shrink-0 font-sans">
+              <button
+                type="button"
+                onClick={() => {
+                  setDashboardViewMode("manage");
+                  setShowListingModal(false);
+                  toast("Switched to Rental Operations & Management View", "info");
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  dashboardViewMode === "manage"
+                    ? "bg-[#0B132B] text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                }`}
+                title="Manage rental ledgers, tenant profiles, and maintenance"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Manage View</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDashboardViewMode("listing");
+                  setListingSubTab("inquiries");
+                  if (pathname !== "/dashboard") {
+                    router.push("/dashboard");
+                  }
+                  toast("Switched to Free Property Listing & Tenant Inquiries", "success");
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 relative ${
+                  dashboardViewMode === "listing"
+                    ? "bg-[#FF6B00] text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                }`}
+                title="List properties for free & view tenant inquiries"
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Listing View</span>
+              </button>
+            </div>
+
+            {/* Active Plan Badge after View Mode Switcher */}
             <Link
               href="/dashboard/billing"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200/80 text-[#FF6B00] transition-all cursor-pointer group shrink-0"
@@ -553,7 +736,324 @@ export default function DashboardLayout({
 
         {/* Page Main Content Area */}
         <main className="p-4 sm:p-6 md:p-8 flex-1">
-          {children}
+          {pathname !== "/dashboard" || dashboardViewMode === "manage" ? (
+            children
+          ) : (
+            /* Landlord Free Listing & Tenant Inquiries Full Page Dashboard View */
+            <div className="space-y-6 font-sans animate-in fade-in duration-200">
+              
+              {/* Header Banner */}
+              <div className="bg-[#0B132B] p-6 sm:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="relative z-10 space-y-2">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF6B00]/20 border border-[#FF6B00]/40 text-[#FF6B00] text-xs font-extrabold uppercase tracking-wider">
+                    <Building2 className="w-4 h-4" />
+                    <span>Landlord Free Listing & Marketplace Hub</span>
+                  </div>
+                  <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+                    Property Listings & Tenant Inquiries
+                  </h1>
+                  <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                    List vacant properties for 100% free with zero brokerage. See who contacted or selected your properties, manage inquiries, and confirm bookings.
+                  </p>
+                </div>
+
+                <div className="relative z-10 flex items-center gap-3 shrink-0">
+                  <button
+                    onClick={() => setShowAddPropertyWizard(true)}
+                    className="px-5 py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>List New Property Free</span>
+                  </button>
+                  <Link
+                    href="/find-property"
+                    target="_blank"
+                    className="px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 uppercase tracking-wider"
+                  >
+                    <span>Public Marketplace</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* 4 KPI Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                    <span>Published Listings</span>
+                    <Building2 className="w-4 h-4 text-[#FF6B00]" />
+                  </div>
+                  <div className="text-2xl font-extrabold text-slate-900">{myListings.length} Active</div>
+                  <p className="text-[11px] font-bold text-emerald-600">✓ 100% Free • Zero Brokerage</p>
+                </div>
+
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                    <span>Tenant Inquiries</span>
+                    <Users className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <div className="text-2xl font-extrabold text-slate-900">{tenantLeads.length} Leads</div>
+                  <p className="text-[11px] font-bold text-slate-500">Direct Landlord Contact Requests</p>
+                </div>
+
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                    <span>Tenants Chosen</span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div className="text-2xl font-extrabold text-slate-900">
+                    {tenantLeads.filter((l) => l.status === "Tenant Chosen").length} Selected
+                  </div>
+                  <p className="text-[11px] font-bold text-emerald-600">Agreement & Onboarding Ready</p>
+                </div>
+
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                    <span>Marketplace Views</span>
+                    <TrendingUp className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="text-2xl font-extrabold text-slate-900">1,420</div>
+                  <p className="text-[11px] font-bold text-blue-600">High Tenant Visibility</p>
+                </div>
+              </div>
+
+              {/* Page Content Body */}
+
+              {/* Page Content Body */}
+              
+              {/* SUB TAB 1: Tenant Inquiries & Leads (Who Contacted or Chosen) */}
+              {listingSubTab === "inquiries" && (
+                <div className="space-y-4">
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-extrabold text-slate-900">Direct Tenant Inquiries & Contact Leads</h3>
+                        <p className="text-xs text-slate-500">List of tenants who contacted or were selected for your property listings</p>
+                      </div>
+                      <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold self-start sm:self-auto">
+                        ✓ Direct Landlord Inquiries
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs font-sans">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                          <tr>
+                            <th className="py-3.5 px-4">Interested Tenant</th>
+                            <th className="py-3.5 px-4">Contact Phone</th>
+                            <th className="py-3.5 px-4">Property Interested</th>
+                            <th className="py-3.5 px-4">Move-in Date</th>
+                            <th className="py-3.5 px-4">Status / Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {tenantLeads.map((lead) => (
+                            <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-4 px-4">
+                                <div className="font-extrabold text-slate-900 text-sm">{lead.tenantName}</div>
+                                <div className="text-[11px] text-slate-400 font-medium">{lead.email}</div>
+                              </td>
+                              <td className="py-4 px-4 font-bold text-slate-900 text-xs">
+                                {lead.phone}
+                              </td>
+                              <td className="py-4 px-4 font-semibold text-slate-700">
+                                {lead.propertyTitle}
+                              </td>
+                              <td className="py-4 px-4 text-slate-600 font-semibold">
+                                {lead.moveInDate}
+                              </td>
+                              <td className="py-4 px-4">
+                                <select
+                                  value={lead.status}
+                                  onChange={(e) => {
+                                    const nextStatus = e.target.value;
+                                    setTenantLeads(
+                                      tenantLeads.map((l) =>
+                                        l.id === lead.id ? { ...l, status: nextStatus } : l
+                                      )
+                                    );
+                                    toast(`Updated lead status for ${lead.tenantName} to ${nextStatus}`, "success");
+                                  }}
+                                  className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer focus:outline-none border ${
+                                    lead.status === "Tenant Chosen"
+                                      ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                      : lead.status === "Visit Scheduled"
+                                      ? "bg-purple-100 text-purple-800 border-purple-300"
+                                      : "bg-amber-100 text-amber-800 border-amber-300"
+                                  }`}
+                                >
+                                  <option value="Inquiry Pending">Inquiry Pending</option>
+                                  <option value="Visit Scheduled">Visit Scheduled</option>
+                                  <option value="Tenant Chosen">Tenant Chosen</option>
+                                  <option value="Contacted">Contacted</option>
+                                </select>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUB TAB 2: My Published Listings */}
+              {listingSubTab === "myListings" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-extrabold text-slate-900">Your Active Free Property Listings</h3>
+                      <p className="text-xs text-slate-500 font-medium">Listings visible on RentAwas Marketplace</p>
+                    </div>
+                    <button
+                      onClick={() => setShowAddPropertyWizard(true)}
+                      className="px-4 py-2 bg-[#FF6B00] text-white text-xs font-bold rounded-xl shadow-xs hover:bg-[#E56000] cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>List New Unit</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {myListings.map((item) => (
+                      <div key={item.id} className="p-6 border border-slate-200/90 rounded-2xl bg-white space-y-4 shadow-2xs hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold uppercase border border-emerald-200">
+                            {item.status} • 100% Free
+                          </span>
+                          <span className="text-sm font-black text-[#FF6B00]">{item.rent}</span>
+                        </div>
+
+                        <div>
+                          <h4 className="font-extrabold text-slate-900 text-base">{item.title}</h4>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">{item.location} • {item.bhk}</p>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                          <span className="font-extrabold text-slate-800">🔥 {item.inquiriesCount} Inquiries Received</span>
+                          <button
+                            onClick={() => {
+                              setListingSubTab("inquiries");
+                              toast(`Viewing tenant inquiries for ${item.title}`, "info");
+                            }}
+                            className="px-3 py-1.5 bg-slate-900 text-white rounded-lg font-bold hover:bg-slate-800 cursor-pointer"
+                          >
+                            View Inquiries
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SUB TAB 3: Add New Free Listing Form */}
+              {listingSubTab === "addNew" && (
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs max-w-2xl mx-auto space-y-6">
+                  <div>
+                    <h3 className="text-xl font-extrabold text-slate-900">List New Property For 100% Free</h3>
+                    <p className="text-xs text-slate-500 font-medium mt-1">
+                      Publish your vacant apartment or PG room to RentAwas Marketplace with zero brokerage and direct tenant calls.
+                    </p>
+                  </div>
+
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!newTitle || !newRent || !newLocation) {
+                        toast("Please fill in property title, rent, and location.", "error");
+                        return;
+                      }
+                      const newEntry = {
+                        id: `LIST-${Date.now()}`,
+                        title: newTitle,
+                        rent: `₹${newRent}/mo`,
+                        bhk: newBhk,
+                        location: newLocation,
+                        status: "Active",
+                        inquiriesCount: 0,
+                      };
+                      setMyListings([newEntry, ...myListings]);
+                      setNewTitle("");
+                      setNewRent("");
+                      setNewLocation("");
+                      setListingSubTab("myListings");
+                      toast("Property published for 100% Free Tenant Discovery!", "success");
+                    }}
+                    className="space-y-4"
+                  >
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Property Title *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        placeholder="e.g. Sunny 2BHK Apartment with Lake View"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                          Monthly Rent (₹) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newRent}
+                          onChange={(e) => setNewRent(e.target.value)}
+                          placeholder="e.g. 25000"
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                          BHK / Unit Type
+                        </label>
+                        <select
+                          value={newBhk}
+                          onChange={(e) => setNewBhk(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                        >
+                          <option value="1 BHK">1 BHK</option>
+                          <option value="2 BHK">2 BHK</option>
+                          <option value="3 BHK">3 BHK</option>
+                          <option value="Single PG Bed">Single PG Bed</option>
+                          <option value="Studio Flat">Studio Flat</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Location / Address *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newLocation}
+                        onChange={(e) => setNewLocation(e.target.value)}
+                        placeholder="e.g. Sector 54, Golf Course Road, Gurgaon"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-3.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs rounded-xl shadow-md transition-all uppercase tracking-wider cursor-pointer"
+                    >
+                      Publish Property Listing For 100% Free
+                    </button>
+                  </form>
+                </div>
+              )}
+
+            </div>
+          )}
         </main>
       </div>
 
@@ -561,6 +1061,16 @@ export default function DashboardLayout({
       <GlobalSearchModal
         isOpen={showSearchModal}
         onClose={() => setShowSearchModal(false)}
+      />
+
+      {/* Multi-Step Property Listing Wizard Modal */}
+      <ListPropertyModal
+        isOpen={showAddPropertyWizard}
+        onClose={() => setShowAddPropertyWizard(false)}
+        onSuccess={(newListing) => {
+          setMyListings([newListing, ...myListings]);
+          setListingSubTab("myListings");
+        }}
       />
 
     </div>
