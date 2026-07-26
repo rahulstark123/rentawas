@@ -21,13 +21,15 @@ import {
   Printer,
   ChevronDown,
   Sun,
-  Moon
+  Moon,
+  Check
 } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 
 export interface LegalDocumentTemplate {
   id: string;
   title: string;
-  category: "Global & US/UK" | "India Specific" | "Notices & Addendums";
+  category: "Global & US/UK" | "India Specific" | "Notices & Extra Rules";
   icon: any;
   description: string;
   jurisdictions: string[];
@@ -36,95 +38,93 @@ export interface LegalDocumentTemplate {
 export const LEGAL_DOCUMENTS: LegalDocumentTemplate[] = [
   {
     id: "res-lease",
-    title: "1. Residential Lease Agreement",
+    title: "1. Home Rent Agreement",
     category: "Global & US/UK",
     icon: FileText,
-    description: "Standard 12-Month / 24-Month tenancy contract with local housing code clauses.",
-    jurisdictions: ["Seattle, WA (USA)", "New York, NY (USA)", "London (UK)", "Dubai (RERA - UAE)", "Sydney (Australia)"],
+    description: "Standard 12-month or 24-month agreement for renting a home or flat.",
+    jurisdictions: ["Seattle, WA (USA)", "New York, NY (USA)", "London (UK)", "Dubai (UAE)", "Sydney (Australia)"],
   },
   {
     id: "leave-license",
-    title: "2. Leave & License Agreement (India)",
+    title: "2. Rent Agreement (India)",
     category: "India Specific",
     icon: FileCheck2,
-    description: "11-Month registered Leave & License agreement for Indian state rent control laws.",
+    description: "Standard 11-month rent agreement following Indian city and state rules.",
     jurisdictions: ["Maharashtra (Mumbai/Pune)", "Karnataka (Bengaluru)", "Delhi NCR (Gurugram/Noida)", "Telangana (Hyderabad)", "Tamil Nadu (Chennai)"],
   },
   {
     id: "comm-lease",
-    title: "3. Commercial Property Lease",
+    title: "3. Commercial & Shop Lease",
     category: "Global & US/UK",
     icon: Building2,
-    description: "Retail / Office lease with lock-in period, CAM fees, escalation rate & GST/VAT clauses.",
-    jurisdictions: ["Global Commercial Standard", "India Commercial Code", "UK Commercial Lease", "US Triple Net (NNN)"],
+    description: "Lease agreement for shops, offices, or commercial spaces.",
+    jurisdictions: ["Global Standard Commercial", "India Commercial Code", "UK Commercial Lease", "US Commercial Lease"],
   },
   {
     id: "eviction-notice",
-    title: "4. Notice to Vacate / Eviction Notice",
-    category: "Notices & Addendums",
+    title: "4. Notice to Vacate / Move Out",
+    category: "Notices & Extra Rules",
     icon: AlertTriangle,
-    description: "Statutory 30/60-Day notice for non-payment, lease expiration, or property recovery.",
-    jurisdictions: ["US Statutory Notice", "India Legal Notice", "UK Section 21 / Section 8", "UAE RERA 12-Month Notice"],
+    description: "30 or 60-day notice for unpaid rent or asking a tenant to move out.",
+    jurisdictions: ["US Notice Standard", "India Legal Notice", "UK Section 21 / Section 8", "UAE 12-Month Notice"],
   },
   {
     id: "rent-increase",
-    title: "5. Rent Increase Notice Letter",
-    category: "Notices & Addendums",
+    title: "5. Rent Increase Notice",
+    category: "Notices & Extra Rules",
     icon: TrendingUp,
-    description: "Formal statutory notice adjusting monthly rent based on CPI / market escalation.",
-    jurisdictions: ["Global Market Adjustment", "India Annual Revision", "US Rent Ordinance Compliant"],
+    description: "Official letter informing tenant about upcoming rent increase.",
+    jurisdictions: ["Global Rent Revision", "India Annual Rent Revision", "US Rent Ordinance Compliant"],
   },
   {
     id: "deposit-refund",
-    title: "6. Security Deposit Refund Ledger",
-    category: "Notices & Addendums",
+    title: "6. Security Deposit Refund Receipt",
+    category: "Notices & Extra Rules",
     icon: Receipt,
-    description: "Itemized security deposit settlement memo detailing repair deductions & balance payout.",
-    jurisdictions: ["US Itemized Escrow Refund", "India Deposit Settlement", "UK Tenancy Deposit Scheme"],
+    description: "Summary of security deposit refund showing repair deductions and final payout.",
+    jurisdictions: ["US Escrow Refund Standard", "India Deposit Settlement", "UK Tenancy Deposit Scheme"],
   },
   {
     id: "inspection-report",
-    title: "7. Move-In / Move-Out Inspection Report",
-    category: "Notices & Addendums",
+    title: "7. House Move-In / Move-Out Checklist",
+    category: "Notices & Extra Rules",
     icon: ClipboardCheck,
-    description: "Room-by-room physical condition checklist with inventory verification and photo proof logs.",
+    description: "Room-by-room check of house condition, lights, plumbing, and key handover.",
     jurisdictions: ["Global Standard Inventory Check", "India Unit Handover Form"],
   },
   {
     id: "pet-sublet",
-    title: "8. Pet & Subletting Addendum",
-    category: "Notices & Addendums",
+    title: "8. Pet & Guest Rules Agreement",
+    category: "Notices & Extra Rules",
     icon: ShieldCheck,
-    description: "Special rider for pet security deposit, liability waiver, guest caps & subleasing restrictions.",
+    description: "Rules for pets, extra guests, and prohibiting unauthorized subletting.",
     jurisdictions: ["Global Standard Pet Rider", "India Co-living Sublet Rider"],
   },
   {
     id: "maintenance-disclosure",
-    title: "9. Maintenance & Repair Disclosure",
-    category: "Notices & Addendums",
+    title: "9. Repair & Maintenance Duties",
+    category: "Notices & Extra Rules",
     icon: Wrench,
-    description: "Allocation matrix defining Landlord vs Tenant repair duties (Plumbing, Electrical, HVAC).",
+    description: "Clear list showing who pays for repairs (Landlord vs Tenant).",
     jurisdictions: ["Global Tenant Maintenance Rider", "India Structural Maintenance Clause"],
   },
   {
     id: "police-verification",
-    title: "10. Tenant Police Verification & Society NOC",
+    title: "10. Police Verification & Society NOC",
     category: "India Specific",
     icon: UserCheck,
-    description: "Official Police Verification declaration form and Housing Society / HOA move-in NOC.",
-    jurisdictions: ["India State Police Verification (Form 1)", "Global HOA / Society Move-In Authorization"],
+    description: "Police verification form and Housing Society move-in permission letter.",
+    jurisdictions: ["India State Police Verification (Form 1)", "Global Housing Society Move-In Permission"],
   },
 ];
-
-import { useToast } from "@/components/ui/Toast";
 
 export default function AILeaseArchitectPage() {
   const { toast } = useToast();
   const [selectedDoc, setSelectedDoc] = useState<LegalDocumentTemplate>(LEGAL_DOCUMENTS[0]);
   const [jurisdiction, setJurisdiction] = useState(LEGAL_DOCUMENTS[0].jurisdictions[0]);
-  const [previewTheme, setPreviewTheme] = useState<"dark" | "light">("dark");
+  const [previewTheme, setPreviewTheme] = useState<"dark" | "light">("light");
   
-  // Universal Form States
+  // Form States in simple English
   const [landlordName, setLandlordName] = useState("Alexander Wright");
   const [tenantName, setTenantName] = useState("Eleanor Vance");
   const [propertyAddress, setPropertyAddress] = useState("Regent Tower, Unit 302, 5th Ave");
@@ -152,19 +152,19 @@ export default function AILeaseArchitectPage() {
     setTimeout(() => {
       setIsGenerating(false);
       toast(`AI successfully generated ${selectedDoc.title.split(". ")[1]}!`, "success");
-    }, 700);
+    }, 600);
   };
 
   const handleCopy = () => {
     setCopied(true);
-    toast("Legal contract text copied to clipboard!", "success");
+    toast("Document text copied to clipboard!", "success");
     setTimeout(() => setCopied(false), 2000);
   };
 
   const isDark = previewTheme === "dark";
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 font-sans">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -174,11 +174,11 @@ export default function AILeaseArchitectPage() {
             </h1>
             <span className="px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-[11px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-              <span>10 Global & India Templates</span>
+              <span>10 Easy Document Templates</span>
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Generate legally compliant agreements, eviction notices, security deposit ledgers, and police verification forms in seconds.
+            Create rent agreements, move-out notices, security deposit receipts, and police verification forms in simple English.
           </p>
         </div>
       </div>
@@ -188,10 +188,10 @@ export default function AILeaseArchitectPage() {
         <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
           <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
             <Globe className="w-4 h-4 text-[#FF6B00]" />
-            Select Legal Document Template (10 Available Options)
+            Choose Document Template (10 Available Options)
           </span>
           <span className="text-[11px] font-bold text-purple-600">
-            Current: {selectedDoc.title}
+            Selected: {selectedDoc.title}
           </span>
         </div>
 
@@ -218,7 +218,7 @@ export default function AILeaseArchitectPage() {
                     <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
                       isSelected ? "bg-white/20 text-white" : "bg-slate-200/80 text-slate-600"
                     }`}>
-                      {doc.category === "India Specific" ? "IN" : doc.category === "Global & US/UK" ? "GLOBAL" : "NOTICE"}
+                      {doc.category === "India Specific" ? "INDIA" : doc.category === "Global & US/UK" ? "GLOBAL" : "RULES"}
                     </span>
                   </div>
                   <div className="text-xs font-bold leading-tight truncate">{doc.title}</div>
@@ -235,20 +235,20 @@ export default function AILeaseArchitectPage() {
       {/* Main Generator Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Left Dynamic Parameters Column (5 Cols) */}
+        {/* Left Form Inputs (5 Cols) */}
         <div className="lg:col-span-5 bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-5">
           <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <FileText className="w-4 h-4 text-[#FF6B00]" />
-              <span>{selectedDoc.title.split(". ")[1]} Parameters</span>
+              <span>Fill {selectedDoc.title.split(". ")[1]} Details</span>
             </h3>
           </div>
 
           <div className="space-y-3.5 text-xs">
-            {/* Jurisdiction Dropdown */}
+            {/* City / State Location Dropdown */}
             <div>
               <label className="block font-bold text-slate-700 uppercase mb-1">
-                Target Legal Jurisdiction / Region
+                Select City / State Location
               </label>
               <div className="relative">
                 <select
@@ -266,10 +266,10 @@ export default function AILeaseArchitectPage() {
               </div>
             </div>
 
-            {/* Landlord / Party A */}
+            {/* Landlord Name */}
             <div>
               <label className="block font-bold text-slate-700 uppercase mb-1">
-                {selectedDoc.id === "eviction-notice" || selectedDoc.id === "rent-increase" ? "Landlord / Property Manager Name" : "Lessor / Landlord Name"}
+                Landlord / Owner Name
               </label>
               <input
                 type="text"
@@ -279,10 +279,10 @@ export default function AILeaseArchitectPage() {
               />
             </div>
 
-            {/* Tenant / Party B */}
+            {/* Tenant Name */}
             <div>
               <label className="block font-bold text-slate-700 uppercase mb-1">
-                {selectedDoc.id === "eviction-notice" || selectedDoc.id === "rent-increase" ? "Recipient Tenant Name" : "Lessee / Tenant Name"}
+                Tenant / Renter Name
               </label>
               <input
                 type="text"
@@ -292,9 +292,11 @@ export default function AILeaseArchitectPage() {
               />
             </div>
 
-            {/* Property Address */}
+            {/* House / Property Address */}
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Demised Property Premises</label>
+              <label className="block font-bold text-slate-700 uppercase mb-1">
+                Property Address / House Location
+              </label>
               <input
                 type="text"
                 value={propertyAddress}
@@ -306,15 +308,15 @@ export default function AILeaseArchitectPage() {
             {/* Dynamic fields based on document type */}
             {selectedDoc.id === "eviction-notice" ? (
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Statutory Notice Period (Days)</label>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Notice Period (Days)</label>
                 <select
                   value={noticeDays}
                   onChange={(e) => setNoticeDays(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 >
-                  <option value="30">30-Day Statutory Notice</option>
-                  <option value="60">60-Day Statutory Notice</option>
-                  <option value="15">15-Day Urgent Remediation Notice</option>
+                  <option value="30">30 Days Notice</option>
+                  <option value="60">60 Days Notice</option>
+                  <option value="15">15 Days Urgent Notice</option>
                 </select>
               </div>
             ) : selectedDoc.id === "rent-increase" ? (
@@ -329,7 +331,7 @@ export default function AILeaseArchitectPage() {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Increase Rate (%)</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Rent Increase (%)</label>
                   <input
                     type="number"
                     value={escalationRate}
@@ -341,7 +343,7 @@ export default function AILeaseArchitectPage() {
             ) : selectedDoc.id === "deposit-refund" ? (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Original Deposit ($)</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Security Deposit ($)</label>
                   <input
                     type="number"
                     value={depositAmount}
@@ -362,7 +364,7 @@ export default function AILeaseArchitectPage() {
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent / Fee</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent</label>
                   <input
                     type="number"
                     value={rentAmount}
@@ -384,7 +386,7 @@ export default function AILeaseArchitectPage() {
 
             {/* Special Instructions */}
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Special Clauses & Notes</label>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Special Rules & Notes</label>
               <textarea
                 rows={2}
                 value={additionalTerms}
@@ -404,14 +406,14 @@ export default function AILeaseArchitectPage() {
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                <span>AI Generate {selectedDoc.title.split(". ")[1]}</span>
+                <span>Generate {selectedDoc.title.split(". ")[1]}</span>
               </>
             )}
           </button>
         </div>
 
-        {/* Right Live Legal Contract Viewer (7 Cols) with Light / Dark Mode Toggle */}
-        <div className={`lg:col-span-7 border rounded-2xl p-6 sm:p-8 shadow-xl flex flex-col justify-between space-y-6 relative overflow-hidden font-mono transition-colors duration-200 ${
+        {/* Right Document Preview Box */}
+        <div className={`lg:col-span-7 border rounded-2xl p-6 sm:p-8 shadow-xl flex flex-col justify-between space-y-6 relative overflow-hidden font-sans transition-colors duration-200 ${
           isDark
             ? "bg-[#141A26] text-white border-slate-800"
             : "bg-white text-slate-900 border-slate-200 shadow-slate-200/80"
@@ -420,74 +422,72 @@ export default function AILeaseArchitectPage() {
 
           <div>
             {/* Header Action Toolbar */}
-            <div className={`flex flex-wrap items-center justify-between pb-4 border-b gap-3 font-sans ${isDark ? "border-slate-800" : "border-slate-200"}`}>
+            <div className={`flex flex-wrap items-center justify-between pb-4 border-b gap-3 ${isDark ? "border-slate-800" : "border-slate-200"}`}>
               <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span className={`text-xs font-bold ${isDark ? "text-slate-300" : "text-slate-700"}`}>
-                  Live AI Document Preview
+                  Document Preview
                 </span>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Light / Dark Mode Theme Switcher */}
+                {/* Light / Dark Theme Switcher (Icon Only + Tooltip) */}
                 <button
                   type="button"
                   onClick={() => setPreviewTheme(isDark ? "light" : "dark")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                  title={isDark ? "Switch to Light Paper View" : "Switch to Dark Theme View"}
+                  className={`p-2 rounded-xl transition-all flex items-center justify-center cursor-pointer border ${
                     isDark
                       ? "bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700"
                       : "bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300"
                   }`}
-                  title="Toggle Light / Dark Mode for Preview"
                 >
                   {isDark ? (
-                    <>
-                      <Sun className="w-3.5 h-3.5 text-amber-300" />
-                      <span>Light Paper View</span>
-                    </>
+                    <Sun className="w-4 h-4 text-amber-300" />
                   ) : (
-                    <>
-                      <Moon className="w-3.5 h-3.5 text-slate-700" />
-                      <span>Dark Theme View</span>
-                    </>
+                    <Moon className="w-4 h-4 text-slate-700" />
                   )}
                 </button>
 
+                {/* Copy Text Button (Icon Only + Tooltip) */}
                 <button
+                  type="button"
                   onClick={handleCopy}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer border ${
+                  title={copied ? "Copied to Clipboard!" : "Copy Document Text"}
+                  className={`p-2 rounded-xl transition-colors flex items-center justify-center cursor-pointer border ${
                     isDark
                       ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
                       : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
                   }`}
                 >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>{copied ? "Copied!" : "Copy"}</span>
+                  {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                 </button>
 
+                {/* Print Document Button (Icon Only + Tooltip) */}
                 <button
+                  type="button"
                   onClick={() => alert(`Printing document PDF...`)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer border ${
+                  title="Print Document / Save as PDF"
+                  className={`p-2 rounded-xl transition-colors flex items-center justify-center cursor-pointer border ${
                     isDark
                       ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
                       : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
                   }`}
                 >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print</span>
+                  <Printer className="w-4 h-4" />
                 </button>
 
                 <button
-                  onClick={() => alert(`Sending ${selectedDoc.title} to ${tenantName} for E-Sign!`)}
+                  onClick={() => alert(`Sending ${selectedDoc.title} to ${tenantName} for signature!`)}
                   className="px-3 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-xs font-bold text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer uppercase tracking-wider"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>E-Sign</span>
+                  <span>Send for Signature</span>
                 </button>
               </div>
             </div>
 
-            {/* Generated Contract Content Preview Box */}
+            {/* Generated Document Content Preview */}
             <div className={`mt-6 text-xs leading-relaxed space-y-4 p-6 rounded-xl border max-h-[460px] overflow-y-auto custom-scrollbar transition-colors ${
               isDark
                 ? "bg-[#0C1019] text-slate-300 border-slate-800/80"
@@ -501,153 +501,153 @@ export default function AILeaseArchitectPage() {
                 {selectedDoc.title.toUpperCase()} — {jurisdiction.toUpperCase()}
               </div>
 
-              {/* Template 1: Residential Lease */}
+              {/* Template 1: Home Rent Agreement */}
               {selectedDoc.id === "res-lease" && (
                 <>
                   <p>
-                    <strong>THIS RESIDENTIAL LEASE AGREEMENT</strong> is made on {effectiveDate}, between 
-                    <span className={`font-bold ${isDark ? "text-orange-400" : "text-orange-600"}`}> {landlordName} </span> (&ldquo;Lessor&rdquo;) and 
-                    <span className={`font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}> {tenantName} </span> (&ldquo;Lessee&rdquo;).
+                    <strong>THIS RENT AGREEMENT</strong> is made on {effectiveDate}, between 
+                    <span className={`font-bold ${isDark ? "text-orange-400" : "text-orange-600"}`}> {landlordName} </span> (Owner / Landlord) and 
+                    <span className={`font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}> {tenantName} </span> (Tenant / Renter).
                   </p>
                   <p>
-                    <strong>1. PROPERTY:</strong> Premises located at <span className={`font-bold ${isDark ? "text-white" : "text-slate-950"}`}>{propertyAddress}</span>.
+                    <strong>1. PROPERTY ADDRESS:</strong> House located at <span className={`font-bold ${isDark ? "text-white" : "text-slate-950"}`}>{propertyAddress}</span>.
                   </p>
                   <p>
-                    <strong>2. FINANCIAL TERMS:</strong> Monthly rent is <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>${rentAmount} USD</strong> payable on the 1st of each month. Security deposit of <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>${depositAmount} USD</strong> holds in statutory escrow.
+                    <strong>2. RENT & DEPOSIT:</strong> Monthly rent is <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>${rentAmount}</strong> payable on the 1st of every month. Security deposit is <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>${depositAmount}</strong>.
                   </p>
                   <p>
-                    <strong>3. SPECIAL CONDITIONS:</strong> {additionalTerms}
+                    <strong>3. SPECIAL RULES:</strong> {additionalTerms}
                   </p>
                 </>
               )}
 
-              {/* Template 2: Leave & License (India) */}
+              {/* Template 2: Rent Agreement (India) */}
               {selectedDoc.id === "leave-license" && (
                 <>
                   <p>
-                    <strong>LEAVE AND LICENSE AGREEMENT</strong> executed pursuant to Section 24 of the Maharashtra Rent Control Act / State Rent Laws on {effectiveDate}.
+                    <strong>RENT AGREEMENT FOR 11 MONTHS</strong> made on {effectiveDate}.
                   </p>
                   <p>
-                    <strong>LICENSOR:</strong> <span className={`font-bold ${isDark ? "text-orange-400" : "text-orange-600"}`}>{landlordName}</span> | <strong>LICENSEE:</strong> <span className={`font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}>{tenantName}</span>.
+                    <strong>OWNER (LANDLORD):</strong> <span className={`font-bold ${isDark ? "text-orange-400" : "text-orange-600"}`}>{landlordName}</span> | <strong>TENANT:</strong> <span className={`font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}>{tenantName}</span>.
                   </p>
                   <p>
-                    <strong>PROPERTY:</strong> Premises at <span className={`font-bold ${isDark ? "text-white" : "text-slate-950"}`}>{propertyAddress}</span> for 11 months term.
+                    <strong>PROPERTY ADDRESS:</strong> House / Flat at <span className={`font-bold ${isDark ? "text-white" : "text-slate-950"}`}>{propertyAddress}</span> for 11 months.
                   </p>
                   <p>
-                    <strong>COMPENSATION:</strong> License Fee of <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>₹{rentAmount} / month</strong> with interest-free refundable deposit of <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>₹{depositAmount}</strong>.
+                    <strong>RENT & DEPOSIT:</strong> Monthly rent is <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>₹{rentAmount} / month</strong> and refundable security deposit is <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>₹{depositAmount}</strong>.
                   </p>
                   <p>
-                    <strong>REGISTRATION & STAMP DUTY:</strong> Agreement to be electronically registered with E-Registration portal.
+                    <strong>POLICE VERIFICATION & REGISTRATION:</strong> This agreement will be registered online as per state government rules.
                   </p>
                 </>
               )}
 
-              {/* Template 3: Commercial Lease */}
+              {/* Template 3: Commercial & Shop Lease */}
               {selectedDoc.id === "comm-lease" && (
                 <>
                   <p>
-                    <strong>COMMERCIAL PROPERTY LEASE DEED</strong> for retail/office premises at <span className={`font-bold ${isDark ? "text-white" : "text-slate-950"}`}>{propertyAddress}</span>.
+                    <strong>COMMERCIAL SHOP / OFFICE LEASE AGREEMENT</strong> for property at <span className={`font-bold ${isDark ? "text-white" : "text-slate-950"}`}>{propertyAddress}</span>.
                   </p>
                   <p>
-                    <strong>LESSOR:</strong> {landlordName} | <strong>LESSEE:</strong> {tenantName}.
+                    <strong>LANDLORD:</strong> {landlordName} | <strong>TENANT:</strong> {tenantName}.
                   </p>
                   <p>
-                    <strong>COMMERCIAL TERMS:</strong> Monthly Rent: <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>${rentAmount}</strong> + Applicable Taxes/GST. Lock-in Period: 36 Months. Annual Escalation: 5% per annum.
+                    <strong>COMMERCIAL TERMS:</strong> Monthly Rent: <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>${rentAmount}</strong> + Taxes. Security Deposit: <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>${depositAmount}</strong>. Yearly Rent Increase: 5%.
                   </p>
                 </>
               )}
 
-              {/* Template 4: Eviction Notice */}
+              {/* Template 4: Notice to Vacate */}
               {selectedDoc.id === "eviction-notice" && (
                 <>
                   <div className={`p-3 border font-bold text-center uppercase rounded-lg ${
                     isDark ? "bg-red-500/10 border-red-500/30 text-red-300" : "bg-red-50 border-red-200 text-red-700"
                   }`}>
-                    FORMAL LEGAL NOTICE TO VACATE PREMISES
+                    OFFICIAL NOTICE TO VACATE HOUSE
                   </div>
                   <p>
                     <strong>TO TENANT:</strong> <span className={`font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}>{tenantName}</span>
                     <br />
-                    <strong>PREMISES:</strong> {propertyAddress}
+                    <strong>PROPERTY ADDRESS:</strong> {propertyAddress}
                   </p>
                   <p className={isDark ? "text-amber-300" : "text-amber-700 font-medium"}>
-                    PLEASE TAKE NOTICE that within <strong>{noticeDays} DAYS</strong> from service of this notice, you are required to vacate and surrender possession of the premises to <span className={`font-bold ${isDark ? "text-orange-400" : "text-orange-600"}`}>{landlordName}</span>.
+                    PLEASE TAKE NOTICE that within <strong>{noticeDays} DAYS</strong> from receiving this notice, you are requested to clear all dues and hand over house keys to <span className={`font-bold ${isDark ? "text-orange-400" : "text-orange-600"}`}>{landlordName}</span>.
                   </p>
                 </>
               )}
 
-              {/* Template 5: Rent Increase */}
+              {/* Template 5: Rent Increase Notice */}
               {selectedDoc.id === "rent-increase" && (
                 <>
                   <p>
-                    <strong>NOTICE OF INTENT TO ADJUST MONTHLY RENT</strong>
+                    <strong>NOTICE OF RENT INCREASE</strong>
                   </p>
                   <p>
                     Dear <span className={`font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}>{tenantName}</span>,
                   </p>
                   <p>
-                    Pursuant to municipal lease terms for {propertyAddress}, please be advised that effective {effectiveDate}, your monthly rent will be adjusted from ${rentAmount} by {escalationRate}% to <strong>${(Number(rentAmount) * (1 + Number(escalationRate)/100)).toFixed(0)} USD/mo</strong>.
+                    This is to inform you that starting from {effectiveDate}, the monthly rent for your house at {propertyAddress} will increase by {escalationRate}%. Your new monthly rent will be <strong>${(Number(rentAmount) * (1 + Number(escalationRate)/100)).toFixed(0)} / month</strong>.
                   </p>
                 </>
               )}
 
-              {/* Template 6: Deposit Refund Ledger */}
+              {/* Template 6: Deposit Refund Receipt */}
               {selectedDoc.id === "deposit-refund" && (
                 <>
                   <p>
-                    <strong>SECURITY DEPOSIT SETTLEMENT STATEMENT</strong>
+                    <strong>SECURITY DEPOSIT REFUND SUMMARY</strong>
                   </p>
                   <div className={`p-3 border rounded-lg space-y-1 ${
                     isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
                   }`}>
-                    <div>Original Security Deposit Held: <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>${depositAmount}</strong></div>
-                    <div>Itemized Repairs & Cleaning Deductions: <strong className={isDark ? "text-red-400" : "text-red-600"}>-${deductions}</strong></div>
+                    <div>Total Security Deposit Received: <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>${depositAmount}</strong></div>
+                    <div>Minus Repair & Cleaning Charges: <strong className={isDark ? "text-red-400" : "text-red-600"}>-${deductions}</strong></div>
                     <div className={`border-t pt-1 font-bold ${isDark ? "border-slate-700" : "border-slate-200"}`}>
-                      Net Refund Payable to {tenantName}: <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>${Number(depositAmount) - Number(deductions)}</strong>
+                      Final Refund Amount Paid to {tenantName}: <strong className={isDark ? "text-emerald-400" : "text-emerald-700"}>${Number(depositAmount) - Number(deductions)}</strong>
                     </div>
                   </div>
                 </>
               )}
 
-              {/* Template 7: Inspection Report */}
+              {/* Template 7: House Checklist */}
               {selectedDoc.id === "inspection-report" && (
                 <>
                   <p>
-                    <strong>MOVE-IN / MOVE-OUT PHYSICAL CONDITION REPORT</strong>
+                    <strong>HOUSE MOVE-IN / MOVE-OUT CONDITION CHECKLIST</strong>
                   </p>
                   <p>
-                    Unit Address: {propertyAddress} | Inspected by: {landlordName} with Tenant: {tenantName}.
+                    Address: {propertyAddress} | Checked by Landlord ({landlordName}) & Tenant ({tenantName}).
                   </p>
                   <div className={`text-[11px] space-y-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>
-                    <div>✓ Living Room Floors & Painting: Good Condition</div>
-                    <div>✓ Kitchen Appliances & Plumbing: Verified Functional</div>
-                    <div>✓ Bathroom Fixtures & Seals: Inspected Clean</div>
+                    <div>✓ Living Room & Walls: Good Condition</div>
+                    <div>✓ Kitchen Fans, Lights & Plumbing: Working Perfectly</div>
+                    <div>✓ Bathroom Fittings & Taps: Checked Clean & Working</div>
                   </div>
                 </>
               )}
 
-              {/* Template 8: Pet Addendum */}
+              {/* Template 8: Pet & Guest Rules */}
               {selectedDoc.id === "pet-sublet" && (
                 <>
                   <p>
-                    <strong>PET RESPONSIBILITY & SUBLETTING RIDER</strong>
+                    <strong>PET RULES & SUBLETTING PERMISSION</strong>
                   </p>
                   <p>
-                    Tenant <span className={`font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}>{tenantName}</span> is granted approval for 1 domestic pet. Subletting or Airbnb assignments without express written consent from {landlordName} is strictly prohibited.
+                    Tenant <span className={`font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}>{tenantName}</span> is allowed to keep 1 domestic pet. Renting out rooms to outsiders or subletting without owner consent is not allowed.
                   </p>
                 </>
               )}
 
-              {/* Template 9: Maintenance Disclosure */}
+              {/* Template 9: Repair Duties */}
               {selectedDoc.id === "maintenance-disclosure" && (
                 <>
                   <p>
-                    <strong>MAINTENANCE & REPAIR RESPONSIBILITY MATRIX</strong>
+                    <strong>REPAIR RESPONSIBILITY LIST (OWNER VS TENANT)</strong>
                   </p>
                   <p>
-                    <strong>Landlord Duties:</strong> Major structural repairs, roofing, primary HVAC, exterior plumbing.
+                    <strong>Owner / Landlord Duties:</strong> Water leakage, roof repairs, main electrical box, painting external walls.
                     <br />
-                    <strong>Tenant Duties:</strong> Lightbulb replacements, clogged drains from improper disposal, minor filter cleaning.
+                    <strong>Tenant Duties:</strong> Changing light bulbs, cleaning water tap blockages, replacing AC remote batteries.
                   </p>
                 </>
               )}
@@ -656,32 +656,25 @@ export default function AILeaseArchitectPage() {
               {selectedDoc.id === "police-verification" && (
                 <>
                   <p>
-                    <strong>TENANT POLICE VERIFICATION DECLARATION FORM</strong>
+                    <strong>TENANT POLICE VERIFICATION & HOUSING SOCIETY NOC</strong>
                   </p>
                   <p>
-                    <strong>TENANT DETAILS:</strong> Name: {tenantName} | Residing at: {propertyAddress}.
-                    <br />
-                    <strong>LANDLORD DECLARATION:</strong> Owner {landlordName} hereby certifies that tenant credentials and government photo ID proof have been verified and submitted for local precinct records.
+                    Tenant Name: <span className={`font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}>{tenantName}</span> | Owner Name: <span className={`font-bold ${isDark ? "text-orange-400" : "text-orange-600"}`}>{landlordName}</span>.
+                  </p>
+                  <p>
+                    This is to declare that tenant details have been submitted for Police Verification and Housing Society Move-in approval for premises: {propertyAddress}.
                   </p>
                 </>
               )}
 
-              <div className={`pt-2 text-[10px] italic border-t ${
-                isDark ? "text-slate-500 border-slate-800" : "text-slate-400 border-slate-200"
+              <div className={`pt-3 border-t text-[10px] flex justify-between ${
+                isDark ? "border-slate-800 text-slate-400" : "border-slate-300 text-slate-600"
               }`}>
-                * Generated by RentAwas Legal Intelligence Engine. Encrypted & verified for {jurisdiction}.
+                <span>Generated by RentAwas Smart Document Engine</span>
+                <span>Location Rules: {jurisdiction}</span>
               </div>
-            </div>
-          </div>
 
-          <div className={`pt-4 border-t flex items-center justify-between text-xs font-sans ${
-            isDark ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-600"
-          }`}>
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              ISO 27001 Legal Hash Certified
-            </span>
-            <span className="text-[#FF6B00] font-bold">100% Statutory Compliant</span>
+            </div>
           </div>
         </div>
 

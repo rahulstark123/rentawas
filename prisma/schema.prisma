@@ -32,6 +32,7 @@ model Workspace {
   name           String     // Workspace / Company Name
   currency       String     @default("USD ($)")
   portfolioScale String?
+  plan           String     @default("starter") // "starter", "pro", "enterprise"
   
   ownerId        String
   owner          Profile    @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
@@ -43,6 +44,11 @@ model Workspace {
   maintenances   Maintenance[]
   roomHistories  RoomHistory[]
   documents      TenantDocument[]
+  expenses       PropertyExpense[]
+  teamMembers    TeamMember[]
+  subscriptions  Subscription[]
+  transactions   Transaction[]
+  supportTickets SupportTicket[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
@@ -69,6 +75,7 @@ model Property {
   maintenances  Maintenance[]
   roomHistories RoomHistory[]
   documents     TenantDocument[]
+  expenses      PropertyExpense[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -93,6 +100,7 @@ model Unit {
   maintenances Maintenance[]
   roomHistories RoomHistory[]
   documents   TenantDocument[]
+  expenses    PropertyExpense[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -107,8 +115,10 @@ model Tenant {
   phone         String
   leaseStart    DateTime
   leaseEnd      DateTime?
-  healthScore   Int      @default(95)
-  monthlyRent   Float    @default(0)
+  healthScore     Int      @default(75)
+  monthlyRent     Float    @default(0)
+  securityDeposit Float?   @default(0)
+  currentStatus   String   @default("Current") // "Current" | "Past" | "Exited" | "Evicted"
   bedSlot       String?
   govIdType     String?
   govIdNumber   String?
@@ -228,6 +238,7 @@ model RoomHistory {
   status            String    @default("Lease Completed") // "Lease Completed", "Removed / Evicted", "Active Occupant"
   review            String?   // Landlord rating review / notes
   rating            Int?      @default(5) // 1-5 star rating
+  healthScore       Int?      @default(85) // 85 / 100 assigned upon offboarding/leaving
   removalReason     String?   // Breach reason if evicted
   depositSettlement String?   // e.g. "Full Deposit Refunded"
   keysReturned      Boolean   @default(true)
@@ -288,5 +299,115 @@ model TenantDocument {
   @@index([tenantId])
   @@index([unitId])
   @@index([propertyId])
+  @@index([workspaceId])
+}
+
+model PropertyExpense {
+  id            String    @id @default(cuid())
+  expenseNumber String?   // e.g. "EXP-901"
+  title         String
+  category      String    @default("Maintenance & Repairs")
+  amount        Float     @default(0)
+  date          DateTime  @default(now())
+  vendor        String?
+  paymentMethod String?   @default("Bank Wire / ACH Transfer")
+  receiptName   String?
+  receiptUrl    String?
+  status        String    @default("Verified & Paid")
+
+  unitId        String?
+  unit          Unit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  propertyId    String?
+  property      Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  workspaceId   Int?
+  workspace     Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: SetNull)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([unitId])
+  @@index([propertyId])
+  @@index([workspaceId])
+}
+
+model TeamMember {
+  id          String    @id @default(cuid())
+  name        String
+  email       String
+  countryCode String?   @default("+1")
+  phone       String?
+  role        String    @default("Manager") // "Owner", "Admin", "Manager", "Employee"
+  status      String    @default("Active")
+  password    String?
+
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId])
+}
+
+model Transaction {
+  id                String    @id @default(cuid())
+  transactionNumber String    // e.g. "TXN-2026-901"
+  paymentId         String?   // e.g. "pay_P9283401"
+  orderId           String?   // e.g. "sub_abc123" or "order_xyz"
+  type              String    @default("Subscription Payment") // "Subscription Payment", "Rent Collection", "Expense Payout"
+  amount            String    // e.g. "$15.00 USD" or "₹1,474"
+  status            String    @default("Success")
+  paymentMethod     String?   @default("Razorpay Auto-Debit")
+  description       String?
+
+  workspaceId       Int?
+  workspace         Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([workspaceId])
+}
+
+model Subscription {
+  id            String    @id @default(cuid())
+  invoiceNumber String    // e.g. "INV-2026-008"
+  receiptNumber String    // e.g. "RCPT-2026-008"
+  planName      String    // e.g. "Pro Portfolio Plan"
+  amount        String    // e.g. "$15.00 USD" or "₹1,474"
+  billingTerm   String    @default("Monthly") // "Monthly" or "Annual"
+  paymentType   String    @default("Recurring Subscription") // "Recurring Subscription" or "One-Time Payment"
+  paymentMethod String    @default("Razorpay (Visa •••• 4242)")
+  paymentId     String?   // Razorpay Payment ID e.g. "pay_P192834"
+  status        String    @default("Paid")
+
+  workspaceId   Int?
+  workspace     Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([workspaceId])
+}
+
+model SupportTicket {
+  id            String    @id @default(cuid())
+  ticketNumber  String    // e.g. "TKT-2026-001"
+  subject       String
+  category      String    @default("General Inquiry") // "Billing & Invoices", "Tenant Portal", "AI Documents", "Technical Issue"
+  priority      String    @default("Medium") // "Low", "Medium", "High", "Urgent"
+  status        String    @default("Open") // "Open", "In Progress", "Resolved", "Closed"
+  message       String
+  contactEmail  String?
+  contactPhone  String?
+
+  workspaceId   Int?
+  workspace     Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
   @@index([workspaceId])
 }

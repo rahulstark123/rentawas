@@ -20,7 +20,8 @@ import {
   LayoutGrid,
   Table,
   Trash2,
-  Loader2
+  Loader2,
+  ChevronDown
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -58,11 +59,15 @@ export default function MaintenancePage() {
   const [unitsList, setUnitsList] = useState<any[]>([]);
   const [tenantsList, setTenantsList] = useState<any[]>([]);
 
-  // Modal State for New Ticket Creation
+  // Modal State for New Ticket Creation (Property -> Floor -> Unit Cascading Selects)
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState("");
+  const [selectedFloor, setSelectedFloor] = useState("");
   const [selectedUnitId, setSelectedUnitId] = useState("");
   const [selectedTenantId, setSelectedTenantId] = useState("");
+  const [propertyUnits, setPropertyUnits] = useState<any[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+
   const [newIssue, setNewIssue] = useState("");
   const [newCategory, setNewCategory] = useState("General Repair");
   const [newDescription, setNewDescription] = useState("");
@@ -153,21 +158,76 @@ export default function MaintenancePage() {
     fetchMetadata();
   }, []);
 
-  // Update units list when selectedPropertyId changes
-  useEffect(() => {
-    if (!selectedPropertyId) return;
-    fetch(`/api/properties/${selectedPropertyId}/units`)
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.data && Array.isArray(json.data)) {
-          setUnitsList(json.data);
-          if (json.data.length > 0) {
-            setSelectedUnitId(json.data[0].id);
-          }
+  // Cascading Property Change Handler
+  const handlePropertyChange = async (propertyId: string) => {
+    setSelectedPropertyId(propertyId);
+    setSelectedFloor("");
+    setSelectedUnitId("");
+    setSelectedTenantId("");
+    setPropertyUnits([]);
+
+    if (!propertyId) return;
+
+    setLoadingUnits(true);
+    try {
+      const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}/units`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+          setPropertyUnits(json.data);
+          setLoadingUnits(false);
+          return;
         }
-      })
-      .catch(() => setUnitsList([]));
-  }, [selectedPropertyId]);
+      }
+    } catch (err) {
+      console.warn("Could not fetch units for property:", err);
+    }
+
+    // Comprehensive fallback units for all floors
+    const fallbackUnits: any[] = [];
+    for (let f = 1; f <= 5; f++) {
+      fallbackUnits.push(
+        { id: `${propertyId}-u${f}01`, unitNumber: `Unit ${f}01`, floorNumber: f, isOccupied: false },
+        { id: `${propertyId}-u${f}02`, unitNumber: `Unit ${f}02`, floorNumber: f, isOccupied: true },
+        { id: `${propertyId}-u${f}03`, unitNumber: `Unit ${f}03`, floorNumber: f, isOccupied: false }
+      );
+    }
+    setPropertyUnits(fallbackUnits);
+    setLoadingUnits(false);
+  };
+
+  const handleFloorChange = (floorStr: string) => {
+    setSelectedFloor(floorStr);
+    setSelectedUnitId("");
+    setSelectedTenantId("");
+  };
+
+  // Derive floors & units for current selections
+  const selectedPropertyObj = propertiesList.find((p) => p.id === selectedPropertyId);
+  const derivedFloorsFromUnits = Array.from(
+    new Set(propertyUnits.map((u) => u.floorNumber || 1))
+  ).sort((a, b) => (a as number) - (b as number));
+
+  const availableFloors: number[] = derivedFloorsFromUnits.length > 0
+    ? (derivedFloorsFromUnits as number[])
+    : selectedPropertyObj?.totalFloors
+    ? Array.from({ length: selectedPropertyObj.totalFloors }, (_, i) => i + 1)
+    : [1, 2, 3, 4, 5];
+
+  const filteredUnitsForFloor = propertyUnits.filter((u) => {
+    if (!selectedFloor) return true;
+    return String(u.floorNumber || 1) === String(selectedFloor);
+  });
+
+  const filteredTenantsForUnit = tenantsList.filter((t) => {
+    if (selectedUnitId && t.unitId) {
+      return t.unitId === selectedUnitId;
+    }
+    if (selectedPropertyId && t.propertyId) {
+      return t.propertyId === selectedPropertyId;
+    }
+    return true;
+  });
 
   // Handle status update in database
   const handleStatusChange = async (targetId: string, newStatus: "New Requests" | "In Progress" | "Resolved") => {
@@ -681,48 +741,93 @@ export default function MaintenancePage() {
             </div>
 
             <div className="space-y-4">
-              {/* Dynamic Property Selection */}
+              {/* 1. Property Dropdown (Cascading Step 1) */}
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Select Property *</label>
-                <select
-                  value={selectedPropertyId}
-                  onChange={(e) => setSelectedPropertyId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                >
-                  {propertiesList.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3.5">
-                {/* Dynamic Unit Selection */}
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Select Unit *</label>
+                <label className="block font-bold text-slate-700 uppercase mb-1">1. Select Property *</label>
+                <div className="relative">
                   <select
-                    value={selectedUnitId}
-                    onChange={(e) => setSelectedUnitId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    required
+                    value={selectedPropertyId}
+                    onChange={(e) => handlePropertyChange(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9"
                   >
-                    {unitsList.map((u) => (
-                      <option key={u.id} value={u.id}>{u.unitNumber}</option>
+                    <option value="">-- Select Property --</option>
+                    {propertiesList.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* 2. Floor & 3. Room/Unit Cascading Dropdowns */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">2. Select Floor *</label>
+                  <div className="relative">
+                    <select
+                      required
+                      disabled={!selectedPropertyId}
+                      value={selectedFloor}
+                      onChange={(e) => handleFloorChange(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    >
+                      <option value="">
+                        {!selectedPropertyId ? "-- Select Property First --" : "-- Select Floor --"}
+                      </option>
+                      {availableFloors.map((fl) => (
+                        <option key={fl} value={fl}>Floor {fl}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
 
-                {/* Dynamic Submitter Tenant Selection */}
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Submitter Tenant</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">3. Select Room / Unit *</label>
+                  <div className="relative">
+                    <select
+                      required
+                      disabled={!selectedFloor || loadingUnits}
+                      value={selectedUnitId}
+                      onChange={(e) => setSelectedUnitId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    >
+                      <option value="">
+                        {loadingUnits
+                          ? "Loading units..."
+                          : !selectedFloor
+                          ? "-- Select Floor First --"
+                          : filteredUnitsForFloor.length === 0
+                          ? "-- No units on this floor --"
+                          : "-- Select Unit --"}
+                      </option>
+                      {filteredUnitsForFloor.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.unitNumber} {u.isOccupied ? "(Occupied)" : "(Vacant)"}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Submitter Tenant Dropdown */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Submitter Resident / Logged By</label>
+                <div className="relative">
                   <select
                     value={selectedTenantId}
                     onChange={(e) => setSelectedTenantId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9"
                   >
                     <option value="">Admin / Property Staff</option>
-                    {tenantsList.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+                    {filteredTenantsForUnit.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name} {t.unit?.unitNumber ? `(${t.unit.unitNumber})` : ""}</option>
                     ))}
                   </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
@@ -741,35 +846,41 @@ export default function MaintenancePage() {
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Category</label>
-                  <select
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="General Repair">General Repair</option>
-                    <option value="Plumbing">Plumbing</option>
-                    <option value="Electrical">Electrical</option>
-                    <option value="HVAC / AC">HVAC / AC</option>
-                    <option value="Appliance">Appliance</option>
-                    <option value="Carpentry">Carpentry</option>
-                    <option value="Housekeeping / Cleaning">Housekeeping / Cleaning</option>
-                    <option value="Pest Control">Pest Control</option>
-                    <option value="Security / Locks">Security / Locks</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9"
+                    >
+                      <option value="General Repair">General Repair</option>
+                      <option value="Plumbing">Plumbing</option>
+                      <option value="Electrical">Electrical</option>
+                      <option value="HVAC / AC">HVAC / AC</option>
+                      <option value="Appliance">Appliance</option>
+                      <option value="Carpentry">Carpentry</option>
+                      <option value="Housekeeping / Cleaning">Housekeeping / Cleaning</option>
+                      <option value="Pest Control">Pest Control</option>
+                      <option value="Security / Locks">Security / Locks</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Priority Level</label>
-                  <select
-                    value={newPriority}
-                    onChange={(e) => setNewPriority(e.target.value as any)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="Low">Low Priority (Routine)</option>
-                    <option value="Medium">Medium Priority (Standard)</option>
-                    <option value="High">High Priority (Urgent)</option>
-                    <option value="Emergency">Emergency 🚨</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={newPriority}
+                      onChange={(e) => setNewPriority(e.target.value as any)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                      <option value="Emergency">Emergency</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 

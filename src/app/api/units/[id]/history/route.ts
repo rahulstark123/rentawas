@@ -46,7 +46,14 @@ export async function GET(request: Request, { params }: Params) {
 
     // Query real RoomHistory from PostgreSQL
     const historyLogs = await prisma.roomHistory.findMany({
-      where: { unitId: unit.id },
+      where: {
+        OR: [
+          { unitId: unit.id },
+          { unitId: id },
+          { unitId: `Unit ${id}` },
+          { unitId: id.replace("Unit ", "") },
+        ],
+      },
       include: {
         tenant: true,
         property: true,

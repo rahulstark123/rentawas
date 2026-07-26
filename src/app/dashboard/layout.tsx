@@ -61,13 +61,32 @@ export default function DashboardLayout({
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  // Dynamic user profile loaded from Supabase Auth
+  // Dynamic user profile & workspace active plan
+  const [activePlan, setActivePlan] = useState("Pro Plan");
   const [userProfile, setUserProfile] = useState({
     name: "Alexander Wright",
     email: "alexander.wright@rentawas.com",
     role: "Portfolio Owner",
     initials: "AW",
   });
+
+  useEffect(() => {
+    async function loadWorkspacePlan() {
+      try {
+        const res = await fetch("/api/workspace?wid=1");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && json.data.plan) {
+            const pKey = json.data.plan;
+            setActivePlan(pKey === "enterprise" ? "Enterprise Plan" : pKey === "pro" ? "Pro Plan" : "Starter Plan");
+          }
+        }
+      } catch (err) {
+        console.warn("Workspace plan fetch error:", err);
+      }
+    }
+    loadWorkspacePlan();
+  }, []);
 
   useEffect(() => {
     async function loadUserData() {
@@ -150,7 +169,6 @@ export default function DashboardLayout({
     { name: "Tenants & Health", href: "/dashboard/tenants", icon: Users },
     { name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench, count: 3 },
     { name: "Property Expenses", href: "/dashboard/expenses", icon: Receipt },
-    { name: "Yield & Analytics", href: "/dashboard/analytics", icon: TrendingUp },
     { name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
     { name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },
     { name: "Help & Support", href: "/dashboard/support", icon: HelpCircle },
@@ -453,8 +471,18 @@ export default function DashboardLayout({
           {/* Actions & Notifications */}
           <div className="flex items-center gap-3">
 
-          {/* Profile Menu Trigger & Dropdown */}
-          <div className="relative" ref={showProfileMenu ? profileMenuRef : null}>
+            {/* Active Plan Badge before Profile Icon */}
+            <Link
+              href="/dashboard/billing"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200/80 text-[#FF6B00] transition-all cursor-pointer group shrink-0"
+              title="View Subscription Plan Details"
+            >
+              <Zap className="w-3.5 h-3.5 fill-[#FF6B00] text-[#FF6B00] group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-black uppercase tracking-wider">{activePlan}</span>
+            </Link>
+
+            {/* Profile Menu Trigger & Dropdown */}
+            <div className="relative" ref={showProfileMenu ? profileMenuRef : null}>
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="w-9 h-9 rounded-full bg-[#0B132B] text-white font-extrabold text-xs flex items-center justify-center shadow-xs hover:ring-2 hover:ring-[#FF6B00] transition-all cursor-pointer"

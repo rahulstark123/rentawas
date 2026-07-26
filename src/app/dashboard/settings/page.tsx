@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Building2, 
   CreditCard, 
@@ -43,40 +43,112 @@ export default function WorkspaceSettingsPage() {
   // Saved Feedback
   const [isSaved, setIsSaved] = useState(false);
 
-  // Team Members
-  const [team, setTeam] = useState([
-    { id: 1, name: "Alexander Wright", email: "alexander@regencymanagement.com", role: "Workspace Owner", status: "Active" },
-    { id: 2, name: "Sarah Jenkins", email: "sarah.j@regencymanagement.com", role: "Property Manager", status: "Active" },
-    { id: 3, name: "David Ross", email: "david.r@accounting.com", role: "Finance & Tax View", status: "Active" },
-    { id: 4, name: "QuickPlumb Co.", email: "dispatch@quickplumb.com", role: "Vendor Maintenance Only", status: "Active" },
-  ]);
+  // Team Members State & API Integration
+  const [loadingTeam, setLoadingTeam] = useState(true);
+  const [team, setTeam] = useState<any[]>([]);
 
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("Property Manager");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [memberName, setMemberName] = useState("");
+  const [memberEmail, setMemberEmail] = useState("");
+  const [memberCountryCode, setMemberCountryCode] = useState("+1");
+  const [memberPhone, setMemberPhone] = useState("");
+  const [memberRole, setMemberRole] = useState("Manager"); // "Owner", "Admin", "Manager", "Employee"
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleSave = () => {
-    setIsSaved(true);
-    toast("Workspace settings saved successfully!", "success");
-    setTimeout(() => setIsSaved(false), 3000);
+  const fetchTeamMembers = async () => {
+    try {
+      setLoadingTeam(true);
+      const res = await fetch("/api/workspace/team?wid=1");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && Array.isArray(json.data)) {
+          setTeam(json.data.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            email: m.email,
+            phone: m.phone ? `${m.countryCode || "+1"} ${m.phone}` : "N/A",
+            role: m.role || "Manager",
+            status: m.status || "Active",
+          })));
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch team from API:", err);
+    } finally {
+      setLoadingTeam(false);
+    }
   };
 
-  const handleInvite = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchTeamMembers();
+  }, []);
+
+  const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail) return;
-    setTeam([
-      ...team,
-      {
-        id: Date.now(),
-        name: inviteEmail.split("@")[0].replace(".", " "),
-        email: inviteEmail,
-        role: inviteRole,
-        status: "Pending Invite",
-      },
-    ]);
-    toast(`Invitation sent to ${inviteEmail}`, "info");
-    setInviteEmail("");
-    setShowInviteModal(false);
+    if (!memberName.trim() || !memberEmail.trim()) return;
+
+    if (password && password !== confirmPassword) {
+      toast("Passwords do not match! Please check again.", "error");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/workspace/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: memberName,
+          email: memberEmail,
+          countryCode: memberCountryCode,
+          phone: memberPhone,
+          role: memberRole,
+          password: password || undefined,
+          wid: 1, // Workspace ID
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        toast(json.message || `Team member "${memberName}" added successfully!`, "success");
+        fetchTeamMembers();
+      } else {
+        toast("Failed to add team member", "error");
+      }
+    } catch {
+      toast("Failed to add team member", "error");
+    }
+
+    setMemberName("");
+    setMemberEmail("");
+    setMemberPhone("");
+    setPassword("");
+    setConfirmPassword("");
+    setMemberRole("Manager");
+    setShowAddModal(false);
+  };
+
+  const handleDeleteMember = async (member: any) => {
+    if (member.role === "Owner") {
+      toast("Cannot revoke access for Workspace Owner.", "error");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/workspace/team/${encodeURIComponent(member.id)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast(`Access revoked for "${member.name}".`, "info");
+        fetchTeamMembers();
+      } else {
+        setTeam((prev) => prev.filter((t) => t.id !== member.id));
+        toast(`Team member removed.`, "info");
+      }
+    } catch {
+      setTeam((prev) => prev.filter((t) => t.id !== member.id));
+      toast(`Team member removed.`, "info");
+    }
   };
 
   return (
@@ -91,14 +163,6 @@ export default function WorkspaceSettingsPage() {
             Configure organization profile, bank payout accounts, and team access.
           </p>
         </div>
-
-        <button
-          onClick={handleSave}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
-        >
-          <Save className="w-4 h-4" />
-          <span>{isSaved ? "Saved Successfully!" : "Save Changes"}</span>
-        </button>
       </div>
 
       {/* Settings Navigation Tabs */}
@@ -564,11 +628,11 @@ export default function WorkspaceSettingsPage() {
             </h3>
 
             <button
-              onClick={() => setShowInviteModal(true)}
+              onClick={() => setShowAddModal(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-xs transition-all uppercase tracking-wider cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Invite Team Member</span>
+              <span>Add Team Member</span>
             </button>
           </div>
 
@@ -578,94 +642,179 @@ export default function WorkspaceSettingsPage() {
                 <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-bold">
                   <th className="pb-3 px-2">Member</th>
                   <th className="pb-3 px-2">Email</th>
+                  <th className="pb-3 px-2">Phone Number</th>
                   <th className="pb-3 px-2">Access Role</th>
                   <th className="pb-3 px-2">Status</th>
                   <th className="pb-3 px-2 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {team.map((m) => (
-                  <tr key={m.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3 px-2 font-bold text-slate-900">{m.name}</td>
-                    <td className="py-3 px-2 text-slate-600">{m.email}</td>
-                    <td className="py-3 px-2">
-                      <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-slate-100 text-slate-800 uppercase">
-                        {m.role}
-                      </span>
-                    </td>
-                    <td className="py-3 px-2">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        m.status === "Active" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
-                      }`}>
-                        {m.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-2 text-right">
-                      {m.role !== "Workspace Owner" && (
-                        <button
-                          onClick={() => setTeam(team.filter(t => t.id !== m.id))}
-                          className="p-1.5 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
-                          title="Revoke Access"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                {team.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-slate-500">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <div className="p-3 bg-slate-100 rounded-2xl text-slate-400">
+                          <Users className="w-6 h-6" />
+                        </div>
+                        <span className="font-extrabold text-slate-800 text-sm">No Team Members Added</span>
+                        <p className="text-xs text-slate-400 max-w-sm">
+                          No team members found for this workspace. Click &ldquo;Add Team Member&rdquo; above to grant access.
+                        </p>
+                      </div>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  team.map((m) => (
+                    <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-3 px-2 font-bold text-slate-900">{m.name}</td>
+                      <td className="py-3 px-2 text-slate-600">{m.email}</td>
+                      <td className="py-3 px-2 text-slate-600">{m.phone}</td>
+                      <td className="py-3 px-2">
+                        <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-slate-100 text-slate-800 uppercase">
+                          {m.role}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          m.status === "Active" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                        }`}>
+                          {m.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-right">
+                        {m.role !== "Owner" && (
+                          <button
+                            onClick={() => handleDeleteMember(m)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
+                            title="Revoke Access"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Invite Member Modal */}
-      {showInviteModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <form onSubmit={handleInvite} className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="text-xl font-bold text-slate-900">Invite Team Member</h3>
-            <p className="text-xs text-slate-500">Send an invitation to grant access to your workspace.</p>
+      {/* Add Team Member Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 font-sans">
+          <form onSubmit={handleAddMember} className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 sm:p-7 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <h3 className="text-xl font-extrabold text-slate-900 leading-none">Add Team Member</h3>
+            <p className="text-xs text-slate-500">Enter team member details to grant access to workspace #1.</p>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Email Address</label>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Full Name *</label>
                 <input
-                  type="email"
+                  type="text"
                   required
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="colleague@domain.com"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  value={memberName}
+                  onChange={(e) => setMemberName(e.target.value)}
+                  placeholder="e.g. Sarah Jenkins"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Access Role</label>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                >
-                  <option value="Property Manager">Property Manager (Full Ops)</option>
-                  <option value="Finance & Tax View">Finance & Tax View (Read Only)</option>
-                  <option value="Vendor Maintenance Only">Vendor Maintenance Only (Tickets)</option>
-                </select>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  value={memberEmail}
+                  onChange={(e) => setMemberEmail(e.target.value)}
+                  placeholder="sarah.j@regencymanagement.com"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Phone Number</label>
+                <div className="flex gap-2">
+                  <select
+                    value={memberCountryCode}
+                    onChange={(e) => setMemberCountryCode(e.target.value)}
+                    className="px-2.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer shrink-0"
+                  >
+                    <option value="+1">🇺🇸 +1 (US/CA)</option>
+                    <option value="+91">🇮🇳 +91 (IN)</option>
+                    <option value="+44">🇬🇧 +44 (UK)</option>
+                    <option value="+61">🇦🇺 +61 (AU)</option>
+                    <option value="+971">🇦🇪 +971 (UAE)</option>
+                    <option value="+65">🇸🇬 +65 (SG)</option>
+                    <option value="+49">🇩🇪 +49 (DE)</option>
+                    <option value="+33">🇫🇷 +33 (FR)</option>
+                  </select>
+                  <input
+                    type="tel"
+                    value={memberPhone}
+                    onChange={(e) => setMemberPhone(e.target.value)}
+                    placeholder="(555) 000-0000"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Access Role *</label>
+                <div className="relative">
+                  <select
+                    value={memberRole}
+                    onChange={(e) => setMemberRole(e.target.value)}
+                    className="w-full appearance-none px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer pr-9"
+                  >
+                    <option value="Owner">Owner</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Employee">Employee</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-3">
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setShowInviteModal(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-xs font-bold text-white bg-[#FF6B00] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer"
+                className="px-4 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer transition-all"
               >
-                Send Invite
+                Add Team Member
               </button>
             </div>
           </form>

@@ -34,7 +34,8 @@ import {
   LayoutGrid,
   List,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Layers
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
@@ -49,6 +50,7 @@ export interface TenantItem {
   leaseStart: string;
   leaseEnd?: string;
   monthlyRent?: number;
+  securityDeposit?: number;
   healthScore: number;
   status: "Excellent" | "Good" | "Fair" | "Attention";
   onTimeRate: string;
@@ -56,6 +58,11 @@ export interface TenantItem {
   govIdUrl?: string;
   leaseDocAttached?: boolean;
   leaseDocUrl?: string;
+  unitId?: string;
+  propertyId?: string;
+  workspaceId?: number;
+  floorNumber?: number;
+  currentStatus?: string;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -68,6 +75,9 @@ export default function TenantsPage() {
   // View mode state (Card vs Table)
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
 
+  // Status Filter State (Current vs Past vs All)
+  const [statusFilter, setStatusFilter] = useState<"Current" | "Past" | "All">("Current");
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -77,23 +87,33 @@ export default function TenantsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
-  // Property & Units Mappings
-  const propertyUnitsMap: Record<string, string[]> = {
-    "The Regent - Wing A": ["Unit 101", "Unit 104", "Unit 201", "Unit 302", "Unit 304", "Unit 401", "Unit 502"],
-    "Downtown Horizon Suites": ["Suite 101", "Suite 104", "Suite 202", "Suite 301", "Suite 408"],
-    "Oakwood Executive Residency": ["Unit 101", "Unit 105", "Unit 201", "Unit 301"],
-    "Skyline Manor": ["Unit 101", "Unit 201"]
-  };
+  // API Metadata lists for cascading selects
+  const [propertiesList, setPropertiesList] = useState<any[]>([]);
+  const [propertyUnits, setPropertyUnits] = useState<any[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
 
-  // Step 1 Form State
+  // Step 1 Form State - ALL EMPTY BY DEFAULT (NOT PRE-FILLED)
   const [name, setName] = useState("");
-  const [selectedProperty, setSelectedProperty] = useState("The Regent - Wing A");
-  const [selectedUnit, setSelectedUnit] = useState("Unit 101");
+  const [selectedPropertyId, setSelectedPropertyId] = useState("");
+  const [selectedFloor, setSelectedFloor] = useState("");
+  const [selectedUnitId, setSelectedUnitId] = useState("");
   const [selectedCountry, setSelectedCountry] = useState<Country>(() => getDefaultCountryByLocale(ALL_COUNTRIES));
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [leaseStart, setLeaseStart] = useState("2026-08-01");
-  const [monthlyRent, setMonthlyRent] = useState("2850");
+  const [leaseStart, setLeaseStart] = useState("");
+  const [monthlyRent, setMonthlyRent] = useState("");
+  const [securityDeposit, setSecurityDeposit] = useState("");
+
+  // Multiple Uploaded Media State (Government ID & Lease Documents)
+  interface UploadedMediaDoc {
+    id: string;
+    name: string;
+    url: string;
+    type: string;
+  }
+
+  const [govIdDocs, setGovIdDocs] = useState<UploadedMediaDoc[]>([]);
+  const [leaseDocs, setLeaseDocs] = useState<UploadedMediaDoc[]>([]);
 
   // Step 2 Form State (R2 Upload)
   const [idType, setIdType] = useState("Passport");
@@ -117,6 +137,7 @@ export default function TenantsPage() {
   const [depositSettlement, setDepositSettlement] = useState("Full Deposit Refunded");
   const [keysReturned, setKeysReturned] = useState(true);
   const [starRating, setStarRating] = useState(5);
+  const [exitHealthScore, setExitHealthScore] = useState<number>(85);
   const [reviewNotes, setReviewNotes] = useState("");
 
   // MODAL 3: REMOVE / EVICT RESIDENT MODAL STATE
@@ -125,6 +146,7 @@ export default function TenantsPage() {
   const [removalReason, setRemovalReason] = useState("Non-Payment of Rent / Financial Default");
   const [removalDate, setRemovalDate] = useState("2026-07-25");
   const [dueAmount, setDueAmount] = useState("1200");
+  const [removeHealthScore, setRemoveHealthScore] = useState<number>(45);
   const [incidentNotes, setIncidentNotes] = useState("");
   const [flagTenant, setFlagTenant] = useState(true);
 
@@ -143,7 +165,6 @@ export default function TenantsPage() {
             const propName = t.unit?.property?.name || "Property";
             const unitNo = t.unit?.unitNumber || "Unit 101";
             
-            // Determine score from DB or dynamic compliance calculation
             let score = t.healthScore || 80;
             if (!t.healthScore || t.healthScore === 95) {
               score = 75;
@@ -161,6 +182,7 @@ export default function TenantsPage() {
               leaseStart: t.leaseStart ? new Date(t.leaseStart).toISOString().split("T")[0] : "2026-01-01",
               leaseEnd: t.leaseEnd ? new Date(t.leaseEnd).toISOString().split("T")[0] : "2026-12-31",
               monthlyRent: t.monthlyRent || 0,
+              securityDeposit: t.securityDeposit || 0,
               healthScore: score,
               status: score >= 90 ? "Excellent" : score >= 80 ? "Good" : "Fair",
               onTimeRate: "100%",
@@ -168,6 +190,11 @@ export default function TenantsPage() {
               govIdUrl: t.govIdUrl,
               leaseDocAttached: Boolean(t.leaseDocUrl),
               leaseDocUrl: t.leaseDocUrl,
+              unitId: t.unitId,
+              propertyId: t.propertyId || t.unit?.propertyId,
+              workspaceId: t.workspaceId || t.unit?.workspaceId || t.unit?.property?.workspaceId,
+              floorNumber: t.floorNumber || t.unit?.floorNumber || 1,
+              currentStatus: t.currentStatus || (t.unitId ? "Current" : "Past"),
             };
           });
           setTenants(loaded);
@@ -180,15 +207,49 @@ export default function TenantsPage() {
     }
   };
 
+  // Fetch live properties from API with robust fallback
+  const fetchPropertiesList = async () => {
+    try {
+      const res = await fetch("/api/properties?wid=1");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+          setPropertiesList(json.data);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch properties list from API:", err);
+    }
+    // Fallback properties if DB has 0 items or API call is loading
+    setPropertiesList([
+      { id: "prop-regent", name: "The Regent - Wing A", totalFloors: 5 },
+      { id: "prop-horizon", name: "Downtown Horizon Suites", totalFloors: 4 },
+      { id: "prop-oakwood", name: "Oakwood Executive Residency", totalFloors: 3 },
+      { id: "prop-skyline", name: "Skyline Manor", totalFloors: 2 }
+    ]);
+  };
+
   useEffect(() => {
     fetchTenants();
+    fetchPropertiesList();
   }, []);
 
-  const filteredTenants = tenants.filter(
-    (t) =>
+  const filteredTenants = tenants.filter((t) => {
+    const matchesSearch =
       t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.unit.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      t.unit.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    if (statusFilter === "Current") {
+      return t.currentStatus === "Current" || (Boolean(t.unitId) && t.currentStatus !== "Exited" && t.currentStatus !== "Evicted");
+    }
+    if (statusFilter === "Past") {
+      return t.currentStatus === "Past" || t.currentStatus === "Exited" || t.currentStatus === "Evicted" || !t.unitId;
+    }
+    return true;
+  });
 
   // Reset pagination to page 1 on search term change
   useEffect(() => {
@@ -200,42 +261,116 @@ export default function TenantsPage() {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedTenants = filteredTenants.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  const handlePropertyChange = (newProp: string) => {
-    setSelectedProperty(newProp);
-    const availableUnits = propertyUnitsMap[newProp] || [];
-    if (availableUnits.length > 0) {
-      setSelectedUnit(availableUnits[0]);
+  // ---------------- CASCADING DROPDOWN HANDLERS ----------------
+  // 1. When Property changes -> Fetch units for that property & reset floor/unit
+  const handlePropertyChange = async (propertyId: string) => {
+    setSelectedPropertyId(propertyId);
+    setSelectedFloor("");
+    setSelectedUnitId("");
+    setMonthlyRent("");
+    setPropertyUnits([]);
+
+    if (!propertyId) return;
+
+    setLoadingUnits(true);
+    try {
+      const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}/units`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+          setPropertyUnits(json.data);
+          setLoadingUnits(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch units for property:", err);
+    }
+
+    // Comprehensive fallback units for all floors (Occupied & Vacant)
+    const fallbackUnits: any[] = [];
+    for (let f = 1; f <= 5; f++) {
+      fallbackUnits.push(
+        { id: `${propertyId}-u${f}01`, unitNumber: `Unit ${f}01`, floorNumber: f, rent: 1500 + f * 200, isOccupied: false },
+        { id: `${propertyId}-u${f}02`, unitNumber: `Unit ${f}02`, floorNumber: f, rent: 1600 + f * 200, isOccupied: true },
+        { id: `${propertyId}-u${f}03`, unitNumber: `Unit ${f}03`, floorNumber: f, rent: 1700 + f * 200, isOccupied: false },
+        { id: `${propertyId}-u${f}04`, unitNumber: `Unit ${f}04`, floorNumber: f, rent: 1800 + f * 200, isOccupied: true }
+      );
+    }
+    setPropertyUnits(fallbackUnits);
+    setLoadingUnits(false);
+  };
+
+  // Compute available floors for the selected property
+  const selectedPropertyObj = propertiesList.find((p) => p.id === selectedPropertyId);
+  const derivedFloorsFromUnits = Array.from(
+    new Set(propertyUnits.map((u) => u.floorNumber || 1))
+  ).sort((a, b) => (a as number) - (b as number));
+
+  const availableFloors: number[] = derivedFloorsFromUnits.length > 0
+    ? (derivedFloorsFromUnits as number[])
+    : selectedPropertyObj?.totalFloors
+    ? Array.from({ length: selectedPropertyObj.totalFloors }, (_, i) => i + 1)
+    : [1, 2, 3, 4, 5];
+
+  // 2. When Floor changes -> Reset selected unit & filter units matching floor
+  const handleFloorChange = (floorStr: string) => {
+    setSelectedFloor(floorStr);
+    setSelectedUnitId("");
+    setMonthlyRent("");
+  };
+
+  const filteredUnitsForFloor = propertyUnits.filter((u) => {
+    if (!selectedFloor) return true;
+    return String(u.floorNumber || 1) === String(selectedFloor);
+  });
+
+  // 3. When Unit changes -> Auto populate rent if available
+  const handleUnitChange = (unitId: string) => {
+    setSelectedUnitId(unitId);
+    const targetUnit = propertyUnits.find((u) => u.id === unitId);
+    if (targetUnit && targetUnit.rent) {
+      setMonthlyRent(targetUnit.rent.toString());
     }
   };
 
+  // Open modal for NEW tenant (NO pre-filled fields!)
   const handleOpenAddModal = () => {
     setEditingTenantId(null);
     setName("");
     setEmail("");
     setPhone("");
-    setMonthlyRent("2850");
+    setSelectedPropertyId("");
+    setSelectedFloor("");
+    setSelectedUnitId("");
+    setPropertyUnits([]);
+    setMonthlyRent("");
+    setSecurityDeposit("");
+    setLeaseStart(new Date().toISOString().split("T")[0]);
+    setIdType("Passport");
+    setIdNumber("");
     setGovIdFile(null);
     setGovIdUrl(null);
+    setGovIdDocs([]);
     setLeaseFile(null);
     setLeaseUrl(null);
+    setLeaseDocs([]);
     setCurrentStep(1);
+
+    // Refresh properties list
+    fetchPropertiesList();
     setShowAddModal(true);
   };
 
-  const handleOpenEditModal = (t: TenantItem) => {
+  // Open modal for EDITING tenant
+  const handleOpenEditModal = async (t: TenantItem) => {
     setEditingTenantId(t.id);
     setName(t.name);
     setEmail(t.email);
     setPhone(t.phone ? t.phone.replace(/^\+\d+\s*/, "") : "");
-    setMonthlyRent(t.monthlyRent ? t.monthlyRent.toString() : "2850");
-
-    const parts = t.unit.split(" - ");
-    if (parts.length === 2 && propertyUnitsMap[parts[0]]) {
-      setSelectedProperty(parts[0]);
-      setSelectedUnit(parts[1]);
-    }
-
-    setLeaseStart(t.leaseStart);
+    setMonthlyRent(t.monthlyRent ? t.monthlyRent.toString() : "");
+    setSecurityDeposit(t.securityDeposit ? t.securityDeposit.toString() : "");
+    setLeaseStart(t.leaseStart || new Date().toISOString().split("T")[0]);
     setGovIdUrl(t.govIdUrl || null);
     setLeaseUrl(t.leaseDocUrl || null);
     setCurrentStep(1);
@@ -249,6 +384,7 @@ export default function TenantsPage() {
     setDepositSettlement("Full Deposit Refunded");
     setKeysReturned(true);
     setStarRating(5);
+    setExitHealthScore(t.healthScore || 85);
     setReviewNotes(`Resident ${t.name} completed tenancy tenure cleanly and maintained room in great condition.`);
     setShowNormalExitModal(true);
   };
@@ -268,9 +404,14 @@ export default function TenantsPage() {
           status: "Lease Completed",
           review: reviewNotes || "Normal lease exit completed.",
           rating: starRating,
+          healthScore: Number(exitHealthScore) || 85, // Assigned departure health score
           depositSettlement,
           keysReturned,
           tenantId: exitTenant.id,
+          unitId: exitTenant.unitId,
+          propertyId: exitTenant.propertyId,
+          workspaceId: exitTenant.workspaceId,
+          floorNumber: exitTenant.floorNumber,
         }),
       });
 
@@ -295,6 +436,7 @@ export default function TenantsPage() {
     setRemovalReason("Non-Payment of Rent / Financial Default");
     setRemovalDate(new Date().toISOString().split("T")[0]);
     setDueAmount("1200");
+    setRemoveHealthScore(45);
     setIncidentNotes(`Resident removed due to non-payment of rent and lease policy breach.`);
     setFlagTenant(true);
     setShowRemoveModal(true);
@@ -316,7 +458,12 @@ export default function TenantsPage() {
           removalReason,
           review: incidentNotes || "Resident removed due to policy breach.",
           rating: 1,
+          healthScore: Number(removeHealthScore) || 45, // Eviction health score penalty
           tenantId: removeTenantTarget.id,
+          unitId: removeTenantTarget.unitId,
+          propertyId: removeTenantTarget.propertyId,
+          workspaceId: removeTenantTarget.workspaceId,
+          floorNumber: removeTenantTarget.floorNumber,
         }),
       });
 
@@ -341,6 +488,18 @@ export default function TenantsPage() {
         toast("Please fill in Resident Name and Email before proceeding.", "info");
         return;
       }
+      if (!selectedPropertyId) {
+        toast("Please select a Property.", "info");
+        return;
+      }
+      if (!selectedFloor) {
+        toast("Please select a Floor.", "info");
+        return;
+      }
+      if (!selectedUnitId) {
+        toast("Please select an assigned Room / Unit.", "info");
+        return;
+      }
       setCurrentStep(2);
     } else if (currentStep === 2) {
       setCurrentStep(3);
@@ -358,22 +517,42 @@ export default function TenantsPage() {
 
     setIsSubmitting(true);
     try {
-      // Fix: If user didn't enter phone digits, pass empty string instead of dummy phone number!
       const fullPhoneNumber = phone.trim()
         ? `${selectedCountry.dialCode} ${phone.trim()}`
         : "";
+
+      const documentsPayload = [
+        ...govIdDocs.map((d) => ({
+          title: `${d.name} — ${name}`,
+          docType: "Government ID",
+          fileUrl: d.url,
+          fileName: d.name,
+          type: d.type,
+        })),
+        ...leaseDocs.map((d) => ({
+          title: `${d.name} — ${name}`,
+          docType: "Lease Agreement",
+          fileUrl: d.url,
+          fileName: d.name,
+          type: d.type,
+        })),
+      ];
 
       const payload = {
         name,
         email,
         phone: fullPhoneNumber,
         monthlyRent: parseFloat(monthlyRent) || 0,
+        securityDeposit: securityDeposit ? parseFloat(securityDeposit) : 0,
         leaseStart,
-        unitId: selectedUnit,
+        unitId: selectedUnitId || null,
+        propertyId: selectedPropertyId || null,
+        floorNumber: selectedFloor ? Number(selectedFloor) : 1,
         govIdType: idType,
         govIdNumber: idNumber,
-        govIdUrl: govIdUrl || null,
-        leaseDocUrl: leaseUrl || null,
+        govIdUrl: govIdDocs[0]?.url || govIdUrl || null,
+        leaseDocUrl: leaseDocs[0]?.url || leaseUrl || null,
+        documents: documentsPayload,
       };
 
       if (editingTenantId) {
@@ -433,8 +612,25 @@ export default function TenantsPage() {
           </div>
         </div>
 
-        {/* Search, View Switcher & Action Buttons */}
+        {/* Search, Status Filters, View Switcher & Action Buttons */}
         <div className="flex items-center gap-3 flex-wrap">
+          {/* Status Filter Dropdown (Current vs Past vs All) */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer shadow-2xs"
+          >
+            <option value="Current">
+              Current Residents ({tenants.filter(t => t.currentStatus === "Current" || (Boolean(t.unitId) && t.currentStatus !== "Exited" && t.currentStatus !== "Evicted")).length})
+            </option>
+            <option value="Past">
+              Past Residents ({tenants.filter(t => t.currentStatus === "Past" || t.currentStatus === "Exited" || t.currentStatus === "Evicted" || !t.unitId).length})
+            </option>
+            <option value="All">
+              All Residents ({tenants.length})
+            </option>
+          </select>
+
           <div className="relative w-56 sm:w-64">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -446,31 +642,29 @@ export default function TenantsPage() {
             />
           </div>
 
-          {/* View Switcher Toggle Button (Card View vs Table View) */}
+          {/* View Switcher Toggle Button (Icon Only) */}
           <div className="flex items-center p-1 bg-slate-100 border border-slate-200/80 rounded-xl">
             <button
               onClick={() => setViewMode("card")}
               title="Grid Card View"
-              className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+              className={`p-2 rounded-lg transition-all cursor-pointer ${
                 viewMode === "card"
-                  ? "bg-white text-slate-900 shadow-xs"
+                  ? "bg-white text-slate-900 shadow-xs font-bold"
                   : "text-slate-500 hover:text-slate-800"
               }`}
             >
               <LayoutGrid className="w-4 h-4" />
-              <span className="hidden sm:inline">Cards</span>
             </button>
             <button
               onClick={() => setViewMode("table")}
               title="Table View"
-              className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+              className={`p-2 rounded-lg transition-all cursor-pointer ${
                 viewMode === "table"
-                  ? "bg-white text-slate-900 shadow-xs"
+                  ? "bg-white text-slate-900 shadow-xs font-bold"
                   : "text-slate-500 hover:text-slate-800"
               }`}
             >
               <List className="w-4 h-4" />
-              <span className="hidden sm:inline">Table</span>
             </button>
           </div>
 
@@ -690,7 +884,7 @@ export default function TenantsPage() {
             </div>
           )}
 
-          {/* PAGINATION BAR (Max 10 per page for BOTH views) */}
+          {/* PAGINATION BAR */}
           <div className="bg-white border border-slate-200/90 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-semibold shadow-2xs">
             <div className="text-slate-500">
               Showing <strong className="text-slate-900">{startIndex + 1}</strong> to{" "}
@@ -815,10 +1009,15 @@ export default function TenantsPage() {
                 </span>
               </label>
 
-              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
-                <label className="block font-extrabold text-amber-900 uppercase text-[11px]">
-                  Landlord Rating for {exitTenant.name} (For Future Reference)
-                </label>
+              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block font-extrabold text-amber-900 uppercase text-[11px]">
+                    Landlord Rating for {exitTenant.name}
+                  </label>
+                  <span className="font-black text-amber-900 text-xs">
+                    {starRating}.0 / 5.0 Stars
+                  </span>
+                </div>
 
                 <div className="flex items-center gap-2">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -837,9 +1036,21 @@ export default function TenantsPage() {
                       />
                     </button>
                   ))}
-                  <span className="ml-2 font-black text-amber-900 text-sm">
-                    {starRating}.0 / 5.0 Stars
-                  </span>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-amber-900 uppercase text-[10px] mb-1">
+                    Assign Final Departure Health Score (0 – 100)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    required
+                    value={exitHealthScore}
+                    onChange={(e) => setExitHealthScore(Number(e.target.value))}
+                    className="w-full px-3.5 py-2 bg-white border border-amber-300 rounded-xl text-xs font-black text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
                 </div>
               </div>
 
@@ -957,6 +1168,21 @@ export default function TenantsPage() {
               </div>
 
               <div>
+                <label className="block font-bold text-rose-900 uppercase mb-1">
+                  Eviction / Removal Health Score Penalty (0 – 100)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  required
+                  value={removeHealthScore}
+                  onChange={(e) => setRemoveHealthScore(Number(e.target.value))}
+                  className="w-full px-3.5 py-2.5 bg-rose-50/70 border border-rose-200 rounded-xl text-xs font-black text-rose-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1">Incident Notes &amp; Breach Details</label>
                 <textarea
                   rows={3}
@@ -1018,7 +1244,7 @@ export default function TenantsPage() {
                     {editingTenantId ? "Edit Resident Profile" : "Onboard New Resident"}
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    Step {currentStep} of 3 — {currentStep === 1 ? "Basic & Contact Details" : currentStep === 2 ? "Government ID Upload" : "Lease Docs & Compliance"}
+                    Step {currentStep} of 3 — {currentStep === 1 ? "Basic & Location Details" : currentStep === 2 ? "Government ID Upload" : "Lease Docs & Compliance"}
                   </p>
                 </div>
               </div>
@@ -1045,58 +1271,104 @@ export default function TenantsPage() {
               </div>
             </div>
 
-            {/* Step 1: Basic & Unit Details */}
+            {/* Step 1: Basic & Unit Details (DYNAMIC CASCADING SELECTS) */}
             {currentStep === 1 && (
               <div className="space-y-4 text-xs">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Full Legal Name</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Full Legal Name *</label>
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Eleanor Vance"
+                    placeholder="Enter resident full name..."
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Select Property</label>
-                    <select
-                      value={selectedProperty}
-                      onChange={(e) => handlePropertyChange(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                    >
-                      {Object.keys(propertyUnitsMap).map((prop) => (
-                        <option key={prop} value={prop}>{prop}</option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Dynamic Cascading Location Dropdowns: Property -> Floor -> Unit */}
+                <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-2xl space-y-3">
+                  <span className="font-extrabold text-[#FF6B00] uppercase text-[11px] block flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4" />
+                    Property, Floor &amp; Unit Selection (Cascading API)
+                  </span>
 
-                  <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Assigned Room / Unit</label>
-                    <select
-                      value={selectedUnit}
-                      onChange={(e) => setSelectedUnit(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                    >
-                      {(propertyUnitsMap[selectedProperty] || []).map((u) => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
+                  <div className="space-y-3">
+                    {/* 1. Property Dropdown (Fetched from API) */}
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase mb-1">1. Select Property *</label>
+                      <select
+                        required
+                        value={selectedPropertyId}
+                        onChange={(e) => handlePropertyChange(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                      >
+                        <option value="">-- Select Property --</option>
+                        {propertiesList.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* 2. Floor Dropdown (Disabled until Property is selected) */}
+                      <div>
+                        <label className="block font-bold text-slate-700 uppercase mb-1">2. Select Floor *</label>
+                        <select
+                          required
+                          disabled={!selectedPropertyId}
+                          value={selectedFloor}
+                          onChange={(e) => handleFloorChange(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        >
+                          <option value="">
+                            {!selectedPropertyId ? "-- Select Property First --" : "-- Select Floor --"}
+                          </option>
+                          {availableFloors.map((fl) => (
+                            <option key={fl} value={fl}>Floor {fl}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* 3. Unit Dropdown (Disabled until Floor is selected) */}
+                      <div>
+                        <label className="block font-bold text-slate-700 uppercase mb-1">3. Select Room / Unit *</label>
+                        <select
+                          required
+                          disabled={!selectedFloor || loadingUnits}
+                          value={selectedUnitId}
+                          onChange={(e) => handleUnitChange(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        >
+                          <option value="">
+                            {loadingUnits
+                              ? "Loading units..."
+                              : !selectedFloor
+                              ? "-- Select Floor First --"
+                              : filteredUnitsForFloor.length === 0
+                              ? "-- No units on this floor --"
+                              : "-- Select Unit --"}
+                          </option>
+                          {filteredUnitsForFloor.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.unitNumber} {u.isOccupied ? "(Occupied)" : "(Vacant)"}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Email Address</label>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Email Address *</label>
                     <input
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="resident@example.com"
+                      placeholder="resident@domain.com"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
@@ -1112,21 +1384,21 @@ export default function TenantsPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent ($ / ₹)</label>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent ($ / ₹) *</label>
                     <input
                       type="number"
                       required
                       value={monthlyRent}
                       onChange={(e) => setMonthlyRent(e.target.value)}
-                      placeholder="2850"
+                      placeholder="e.g. 1850"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Lease Start Date</label>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Lease Start Date *</label>
                     <input
                       type="date"
                       required
@@ -1135,6 +1407,17 @@ export default function TenantsPage() {
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Security Deposit ($ / ₹) (Optional)</label>
+                  <input
+                    type="number"
+                    value={securityDeposit}
+                    onChange={(e) => setSecurityDeposit(e.target.value)}
+                    placeholder="e.g. 2500"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
                 </div>
               </div>
             )}
@@ -1162,64 +1445,120 @@ export default function TenantsPage() {
                       type="text"
                       value={idNumber}
                       onChange={(e) => setIdNumber(e.target.value)}
-                      placeholder="A-98102948"
+                      placeholder="Enter ID number..."
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
                 </div>
 
-                {/* Cloudflare R2 Upload Box */}
+                {/* Cloudflare R2 Multiple Upload Box */}
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Government ID Document Scan (Upload to Cloudflare R2)</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">
+                    Government ID Document Scan (Upload Multiple Files to Cloudflare R2)
+                  </label>
                   <label className="p-5 border-2 border-dashed border-slate-200 hover:border-[#FF6B00] rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50 hover:bg-orange-50/20 group relative overflow-hidden block">
                     <input
                       type="file"
+                      multiple
                       accept="image/*,application/pdf"
                       className="hidden"
                       onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        const validation = validateFile(file);
-                        if (!validation.valid && validation.error) {
-                          toast(validation.error, "error");
-                          return;
-                        }
-                        setGovIdFile(file.name);
+                        const files = Array.from(e.target.files || []);
+                        if (files.length === 0) return;
+
                         setGovIdUploading(true);
                         setGovIdProgress(10);
-                        try {
-                          const res = await uploadFile(file, {
-                            workspaceId: "tenants",
-                            context: "gov-id",
-                            onProgress: (pct) => setGovIdProgress(pct),
-                          });
-                          if (res.success && res.url) {
-                            setGovIdUrl(res.url);
-                            toast(`Uploaded ${file.name} to R2 storage!`, "success");
-                          } else {
-                            toast(`Upload failed: ${res.error || "Unknown error"}`, "error");
+                        let completedCount = 0;
+
+                        for (const file of files) {
+                          const validation = validateFile(file);
+                          if (!validation.valid && validation.error) {
+                            toast(validation.error, "error");
+                            continue;
                           }
-                        } catch (uploadErr: any) {
-                          toast(`Upload failed: ${uploadErr?.message}`, "error");
-                        } finally {
-                          setGovIdUploading(false);
+                          try {
+                            const res = await uploadFile(file, {
+                              workspaceId: "tenants",
+                              context: "gov-id",
+                              onProgress: (pct) => setGovIdProgress(Math.round(((completedCount + pct / 100) / files.length) * 100)),
+                            });
+                            if (res.success && res.url) {
+                              const newDoc = {
+                                id: `govid-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                                name: file.name,
+                                url: res.url,
+                                type: idType,
+                              };
+                              setGovIdDocs((prev) => [...prev, newDoc]);
+                              setGovIdUrl(res.url);
+                              toast(`Uploaded "${file.name}" to R2 storage!`, "success");
+                            } else {
+                              toast(`Upload failed: ${res.error || "Unknown error"}`, "error");
+                            }
+                          } catch (uploadErr: any) {
+                            toast(`Upload failed: ${uploadErr?.message}`, "error");
+                          }
+                          completedCount++;
                         }
+                        setGovIdUploading(false);
                       }}
                     />
                     <Upload className="w-7 h-7 text-slate-400 group-hover:text-[#FF6B00] transition-colors mb-1.5" />
-                    <span className="font-extrabold text-slate-800 text-xs">Click to select &amp; compress file to Cloudflare R2</span>
-                    <span className="text-[11px] text-slate-400 mt-0.5 font-medium">PNG, JPG, WebP, PDF (Max 10MB)</span>
-                    {govIdFile && (
-                      <span className="mt-2 text-xs font-bold text-[#FF6B00] bg-orange-50 px-3 py-1 rounded-full border border-orange-200">
-                        {govIdFile} {govIdUrl ? "✓ (R2 Saved)" : ""}
-                      </span>
-                    )}
+                    <span className="font-extrabold text-slate-800 text-xs">Click to select &amp; upload multiple ID files to Cloudflare R2</span>
+                    <span className="text-[11px] text-slate-400 mt-0.5 font-medium">PNG, JPG, WebP, PDF — Front, Back &amp; Secondary ID scans</span>
+
                     {govIdUploading && (
                       <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 overflow-hidden">
                         <div className="bg-[#FF6B00] h-full transition-all duration-200" style={{ width: `${govIdProgress}%` }} />
                       </div>
                     )}
                   </label>
+
+                  {/* Uploaded Government ID Documents List with Remove Option */}
+                  {govIdDocs.length > 0 && (
+                    <div className="space-y-2 pt-3">
+                      <span className="font-bold text-slate-700 uppercase text-[11px] block">
+                        Uploaded Government ID Media ({govIdDocs.length})
+                      </span>
+                      <div className="space-y-2">
+                        {govIdDocs.map((doc) => (
+                          <div key={doc.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-2xs">
+                            <div className="flex items-center gap-2.5 overflow-hidden">
+                              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg shrink-0">
+                                <IdCard className="w-4 h-4" />
+                              </div>
+                              <div className="truncate">
+                                <div className="font-bold text-slate-900 truncate">{doc.name}</div>
+                                <div className="text-[10px] text-slate-500 font-semibold">{doc.type} • Cloudflare R2 Saved</div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] rounded-lg transition-colors"
+                              >
+                                View
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setGovIdDocs((prev) => prev.filter((d) => d.id !== doc.id));
+                                  toast(`Removed document ${doc.name}`, "info");
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Remove Uploaded Document"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1240,58 +1579,114 @@ export default function TenantsPage() {
                   </select>
                 </div>
 
-                {/* Cloudflare R2 Upload Box for Lease Contract */}
+                {/* Cloudflare R2 Upload Box for Lease Contracts & Compliance Documents */}
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Signed Lease Agreement File (Upload to Cloudflare R2)</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">
+                    Signed Lease Agreement &amp; Compliance Documents (Upload Multiple Files to Cloudflare R2)
+                  </label>
                   <label className="p-5 border-2 border-dashed border-slate-200 hover:border-[#FF6B00] rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50 hover:bg-orange-50/20 group relative overflow-hidden block">
                     <input
                       type="file"
+                      multiple
                       accept="image/*,application/pdf"
                       className="hidden"
                       onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        const validation = validateFile(file);
-                        if (!validation.valid && validation.error) {
-                          toast(validation.error, "error");
-                          return;
-                        }
-                        setLeaseFile(file.name);
+                        const files = Array.from(e.target.files || []);
+                        if (files.length === 0) return;
+
                         setLeaseUploading(true);
                         setLeaseProgress(10);
-                        try {
-                          const res = await uploadFile(file, {
-                            workspaceId: "tenants",
-                            context: "lease-docs",
-                            onProgress: (pct) => setLeaseProgress(pct),
-                          });
-                          if (res.success && res.url) {
-                            setLeaseUrl(res.url);
-                            toast(`Uploaded ${file.name} to R2 storage!`, "success");
-                          } else {
-                            toast(`Upload failed: ${res.error || "Unknown error"}`, "error");
+                        let completedCount = 0;
+
+                        for (const file of files) {
+                          const validation = validateFile(file);
+                          if (!validation.valid && validation.error) {
+                            toast(validation.error, "error");
+                            continue;
                           }
-                        } catch (uploadErr: any) {
-                          toast(`Upload failed: ${uploadErr?.message}`, "error");
-                        } finally {
-                          setLeaseUploading(false);
+                          try {
+                            const res = await uploadFile(file, {
+                              workspaceId: "tenants",
+                              context: "lease-docs",
+                              onProgress: (pct) => setLeaseProgress(Math.round(((completedCount + pct / 100) / files.length) * 100)),
+                            });
+                            if (res.success && res.url) {
+                              const newDoc = {
+                                id: `lease-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                                name: file.name,
+                                url: res.url,
+                                type: docType,
+                              };
+                              setLeaseDocs((prev) => [...prev, newDoc]);
+                              setLeaseUrl(res.url);
+                              toast(`Uploaded "${file.name}" to R2 storage!`, "success");
+                            } else {
+                              toast(`Upload failed: ${res.error || "Unknown error"}`, "error");
+                            }
+                          } catch (uploadErr: any) {
+                            toast(`Upload failed: ${uploadErr?.message}`, "error");
+                          }
+                          completedCount++;
                         }
+                        setLeaseUploading(false);
                       }}
                     />
                     <FileCheck className="w-7 h-7 text-slate-400 group-hover:text-[#FF6B00] transition-colors mb-1.5" />
-                    <span className="font-extrabold text-slate-800 text-xs">Click to select lease PDF/image to Cloudflare R2</span>
-                    <span className="text-[11px] text-slate-400 mt-0.5 font-medium">PDF, WebP, PNG (Auto Compressed &amp; Workspace Scoped)</span>
-                    {leaseFile && (
-                      <span className="mt-2 text-xs font-bold text-[#FF6B00] bg-orange-50 px-3 py-1 rounded-full border border-orange-200">
-                        {leaseFile} {leaseUrl ? "✓ (R2 Saved)" : ""}
-                      </span>
-                    )}
+                    <span className="font-extrabold text-slate-800 text-xs">Click to select &amp; upload multiple lease contracts or verification files</span>
+                    <span className="text-[11px] text-slate-400 mt-0.5 font-medium">PDF, WebP, PNG — Lease agreement, Police clearance &amp; income proofs</span>
+
                     {leaseUploading && (
                       <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 overflow-hidden">
                         <div className="bg-[#FF6B00] h-full transition-all duration-200" style={{ width: `${leaseProgress}%` }} />
                       </div>
                     )}
                   </label>
+
+                  {/* Uploaded Lease Documents List with Remove Option */}
+                  {leaseDocs.length > 0 && (
+                    <div className="space-y-2 pt-3">
+                      <span className="font-bold text-slate-700 uppercase text-[11px] block">
+                        Uploaded Lease &amp; Compliance Files ({leaseDocs.length})
+                      </span>
+                      <div className="space-y-2">
+                        {leaseDocs.map((doc) => (
+                          <div key={doc.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-2xs">
+                            <div className="flex items-center gap-2.5 overflow-hidden">
+                              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg shrink-0">
+                                <FileCheck className="w-4 h-4" />
+                              </div>
+                              <div className="truncate">
+                                <div className="font-bold text-slate-900 truncate">{doc.name}</div>
+                                <div className="text-[10px] text-slate-500 font-semibold">{doc.type} • Cloudflare R2 Saved</div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] rounded-lg transition-colors"
+                              >
+                                View
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setLeaseDocs((prev) => prev.filter((d) => d.id !== doc.id));
+                                  toast(`Removed document ${doc.name}`, "info");
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Remove Uploaded Document"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -43,6 +43,7 @@ export async function PATCH(request: Request, { params }: Params) {
         email: email !== undefined ? email : existing.email,
         phone: phone !== undefined ? phone : existing.phone,
         monthlyRent: monthlyRent !== undefined ? parseFloat(monthlyRent) : existing.monthlyRent,
+        securityDeposit: body.securityDeposit !== undefined ? parseFloat(body.securityDeposit) : existing.securityDeposit,
         leaseStart: leaseStart ? new Date(leaseStart) : existing.leaseStart,
         leaseEnd: leaseEnd ? new Date(leaseEnd) : existing.leaseEnd,
         unitId: unitId !== undefined ? unitId : existing.unitId,
@@ -59,10 +60,13 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 }
 
-// DELETE /api/tenants/[id] - Delete/Offboard tenant from unit
+// DELETE /api/tenants/[id] - Offboard tenant: Mark currentStatus = "Exited" & unassign unit (Preserve record for workspace history)
 export async function DELETE(request: Request, { params }: Params) {
   try {
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const statusType = searchParams.get("status") || "Exited";
+
     const existing = await prisma.tenant.findUnique({ where: { id } });
 
     if (!existing) {
@@ -71,12 +75,21 @@ export async function DELETE(request: Request, { params }: Params) {
 
     const unitId = existing.unitId;
 
-    await prisma.tenant.delete({ where: { id } });
+    // Mark currentStatus = "Exited" or "Evicted" and clear unitId to unassign from room while preserving tenant in workspace
+    const updated = await prisma.tenant.update({
+      where: { id },
+      data: {
+        unitId: null,
+        currentStatus: statusType.includes("Evict") || statusType.includes("Remove") ? "Evicted" : "Exited",
+      },
+    });
 
-    // Check remaining tenants in unit
+    // Check remaining active Current tenants in unit
     if (unitId) {
-      const remainingCount = await prisma.tenant.count({ where: { unitId } });
-      if (remainingCount === 0) {
+      const activeCount = await prisma.tenant.count({
+        where: { unitId, currentStatus: "Current" },
+      });
+      if (activeCount === 0) {
         await prisma.unit.update({
           where: { id: unitId },
           data: { isOccupied: false },
@@ -86,9 +99,10 @@ export async function DELETE(request: Request, { params }: Params) {
 
     return NextResponse.json({
       success: true,
-      message: `Tenant "${existing.name}" deleted successfully!`,
+      message: `Tenant "${existing.name}" offboarded cleanly! Preserved in workspace history as Past Resident.`,
+      data: updated,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: "Failed to delete tenant", details: error?.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to offboard tenant", details: error?.message }, { status: 500 });
   }
 }

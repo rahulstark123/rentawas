@@ -67,6 +67,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Resident name is required." }, { status: 400 });
     }
 
+    let targetUnitId = unitId;
+    let targetPropId = propertyId;
+    let targetWid = workspaceId ? Number(workspaceId) : null;
+    let targetFloor = floorNumber ? Number(floorNumber) : 1;
+
+    // Resolve unit from database if unitId is a unit number string or cuid
+    if (unitId && typeof unitId === "string") {
+      let u = await prisma.unit.findUnique({ where: { id: unitId }, include: { property: true } });
+      if (!u) {
+        u = await prisma.unit.findFirst({
+          where: {
+            OR: [
+              { unitNumber: unitId },
+              { unitNumber: `Unit ${unitId}` },
+              { unitNumber: unitId.replace("Unit ", "") },
+            ],
+            ...(propertyId ? { propertyId } : {}),
+          },
+          include: { property: true },
+        });
+      }
+      if (u) {
+        targetUnitId = u.id;
+        targetPropId = targetPropId || u.propertyId;
+        targetWid = targetWid || u.workspaceId || u.property?.workspaceId || null;
+        targetFloor = u.floorNumber || targetFloor;
+      }
+    }
+
     const historyData: any = {
       name: name.trim(),
       period: period || "2025 - 2026",
@@ -74,18 +103,19 @@ export async function POST(request: Request) {
       status: status || "Lease Completed",
       review: review || null,
       rating: rating ? Number(rating) : 5,
+      healthScore: body.healthScore ? Number(body.healthScore) : (status === "Removed / Evicted" ? 45 : 85),
       removalReason: removalReason || null,
       depositSettlement: depositSettlement || "Full Deposit Refunded",
       keysReturned: keysReturned !== false,
-      floorNumber: floorNumber ? Number(floorNumber) : 1,
+      floorNumber: targetFloor,
       moveIn: moveIn ? new Date(moveIn) : null,
       moveOut: moveOut ? new Date(moveOut) : new Date(),
     };
 
     if (tenantId) historyData.tenant = { connect: { id: tenantId } };
-    if (unitId) historyData.unit = { connect: { id: unitId } };
-    if (propertyId) historyData.property = { connect: { id: propertyId } };
-    if (workspaceId) historyData.workspace = { connect: { wid: Number(workspaceId) } };
+    if (targetUnitId) historyData.unit = { connect: { id: targetUnitId } };
+    if (targetPropId) historyData.property = { connect: { id: targetPropId } };
+    if (targetWid) historyData.workspace = { connect: { wid: targetWid } };
 
     const record = await prisma.roomHistory.create({
       data: historyData,

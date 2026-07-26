@@ -72,6 +72,7 @@ export interface PastHistoryRecord {
   status: "Active Occupant" | "Lease Completed" | "Removed / Evicted";
   review?: string;
   rating?: number;
+  healthScore?: number;
   removalReason?: string;
 }
 
@@ -1093,7 +1094,11 @@ export default function RoomTelemetryFullPage() {
                         </span>
                       </div>
                       <span className="text-xs text-slate-500 block mt-0.5">
-                        Document: {currentDocOccupant.govIdType || "Passport"} ({currentDocOccupant.govIdNumber || "PASS-981029"}) • State Database Verified
+                        {currentDocOccupant.govIdType
+                          ? `Document: ${currentDocOccupant.govIdType}${currentDocOccupant.govIdNumber ? ` (${currentDocOccupant.govIdNumber})` : ""} • State Database Verified`
+                          : currentDocOccupant.govIdUrl
+                          ? `Government ID Document Scan Verified`
+                          : `ID Document Pending Upload`}
                       </span>
                     </div>
                   </div>
@@ -1203,8 +1208,8 @@ export default function RoomTelemetryFullPage() {
                         </div>
                       </div>
 
-                      <div className="text-right">
-                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold block mb-1 ${
+                      <div className="text-right flex flex-col items-end gap-1">
+                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold block ${
                           h.status === "Lease Completed"
                             ? "bg-emerald-100 text-emerald-800"
                             : "bg-rose-100 text-rose-800"
@@ -1212,13 +1217,20 @@ export default function RoomTelemetryFullPage() {
                           {h.status}
                         </span>
 
-                        {h.rating && (
-                          <div className="flex items-center justify-end gap-0.5 text-amber-500">
-                            {Array.from({ length: h.rating }).map((_, i) => (
-                              <Star key={i} className="w-3 h-3 fill-amber-400" />
-                            ))}
+                        <div className="flex items-center gap-2">
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-[10px] font-black text-emerald-700">
+                            <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                            <span>{h.healthScore || (h.status === "Removed / Evicted" ? 45 : 85)} / 100</span>
                           </div>
-                        )}
+
+                          {h.rating && (
+                            <div className="flex items-center gap-0.5 text-amber-500">
+                              {Array.from({ length: h.rating }).map((_, i) => (
+                                <Star key={i} className="w-3 h-3 fill-amber-400" />
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -2383,52 +2395,61 @@ export default function RoomTelemetryFullPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Category</label>
-                  <select
-                    value={maintCategory}
-                    onChange={(e) => setMaintCategory(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="General Repair">General Repair</option>
-                    <option value="Plumbing">Plumbing</option>
-                    <option value="Electrical">Electrical</option>
-                    <option value="HVAC / AC">HVAC / AC</option>
-                    <option value="Appliance">Appliance</option>
-                    <option value="Carpentry">Carpentry</option>
-                    <option value="Housekeeping / Cleaning">Housekeeping / Cleaning</option>
-                    <option value="Pest Control">Pest Control</option>
-                    <option value="Security / Locks">Security / Locks</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={maintCategory}
+                      onChange={(e) => setMaintCategory(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9"
+                    >
+                      <option value="General Repair">General Repair</option>
+                      <option value="Plumbing">Plumbing</option>
+                      <option value="Electrical">Electrical</option>
+                      <option value="HVAC / AC">HVAC / AC</option>
+                      <option value="Appliance">Appliance</option>
+                      <option value="Carpentry">Carpentry</option>
+                      <option value="Housekeeping / Cleaning">Housekeeping / Cleaning</option>
+                      <option value="Pest Control">Pest Control</option>
+                      <option value="Security / Locks">Security / Locks</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Priority</label>
-                  <select
-                    value={maintPriority}
-                    onChange={(e) => setMaintPriority(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="Low">Low</option>
-                    <option value="Normal">Normal</option>
-                    <option value="High">High</option>
-                    <option value="Emergency">Emergency 🚨</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={maintPriority}
+                      onChange={(e) => setMaintPriority(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Normal">Normal</option>
+                      <option value="High">High</option>
+                      <option value="Emergency">Emergency 🚨</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1">Logged By Tenant / Submitter</label>
-                <select
-                  value={maintTenantId}
-                  onChange={(e) => setMaintTenantId(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                >
-                  <option value="">Admin / Property Staff</option>
-                  {occupants.map((occ) => (
-                    <option key={occ.id} value={occ.id}>
-                      {occ.name} ({occ.bedSlot || "Occupant"}) — Tenant ID: {occ.id}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={maintTenantId}
+                    onChange={(e) => setMaintTenantId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9"
+                  >
+                    <option value="">Admin / Property Staff</option>
+                    {occupants.map((occ) => (
+                      <option key={occ.id} value={occ.id}>
+                        {occ.name} ({occ.bedSlot || "Occupant"}) — Tenant ID: {occ.id}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
             </div>
 

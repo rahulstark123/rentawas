@@ -20,6 +20,7 @@ export async function GET(request: Request) {
             property: true,
           },
         },
+        documents: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
       govIdNumber,
       govIdUrl,
       leaseDocUrl,
+      documents,
     } = body;
 
     if (!name || !name.trim()) {
@@ -104,9 +106,13 @@ export async function POST(request: Request) {
     const cleanPhone = phone && typeof phone === "string" && phone.trim() && !phone.trim().endsWith("undefined") ? phone.trim() : "";
 
     // Compute dynamic health score based on compliance & documentation completeness
+    const docList = Array.isArray(documents) ? documents : [];
+    const hasGovId = govIdUrl || docList.some((d: any) => d.docType === "Government ID" || d.type === "Passport" || d.type === "Driver's License");
+    const hasLeaseDoc = leaseDocUrl || docList.some((d: any) => d.docType === "Lease Agreement");
+
     let computedHealthScore = 75; // Base score for new tenant
-    if (govIdUrl) computedHealthScore += 10;
-    if (leaseDocUrl) computedHealthScore += 10;
+    if (hasGovId) computedHealthScore += 10;
+    if (hasLeaseDoc) computedHealthScore += 10;
     if (cleanPhone) computedHealthScore += 5;
 
     const tenantData: any = {
@@ -115,13 +121,14 @@ export async function POST(request: Request) {
       phone: cleanPhone,
       healthScore: computedHealthScore,
       monthlyRent: monthlyRent ? parseFloat(monthlyRent) : 0,
+      securityDeposit: body.securityDeposit ? parseFloat(body.securityDeposit) : 0,
       leaseStart: leaseStart ? new Date(leaseStart) : new Date(),
       leaseEnd: leaseEnd ? new Date(leaseEnd) : null,
       floorNumber: targetUnit ? targetUnit.floorNumber : (body.floorNumber ? Number(body.floorNumber) : 1),
       bedSlot: bedSlot || null,
       govIdType: govIdType || null,
       govIdNumber: govIdNumber || null,
-      govIdUrl: govIdUrl || null,
+      govIdUrl: govIdUrl || (docList.find((d: any) => d.fileUrl)?.fileUrl || null),
       leaseDocUrl: leaseDocUrl || null,
     };
 
@@ -147,39 +154,39 @@ export async function POST(request: Request) {
       },
     });
 
-    // Auto-create TenantDocument records in DB for uploaded R2 files
-    if (govIdUrl) {
-      await prisma.tenantDocument.create({
-        data: {
-          title: `Government ID (${govIdType || "ID Scan"}) — ${tenant.name}`,
-          docType: "Government ID",
-          fileUrl: govIdUrl,
-          fileName: `${tenant.name.toLowerCase().replace(/\s+/g, "_")}_govid.pdf`,
-          fileSize: "ID Scan",
-          floorNumber: tenant.floorNumber,
-          tenant: { connect: { id: tenant.id } },
-          ...(tenant.unitId ? { unit: { connect: { id: tenant.unitId } } } : {}),
-          ...(tenant.propertyId ? { property: { connect: { id: tenant.propertyId } } } : {}),
-          ...(tenant.workspaceId ? { workspace: { connect: { wid: tenant.workspaceId } } } : {}),
-          ...(tenant.profileId ? { profile: { connect: { id: tenant.profileId } } } : {}),
-        },
+    // Auto-create TenantDocument records in DB for all uploaded documents
+    const allDocsToCreate = [...docList];
+    if (govIdUrl && !allDocsToCreate.some((d: any) => d.fileUrl === govIdUrl)) {
+      allDocsToCreate.push({
+        title: `Government ID (${govIdType || "ID Scan"}) — ${tenant.name}`,
+        docType: "Government ID",
+        fileUrl: govIdUrl,
+        fileName: `${tenant.name.toLowerCase().replace(/\s+/g, "_")}_govid.pdf`,
+      });
+    }
+    if (leaseDocUrl && !allDocsToCreate.some((d: any) => d.fileUrl === leaseDocUrl)) {
+      allDocsToCreate.push({
+        title: `Signed Residential Lease Agreement — ${tenant.name}`,
+        docType: "Lease Agreement",
+        fileUrl: leaseDocUrl,
+        fileName: `${tenant.name.toLowerCase().replace(/\s+/g, "_")}_lease.pdf`,
       });
     }
 
-    if (leaseDocUrl) {
+    for (const doc of allDocsToCreate) {
+      if (!doc.fileUrl) continue;
       await prisma.tenantDocument.create({
         data: {
-          title: `Signed Residential Lease Agreement — ${tenant.name}`,
-          docType: "Lease Agreement",
-          fileUrl: leaseDocUrl,
-          fileName: `${tenant.name.toLowerCase().replace(/\s+/g, "_")}_lease.pdf`,
-          fileSize: "Signed Contract",
+          title: doc.title || `${doc.type || "Government ID"} (${doc.name || "Scan"}) — ${tenant.name}`,
+          docType: doc.docType || "Government ID",
+          fileUrl: doc.fileUrl,
+          fileName: doc.fileName || doc.name || `${tenant.name.toLowerCase().replace(/\s+/g, "_")}_doc.pdf`,
+          fileSize: "Uploaded Document Scan",
           floorNumber: tenant.floorNumber,
           tenant: { connect: { id: tenant.id } },
           ...(tenant.unitId ? { unit: { connect: { id: tenant.unitId } } } : {}),
           ...(tenant.propertyId ? { property: { connect: { id: tenant.propertyId } } } : {}),
           ...(tenant.workspaceId ? { workspace: { connect: { wid: tenant.workspaceId } } } : {}),
-          ...(tenant.profileId ? { profile: { connect: { id: tenant.profileId } } } : {}),
         },
       });
     }
@@ -195,7 +202,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: `Tenant "${tenant.name}" created successfully with health score ${tenant.healthScore}!`,
+        message: `Tenant "${tenant.name}" created successfully with ${allDocsToCreate.length} document(s) uploaded!`,
         data: tenant,
       },
       { status: 201 }

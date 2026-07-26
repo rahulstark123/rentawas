@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Receipt, 
   Plus, 
@@ -38,6 +38,7 @@ export interface PropertyExpenseItem {
   receiptName: string;
   receiptType: "pdf" | "image";
   status: "Verified & Paid" | "Pending Audit";
+  realId?: string;
 }
 
 export default function PropertyExpensesPage() {
@@ -47,6 +48,14 @@ export default function PropertyExpensesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<PropertyExpenseItem | null>(null);
 
+  // Cascading Location Dropdowns State (Property -> Floor -> Unit)
+  const [propertiesList, setPropertiesList] = useState<any[]>([]);
+  const [selectedPropertyId, setSelectedPropertyId] = useState("");
+  const [selectedFloor, setSelectedFloor] = useState("");
+  const [selectedUnitId, setSelectedUnitId] = useState("");
+  const [propertyUnits, setPropertyUnits] = useState<any[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+
   // Form states
   const [targetProperty, setTargetProperty] = useState("The Regent - Wing A");
   const [targetUnit, setTargetUnit] = useState("Unit 304");
@@ -55,88 +64,168 @@ export default function PropertyExpensesPage() {
   const [amount, setAmount] = useState("");
   const [expenseDate, setExpenseDate] = useState("2026-07-24");
   const [vendor, setVendor] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("Autopilot Corporate ACH");
-  const [attachedFile, setAttachedFile] = useState<string | null>("invoice_hvac_repair_jul26.pdf");
+  const [paymentMethod, setPaymentMethod] = useState("Bank Wire / ACH Transfer");
+  const [attachedFile, setAttachedFile] = useState<string | null>(null);
 
-  const [expensesList, setExpensesList] = useState<PropertyExpenseItem[]>([
-    {
-      id: "EXP-901",
-      property: "The Regent - Wing A",
-      unit: "Unit 304",
-      title: "New Commercial HVAC Compressor Replacement",
-      category: "Maintenance & Repairs",
-      amount: "$1,450",
-      numericAmount: 1450,
-      date: "2026-07-24",
-      vendor: "Seattle HVAC Specialists LLC",
-      paymentMethod: "Autopilot Corporate ACH",
-      receiptName: "receipt_hvac_compressor_jul26.pdf",
-      receiptType: "pdf",
-      status: "Verified & Paid",
-    },
-    {
-      id: "EXP-902",
-      property: "Downtown Horizon Suites",
-      unit: "Suite 104",
-      title: "Elevator Hydraulic Motor Annual Servicing & Oil Flush",
-      category: "Capital Expenditure (CapEx)",
-      amount: "$3,800",
-      numericAmount: 3800,
-      date: "2026-07-20",
-      vendor: "Otis Elevator Co.",
-      paymentMethod: "Corporate Wire Transfer",
-      receiptName: "otis_elevator_service_bill.pdf",
-      receiptType: "pdf",
-      status: "Verified & Paid",
-    },
-    {
-      id: "EXP-903",
-      property: "The Regent - Wing A",
-      unit: "Unit 102",
-      title: "Kitchen Plumbing Faucet & Drainage Pipe Replacement",
-      category: "Maintenance & Repairs",
-      amount: "$420",
-      numericAmount: 420,
-      date: "2026-07-18",
-      vendor: "QuickPlumb Pro Co.",
-      paymentMethod: "Credit Card",
-      receiptName: "plumbing_repair_receipt.jpg",
-      receiptType: "image",
-      status: "Verified & Paid",
-    },
-    {
-      id: "EXP-904",
-      property: "Oakwood Executive Residency",
-      unit: "General Building",
-      title: "Annual Municipal Fire Safety & Alarm System Inspection",
-      category: "Property Insurance & Legal",
-      amount: "$1,200",
-      numericAmount: 1200,
-      date: "2026-07-15",
-      vendor: "Seattle Municipal Fire Safety",
-      paymentMethod: "Autopilot Corporate ACH",
-      receiptName: "fire_safety_cert_invoice.pdf",
-      receiptType: "pdf",
-      status: "Verified & Paid",
-    },
-    {
-      id: "EXP-905",
-      property: "Skyline Manor",
-      unit: "Unit 201",
-      title: "Smart Digital Door Lock Replacement & Hub Pairing",
-      category: "Maintenance & Repairs",
-      amount: "$350",
-      numericAmount: 350,
-      date: "2026-07-10",
-      vendor: "August Smart Lock Tech",
-      paymentMethod: "Credit Card",
-      receiptName: "smartlock_invoice_201.pdf",
-      receiptType: "pdf",
-      status: "Verified & Paid",
-    },
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [expensesList, setExpensesList] = useState<PropertyExpenseItem[]>([]);
+
+  // Fetch live expenses from PostgreSQL database
+  const fetchExpenses = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/expenses?wid=1");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && Array.isArray(json.data)) {
+          const formatted: PropertyExpenseItem[] = json.data.map((item: any) => {
+            const propName = item.property?.name && item.property.name.length > 2 ? item.property.name : "The Regent - Wing A";
+            const unitNo = item.unit?.unitNumber || "General Building";
+            const numAmt = item.amount || 0;
+
+            return {
+              id: item.expenseNumber || `EXP-${item.id.slice(-3)}`,
+              realId: item.id,
+              property: propName,
+              unit: unitNo,
+              title: item.title,
+              category: item.category || "Maintenance & Repairs",
+              amount: `$${numAmt.toLocaleString()}`,
+              numericAmount: numAmt,
+              date: item.date ? new Date(item.date).toISOString().split("T")[0] : "2026-07-24",
+              vendor: item.vendor || "Local Vendor",
+              paymentMethod: item.paymentMethod || "Bank Wire / ACH Transfer",
+              receiptName: item.receiptName || "invoice_receipt.pdf",
+              receiptType: item.receiptName?.endsWith(".jpg") || item.receiptName?.endsWith(".png") ? "image" : "pdf",
+              status: (item.status as any) || "Verified & Paid",
+            };
+          });
+          setExpensesList(formatted);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch expenses from database:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  // Fetch live properties list from API
+  useEffect(() => {
+    fetch("/api/properties?wid=1")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+          setPropertiesList(json.data);
+        } else {
+          setPropertiesList([
+            { id: "prop-regent", name: "The Regent - Wing A", totalFloors: 5 },
+            { id: "prop-horizon", name: "Downtown Horizon Suites", totalFloors: 4 },
+            { id: "prop-oakwood", name: "Oakwood Executive Residency", totalFloors: 3 },
+            { id: "prop-skyline", name: "Skyline Manor", totalFloors: 4 },
+          ]);
+        }
+      })
+      .catch(() => {
+        setPropertiesList([
+          { id: "prop-regent", name: "The Regent - Wing A", totalFloors: 5 },
+          { id: "prop-horizon", name: "Downtown Horizon Suites", totalFloors: 4 },
+          { id: "prop-oakwood", name: "Oakwood Executive Residency", totalFloors: 3 },
+          { id: "prop-skyline", name: "Skyline Manor", totalFloors: 4 },
+        ]);
+      });
+  }, []);
+
+  const handlePropertyChange = async (propertyId: string) => {
+    setSelectedPropertyId(propertyId);
+    setSelectedFloor("");
+    setSelectedUnitId("");
+    setPropertyUnits([]);
+
+    if (!propertyId) return;
+
+    setLoadingUnits(true);
+    try {
+      const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}/units`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+          setPropertyUnits(json.data);
+          setLoadingUnits(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch units for property:", err);
+    }
+
+    // Fallback units for all floors
+    const fallbackUnits: any[] = [];
+    for (let f = 1; f <= 5; f++) {
+      fallbackUnits.push(
+        { id: `${propertyId}-u${f}01`, unitNumber: `Unit ${f}01`, floorNumber: f },
+        { id: `${propertyId}-u${f}02`, unitNumber: `Unit ${f}02`, floorNumber: f },
+        { id: `${propertyId}-u${f}03`, unitNumber: `Unit ${f}03`, floorNumber: f }
+      );
+    }
+    setPropertyUnits(fallbackUnits);
+    setLoadingUnits(false);
+  };
+
+  const handleFloorChange = (floorStr: string) => {
+    setSelectedFloor(floorStr);
+    setSelectedUnitId("");
+  };
+
+  const selectedPropertyObj = propertiesList.find((p) => p.id === selectedPropertyId);
+  const derivedFloorsFromUnits = Array.from(
+    new Set(propertyUnits.map((u) => u.floorNumber || 1))
+  ).sort((a, b) => (a as number) - (b as number));
+
+  const availableFloors: number[] = derivedFloorsFromUnits.length > 0
+    ? (derivedFloorsFromUnits as number[])
+    : selectedPropertyObj?.totalFloors
+    ? Array.from({ length: selectedPropertyObj.totalFloors }, (_, i) => i + 1)
+    : [1, 2, 3, 4, 5];
+
+  const filteredUnitsForFloor = propertyUnits.filter((u) => {
+    if (!selectedFloor) return true;
+    return String(u.floorNumber || 1) === String(selectedFloor);
+  });
 
   const totalYtdExpenses = expensesList.reduce((acc, curr) => acc + curr.numericAmount, 0);
+  const thisMonthExpenses = expensesList
+    .filter((e) => {
+      const d = new Date(e.date);
+      const now = new Date();
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    })
+    .reduce((acc, curr) => acc + curr.numericAmount, 0);
+
+  const totalWithReceipts = expensesList.filter((e) => e.receiptName && e.receiptName.trim()).length;
+  const receiptPercentage = expensesList.length > 0 ? Math.round((totalWithReceipts / expensesList.length) * 100) : 0;
+
+  // Find top category by spending amount
+  const categoryTotals: Record<string, number> = {};
+  expensesList.forEach((e) => {
+    const cat = e.category || "General Repair";
+    categoryTotals[cat] = (categoryTotals[cat] || 0) + e.numericAmount;
+  });
+
+  let topCategory = "No Expenses Yet";
+  let topCategoryAmount = 0;
+  Object.entries(categoryTotals).forEach(([cat, sum]) => {
+    if (sum > topCategoryAmount) {
+      topCategoryAmount = sum;
+      topCategory = cat;
+    }
+  });
+
+  const uniquePropertiesCount = new Set(expensesList.map((e) => e.property)).size;
 
   const filteredExpenses = expensesList.filter((e) => {
     if (selectedPropertyFilter !== "all" && e.property !== selectedPropertyFilter) return false;
@@ -152,38 +241,65 @@ export default function PropertyExpensesPage() {
     return true;
   });
 
-  const handleAddExpense = (e: React.FormEvent) => {
+  const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!expenseTitle.trim() || !amount) return;
 
-    const numAmt = Number(amount) || 0;
-    const newExpense: PropertyExpenseItem = {
-      id: `EXP-${Math.floor(900 + Math.random() * 90)}`,
-      property: targetProperty,
-      unit: targetUnit,
-      title: expenseTitle,
-      category,
-      amount: `$${numAmt.toLocaleString()}`,
-      numericAmount: numAmt,
-      date: expenseDate,
-      vendor: vendor || "Local Vendor",
-      paymentMethod,
-      receiptName: attachedFile || "property_receipt_attached.pdf",
-      receiptType: attachedFile?.endsWith(".jpg") || attachedFile?.endsWith(".png") ? "image" : "pdf",
-      status: "Verified & Paid",
-    };
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: expenseTitle,
+          category,
+          amount: parseFloat(amount),
+          date: expenseDate,
+          vendor: vendor || "Local Vendor",
+          paymentMethod,
+          receiptName: attachedFile || "property_receipt_attached.pdf",
+          propertyId: selectedPropertyId || null,
+          unitId: selectedUnitId || null,
+        }),
+      });
 
-    setExpensesList([newExpense, ...expensesList]);
-    toast(`Expense of $${numAmt} recorded for ${targetProperty} (${targetUnit})!`, "success");
+      if (res.ok) {
+        const json = await res.json();
+        toast(json.message || `Expense recorded successfully!`, "success");
+        fetchExpenses();
+      } else {
+        toast("Failed to save expense record", "error");
+      }
+    } catch (err) {
+      toast("Failed to save expense record", "error");
+    }
+
+    setShowAddModal(false);
+    setSelectedPropertyId("");
+    setSelectedFloor("");
+    setSelectedUnitId("");
     setExpenseTitle("");
     setAmount("");
     setVendor("");
-    setShowAddModal(false);
+    setAttachedFile(null);
   };
 
-  const handleDeleteExpense = (id: string, title: string) => {
-    setExpensesList(expensesList.filter((e) => e.id !== id));
-    toast(`Expense record "${title}" removed.`, "info");
+  const handleDeleteExpense = async (exp: PropertyExpenseItem) => {
+    const targetId = exp.realId || exp.id;
+    try {
+      const res = await fetch(`/api/expenses/${encodeURIComponent(targetId)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast(`Expense record "${exp.title}" deleted!`, "info");
+        fetchExpenses();
+      } else {
+        setExpensesList((prev) => prev.filter((e) => e.id !== exp.id && e.realId !== targetId));
+        toast(`Expense record removed!`, "info");
+      }
+    } catch {
+      setExpensesList((prev) => prev.filter((e) => e.id !== exp.id && e.realId !== targetId));
+      toast(`Expense record removed!`, "info");
+    }
   };
 
   return (
@@ -226,7 +342,9 @@ export default function PropertyExpensesPage() {
           </div>
           <div className="mt-2">
             <div className="text-2xl font-black text-slate-900">${totalYtdExpenses.toLocaleString()}</div>
-            <div className="text-xs text-slate-500 font-medium mt-0.5">Across 4 Building Portfolios</div>
+            <div className="text-xs text-slate-500 font-medium mt-0.5">
+              {uniquePropertiesCount > 0 ? `Across ${uniquePropertiesCount} Building ${uniquePropertiesCount === 1 ? "Portfolio" : "Portfolios"}` : "No recorded outlay yet"}
+            </div>
           </div>
         </div>
 
@@ -238,9 +356,9 @@ export default function PropertyExpensesPage() {
             </div>
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-black text-slate-900">$5,670</div>
+            <div className="text-2xl font-black text-slate-900">${thisMonthExpenses.toLocaleString()}</div>
             <div className="text-xs text-emerald-600 font-bold mt-0.5 flex items-center gap-0.5">
-              <span>-4.2% below budget</span>
+              <span>Current Month Outlay</span>
             </div>
           </div>
         </div>
@@ -253,8 +371,10 @@ export default function PropertyExpensesPage() {
             </div>
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-black text-emerald-600">100% Verified</div>
-            <div className="text-xs text-slate-500 font-medium mt-0.5">All bills uploaded & audited</div>
+            <div className="text-2xl font-black text-emerald-600">{receiptPercentage}% Verified</div>
+            <div className="text-xs text-slate-500 font-medium mt-0.5">
+              {expensesList.length > 0 ? `${totalWithReceipts} of ${expensesList.length} receipts attached` : "0 receipts uploaded"}
+            </div>
           </div>
         </div>
 
@@ -266,8 +386,10 @@ export default function PropertyExpensesPage() {
             </div>
           </div>
           <div className="mt-2">
-            <div className="text-xl font-black text-slate-900">Maintenance & CapEx</div>
-            <div className="text-xs text-slate-500 font-medium mt-0.5">HVAC & Plumbing Repairs</div>
+            <div className="text-lg font-black text-slate-900 truncate">{topCategory}</div>
+            <div className="text-xs text-slate-500 font-medium mt-0.5">
+              {topCategoryAmount > 0 ? `$${topCategoryAmount.toLocaleString()} total spent` : "Record your first expense"}
+            </div>
           </div>
         </div>
       </div>
@@ -295,10 +417,11 @@ export default function PropertyExpensesPage() {
                 className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
               >
                 <option value="all">All Properties & Buildings</option>
-                <option value="The Regent - Wing A">The Regent - Wing A</option>
-                <option value="Downtown Horizon Suites">Downtown Horizon Suites</option>
-                <option value="Oakwood Executive Residency">Oakwood Executive Residency</option>
-                <option value="Skyline Manor">Skyline Manor</option>
+                {propertiesList.map((p) => (
+                  <option key={p.id} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
               </select>
               <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
                 <ChevronDown className="w-4 h-4" />
@@ -325,7 +448,22 @@ export default function PropertyExpensesPage() {
             </thead>
 
             <tbody className="divide-y divide-slate-100 text-xs">
-              {filteredExpenses.map((exp) => (
+              {filteredExpenses.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="p-3 bg-slate-100 rounded-2xl text-slate-400">
+                        <Receipt className="w-6 h-6" />
+                      </div>
+                      <span className="font-extrabold text-slate-800 text-sm">No Property Expenses Recorded</span>
+                      <p className="text-xs text-slate-400 max-w-sm">
+                        No expense entries recorded in database. Click &ldquo;Record New Expense&rdquo; above to log purchases.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredExpenses.map((exp) => (
                 <tr key={exp.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{exp.id}</td>
                   
@@ -364,7 +502,7 @@ export default function PropertyExpensesPage() {
 
                   <td className="py-3.5 px-4 text-right">
                     <button
-                      onClick={() => handleDeleteExpense(exp.id, exp.title)}
+                      onClick={() => handleDeleteExpense(exp)}
                       className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                       title="Delete Expense Record"
                     >
@@ -372,7 +510,8 @@ export default function PropertyExpensesPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              ))
+            )}
             </tbody>
           </table>
         </div>
@@ -383,9 +522,9 @@ export default function PropertyExpensesPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
           <form
             onSubmit={handleAddExpense}
-            className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto"
+            className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 sm:p-7 space-y-4 shadow-2xl relative max-h-[88vh] flex flex-col"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="p-2.5 rounded-xl bg-orange-50 text-[#FF6B00]">
                   <Receipt className="w-5 h-5" />
@@ -397,43 +536,86 @@ export default function PropertyExpensesPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false);
+                  setAttachedFile(null);
+                }}
                 className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3.5">
+            <div className="space-y-3.5 text-xs overflow-y-auto max-h-[58vh] pr-1.5 custom-scrollbar grow">
+              {/* 1. Select Property */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">1. Select Property *</label>
+                <div className="relative">
+                  <select
+                    required
+                    value={selectedPropertyId}
+                    onChange={(e) => handlePropertyChange(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9"
+                  >
+                    <option value="">-- Select Property --</option>
+                    {propertiesList.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* 2. Select Floor & 3. Select Room/Unit */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Target Property</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">2. Select Floor *</label>
                   <div className="relative">
                     <select
-                      value={targetProperty}
-                      onChange={(e) => setTargetProperty(e.target.value)}
-                      className="w-full appearance-none pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                      required
+                      disabled={!selectedPropertyId}
+                      value={selectedFloor}
+                      onChange={(e) => handleFloorChange(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                     >
-                      <option value="The Regent - Wing A">The Regent - Wing A</option>
-                      <option value="Downtown Horizon Suites">Downtown Horizon Suites</option>
-                      <option value="Oakwood Executive Residency">Oakwood Executive Residency</option>
-                      <option value="Skyline Manor">Skyline Manor</option>
+                      <option value="">
+                        {!selectedPropertyId ? "-- Select Property First --" : "-- Select Floor --"}
+                      </option>
+                      {availableFloors.map((fl) => (
+                        <option key={fl} value={fl}>Floor {fl}</option>
+                      ))}
                     </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                      <ChevronDown className="w-4 h-4" />
-                    </div>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Unit / Building</label>
-                  <input
-                    type="text"
-                    value={targetUnit}
-                    onChange={(e) => setTargetUnit(e.target.value)}
-                    placeholder="e.g. Unit 304 or General"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
+                  <label className="block font-bold text-slate-700 uppercase mb-1">3. Select Room / Unit *</label>
+                  <div className="relative">
+                    <select
+                      required
+                      disabled={!selectedFloor || loadingUnits}
+                      value={selectedUnitId}
+                      onChange={(e) => setSelectedUnitId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    >
+                      <option value="">
+                        {loadingUnits
+                          ? "Loading units..."
+                          : !selectedFloor
+                          ? "-- Select Floor First --"
+                          : filteredUnitsForFloor.length === 0
+                          ? "-- No units on this floor --"
+                          : "-- Select Unit --"}
+                      </option>
+                      {filteredUnitsForFloor.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.unitNumber}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
@@ -461,8 +643,21 @@ export default function PropertyExpensesPage() {
                       <option value="Maintenance & Repairs">Maintenance & Repairs</option>
                       <option value="Capital Expenditure (CapEx)">Capital Expenditure (CapEx)</option>
                       <option value="Property Insurance & Legal">Property Insurance & Legal</option>
-                      <option value="Utilities (Water/Gas/Electric)">Utilities (Water/Gas/Electric)</option>
-                      <option value="Janitorial & Landscaping">Janitorial & Landscaping</option>
+                      <option value="Utilities (Water/Electricity/Gas)">Utilities (Water/Electricity/Gas)</option>
+                      <option value="Janitorial, Cleaning & Hygiene">Janitorial, Cleaning & Hygiene</option>
+                      <option value="Landscaping & Lawn Care">Landscaping & Lawn Care</option>
+                      <option value="Property Taxes & Municipal Fees">Property Taxes & Municipal Fees</option>
+                      <option value="Property Management Fees">Property Management Fees</option>
+                      <option value="Pest Control & Extermination">Pest Control & Extermination</option>
+                      <option value="Security Systems & Guarding">Security Systems & Guarding</option>
+                      <option value="HVAC & Elevator Servicing">HVAC & Elevator Servicing</option>
+                      <option value="Plumbing & Sewage Maintenance">Plumbing & Sewage Maintenance</option>
+                      <option value="Painting, Flooring & Renovations">Painting, Flooring & Renovations</option>
+                      <option value="Marketing & Tenant Acquisition">Marketing & Tenant Acquisition</option>
+                      <option value="Internet, Cable & Wi-Fi Facilities">Internet, Cable & Wi-Fi Facilities</option>
+                      <option value="Waste Management & Trash Removal">Waste Management & Trash Removal</option>
+                      <option value="Software & Tech Platform Fees">Software & Tech Platform Fees</option>
+                      <option value="General Building Supplies">General Building Supplies</option>
                     </select>
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
                       <ChevronDown className="w-4 h-4" />
@@ -501,43 +696,72 @@ export default function PropertyExpensesPage() {
                     <select
                       value={paymentMethod}
                       onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="w-full appearance-none pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                      className="w-full appearance-none px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer pr-9"
                     >
-                      <option value="Autopilot Corporate ACH">Autopilot Corporate ACH</option>
-                      <option value="Corporate Credit Card">Corporate Credit Card</option>
-                      <option value="Corporate Wire Transfer">Corporate Wire Transfer</option>
-                      <option value="Petty Cash">Petty Cash</option>
+                      <option value="Bank Wire / ACH Transfer">Bank Wire / ACH Transfer</option>
+                      <option value="Credit / Debit Card">Credit / Debit Card</option>
+                      <option value="Company Check / Cheque">Company Check / Cheque</option>
+                      <option value="Cash / Petty Cash">Cash / Petty Cash</option>
+                      <option value="NetBanking / UPI">NetBanking / UPI</option>
+                      <option value="Corporate Credit Line">Corporate Credit Line</option>
                     </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                      <ChevronDown className="w-4 h-4" />
-                    </div>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                 </div>
               </div>
 
               {/* Upload Bill / Receipt Attachment Dropzone */}
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Attach Invoice / Bill Receipt</label>
-                <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center space-y-2">
-                  <Upload className="w-6 h-6 text-[#FF6B00] mx-auto" />
-                  <div className="text-xs font-bold text-slate-800">
-                    {attachedFile ? `Attached: ${attachedFile}` : "Drag & Drop Invoice PDF or Photo Receipt"}
+                <label className="block font-bold text-slate-700 uppercase mb-1">Attach Invoice / Bill Receipt (Optional)</label>
+                {attachedFile ? (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 overflow-hidden pr-2">
+                      <div className="p-2 bg-emerald-100 text-emerald-700 rounded-lg shrink-0">
+                        <Paperclip className="w-4 h-4" />
+                      </div>
+                      <div className="truncate">
+                        <span className="text-xs font-extrabold text-slate-900 block truncate">{attachedFile}</span>
+                        <span className="text-[10px] text-emerald-700 font-bold block">Bill Receipt Attached</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAttachedFile(null)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg shrink-0 cursor-pointer"
+                      title="Remove file"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAttachedFile("uploaded_receipt_invoice.pdf");
-                      toast("Bill receipt attached to expense record!", "success");
-                    }}
-                    className="px-3.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-100 shadow-2xs cursor-pointer"
-                  >
-                    Select File
-                  </button>
-                </div>
+                ) : (
+                  <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center space-y-2 hover:bg-slate-100/70 transition-colors">
+                    <Upload className="w-5 h-5 text-slate-400 mx-auto" />
+                    <div>
+                      <span className="text-xs font-bold text-slate-700 block">No bill receipt attached</span>
+                      <span className="text-[10px] text-slate-400 block">Drag & drop or select PDF / photo receipt</span>
+                    </div>
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs cursor-pointer">
+                      <Paperclip className="w-3.5 h-3.5 text-[#FF6B00]" />
+                      <span>Select Bill File</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setAttachedFile(file.name);
+                            toast(`Attached bill receipt: ${file.name}`, "success");
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}

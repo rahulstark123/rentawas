@@ -6,25 +6,13 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const widParam = searchParams.get("wid");
+    const wid = widParam ? parseInt(widParam, 10) : undefined;
 
-    if (!widParam) {
-      return NextResponse.json(
-        { error: "Workspace ID (wid) query parameter is required." },
-        { status: 400 }
-      );
-    }
+    const whereClause: any = wid && !isNaN(wid) ? { workspaceId: wid } : {};
 
-    const wid = parseInt(widParam, 10);
-    if (isNaN(wid)) {
-      return NextResponse.json(
-        { error: "Invalid Workspace ID (wid). Must be an integer." },
-        { status: 400 }
-      );
-    }
-
-    // Fetch properties scoped workspace-wise by wid
+    // Fetch properties scoped workspace-wise by wid (or all if not specified)
     const properties = await prisma.property.findMany({
-      where: { workspaceId: wid },
+      where: whereClause,
       include: {
         units: {
           include: {

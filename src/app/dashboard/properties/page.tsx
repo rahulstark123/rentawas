@@ -19,7 +19,8 @@ import {
   Layers,
   AlertTriangle,
   Copy,
-  Check
+  Check,
+  Search
 } from "lucide-react";
 import AddPropertyModal, { PropertyData } from "@/components/ui/AddPropertyModal";
 import FloorPlanDrawer from "@/components/ui/FloorPlanDrawer";
@@ -72,6 +73,18 @@ export default function PropertiesPage() {
 
   const [loading, setLoading] = useState(true);
   const [propertyList, setPropertyList] = useState<PropertyItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredPropertyList = propertyList.filter((prop) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      prop.name.toLowerCase().includes(q) ||
+      prop.address.toLowerCase().includes(q) ||
+      prop.tag.toLowerCase().includes(q) ||
+      prop.status.toLowerCase().includes(q)
+    );
+  });
 
   // Fetch properties from GET /api/properties?wid=1
   const fetchProperties = async () => {
@@ -222,7 +235,7 @@ export default function PropertiesPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Properties & Inventory
@@ -232,13 +245,38 @@ export default function PropertiesPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add New Property</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Search Bar */}
+          <div className="relative min-w-[240px] sm:min-w-[280px]">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <Search className="w-4 h-4" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search properties, address..."
+              className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00] shadow-2xs transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Add New Property Button */}
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add New Property</span>
+          </button>
+        </div>
       </div>
 
       {/* Property Cards Grid or Empty State */}
@@ -247,28 +285,41 @@ export default function PropertiesPage() {
           <div className="inline-block w-8 h-8 border-4 border-slate-200 border-t-[#FF6B00] rounded-full animate-spin mb-3" />
           <p className="text-xs font-semibold text-slate-500">Loading your property portfolio...</p>
         </div>
-      ) : propertyList.length === 0 ? (
+      ) : filteredPropertyList.length === 0 ? (
         <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center max-w-xl mx-auto shadow-2xs space-y-4 my-8">
           <div className="w-16 h-16 bg-orange-50 text-[#FF6B00] rounded-2xl flex items-center justify-center mx-auto border border-orange-200">
             <Building2 className="w-8 h-8" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900">No Properties Found</h3>
+            <h3 className="text-lg font-bold text-slate-900">
+              {searchQuery ? `No Properties Found Matching "${searchQuery}"` : "No Properties Found"}
+            </h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
-              Your database currently has no properties added. Click below to add your first property and generate floor/unit inventory.
+              {searchQuery
+                ? "Try searching for a different property name, category tag, or address."
+                : "Your database currently has no properties added. Click below to add your first property and generate floor/unit inventory."}
             </p>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add First Property</span>
-          </button>
+          {searchQuery ? (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all uppercase tracking-wider cursor-pointer"
+            >
+              <span>Clear Search Query</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add First Property</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {propertyList.map((prop) => (
+          {filteredPropertyList.map((prop) => (
             <div
               key={prop.id}
               className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs hover:shadow-md transition-all space-y-5 relative"
