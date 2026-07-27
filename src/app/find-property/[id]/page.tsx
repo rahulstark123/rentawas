@@ -144,57 +144,53 @@ export default function PropertyDetailPage() {
 
   useEffect(() => {
     async function loadProperty() {
+      if (!propertyId) return;
       setIsLoading(true);
       try {
-        // Try local static list first
-        const found = DEFAULT_PROPERTIES.find((p) => p.id.toLowerCase() === propertyId?.toLowerCase());
-        if (found) {
-          setProperty(found);
+        // Fetch ID-wise from GET /api/listings/[id]
+        const res = await fetch(`/api/listings/${encodeURIComponent(propertyId)}`);
+        const json = await res.json();
+
+        if (json.success && json.data) {
+          const item = json.data;
+          setProperty({
+            id: item.id,
+            title: item.title,
+            location: item.locality || item.location || item.city || "Prime Locality",
+            city: item.city || item.stateName || "Metropolis",
+            price: typeof item.rent === "number" ? `₹${item.rent.toLocaleString("en-IN")}` : item.rent || "₹0",
+            type: item.propertyType || "Apartment",
+            bhk: item.propertyType || "Apartment",
+            size: item.deposit ? `Deposit: ₹${item.deposit.toLocaleString("en-IN")}` : item.availableFrom || "Ready to Move",
+            rating: 4.9,
+            reviewsCount: 14,
+            image: item.mainImage || item.image || item.coverImage || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            tags: Array.isArray(item.amenities) && item.amenities.length > 0 ? item.amenities : ["Zero Fee", "Direct Owner", "Verified", "Immediate Move-In"],
+            ownerName: item.contactPersonName ? `${item.contactPersonName} (Owner)` : "Property Landlord",
+            ownerPhone: item.contactNumber || item.ownerPhone || "+91 Contact via RentAwas",
+            badge: "Verified Owner • Zero Fee",
+          });
           setIsLoading(false);
           return;
         }
 
-        // Fetch dynamically from API
-        const res = await fetch(`/api/listings`);
-        const json = await res.json();
-        if (json.success && Array.isArray(json.data)) {
-          const item = json.data.find((d: any) => d.id === propertyId);
-          if (item) {
-            setProperty({
-              id: item.id,
-              title: item.title,
-              location: item.locality || item.city || item.location || "Prime Location",
-              city: item.city || item.stateName || "Metropolis",
-              price: typeof item.rent === "number" ? `₹${item.rent.toLocaleString("en-IN")}` : item.rent || "₹0",
-              type: item.propertyType || "Apartment",
-              bhk: item.propertyType || "Apartment",
-              size: item.deposit ? `Deposit: ₹${item.deposit.toLocaleString("en-IN")}` : item.availableFrom || "Ready to Move",
-              rating: 4.9,
-              reviewsCount: 14,
-              image: item.mainImage || item.image || item.coverImage || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
-              tags: Array.isArray(item.amenities) && item.amenities.length > 0 ? item.amenities.slice(0, 4) : ["Zero Fee", "Direct Owner", "Verified", "Immediate Move-In"],
-              ownerName: item.contactPersonName ? `${item.contactPersonName} (Owner)` : "Property Landlord",
-              ownerPhone: item.contactNumber || item.ownerPhone || "+91 Contact via RentAwas",
-              badge: "Verified Owner • Zero Fee",
-            });
-            setIsLoading(false);
-            return;
-          }
+        // Try local static fallback list if API fails
+        const found = DEFAULT_PROPERTIES.find((p) => p.id.toLowerCase() === propertyId?.toLowerCase());
+        if (found) {
+          setProperty(found);
+        } else {
+          setProperty(DEFAULT_PROPERTIES[0]);
         }
-
-        // Fallback default
-        setProperty(DEFAULT_PROPERTIES[0]);
       } catch (err) {
         console.error("Error loading property detail:", err);
-        setProperty(DEFAULT_PROPERTIES[0]);
+        const found = DEFAULT_PROPERTIES.find((p) => p.id.toLowerCase() === propertyId?.toLowerCase());
+        setProperty(found || DEFAULT_PROPERTIES[0]);
       } finally {
         setIsLoading(false);
       }
     }
 
-    if (propertyId) {
-      loadProperty();
-    }
+    loadProperty();
   }, [propertyId]);
 
   const handleShare = () => {
