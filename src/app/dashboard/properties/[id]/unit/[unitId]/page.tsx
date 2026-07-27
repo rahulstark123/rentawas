@@ -15,6 +15,8 @@ import {
   MapPin,
   Receipt,
   Eye,
+  EyeOff,
+  Key,
   History,
   Wrench,
   FileCheck,
@@ -283,6 +285,8 @@ export default function RoomTelemetryFullPage() {
   const [phone, setPhone] = useState("");
   const [selectedCountry, setSelectedCountry] = useState<Country>(() => getDefaultCountryByLocale(ALL_COUNTRIES));
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [leaseStart, setLeaseStart] = useState("");
   const [paymentChannel, setPaymentChannel] = useState("Autopilot ACH Direct");
 
@@ -359,6 +363,8 @@ export default function RoomTelemetryFullPage() {
     setMonthlyRent("");
     setPhone("");
     setEmail("");
+    setPassword("");
+    setShowPassword(false);
     setLeaseStart("");
     setIdNumber("");
     setGovIdFile(null); setGovIdUrl(null); setGovIdProgress(0);
@@ -374,6 +380,8 @@ export default function RoomTelemetryFullPage() {
     setMonthlyRent(occ.individualRent.toString());
     setPhone(occ.phone.replace(/^\+\d+\s*/, ""));
     setEmail(occ.email);
+    setPassword("");
+    setShowPassword(false);
     setLeaseStart(occ.moveIn);
     setIdType(occ.govIdType || "Passport");
     setIdNumber(occ.govIdNumber || "");
@@ -456,6 +464,7 @@ export default function RoomTelemetryFullPage() {
           body: JSON.stringify({
             name,
             email,
+            password: password.trim() || undefined,
             phone: fullPhoneNumber,
             monthlyRent: rentVal,
             leaseStart,
@@ -1654,15 +1663,43 @@ export default function RoomTelemetryFullPage() {
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Lease Start Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={leaseStart}
-                      onChange={(e) => setLeaseStart(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                    />
+                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                      Tenant Portal Password {editingOccupantId ? "(Optional Reset)" : "*"}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required={!editingOccupantId}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={editingOccupantId ? "Keep current password..." : "e.g. Tenant@123"}
+                        className="w-full px-3 py-2 pr-9 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
+                </div>
+
+                <p className="text-[11px] text-slate-500 flex items-center gap-1.5 font-medium bg-purple-50/80 border border-purple-100 p-2 rounded-xl text-purple-950">
+                  <Key className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <span>Resident will log in to the <strong>Tenant Portal</strong> using this Email and Password.</span>
+                </p>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Lease Start Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={leaseStart}
+                    onChange={(e) => setLeaseStart(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
                 </div>
               </div>
             )}

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
+import { Role } from "@/generated/prisma/client";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -156,10 +158,59 @@ export async function POST(request: Request, { params }: Params) {
 
     const resolvedPropId = unit ? unit.propertyId : (propertyId || null);
 
+    const tenantEmail = (email && email.trim()) || `${name.toLowerCase().replace(/\s+/g, ".")}@rentawas.com`;
+    const tenantPassword = (body.password && body.password.trim()) || "Tenant@123";
+
+    // Create or ensure Supabase Auth user & Prisma Profile exist for tenant portal login
+    let linkedProfileId: string | null = null;
+    try {
+      let existingProfile = await prisma.profile.findUnique({
+        where: { email: tenantEmail },
+      });
+
+      if (!existingProfile) {
+        const { data: authData } = await supabase.auth.signUp({
+          email: tenantEmail,
+          password: tenantPassword,
+          options: {
+            data: {
+              fullName: name,
+              role: "tenant",
+              phone: phone || "",
+            },
+          },
+        });
+
+        const userId = authData?.user?.id || `tenant_${Date.now()}`;
+
+        existingProfile = await prisma.profile.upsert({
+          where: { email: tenantEmail },
+          update: {
+            fullName: name,
+            phone: phone || null,
+            role: Role.TENANT,
+          },
+          create: {
+            id: userId,
+            email: tenantEmail,
+            fullName: name,
+            phone: phone || null,
+            role: Role.TENANT,
+          },
+        });
+      }
+
+      if (existingProfile) {
+        linkedProfileId = existingProfile.id;
+      }
+    } catch (authErr) {
+      console.warn("Tenant auth profile creation notice:", authErr);
+    }
+
     const tenantData: any = {
       name,
-      email: email || `${name.toLowerCase().replace(/\s+/g, ".")}@rentawas.com`,
-      phone: phone || "+1 (555) 000-0000",
+      email: tenantEmail,
+      phone: phone || "",
       monthlyRent: parseFloat(monthlyRent) || (unit ? unit.rent : 0),
       leaseStart: leaseStart ? new Date(leaseStart) : new Date(),
       leaseEnd: leaseEnd ? new Date(leaseEnd) : null,
@@ -170,6 +221,10 @@ export async function POST(request: Request, { params }: Params) {
       govIdUrl: govIdUrl || null,
       leaseDocUrl: leaseDocUrl || null,
     };
+
+    if (linkedProfileId) {
+      tenantData.profile = { connect: { id: linkedProfileId } };
+    }
 
     if (unit?.id) {
       tenantData.unit = { connect: { id: unit.id } };

@@ -1,19 +1,25 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
+import { Role } from "@/generated/prisma/client";
 
 // GET /api/tenants - Fetch all tenants across units
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const unitId = searchParams.get("unitId");
+    const workspaceId = searchParams.get("workspaceId");
     const propertyId = searchParams.get("propertyId");
+    const status = searchParams.get("status"); // "Current" | "Past" | "Exited" | "Evicted" | "all"
 
-    const whereClause: any = {};
-    if (unitId) whereClause.unitId = unitId;
-    if (propertyId) whereClause.unit = { propertyId };
+    const where: any = {};
+    if (workspaceId) where.workspaceId = Number(workspaceId);
+    if (propertyId) where.propertyId = propertyId;
+    if (status && status !== "all") {
+      where.currentStatus = status;
+    }
 
     const tenants = await prisma.tenant.findMany({
-      where: whereClause,
+      where,
       include: {
         unit: {
           include: {
@@ -46,6 +52,7 @@ export async function POST(request: Request) {
     const {
       name,
       email,
+      password,
       phone,
       unitId,
       propertyId,
@@ -105,6 +112,55 @@ export async function POST(request: Request) {
     // Clean phone number: Do not save dummy phone number if user left it blank
     const cleanPhone = phone && typeof phone === "string" && phone.trim() && !phone.trim().endsWith("undefined") ? phone.trim() : "";
 
+    const tenantEmail = (email && email.trim()) || `${name.toLowerCase().replace(/\s+/g, ".")}@rentawas.com`;
+    const tenantPassword = (password && password.trim()) || "Tenant@123";
+
+    // 1. Create or ensure Supabase Auth user & Prisma Profile exist for tenant portal login
+    let linkedProfileId: string | null = null;
+    try {
+      let existingProfile = await prisma.profile.findUnique({
+        where: { email: tenantEmail },
+      });
+
+      if (!existingProfile) {
+        const { data: authData } = await supabase.auth.signUp({
+          email: tenantEmail,
+          password: tenantPassword,
+          options: {
+            data: {
+              fullName: name,
+              role: "tenant",
+              phone: cleanPhone,
+            },
+          },
+        });
+
+        const userId = authData?.user?.id || `tenant_${Date.now()}`;
+
+        existingProfile = await prisma.profile.upsert({
+          where: { email: tenantEmail },
+          update: {
+            fullName: name,
+            phone: cleanPhone || null,
+            role: Role.TENANT,
+          },
+          create: {
+            id: userId,
+            email: tenantEmail,
+            fullName: name,
+            phone: cleanPhone || null,
+            role: Role.TENANT,
+          },
+        });
+      }
+
+      if (existingProfile) {
+        linkedProfileId = existingProfile.id;
+      }
+    } catch (authErr) {
+      console.warn("Tenant auth profile creation notice:", authErr);
+    }
+
     // Compute dynamic health score based on compliance & documentation completeness
     const docList = Array.isArray(documents) ? documents : [];
     const hasGovId = govIdUrl || docList.some((d: any) => d.docType === "Government ID" || d.type === "Passport" || d.type === "Driver's License");
@@ -117,7 +173,7 @@ export async function POST(request: Request) {
 
     const tenantData: any = {
       name,
-      email: email || `${name.toLowerCase().replace(/\s+/g, ".")}@rentawas.com`,
+      email: tenantEmail,
       phone: cleanPhone,
       healthScore: computedHealthScore,
       monthlyRent: monthlyRent ? parseFloat(monthlyRent) : 0,
@@ -132,6 +188,9 @@ export async function POST(request: Request) {
       leaseDocUrl: leaseDocUrl || null,
     };
 
+    if (linkedProfileId) {
+      tenantData.profile = { connect: { id: linkedProfileId } };
+    }
     if (targetUnitId) {
       tenantData.unit = { connect: { id: targetUnitId } };
     }

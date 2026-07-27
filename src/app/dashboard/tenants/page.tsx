@@ -35,7 +35,10 @@ import {
   List,
   ChevronLeft,
   ChevronRight,
-  Layers
+  Layers,
+  Eye,
+  EyeOff,
+  Key
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
@@ -100,6 +103,8 @@ export default function TenantsPage() {
   const [selectedCountry, setSelectedCountry] = useState<Country>(() => getDefaultCountryByLocale(ALL_COUNTRIES));
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [leaseStart, setLeaseStart] = useState("");
   const [monthlyRent, setMonthlyRent] = useState("");
   const [securityDeposit, setSecurityDeposit] = useState("");
@@ -339,6 +344,8 @@ export default function TenantsPage() {
     setEditingTenantId(null);
     setName("");
     setEmail("");
+    setPassword("");
+    setShowPassword(false);
     setPhone("");
     setSelectedPropertyId("");
     setSelectedFloor("");
@@ -367,6 +374,8 @@ export default function TenantsPage() {
     setEditingTenantId(t.id);
     setName(t.name);
     setEmail(t.email);
+    setPassword("");
+    setShowPassword(false);
     setPhone(t.phone ? t.phone.replace(/^\+\d+\s*/, "") : "");
     setMonthlyRent(t.monthlyRent ? t.monthlyRent.toString() : "");
     setSecurityDeposit(t.securityDeposit ? t.securityDeposit.toString() : "");
@@ -541,6 +550,7 @@ export default function TenantsPage() {
       const payload = {
         name,
         email,
+        password: password.trim() || undefined,
         phone: fullPhoneNumber,
         monthlyRent: parseFloat(monthlyRent) || 0,
         securityDeposit: securityDeposit ? parseFloat(securityDeposit) : 0,
@@ -1374,14 +1384,41 @@ export default function TenantsPage() {
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Mobile Phone Number (Optional)</label>
-                    <CountryPhoneInput
-                      selectedCountry={selectedCountry}
-                      onCountryChange={setSelectedCountry}
-                      value={phone}
-                      onChange={setPhone}
-                    />
+                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                      Tenant Portal Password {editingTenantId ? "(Optional Reset)" : "*"}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required={!editingTenantId}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={editingTenantId ? "Leave blank to keep current..." : "e.g. Tenant@123"}
+                        className="w-full px-3.5 py-2.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Mobile Phone Number (Optional)</label>
+                  <CountryPhoneInput
+                    selectedCountry={selectedCountry}
+                    onCountryChange={setSelectedCountry}
+                    value={phone}
+                    onChange={setPhone}
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1.5 font-medium bg-orange-50/70 border border-orange-100 p-2 rounded-xl text-orange-950">
+                    <Key className="w-3.5 h-3.5 text-[#FF6B00] shrink-0" />
+                    <span>Resident can log in to the <strong>Tenant Portal</strong> using this email and password.</span>
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
