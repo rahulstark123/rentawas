@@ -65,18 +65,18 @@ export default function WorkspaceSettingsPage() {
   const [integrationSearch, setIntegrationSearch] = useState("");
   const [selectedIntegrationCategory, setSelectedIntegrationCategory] = useState("All");
   const [connectedMap, setConnectedMap] = useState<Record<string, boolean>>({
-    stripe: true,
-    razorpay: true,
+    stripe: false,
+    razorpay: false,
     paypal: false,
   });
 
   // Razorpay Integration Modal & Credentials State
   const [showRazorpayModal, setShowRazorpayModal] = useState(false);
   const [razorpayEnvMode, setRazorpayEnvMode] = useState<"live" | "test">("live");
-  const [razorpayKeyId, setRazorpayKeyId] = useState("rzp_live_9a8B7c6D5e4F3g");
-  const [razorpayKeySecret, setRazorpayKeySecret] = useState("a1b2c3d4e5f6g7h8i9j0k1l2");
-  const [razorpayMerchantVpa, setRazorpayMerchantVpa] = useState("grandregency@icici");
-  const [razorpayWebhookSecret, setRazorpayWebhookSecret] = useState("whsec_rzp_98765432");
+  const [razorpayKeyId, setRazorpayKeyId] = useState("");
+  const [razorpayKeySecret, setRazorpayKeySecret] = useState("");
+  const [razorpayMerchantVpa, setRazorpayMerchantVpa] = useState("");
+  const [razorpayWebhookSecret, setRazorpayWebhookSecret] = useState("");
   const [showRazorpaySecret, setShowRazorpaySecret] = useState(false);
   const [savingRazorpay, setSavingRazorpay] = useState(false);
 
