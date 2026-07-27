@@ -11,13 +11,28 @@ import {
   DollarSign, 
   Check, 
   Trash2,
-  ChevronDown
+  ChevronDown,
+  Blocks,
+  Zap,
+  Search,
+  ExternalLink,
+  MessageSquare,
+  Calendar,
+  CheckCircle2,
+  Globe,
+  Sparkles,
+  Sliders,
+  Puzzle,
+  ArrowRight,
+  FileText,
+  PhoneCall,
+  FileCheck
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
 export default function WorkspaceSettingsPage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"general" | "payouts" | "team">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "integrations" | "team">("general");
 
   // General Settings State
   const [orgName, setOrgName] = useState("Grand Regency Management LLC");
@@ -39,6 +54,33 @@ export default function WorkspaceSettingsPage() {
   const [bankName, setBankName] = useState("JPMorgan Chase Bank");
   const [accountNumber, setAccountNumber] = useState("•••• •••• •••• 8942");
   const [payoutSchedule, setPayoutSchedule] = useState("instant");
+
+  // Integrations State & Filters
+  const [integrationSearch, setIntegrationSearch] = useState("");
+  const [selectedIntegrationCategory, setSelectedIntegrationCategory] = useState("All");
+  const [connectedMap, setConnectedMap] = useState<Record<string, boolean>>({
+    stripe: true,
+    razorpay: true,
+    quickbooks: true,
+    plaid: true,
+    whatsapp: true,
+    zapier: true,
+    google_cal: true,
+    slack: true,
+    twilio: true,
+    docusign: true,
+  });
+
+  const toggleIntegration = (id: string, name: string) => {
+    const isCurrentlyConnected = !!connectedMap[id];
+    setConnectedMap((prev) => ({ ...prev, [id]: !isCurrentlyConnected }));
+    toast(
+      !isCurrentlyConnected
+        ? `Integration connected: ${name}`
+        : `Integration disconnected: ${name}`,
+      !isCurrentlyConnected ? "success" : "info"
+    );
+  };
 
   // Saved Feedback
   const [isSaved, setIsSaved] = useState(false);
@@ -169,7 +211,7 @@ export default function WorkspaceSettingsPage() {
       <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl overflow-x-auto custom-scrollbar">
         {[
           { id: "general", label: "Organization & Profile", icon: Building2 },
-          { id: "payouts", label: "Payouts & Bank Account", icon: CreditCard, badge: "INSTANT" },
+          { id: "integrations", label: "Integrations", icon: Blocks, badge: "10 CONNECTED" },
           { id: "team", label: "Team Members", icon: Users, count: team.length },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -422,198 +464,277 @@ export default function WorkspaceSettingsPage() {
         </div>
       )}
 
-      {/* Tab 2: Payouts & Bank Account */}
-      {activeTab === "payouts" && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-emerald-600" />
-              <span>Payout Bank & Settlement Accounts</span>
-            </h3>
-            <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Direct Bank Settlement Active</span>
-            </span>
-          </div>
-
-          <div className="space-y-6 text-xs">
-            {/* Primary Bank Card */}
-            <div className="p-5 bg-slate-900 text-white rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                  <CreditCard className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-300 uppercase tracking-wider">Primary Payout Account</div>
-                  <div className="text-base font-extrabold text-white">{bankName}</div>
-                  <div className="text-xs text-slate-400 font-mono mt-0.5">{accountNumber} • Operating Checking</div>
-                </div>
+      {/* Tab 2: Integrations Catalog Grid */}
+      {activeTab === "integrations" && (
+        <div className="space-y-6">
+          {/* Header Banner & Stats */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <Blocks className="w-5 h-5 text-[#FF6B00]" />
+                  <span>Third-Party Integrations &amp; Connected Apps</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Connect payment processors, accounting platforms, CRM tools, communication channels, and API webhooks.
+                </p>
               </div>
 
-              <button
-                onClick={() => alert("Modifying payout bank account routing details...")}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/15 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer uppercase tracking-wider"
-              >
-                Change Bank Account
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>10 Connected Apps</span>
+                </span>
+              </div>
             </div>
 
-            {/* Payout Settlement Frequency */}
-            <div className="space-y-3">
-              <label className="block font-bold text-slate-700 uppercase">
-                Payout Settlement Frequency
-              </label>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[
-                  { id: "instant", title: "Instant Real-Time Payout", desc: "Collected rent is deposited to bank within 2 hours." },
-                  { id: "daily", title: "Daily 09:00 AM Batch", desc: "Bundles all previous day rent payments into 1 transfer." },
-                  { id: "weekly", title: "Weekly Settlement", desc: "Transfers accumulated balance every Monday morning." },
-                ].map((item) => (
+            {/* Filter Pills & Search */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 sm:pb-0">
+                {["All", "Payments", "Accounting", "Communication", "Tenant KYC", "Automation", "Legal"].map((cat) => (
                   <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setPayoutSchedule(item.id)}
-                    className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
-                      payoutSchedule === item.id
-                        ? "bg-emerald-50/60 border-emerald-500 ring-2 ring-emerald-500/20"
-                        : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                    key={cat}
+                    onClick={() => setSelectedIntegrationCategory(cat)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      selectedIntegrationCategory === cat
+                        ? "bg-purple-600 text-white shadow-xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200/70"
                     }`}
                   >
-                    <div className="font-bold text-slate-900 flex items-center justify-between mb-1">
-                      <span>{item.title}</span>
-                      {payoutSchedule === item.id && <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />}
-                    </div>
-                    <p className="text-[11px] text-slate-500">{item.desc}</p>
+                    {cat}
                   </button>
                 ))}
               </div>
-            </div>
 
-            {/* Connected Payment Gateways & Banking Integrations */}
-            <div className="pt-6 border-t border-slate-100 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="block font-bold text-slate-900 uppercase text-xs">
-                    Bank & Payment Gateway Integrations
-                  </label>
-                  <p className="text-[11px] text-slate-500">
-                    Connect payment processors and direct bank APIs so tenants can pay rent via UPI, ACH, Cards, or SWIFT.
-                  </p>
-                </div>
-
-                <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold border border-blue-200">
-                  6 Integrations Supported
-                </span>
+              <div className="relative min-w-[240px]">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={integrationSearch}
+                  onChange={(e) => setIntegrationSearch(e.target.value)}
+                  placeholder="Search integrations..."
+                  className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
               </div>
+            </div>
+          </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  {
-                    id: "stripe",
-                    name: "Stripe Connect & ACH Direct",
-                    region: "🇺🇸 USA & Global",
-                    methods: "ACH Direct Debit • Credit/Debit Cards • Apple Pay • Google Pay",
-                    fee: "0.5% ACH Cap ($5 max)",
-                    settlement: "Instant / T+1 Day",
-                    status: "Connected",
-                    action: "Configure API Keys",
-                    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-                  },
-                  {
-                    id: "razorpay",
-                    name: "Razorpay & UPI Instant Settlement",
-                    region: "🇮🇳 India & SE Asia",
-                    methods: "UPI (PhonePe, GPay, Paytm) • NetBanking • Credit/Debit",
-                    fee: "0% on UPI • 1.9% Cards",
-                    settlement: "Real-Time Instant UPI",
-                    status: "Connected",
-                    action: "Manage VPA & Keys",
-                    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-                  },
-                  {
-                    id: "plaid",
-                    name: "Plaid Instant Bank Auth",
-                    region: "🇺🇸 🇨🇦 🇬🇧 North America & UK",
-                    methods: "12,000+ Banks (Chase, BoA, Wells Fargo, Barclays)",
-                    fee: "Zero Payout Fee",
-                    settlement: "Direct Bank Link",
-                    status: "Connected",
-                    action: "View Linked Accounts",
-                    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-                  },
-                  {
-                    id: "paypal",
-                    name: "PayPal & Venmo Business",
-                    region: "🌐 200+ Countries",
-                    methods: "PayPal Wallet • Venmo • International Cards",
-                    fee: "Standard FX Rates",
-                    settlement: "Instant Wallet",
-                    status: "Available",
-                    action: "Connect Account",
-                    badgeColor: "bg-slate-100 text-slate-700 border-slate-200",
-                  },
-                  {
-                    id: "wise",
-                    name: "Wise Business Multi-Currency",
-                    region: "🇪🇺 🇬🇧 🇦🇺 Global Cross-Border",
-                    methods: "Local Bank Wires in 40+ Currencies (EUR, GBP, AUD)",
-                    fee: "Mid-market Exchange Rate",
-                    settlement: "Same-day Settlement",
-                    status: "Available",
-                    action: "Connect Wise",
-                    badgeColor: "bg-slate-100 text-slate-700 border-slate-200",
-                  },
-                  {
-                    id: "swift",
-                    name: "SWIFT & SEPA Virtual Account Numbers (VAN)",
-                    region: "🌍 GCC & Europe",
-                    methods: "Dedicated Tenant Virtual IBAN / VAN Wire Transfers",
-                    fee: "Flat $1.50 per wire",
-                    settlement: "T+1 Business Day",
-                    status: "Active",
-                    action: "Manage VAN Range",
-                    badgeColor: "bg-blue-50 text-blue-700 border-blue-200",
-                  },
-                ].map((item) => (
+          {/* Integration Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[
+              {
+                id: "stripe",
+                name: "Stripe Connect & ACH",
+                category: "Payments",
+                icon: CreditCard,
+                iconBg: "bg-indigo-50 border-indigo-200 text-indigo-600",
+                description: "Automated monthly rent collection via ACH Direct Debit, Credit/Debit Cards, Apple Pay, and Google Pay.",
+                meta: "Fee: 0.5% cap ($5 max) • Real-time Webhooks",
+                popular: true,
+              },
+              {
+                id: "razorpay",
+                name: "Razorpay & UPI Instant",
+                category: "Payments",
+                icon: Zap,
+                iconBg: "bg-blue-50 border-blue-200 text-blue-600",
+                description: "Instant UPI QR Code scan, PhonePe, GPay & NetBanking settlements for Indian rental properties.",
+                meta: "0% Fee on UPI • Instant VPA Settlement",
+                popular: true,
+              },
+              {
+                id: "quickbooks",
+                name: "QuickBooks Online",
+                category: "Accounting",
+                icon: FileText,
+                iconBg: "bg-emerald-50 border-emerald-200 text-emerald-600",
+                description: "Bi-directional ledger sync for rent invoices, maintenance expenses, tax reports, and Chart of Accounts.",
+                meta: "Auto Sync: Every 6 hours • Multi-entity support",
+                popular: true,
+              },
+              {
+                id: "xero",
+                name: "Xero Cloud Accounting",
+                category: "Accounting",
+                icon: Building2,
+                iconBg: "bg-cyan-50 border-cyan-200 text-cyan-600",
+                description: "Reconcile rental payments, security deposits, and contractor invoices automatically with Xero accounts.",
+                meta: "Bank Reconciliation API • Invoice Matching",
+              },
+              {
+                id: "plaid",
+                name: "Plaid Bank Verification",
+                category: "Tenant KYC",
+                icon: ShieldCheck,
+                iconBg: "bg-slate-100 border-slate-300 text-slate-900",
+                description: "Instantly verify tenant bank balances, income proofs, and account routing during online tenant onboarding.",
+                meta: "12,000+ US/UK Banks • Income Audit API",
+              },
+              {
+                id: "whatsapp",
+                name: "WhatsApp Business API",
+                category: "Communication",
+                icon: MessageSquare,
+                iconBg: "bg-emerald-50 border-emerald-200 text-emerald-600",
+                description: "Send automated rent due reminders, PDF payment receipts, and maintenance ticket updates via WhatsApp.",
+                meta: "Official Meta API • High Delivery Rate",
+                popular: true,
+              },
+              {
+                id: "zapier",
+                name: "Zapier Automation Hub",
+                category: "Automation",
+                icon: Puzzle,
+                iconBg: "bg-orange-50 border-orange-200 text-orange-600",
+                description: "Trigger custom 5,000+ app workflows on new tenant creation, rent invoice issuance, or maintenance requests.",
+                meta: "Custom Webhooks • 5,000+ Apps Supported",
+                popular: true,
+              },
+              {
+                id: "google_cal",
+                name: "Google Calendar Sync",
+                category: "Communication",
+                icon: Calendar,
+                iconBg: "bg-blue-50 border-blue-200 text-blue-600",
+                description: "Automatically schedule unit walkthroughs, vendor maintenance visits, and lease renewal reminders.",
+                meta: "Bi-directional Calendar Sync",
+              },
+              {
+                id: "slack",
+                name: "Slack Team Alerts",
+                category: "Communication",
+                icon: MessageSquare,
+                iconBg: "bg-purple-50 border-purple-200 text-purple-600",
+                description: "Get real-time channel alerts when a tenant submits urgent maintenance, pays rent, or signs a new lease.",
+                meta: "Bot Webhooks • Channel Alerts",
+              },
+              {
+                id: "twilio",
+                name: "Twilio SMS & Voice",
+                category: "Communication",
+                icon: PhoneCall,
+                iconBg: "bg-rose-50 border-rose-200 text-rose-600",
+                description: "Broadcast SMS notices to property residents or send 2-factor OTP verification during tenant login.",
+                meta: "Global SMS Delivery • Automated Triggers",
+              },
+              {
+                id: "docusign",
+                name: "DocuSign E-Signature",
+                category: "Legal",
+                icon: FileCheck,
+                iconBg: "bg-amber-50 border-amber-200 text-amber-600",
+                description: "Seamlessly execute e-signed residential lease agreements, pet addendums, and move-in inspection forms.",
+                meta: "Audit-Trail Verified • PDF E-Sign",
+              },
+              {
+                id: "paypal",
+                name: "PayPal & Venmo Business",
+                category: "Payments",
+                icon: DollarSign,
+                iconBg: "bg-sky-50 border-sky-200 text-sky-600",
+                description: "Accept international card payments and Venmo transfers from global & expat residents.",
+                meta: "Venmo QR Code • International Cards",
+              },
+            ]
+              .filter((item) => {
+                const matchesCat =
+                  selectedIntegrationCategory === "All" || item.category === selectedIntegrationCategory;
+                const matchesSearch =
+                  item.name.toLowerCase().includes(integrationSearch.toLowerCase()) ||
+                  item.description.toLowerCase().includes(integrationSearch.toLowerCase());
+                return matchesCat && matchesSearch;
+              })
+              .map((item) => {
+                const Icon = item.icon;
+                const isConnected = !!connectedMap[item.id];
+                return (
                   <div
                     key={item.id}
-                    className="p-4 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-3 hover:border-slate-300 transition-all"
+                    className={`bg-white border rounded-2xl p-6 shadow-2xs space-y-4 hover:shadow-md transition-all flex flex-col justify-between relative ${
+                      isConnected ? "border-slate-200/90" : "border-slate-200/60 opacity-90"
+                    }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
-                          {item.region}
-                        </span>
-                        <h4 className="text-sm font-bold text-slate-900 mt-0.5">{item.name}</h4>
+                    <div className="space-y-3">
+                      {/* Top Bar: Icon, Category & Toggle */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${item.iconBg}`}>
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="text-sm font-extrabold text-slate-900 tracking-tight">{item.name}</h4>
+                              {item.popular && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-purple-100 text-purple-800 uppercase">
+                                  POPULAR
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              {item.category}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Connected Status Switch */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleIntegration(item.id, item.name)}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              isConnected ? "bg-emerald-500" : "bg-slate-200"
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                isConnected ? "translate-x-5" : "translate-x-0"
+                              }`}
+                            />
+                          </button>
+                        </div>
                       </div>
 
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${item.badgeColor}`}>
-                        {item.status}
-                      </span>
+                      {/* Description */}
+                      <p className="text-xs text-slate-600 leading-relaxed min-h-[36px]">
+                        {item.description}
+                      </p>
+
+                      {/* Meta Pill */}
+                      <div className="text-[10px] bg-slate-50 p-2 rounded-xl border border-slate-100 text-slate-500 font-medium">
+                        {item.meta}
+                      </div>
                     </div>
 
-                    <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-                      {item.methods}
-                    </p>
-
-                    <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
-                      <span className="font-bold text-slate-500">
-                        Fee: <span className="text-slate-800">{item.fee}</span>
+                    {/* Bottom Action Footer */}
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className={`text-[11px] font-extrabold flex items-center gap-1 ${
+                        isConnected ? "text-emerald-600" : "text-slate-400"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-emerald-500" : "bg-slate-300"}`} />
+                        <span>{isConnected ? "Connected & Active" : "Available"}</span>
                       </span>
 
                       <button
                         type="button"
-                        onClick={() => toast(`Opening configuration modal for ${item.name}...`, "info")}
-                        className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 font-bold hover:bg-slate-100 shadow-2xs transition-colors cursor-pointer"
+                        onClick={() => {
+                          if (!isConnected) {
+                            toggleIntegration(item.id, item.name);
+                          } else {
+                            toast(`Opening ${item.name} API & Webhook Configuration...`, "info");
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          isConnected
+                            ? "bg-slate-100 hover:bg-slate-200 text-slate-800"
+                            : "bg-[#FF6B00] hover:bg-[#E56000] text-white shadow-xs"
+                        }`}
                       >
-                        {item.action}
+                        {isConnected ? "Configure Keys" : "+ Connect"}
                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                );
+              })}
           </div>
         </div>
       )}
