@@ -1,8 +1,33 @@
 "use client";
 
-import { FileText, Download, ShieldCheck, CheckCircle2, Copy } from "lucide-react";
+import { useState, useEffect } from "react";
+import { FileText, Download, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function TenantLeasePage() {
+  const [tenant, setTenant] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadTenantData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
+        const res = await fetch(`/api/tenant/me${emailParam}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data) {
+            setTenant(json.data);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading tenant lease:", err);
+      }
+    }
+    loadTenantData();
+  }, []);
+
+  const rentVal = tenant?.monthlyRent || 3200;
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -12,12 +37,18 @@ export default function TenantLeasePage() {
             My Lease Agreement
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Official signed tenancy contract for <span className="font-bold text-slate-800">The Regent — Unit 302</span>.
+            Official signed tenancy contract for <span className="font-bold text-slate-800">{tenant?.propertyName || "Property"} — {tenant?.unitNumber || "Unit"}</span>.
           </p>
         </div>
 
         <button
-          onClick={() => alert("Downloading signed PDF lease contract...")}
+          onClick={() => {
+            if (tenant?.leaseDocUrl) {
+              window.open(tenant.leaseDocUrl, "_blank");
+            } else {
+              alert("Downloading signed PDF lease contract...");
+            }
+          }}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
         >
           <Download className="w-4 h-4" />
@@ -40,23 +71,23 @@ export default function TenantLeasePage() {
         {/* Contract Viewer Box */}
         <div className="bg-slate-900 text-slate-300 p-6 rounded-xl border border-slate-800 text-xs font-mono leading-relaxed space-y-4">
           <div className="text-center font-bold text-white uppercase tracking-widest text-sm border-b border-slate-800 pb-2">
-            RESIDENTIAL LEASE AGREEMENT — SEATTLE, WA
+            RESIDENTIAL LEASE AGREEMENT — {tenant?.propertyName || "RENT AWAS"}
           </div>
 
           <p>
-            <strong>THIS LEASE AGREEMENT</strong> is executed between <strong className="text-orange-400">Alexander Wright</strong> (Lessor) and <strong className="text-purple-400">Eleanor Vance</strong> (Lessee).
+            <strong>THIS LEASE AGREEMENT</strong> is executed for Resident <strong className="text-purple-400">{tenant?.name || "Resident"}</strong> ({tenant?.email || "email"}).
           </p>
           <p>
-            <strong>1. PREMISES:</strong> Unit #302, The Regent Wing A, 1420 5th Ave, Seattle WA 98101.
+            <strong>1. PREMISES:</strong> {tenant?.unitNumber || "Unit"}, {tenant?.propertyName || "Property"}, {tenant?.propertyAddress || "Demised Address"}.
           </p>
           <p>
-            <strong>2. TERM:</strong> 12 Months starting August 01, 2025 and ending July 31, 2026.
+            <strong>2. TERM:</strong> Starting <strong className="text-amber-400">{tenant?.leaseStart || "Start Date"}</strong> and ending <strong className="text-amber-400">{tenant?.leaseEnd || "End Date"}</strong>.
           </p>
           <p>
-            <strong>3. RENT:</strong> Monthly rent is <strong className="text-emerald-400">$3,200.00 USD</strong> collected via RentAwas Autopilot ACH Gateway.
+            <strong>3. RENT:</strong> Monthly rent is <strong className="text-emerald-400">${rentVal.toLocaleString()}.00</strong> collected via RentAwas Gateway.
           </p>
           <p>
-            <strong>4. PET ADDENDUM:</strong> Approved for 1 domestic pet (Cat). Security deposit of $3,200 held in statutory escrow.
+            <strong>4. DEPOSIT &amp; STATUS:</strong> Security deposit is ${((tenant?.securityDeposit || rentVal)).toLocaleString()}. Current Tenancy Status: <span className="text-emerald-400 uppercase font-bold">{tenant?.currentStatus || "Active"}</span>.
           </p>
         </div>
       </div>

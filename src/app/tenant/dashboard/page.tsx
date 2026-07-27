@@ -205,21 +205,35 @@ export default function TenantDashboardPage() {
             </Link>
           </div>
 
-          {/* Ticket Item */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs font-bold text-slate-700">Ticket #402 — Kitchen Sink Leak</span>
-              <span className="px-2.5 py-0.5 rounded text-[10px] font-black bg-purple-100 text-purple-800 uppercase">
-                Vendor Dispatched
-              </span>
+          {/* Ticket List or Empty State */}
+          {Array.isArray(tenant.maintenances) && tenant.maintenances.length > 0 ? (
+            <div className="space-y-3">
+              {tenant.maintenances.slice(0, 2).map((m: any, idx: number) => (
+                <div key={m.id || idx} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-slate-700">
+                      Ticket #{m.ticketNumber || m.id || (400 + idx)} — {m.issue || m.title || "Repair Request"}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded text-[10px] font-black bg-purple-100 text-purple-800 uppercase">
+                      {m.status || "Open"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    {m.notes || m.description || "Ticket logged with Property Manager."}
+                  </p>
+                  <div className="text-[11px] text-slate-400 font-medium pt-1 flex items-center justify-between">
+                    <span>Category: {m.category || "General"}</span>
+                    <span>Priority: {m.priority || "Normal"}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-            <p className="text-xs text-slate-600">
-              Reported on July 24. Vendor <strong className="text-slate-900">QuickPlumb Co.</strong> scheduled to arrive today between <strong>02:00 PM – 04:00 PM</strong>.
-            </p>
-            <div className="text-[11px] text-slate-400 font-medium pt-1">
-              Need to reschedule? Contact building maintenance hotline at +1 (555) 019-2834.
+          ) : (
+            <div className="p-6 bg-slate-50 border border-slate-200/80 rounded-xl text-center space-y-2">
+              <p className="text-xs font-bold text-slate-700">No active repair tickets logged.</p>
+              <p className="text-[11px] text-slate-500">Need something fixed? Click &quot;Submit Issue&quot; to report a repair request.</p>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Building Announcements & Amenities (5 Cols) */}
