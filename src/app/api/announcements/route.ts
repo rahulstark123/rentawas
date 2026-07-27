@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
     const announcements = await prisma.announcement.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
     });
 
     // If tenantEmail or propertyId is passed, filter client/tenant-facing items

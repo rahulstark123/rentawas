@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Megaphone, Calendar, Bell, Loader2 } from "lucide-react";
+import { Megaphone, Calendar, Bell, Loader2, Pin } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function TenantNoticesPage() {
@@ -86,6 +86,12 @@ export default function TenantNoticesPage() {
             <div key={n.id} className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
+                  {n.isPinned && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-500 text-white uppercase tracking-wider flex items-center gap-1">
+                      <Pin className="w-3 h-3 fill-current" />
+                      <span>Pinned</span>
+                    </span>
+                  )}
                   <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-purple-50 text-purple-700 uppercase">
                     {n.category || "General Notice"}
                   </span>

@@ -8,17 +8,14 @@ import {
   Building2, 
   Users, 
   Globe, 
-  AlertTriangle, 
-  CheckCircle2, 
   Trash2, 
-  Clock, 
   Send, 
-  Filter, 
   X,
   Loader2,
-  Sparkles,
-  ShieldAlert,
-  Bell
+  Pin,
+  ChevronDown,
+  ChevronUp,
+  Check
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -44,6 +41,7 @@ interface AnnouncementItem {
   targetScope: "ALL_PROPERTIES" | "SPECIFIC_PROPERTIES" | "SPECIFIC_TENANTS";
   targetProperties: string[];
   targetTenants: string[];
+  isPinned?: boolean;
   creatorName?: string;
   createdAt: string;
 }
@@ -72,6 +70,10 @@ export default function LandlordAnnouncementsPage() {
   const [targetScope, setTargetScope] = useState<"ALL_PROPERTIES" | "SPECIFIC_PROPERTIES" | "SPECIFIC_TENANTS">("ALL_PROPERTIES");
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   const [selectedTenants, setSelectedTenants] = useState<string[]>([]);
+
+  // Dropdown open states inside modal
+  const [showPropDropdown, setShowPropDropdown] = useState(false);
+  const [showTenantDropdown, setShowTenantDropdown] = useState(false);
 
   // Fetch announcements, properties, and tenants
   const fetchData = async () => {
@@ -118,12 +120,14 @@ export default function LandlordAnnouncementsPage() {
     setTargetScope("ALL_PROPERTIES");
     setSelectedProperties([]);
     setSelectedTenants([]);
+    setShowPropDropdown(false);
+    setShowTenantDropdown(false);
     setShowModal(true);
   };
 
-  const handlePropertyToggle = (propId: string) => {
+  const handlePropertyToggle = (propName: string) => {
     setSelectedProperties((prev) =>
-      prev.includes(propId) ? prev.filter((id) => id !== propId) : [...prev, propId]
+      prev.includes(propName) ? prev.filter((id) => id !== propName) : [...prev, propName]
     );
   };
 
@@ -200,6 +204,27 @@ export default function LandlordAnnouncementsPage() {
     } catch (err) {
       console.error("Delete announcement error:", err);
       toast("Error deleting announcement", "error");
+    }
+  };
+
+  const handleTogglePin = async (item: AnnouncementItem) => {
+    try {
+      const newPinState = !item.isPinned;
+      const res = await fetch(`/api/announcements/${encodeURIComponent(item.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPinned: newPinState }),
+      });
+
+      if (res.ok) {
+        toast(newPinState ? "Notice pinned to top!" : "Notice unpinned.", "info");
+        fetchData();
+      } else {
+        toast("Failed to update pin state.", "error");
+      }
+    } catch (err) {
+      console.error("Toggle pin error:", err);
+      toast("Error toggling pin status.", "error");
     }
   };
 
@@ -307,7 +332,7 @@ export default function LandlordAnnouncementsPage() {
         </div>
       </div>
 
-      {/* Announcements Stream */}
+      {/* Announcements Stream - COMPACT CARD GRID VIEW */}
       {loading ? (
         <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center shadow-2xs space-y-3">
           <Loader2 className="w-7 h-7 text-[#FF6B00] animate-spin mx-auto" />
@@ -333,32 +358,71 @@ export default function LandlordAnnouncementsPage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {filteredAnnouncements.map((item) => (
             <div
               key={item.id}
-              className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4 hover:shadow-md transition-shadow relative"
+              className={`bg-white border rounded-2xl p-5 shadow-2xs space-y-3 hover:shadow-md transition-all flex flex-col justify-between relative ${
+                item.isPinned
+                  ? "border-amber-400/90 ring-2 ring-amber-400/20 bg-amber-50/10"
+                  : "border-slate-200/90"
+              }`}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-purple-100 text-purple-800 uppercase">
-                    {item.category}
-                  </span>
+              {/* Card Header Badges & Actions */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {item.isPinned && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-500 text-white uppercase tracking-wider flex items-center gap-1">
+                        <Pin className="w-3 h-3 fill-current" />
+                        <span>Pinned</span>
+                      </span>
+                    )}
 
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                      item.priority === "Urgent"
-                        ? "bg-red-100 text-red-700 border border-red-200"
-                        : item.priority === "Important"
-                        ? "bg-amber-100 text-amber-800 border border-amber-200"
-                        : "bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    {item.priority} Priority
-                  </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-100 text-purple-800 uppercase">
+                      {item.category}
+                    </span>
 
-                  {/* Target Scope Badge */}
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 border border-blue-200 text-blue-800 flex items-center gap-1">
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                        item.priority === "Urgent"
+                          ? "bg-red-100 text-red-700 border border-red-200"
+                          : item.priority === "Important"
+                          ? "bg-amber-100 text-amber-800 border border-amber-200"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {item.priority}
+                    </span>
+                  </div>
+
+                  {/* Actions: Pin & Delete */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleTogglePin(item)}
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        item.isPinned
+                          ? "text-amber-600 bg-amber-100 hover:bg-amber-200"
+                          : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                      }`}
+                      title={item.isPinned ? "Unpin Announcement" : "Pin Announcement to top"}
+                    >
+                      <Pin className={`w-3.5 h-3.5 ${item.isPinned ? "fill-current" : ""}`} />
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteAnnouncement(item.id)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                      title="Delete Announcement"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Target Scope Badge */}
+                <div>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 border border-blue-200 text-blue-800">
                     {item.targetScope === "ALL_PROPERTIES" && (
                       <>
                         <Globe className="w-3 h-3 text-blue-600" />
@@ -380,45 +444,24 @@ export default function LandlordAnnouncementsPage() {
                   </span>
                 </div>
 
-                <button
-                  onClick={() => handleDeleteAnnouncement(item.id)}
-                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                  title="Delete Announcement"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div>
-                <h3 className="text-base font-bold text-slate-900">{item.title}</h3>
-                <p className="text-xs text-slate-700 mt-1.5 leading-relaxed whitespace-pre-line">
+                {/* Card Title & Content */}
+                <h3 className="text-sm font-extrabold text-slate-900 tracking-tight pt-1">{item.title}</h3>
+                <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line line-clamp-4">
                   {item.content}
                 </p>
               </div>
 
-              {/* Target Details Badge if specific */}
-              {item.targetScope === "SPECIFIC_PROPERTIES" && item.targetProperties.length > 0 && (
-                <div className="text-[11px] bg-slate-50 p-2 rounded-xl border border-slate-200/80 text-slate-600 font-medium">
-                  <strong>Targeted Properties:</strong> {item.targetProperties.join(", ")}
-                </div>
-              )}
-
-              {item.targetScope === "SPECIFIC_TENANTS" && item.targetTenants.length > 0 && (
-                <div className="text-[11px] bg-slate-50 p-2 rounded-xl border border-slate-200/80 text-slate-600 font-medium">
-                  <strong>Targeted Residents:</strong> {item.targetTenants.join(", ")}
-                </div>
-              )}
-
-              <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between font-medium">
-                <span>Published on {new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                <span>By {item.creatorName || "Landlord / Management"}</span>
+              {/* Card Footer info */}
+              <div className="pt-3 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between font-medium">
+                <span>{new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                <span>By {item.creatorName || "Landlord"}</span>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* CREATE ANNOUNCEMENT MODAL */}
+      {/* CREATE ANNOUNCEMENT MODAL WITH DROPDOWN SCOPE SELECTORS */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
           <form
@@ -486,15 +529,20 @@ export default function LandlordAnnouncementsPage() {
                 </div>
               </div>
 
-              {/* TARGET AUDIENCE SCOPE SELECTION (USER EXPLICIT REQUIREMENT) */}
-              <div className="space-y-2 border-t border-b border-slate-100 py-3">
+              {/* TARGET AUDIENCE SCOPE SELECTION WITH COMPACT DROPDOWNS */}
+              <div className="space-y-3 border-t border-b border-slate-100 py-3">
                 <label className="block font-bold text-slate-800 uppercase tracking-wider">
                   Target Audience / Scope *
                 </label>
 
                 <div className="space-y-2">
+                  {/* Radio 1: All Portfolio Properties */}
                   <label
-                    onClick={() => setTargetScope("ALL_PROPERTIES")}
+                    onClick={() => {
+                      setTargetScope("ALL_PROPERTIES");
+                      setShowPropDropdown(false);
+                      setShowTenantDropdown(false);
+                    }}
                     className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                       targetScope === "ALL_PROPERTIES"
                         ? "bg-purple-50/70 border-purple-500 ring-2 ring-purple-500/20"
@@ -517,8 +565,12 @@ export default function LandlordAnnouncementsPage() {
                     </div>
                   </label>
 
+                  {/* Radio 2: Specific Properties */}
                   <label
-                    onClick={() => setTargetScope("SPECIFIC_PROPERTIES")}
+                    onClick={() => {
+                      setTargetScope("SPECIFIC_PROPERTIES");
+                      setShowTenantDropdown(false);
+                    }}
                     className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                       targetScope === "SPECIFIC_PROPERTIES"
                         ? "bg-purple-50/70 border-purple-500 ring-2 ring-purple-500/20"
@@ -532,17 +584,73 @@ export default function LandlordAnnouncementsPage() {
                       onChange={() => setTargetScope("SPECIFIC_PROPERTIES")}
                       className="mt-0.5 text-purple-600 focus:ring-purple-500"
                     />
-                    <div>
-                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-purple-600" />
-                        <span>Specific Properties Only</span>
+                    <div className="w-full">
+                      <div className="font-bold text-slate-900 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Specific Properties Only</span>
+                        </span>
+                        {targetScope === "SPECIFIC_PROPERTIES" && (
+                          <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
+                            {selectedProperties.length} Selected
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-slate-500">Select designated properties from your portfolio</div>
                     </div>
                   </label>
 
+                  {/* DROPDOWN SELECTOR FOR SPECIFIC PROPERTIES */}
+                  {targetScope === "SPECIFIC_PROPERTIES" && (
+                    <div className="mt-2 space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowPropDropdown(!showPropDropdown)}
+                        className="w-full px-3.5 py-2.5 bg-white border border-purple-300 rounded-xl text-xs font-bold text-slate-800 flex items-center justify-between shadow-2xs hover:bg-purple-50/30 transition-colors cursor-pointer"
+                      >
+                        <span>
+                          {selectedProperties.length === 0
+                            ? "Select Target Properties..."
+                            : `${selectedProperties.length} Property (${selectedProperties.join(", ")})`}
+                        </span>
+                        {showPropDropdown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+
+                      {showPropDropdown && (
+                        <div className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                          {properties.length === 0 ? (
+                            <p className="text-slate-500 text-xs p-2">No properties created yet.</p>
+                          ) : (
+                            properties.map((p) => {
+                              const isChecked = selectedProperties.includes(p.name);
+                              return (
+                                <div
+                                  key={p.id}
+                                  onClick={() => handlePropertyToggle(p.name)}
+                                  className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 cursor-pointer text-xs font-semibold text-slate-800"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${isChecked ? "bg-purple-600 border-purple-600 text-white" : "border-slate-300 bg-white"}`}>
+                                      {isChecked && <Check className="w-3 h-3" />}
+                                    </div>
+                                    <span>{p.name}</span>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400">{p.totalUnits || 0} Units</span>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Radio 3: Specific Tenants / People */}
                   <label
-                    onClick={() => setTargetScope("SPECIFIC_TENANTS")}
+                    onClick={() => {
+                      setTargetScope("SPECIFIC_TENANTS");
+                      setShowPropDropdown(false);
+                    }}
                     className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                       targetScope === "SPECIFIC_TENANTS"
                         ? "bg-purple-50/70 border-purple-500 ring-2 ring-purple-500/20"
@@ -556,63 +664,83 @@ export default function LandlordAnnouncementsPage() {
                       onChange={() => setTargetScope("SPECIFIC_TENANTS")}
                       className="mt-0.5 text-purple-600 focus:ring-purple-500"
                     />
-                    <div>
-                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5 text-purple-600" />
-                        <span>Specific Set of People / Tenants</span>
+                    <div className="w-full">
+                      <div className="font-bold text-slate-900 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Specific Set of People / Tenants</span>
+                        </span>
+                        {targetScope === "SPECIFIC_TENANTS" && (
+                          <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
+                            {selectedTenants.length} Selected
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-slate-500">Select specific individual residents or emails</div>
                     </div>
                   </label>
+
+                  {/* DROPDOWN SELECTOR FOR SPECIFIC TENANTS (SCROLLABLE DROPDOWN) */}
+                  {targetScope === "SPECIFIC_TENANTS" && (
+                    <div className="mt-2 space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowTenantDropdown(!showTenantDropdown)}
+                        className="w-full px-3.5 py-2.5 bg-white border border-purple-300 rounded-xl text-xs font-bold text-slate-800 flex items-center justify-between shadow-2xs hover:bg-purple-50/30 transition-colors cursor-pointer"
+                      >
+                        <span>
+                          {selectedTenants.length === 0
+                            ? "Select Target Residents..."
+                            : `${selectedTenants.length} Resident(s) Selected`}
+                        </span>
+                        {showTenantDropdown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+
+                      {showTenantDropdown && (
+                        <div className="p-2 bg-white border border-slate-200 rounded-xl shadow-lg space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
+                          {tenants.length === 0 ? (
+                            <p className="text-slate-500 text-xs p-2">No residents created yet.</p>
+                          ) : (
+                            tenants.map((t) => {
+                              const isChecked = selectedTenants.includes(t.email);
+                              return (
+                                <div
+                                  key={t.id}
+                                  onClick={() => handleTenantToggle(t.email)}
+                                  className="flex items-center justify-between p-2 rounded-lg hover:bg-purple-50/50 cursor-pointer text-xs font-semibold text-slate-800"
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${isChecked ? "bg-purple-600 border-purple-600 text-white" : "border-slate-300 bg-white"}`}>
+                                      {isChecked && <Check className="w-3 h-3" />}
+                                    </div>
+                                    <div>
+                                      <div className="font-bold text-slate-900">{t.name}</div>
+                                      <div className="text-[10px] text-slate-400 font-normal">{t.email}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+
+                      {/* Selected Tenant Tags / Chips */}
+                      {selectedTenants.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {selectedTenants.map((email) => (
+                            <span key={email} className="px-2 py-1 rounded-lg bg-purple-100 text-purple-800 text-[11px] font-bold inline-flex items-center gap-1">
+                              <span>{email}</span>
+                              <button type="button" onClick={() => handleTenantToggle(email)} className="hover:text-purple-950">
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-
-                {/* SPECIFIC PROPERTIES CHECKBOX LIST */}
-                {targetScope === "SPECIFIC_PROPERTIES" && (
-                  <div className="mt-3 p-3 bg-purple-50/50 border border-purple-200 rounded-xl space-y-2">
-                    <span className="font-bold text-slate-800 uppercase block text-[10px]">Select Target Properties:</span>
-                    {properties.length === 0 ? (
-                      <p className="text-slate-500 text-[11px]">No properties created yet in workspace.</p>
-                    ) : (
-                      <div className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
-                        {properties.map((p) => (
-                          <label key={p.id} className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-800">
-                            <input
-                              type="checkbox"
-                              checked={selectedProperties.includes(p.name)}
-                              onChange={() => handlePropertyToggle(p.name)}
-                              className="rounded text-purple-600 focus:ring-purple-500"
-                            />
-                            <span>{p.name} ({p.totalUnits || 0} Units)</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* SPECIFIC TENANTS CHECKBOX LIST */}
-                {targetScope === "SPECIFIC_TENANTS" && (
-                  <div className="mt-3 p-3 bg-purple-50/50 border border-purple-200 rounded-xl space-y-2">
-                    <span className="font-bold text-slate-800 uppercase block text-[10px]">Select Target Residents:</span>
-                    {tenants.length === 0 ? (
-                      <p className="text-slate-500 text-[11px]">No tenants created yet in workspace.</p>
-                    ) : (
-                      <div className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
-                        {tenants.map((t) => (
-                          <label key={t.id} className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-800">
-                            <input
-                              type="checkbox"
-                              checked={selectedTenants.includes(t.email)}
-                              onChange={() => handleTenantToggle(t.email)}
-                              className="rounded text-purple-600 focus:ring-purple-500"
-                            />
-                            <span>{t.name} ({t.email})</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Content Body */}
