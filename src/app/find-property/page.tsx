@@ -321,17 +321,52 @@ export default function FindPropertyPage() {
     return matchesLocation && matchesType && matchesBhk && matchesPrice;
   });
 
-  const toggleLike = (id: string) => {
+  // Initial Wishlist Load from LocalStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("rentawas_wishlist_items");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const likesMap: Record<string, boolean> = {};
+        if (Array.isArray(parsed)) {
+          parsed.forEach((item: any) => {
+            if (item.id) likesMap[item.id] = true;
+          });
+        }
+        setLikedProperties(likesMap);
+      }
+    } catch (e) {
+      console.error("Failed loading wishlist from localStorage", e);
+    }
+  }, []);
+
+  const toggleLike = (property: PropertyItem) => {
     if (!userSession) {
       setIsLoginModalOpen(true);
       return;
     }
     setLikedProperties((prev) => {
-      const isLiked = !prev[id];
-      if (isLiked) {
-        toast("Saved property to favorites!", "success");
+      const isLiked = !prev[property.id];
+      const nextMap = { ...prev, [property.id]: isLiked };
+
+      try {
+        const stored = localStorage.getItem("rentawas_wishlist_items");
+        let itemsArr: any[] = stored ? JSON.parse(stored) : [];
+        if (isLiked) {
+          if (!itemsArr.some((item) => item.id === property.id)) {
+            itemsArr.push(property);
+          }
+          toast("Saved property to your wishlist!", "success");
+        } else {
+          itemsArr = itemsArr.filter((item) => item.id !== property.id);
+          toast("Removed property from wishlist", "info");
+        }
+        localStorage.setItem("rentawas_wishlist_items", JSON.stringify(itemsArr));
+      } catch (err) {
+        console.error("Error updating localStorage wishlist:", err);
       }
-      return { ...prev, [id]: isLiked };
+
+      return nextMap;
     });
   };
 
@@ -621,7 +656,7 @@ export default function FindPropertyPage() {
 
                       {/* Like / Favorite Button */}
                       <button
-                        onClick={() => toggleLike(p.id)}
+                        onClick={() => toggleLike(p)}
                         className="absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-md text-slate-700 hover:text-red-500 shadow-md transition-colors cursor-pointer"
                       >
                         <Heart
