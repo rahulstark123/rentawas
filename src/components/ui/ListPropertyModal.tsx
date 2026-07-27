@@ -72,8 +72,8 @@ export default function ListPropertyModal({
   const [deposit, setDeposit] = useState("");
   const [tenantTypes, setTenantTypes] = useState<string[]>(["Any / Open to All"]);
   const [isTenantDropdownOpen, setIsTenantDropdownOpen] = useState(false);
-  const [availableFrom, setAvailableFrom] = useState("Immediately");
-  const [maintenance, setMaintenance] = useState("Included");
+  const [availableFrom, setAvailableFrom] = useState("Immediately (Ready to Move)");
+  const [maintenance, setMaintenance] = useState("Included in Monthly Rent");
 
   const toggleTenantCategory = (cat: string) => {
     if (cat === "Any / Open to All") {
@@ -414,31 +414,44 @@ export default function ListPropertyModal({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Available From
+                      Available From *
                     </label>
                     <select
                       value={availableFrom}
                       onChange={(e) => setAvailableFrom(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                     >
-                      <option value="Immediately">Immediately</option>
-                      <option value="In 7 Days">In 7 Days</option>
+                      <option value="Immediately (Ready to Move)">Immediately (Ready to Move)</option>
+                      <option value="Within 7 Days">Within 7 Days</option>
+                      <option value="Within 15 Days">Within 15 Days</option>
                       <option value="1st of Next Month">1st of Next Month</option>
+                      <option value="15th of Next Month">15th of Next Month</option>
+                      <option value="Under Renovation (Available Soon)">Under Renovation (Available Soon)</option>
+                      <option value="Under Construction / Pre-Booking">Under Construction / Pre-Booking</option>
+                      <option value="Specific Date (Contact Owner)">Specific Date (Contact Owner)</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Maintenance Fee
+                      Maintenance Fee *
                     </label>
                     <select
                       value={maintenance}
                       onChange={(e) => setMaintenance(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                     >
-                      <option value="Included">Included in Rent</option>
-                      <option value="₹2,000 / mo">₹2,000 / Month</option>
-                      <option value="₹3,500 / mo">₹3,500 / Month</option>
+                      <option value="N/A (Not Applicable)">N/A (Not Applicable)</option>
+                      <option value="Included in Monthly Rent">Included in Monthly Rent</option>
+                      <option value="₹1,000 / Month">₹1,000 / Month</option>
+                      <option value="₹1,500 / Month">₹1,500 / Month</option>
+                      <option value="₹2,000 / Month">₹2,000 / Month</option>
+                      <option value="₹2,500 / Month">₹2,500 / Month</option>
+                      <option value="₹3,000 / Month">₹3,000 / Month</option>
+                      <option value="₹3,500 / Month">₹3,500 / Month</option>
+                      <option value="₹5,000 / Month">₹5,000 / Month</option>
+                      <option value="As Per Society Bill (Actuals)">As Per Society Bill (Actuals)</option>
+                      <option value="Extra (Billed Annually)">Extra (Billed Annually)</option>
                     </select>
                   </div>
                 </div>
