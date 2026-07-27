@@ -758,18 +758,6 @@ export default function FindPropertyPage() {
                         </span>
                       </div>
 
-                      {/* Like / Favorite Button */}
-                      <button
-                        onClick={() => toggleLike(p)}
-                        className="absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-md text-slate-700 hover:text-red-500 shadow-md transition-colors cursor-pointer"
-                      >
-                        <Heart
-                          className={`w-4 h-4 ${
-                            likedProperties[p.id] ? "fill-red-500 text-red-500" : ""
-                          }`}
-                        />
-                      </button>
-
                       {/* Price Tag Overlay */}
                       <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1 rounded-xl shadow-md border border-slate-200">
                         <span className="text-sm font-black text-slate-900">{p.price}</span>
