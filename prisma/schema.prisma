@@ -50,6 +50,7 @@ model Workspace {
   transactions   Transaction[]
   supportTickets SupportTicket[]
   announcements  Announcement[]
+  propertyListings PropertyListing[]
   
   // Razorpay Payment Gateway Config
   razorpayKeyId         String?
@@ -467,4 +468,46 @@ model Announcement {
   updatedAt        DateTime   @updatedAt
 
   @@index([workspaceId])
+}
+
+model PropertyListing {
+  id                 String   @id @default(cuid())
+  title              String
+  description        String?
+  propertyType       String
+  rent               Float
+  deposit            Float?
+  tenantTypes        String[]
+  availableFrom      String?
+  maintenance        String?
+  customMaintenance  String?
+  pincode            String?
+  stateName          String?
+  city               String?
+  locality           String?
+  fullAddress        String?
+  pinnedLat          Float?
+  pinnedLng          Float?
+  amenities          String[]
+  mainImage          String?
+  coverImage         String?
+  galleryImages      String[]
+  contactPersonName  String?
+  contactNumber      String?
+  countryDialCode    String?  @default("+91")
+  countryCode        String?  @default("IN")
+  whatsappEnabled    Boolean  @default(true)
+  isLive             Boolean  @default(true)
+  status             String   @default("Active") // "Active", "Draft", "Rented"
+  inquiriesCount     Int      @default(0)
+
+  workspaceId        Int?
+  workspace          Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([city])
+  @@index([status])
 }

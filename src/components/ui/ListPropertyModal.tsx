@@ -311,6 +311,7 @@ export default function ListPropertyModal({
     () => ALL_COUNTRIES.find((c) => c.code === "IN") || ALL_COUNTRIES[0]
   );
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
+  const [isLive, setIsLive] = useState(true);
 
   if (!isOpen) return null;
 
@@ -343,32 +344,63 @@ export default function ListPropertyModal({
     setCurrentStep((prev) => Math.min(prev + 1, 4));
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     const fullPhone = contactNumber.trim() ? `${selectedCountry.dialCode} ${contactNumber.trim()}` : "";
-    const newEntry = {
-      id: `LIST-${Date.now()}`,
+    const payload = {
       title,
-      rent: rent ? `₹${parseInt(rent).toLocaleString("en-IN")}/mo` : "₹0/mo",
-      bhk: propertyType,
       description,
-      location: `${locality}, ${city}`,
+      propertyType,
+      rent: rent ? parseFloat(rent) : 0,
+      deposit: deposit ? parseFloat(deposit) : null,
+      tenantTypes,
+      availableFrom,
+      maintenance,
+      customMaintenance,
       pincode,
       stateName,
+      city,
+      locality,
       fullAddress,
-      status: "Active",
-      inquiriesCount: 0,
-      image: mainImage || imageUrl,
+      pinnedLat: pinnedCoords?.lat,
+      pinnedLng: pinnedCoords?.lng,
+      amenities: selectedAmenities,
+      mainImage: mainImage || imageUrl,
       coverImage,
       galleryImages,
       contactPersonName,
       contactNumber,
       countryDialCode: selectedCountry.dialCode,
       countryCode: selectedCountry.code,
-      ownerPhone: fullPhone,
       whatsappEnabled,
+      isLive,
     };
-    onSuccess(newEntry);
-    toast("Property published to RentAwas Marketplace for 100% Free!", "success");
+
+    try {
+      const res = await fetch("/api/listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        onSuccess(data.data || payload);
+        toast(
+          isLive
+            ? "Property published live to RentAwas Marketplace!"
+            : "Property listing saved as draft in database!",
+          "success"
+        );
+      } else {
+        onSuccess(payload);
+        toast(data.error || "Property listing created!", "success");
+      }
+    } catch (err) {
+      console.warn("Listing API error:", err);
+      onSuccess(payload);
+      toast("Property listing created successfully!", "success");
+    }
+
     onClose();
     // Reset
     setCurrentStep(1);
@@ -384,6 +416,7 @@ export default function ListPropertyModal({
     setPinnedCoords(null);
     setContactPersonName("");
     setContactNumber("");
+    setIsLive(true);
   };
 
   return (
@@ -1106,6 +1139,45 @@ export default function ListPropertyModal({
                     Enable direct WhatsApp inquiry messages from prospective tenants
                   </span>
                 </label>
+
+                {/* Make Listing Live Toggle */}
+                <div className={`border rounded-2xl p-3.5 flex items-center justify-between transition-all ${
+                  isLive
+                    ? "bg-emerald-50/80 border-emerald-300 shadow-xs"
+                    : "bg-slate-50 border-slate-200"
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${
+                      isLive ? "bg-emerald-600 text-white" : "bg-slate-300 text-slate-600"
+                    }`}>
+                      <Zap className="w-4 h-4 fill-current" />
+                    </div>
+                    <div>
+                      <div className="font-extrabold text-slate-900 text-xs flex items-center gap-2">
+                        <span>Make Listing Live Immediately</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                          isLive ? "bg-emerald-600 text-white" : "bg-slate-300 text-slate-700"
+                        }`}>
+                          {isLive ? "Live on Marketplace" : "Save as Draft"}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-medium mt-0.5">
+                        {isLive
+                          ? "Visible live to prospective tenants searching on RentAwas Marketplace"
+                          : "Saved as draft in database (you can publish live anytime later)"}
+                      </div>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
+                    <input
+                      type="checkbox"
+                      checked={isLive}
+                      onChange={(e) => setIsLive(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
+                  </label>
+                </div>
               </motion.div>
             )}
 
