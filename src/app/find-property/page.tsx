@@ -34,6 +34,7 @@ import {
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { useToast } from "@/components/ui/Toast";
 import { supabase } from "@/lib/supabase";
+import { createUserProfileAndWorkspace } from "@/app/actions/authActions";
 
 interface PropertyItem {
   id: string;
@@ -396,6 +397,8 @@ export default function FindPropertyPage() {
     e.preventDefault();
     setIsAuthSubmitting(true);
     try {
+      const formattedPhone = `${authCountry.dialCode} ${authPhone.trim()}`;
+
       if (authModalMode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: authEmail.trim(),
@@ -404,20 +407,40 @@ export default function FindPropertyPage() {
         if (data?.session) {
           setUserSession(data.session);
         } else {
-          // Demo fallback
+          // Demo fallback session
           setUserSession({ user: { email: authEmail.trim() || "tenant@rentawas.com" } });
         }
       } else {
-        const { data } = await supabase.auth.signUp({
+        // 1. Supabase auth signup
+        const { data: authData, error: authError } = await supabase.auth.signUp({
           email: authEmail.trim(),
           password: authPassword,
-          options: { data: { full_name: authFullName.trim(), role: "tenant" } },
+          options: {
+            data: {
+              fullName: authFullName.trim(),
+              role: "tenant",
+              phone: formattedPhone,
+              trialStartedAt: new Date().toISOString(),
+              trialDays: 7,
+            },
+          },
         });
-        if (data?.session) {
-          setUserSession(data.session);
+
+        if (authData?.session) {
+          setUserSession(authData.session);
         } else {
           setUserSession({ user: { email: authEmail.trim() || "tenant@rentawas.com" } });
         }
+
+        // 2. Generate database profile & workspace (same as main signup page)
+        const userId = authData?.user?.id || `user_${Date.now()}`;
+        await createUserProfileAndWorkspace({
+          userId,
+          email: authEmail.trim(),
+          fullName: authFullName.trim(),
+          phone: formattedPhone,
+          role: "tenant",
+        });
       }
 
       if (pendingWishlistProperty) {
@@ -429,9 +452,11 @@ export default function FindPropertyPage() {
       setAuthEmail("");
       setAuthPassword("");
       setAuthFullName("");
+      setAuthPhone("");
     } catch (err) {
+      console.error("In-place auth error:", err);
       // Fallback auth completion
-      setUserSession({ user: { email: "tenant@rentawas.com" } });
+      setUserSession({ user: { email: authEmail.trim() || "tenant@rentawas.com" } });
       if (pendingWishlistProperty) {
         performWishlistSave(pendingWishlistProperty);
         setPendingWishlistProperty(null);
