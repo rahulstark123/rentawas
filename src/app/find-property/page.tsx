@@ -43,6 +43,35 @@ import { useToast } from "@/components/ui/Toast";
 import { supabase } from "@/lib/supabase";
 import { createUserProfileAndWorkspace } from "@/app/actions/authActions";
 
+const AMENITY_LABELS: Record<string, string> = {
+  wifi: "High-Speed WiFi",
+  parking: "Car Parking",
+  gym: "Fitness Gym",
+  security: "24x7 Security",
+  ac: "Air Conditioning",
+  backup: "Power Backup",
+  tv: "Smart TV",
+  kitchen: "Modular Kitchen",
+  pool: "Swimming Pool",
+  laundry: "Washing Machine",
+  ev: "EV Charger",
+  balcony: "Private Balcony",
+  lift: "Elevator / Lift",
+  ro: "RO Water Purifier",
+  pet: "Pet Friendly",
+  geyser: "Geyser",
+  maid: "Housekeeping",
+  study: "Study Desk",
+  gated: "Gated Community",
+  intercom: "Intercom Safety",
+};
+
+const formatAmenityTag = (tag: string): string => {
+  if (!tag) return "";
+  const lower = tag.toLowerCase().trim();
+  return AMENITY_LABELS[lower] || (tag.charAt(0).toUpperCase() + tag.slice(1));
+};
+
 interface PropertyItem {
   id: string;
   title: string;
@@ -152,7 +181,9 @@ export default function FindPropertyPage() {
           rating: 4.9,
           reviewsCount: 14,
           image: item.mainImage || item.image || item.coverImage || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80",
-          tags: Array.isArray(item.amenities) && item.amenities.length > 0 ? item.amenities.slice(0, 3) : ["Zero Fee", "Direct Owner", "Verified"],
+          tags: Array.isArray(item.amenities) && item.amenities.length > 0 
+            ? item.amenities.slice(0, 3).map(formatAmenityTag) 
+            : ["Zero Fee", "Direct Owner", "Verified"],
           ownerName: item.contactPersonName ? `${item.contactPersonName} (Owner)` : "Property Landlord",
           ownerPhone: item.contactNumber || item.ownerPhone || "+91 Contact via RentAwas",
           badge: item.whatsappEnabled ? "Verified Owner • Direct WhatsApp" : "Verified Owner • Zero Fee",
