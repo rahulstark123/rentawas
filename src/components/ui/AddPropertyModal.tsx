@@ -40,18 +40,18 @@ interface AddPropertyModalProps {
 }
 
 export const PROPERTY_CATEGORIES = [
-  "🏢 Residential Apartment Complex",
-  "🏡 Single-Family Rental Home (Villa / Townhouse)",
+  "🏢 Residential Apartment (Flat / Condo / Penthouse)",
+  "🏡 Independent House / Villa / Builder Floor",
+  "🎓 PG / Paying Guest & Co-Living Suite",
+  "🏙️ Studio Apartment / 1 RK / Loft Suite",
   "🏢 Commercial Office Space / Tower",
-  "🏬 Retail Shop & Shopping Mall Floor",
-  "🎓 Student Housing & Co-Living Hostel",
+  "🏬 Retail Shop & Showroom Floor",
+  "🎓 Student Housing & Dormitory Hostel",
   "🏭 Industrial Warehouse & Logistics Park",
   "🏖️ Short-Term Vacation Rental (Airbnb / Villa)",
   "🏥 Healthcare & Medical Suite",
   "🏨 Hospitality & Serviced Suites",
-  "📦 Self-Storage Facility",
-  "🌾 Agricultural / Farm Estate",
-  "🚗 Parking Garage / Storage Lots",
+  "🌾 Agricultural / Farmhouse Estate",
 ];
 
 export const ROOM_LAYOUT_OPTIONS = [

@@ -21,7 +21,8 @@ import {
   Dumbbell,
   Lock,
   Tv,
-  Utensils
+  Utensils,
+  ChevronDown
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -195,24 +196,46 @@ export default function ListPropertyModal({
                 </h4>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                    Property Type
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Property Type *
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {["Flat / Apartment", "PG Bed", "House / Villa", "Studio"].map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => setPropertyType(type)}
-                        className={`p-3 rounded-xl border text-xs font-bold transition-all text-center cursor-pointer ${
-                          propertyType === type
-                            ? "bg-[#0B132B] text-white border-[#0B132B] shadow-xs"
-                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
+                  <div className="relative">
+                    <select
+                      value={propertyType}
+                      onChange={(e) => setPropertyType(e.target.value)}
+                      className="w-full appearance-none pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer shadow-2xs"
+                    >
+                      <optgroup label="🏢 Residential Apartments & Condos">
+                        <option value="Flat / Apartment">Flat / Apartment (1BHK, 2BHK, 3BHK...)</option>
+                        <option value="Condominium (Condo)">Condominium (Condo)</option>
+                        <option value="Studio Apartment / 1 RK">Studio Apartment / 1 RK</option>
+                        <option value="Penthouse & Terrace Unit">Penthouse &amp; Terrace Unit</option>
+                        <option value="Loft & Duplex Suite">Loft &amp; Duplex Suite</option>
+                        <option value="Executive Serviced Apartment">Executive Serviced Apartment</option>
+                      </optgroup>
+
+                      <optgroup label="🏡 Houses & Independent Villas">
+                        <option value="House / Villa">Independent House / Villa</option>
+                        <option value="Builder Floor (Individual Floor)">Builder Floor (Individual Floor)</option>
+                        <option value="Townhouse / Row House">Townhouse / Row House</option>
+                        <option value="Bungalow / Gated Villa">Bungalow / Gated Villa</option>
+                        <option value="Farmhouse / Estate">Farmhouse / Estate</option>
+                      </optgroup>
+
+                      <optgroup label="🎓 Co-Living & PG (Paying Guest)">
+                        <option value="PG / Paying Guest">PG / Paying Guest (Boys, Girls, Co-Ed)</option>
+                        <option value="Co-Living Shared Suite">Co-Living Shared Suite</option>
+                        <option value="Student Hostel / Dormitory">Student Hostel / Dormitory</option>
+                      </optgroup>
+
+                      <optgroup label="🏢 Commercial & Business Spaces">
+                        <option value="Commercial Office Space">Commercial Office Space</option>
+                        <option value="Retail Shop / Showroom">Retail Shop / Showroom</option>
+                        <option value="Co-Working Space">Co-Working Space / Desk</option>
+                        <option value="Warehouse / Storage Bay">Warehouse / Storage Bay</option>
+                      </optgroup>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                 </div>
 
