@@ -222,10 +222,14 @@ export default function ListPropertyModal({
                         <option value="Farmhouse / Estate">Farmhouse / Estate</option>
                       </optgroup>
 
-                      <optgroup label="🎓 Co-Living & PG (Paying Guest)">
-                        <option value="PG / Paying Guest">PG / Paying Guest (Boys, Girls, Co-Ed)</option>
-                        <option value="Co-Living Shared Suite">Co-Living Shared Suite</option>
-                        <option value="Student Hostel / Dormitory">Student Hostel / Dormitory</option>
+                      <optgroup label="🎓 Hostels, PG & Student Housing">
+                        <option value="Independent Private Boys Hostel">Independent Private Boys Hostel</option>
+                        <option value="Independent Private Girls Hostel">Independent Private Girls Hostel</option>
+                        <option value="College & University Student Hostel">College &amp; University Student Hostel</option>
+                        <option value="School / Boarding School Hostel">School / Boarding School Hostel</option>
+                        <option value="PG / Paying Guest (Boys/Girls/Co-Ed)">PG / Paying Guest (Boys, Girls, Co-Ed)</option>
+                        <option value="Working Professionals Hostel / Co-Living">Working Professionals Hostel / Co-Living</option>
+                        <option value="Co-Living Shared Suite / Pod">Co-Living Shared Suite / Pod</option>
                       </optgroup>
 
                       <optgroup label="🏢 Commercial & Business Spaces">
