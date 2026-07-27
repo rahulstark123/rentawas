@@ -85,6 +85,10 @@ export default function WorkspaceSettingsPage() {
       setShowRazorpayModal(true);
       return;
     }
+    if (id === "stripe") {
+      setShowStripeModal(true);
+      return;
+    }
     const isCurrentlyConnected = !!connectedMap[id];
     setConnectedMap((prev) => ({ ...prev, [id]: !isCurrentlyConnected }));
     toast(
@@ -93,6 +97,74 @@ export default function WorkspaceSettingsPage() {
         : `Integration disconnected: ${name}`,
       !isCurrentlyConnected ? "success" : "info"
     );
+  };
+
+  // Stripe Integration Modal & Credentials State
+  const [showStripeModal, setShowStripeModal] = useState(false);
+  const [stripeEnvMode, setStripeEnvMode] = useState<"live" | "test">("live");
+  const [stripePublishableKey, setStripePublishableKey] = useState("");
+  const [stripeSecretKey, setStripeSecretKey] = useState("");
+  const [stripeWebhookSecret, setStripeWebhookSecret] = useState("");
+  const [stripeConnectAccountId, setStripeConnectAccountId] = useState("");
+  const [showStripeSecret, setShowStripeSecret] = useState(false);
+  const [savingStripe, setSavingStripe] = useState(false);
+
+  const handleSaveStripe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripePublishableKey.trim() || !stripeSecretKey.trim()) {
+      toast("Publishable Key and Secret Key are required for Stripe configuration!", "error");
+      return;
+    }
+
+    try {
+      setSavingStripe(true);
+      const res = await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wid: 1,
+          stripePublishableKey,
+          stripeSecretKey,
+          stripeWebhookSecret,
+          stripeConnectAccountId,
+          stripeEnvMode,
+          stripeConnected: true,
+        }),
+      });
+
+      if (res.ok) {
+        setConnectedMap((prev) => ({ ...prev, stripe: true }));
+        setShowStripeModal(false);
+        toast("Stripe API Keys & Connect credentials saved successfully! Global payment gateway activated.", "success");
+      } else {
+        toast("Failed to save Stripe configuration.", "error");
+      }
+    } catch (err) {
+      toast("Error saving Stripe settings.", "error");
+    } finally {
+      setSavingStripe(false);
+    }
+  };
+
+  const handleDisconnectStripe = async () => {
+    try {
+      setSavingStripe(true);
+      await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wid: 1,
+          stripeConnected: false,
+        }),
+      });
+      setConnectedMap((prev) => ({ ...prev, stripe: false }));
+      setShowStripeModal(false);
+      toast("Stripe integration disconnected.", "info");
+    } catch (err) {
+      toast("Error disconnecting Stripe.", "error");
+    } finally {
+      setSavingStripe(false);
+    }
   };
 
   const handleSaveRazorpay = async (e: React.FormEvent) => {
@@ -173,6 +245,15 @@ export default function WorkspaceSettingsPage() {
           if (json.data.razorpayEnvMode) setRazorpayEnvMode(json.data.razorpayEnvMode as any);
           if (json.data.razorpayConnected !== undefined) {
             setConnectedMap((prev) => ({ ...prev, razorpay: json.data.razorpayConnected }));
+          }
+
+          if (json.data.stripePublishableKey) setStripePublishableKey(json.data.stripePublishableKey);
+          if (json.data.stripeSecretKey) setStripeSecretKey(json.data.stripeSecretKey);
+          if (json.data.stripeWebhookSecret) setStripeWebhookSecret(json.data.stripeWebhookSecret);
+          if (json.data.stripeConnectAccountId) setStripeConnectAccountId(json.data.stripeConnectAccountId);
+          if (json.data.stripeEnvMode) setStripeEnvMode(json.data.stripeEnvMode as any);
+          if (json.data.stripeConnected !== undefined) {
+            setConnectedMap((prev) => ({ ...prev, stripe: json.data.stripeConnected }));
           }
         }
       }
@@ -1165,6 +1246,228 @@ export default function WorkspaceSettingsPage() {
                       <>
                         <ShieldCheck className="w-4 h-4" />
                         <span>Save &amp; Connect Razorpay</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Stripe Integration Modal */}
+      {showStripeModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar font-sans">
+            
+            {/* Top Close Button */}
+            <button
+              type="button"
+              onClick={() => setShowStripeModal(false)}
+              className="absolute right-5 top-5 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Modal Header */}
+            <div className="flex items-start gap-4 border-b border-slate-100 pb-5">
+              <div className="w-14 h-14 rounded-2xl border border-slate-200 bg-white p-2 flex items-center justify-center shrink-0 shadow-xs">
+                <Image
+                  src="/assests/stripe icon.jpeg"
+                  alt="Stripe"
+                  width={48}
+                  height={48}
+                  className="object-contain"
+                />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">Stripe Connect &amp; ACH Setup</h3>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-800 uppercase">
+                    GLOBAL &amp; ACH
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Configure your Stripe API Publishable Key &amp; Secret Key to process global credit/debit cards, ACH Direct Debit, Apple Pay, and Google Pay.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveStripe} className="space-y-5 text-xs">
+              
+              {/* Environment Radio Selector */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-2">
+                  API Environment Mode
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStripeEnvMode("live")}
+                    className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                      stripeEnvMode === "live"
+                        ? "bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 text-emerald-900 font-extrabold"
+                        : "bg-slate-50 border-slate-200 text-slate-700 font-bold hover:bg-slate-100"
+                    }`}
+                  >
+                    <div>
+                      <div className="text-xs">Live Production</div>
+                      <div className="text-[10px] text-slate-500 font-mono">pk_live_... / sk_live_...</div>
+                    </div>
+                    {stripeEnvMode === "live" && <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setStripeEnvMode("test")}
+                    className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                      stripeEnvMode === "test"
+                        ? "bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/20 text-amber-900 font-extrabold"
+                        : "bg-slate-50 border-slate-200 text-slate-700 font-bold hover:bg-slate-100"
+                    }`}
+                  >
+                    <div>
+                      <div className="text-xs">Test Sandbox Mode</div>
+                      <div className="text-[10px] text-slate-500 font-mono">pk_test_... / sk_test_...</div>
+                    </div>
+                    {stripeEnvMode === "test" && <Check className="w-4 h-4 text-amber-600 stroke-[3]" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Publishable Key Field */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                  <span>Stripe Publishable Key *</span>
+                  <span className="text-[10px] text-slate-400 lowercase">Found in Stripe Dashboard &gt; API Keys</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={stripePublishableKey}
+                  onChange={(e) => setStripePublishableKey(e.target.value)}
+                  placeholder={stripeEnvMode === "live" ? "pk_live_51M..." : "pk_test_51M..."}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+
+              {/* Secret Key Field */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                  <span>Stripe Secret Key *</span>
+                  <span className="text-[10px] text-slate-400 lowercase">Private server authentication key</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showStripeSecret ? "text" : "password"}
+                    required
+                    value={stripeSecretKey}
+                    onChange={(e) => setStripeSecretKey(e.target.value)}
+                    placeholder="••••••••••••••••••••••••"
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowStripeSecret(!showStripeSecret)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showStripeSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Webhook Signing Secret Field */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                  <span>Webhook Signing Secret (Optional)</span>
+                  <span className="text-[10px] text-slate-400 lowercase">Verifies Stripe signature</span>
+                </label>
+                <input
+                  type="text"
+                  value={stripeWebhookSecret}
+                  onChange={(e) => setStripeWebhookSecret(e.target.value)}
+                  placeholder="whsec_1234567890abcdef..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+
+              {/* Stripe Connect Account ID Field */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                  <span>Stripe Connect Account ID (Optional)</span>
+                  <span className="text-[10px] text-slate-400 lowercase">Connected Merchant Account</span>
+                </label>
+                <input
+                  type="text"
+                  value={stripeConnectAccountId}
+                  onChange={(e) => setStripeConnectAccountId(e.target.value)}
+                  placeholder="e.g. acct_1M9x2kL0PqRst"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+
+              {/* Webhook Setup Instructions Note Box */}
+              <div className="p-4 bg-indigo-50/80 border border-indigo-200 rounded-2xl space-y-2 text-indigo-950">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-xs uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Stripe Webhook Setup Guide</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText("https://rentawas.com/api/webhooks/stripe");
+                      toast("Stripe Webhook URL copied to clipboard!", "success");
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-white text-indigo-700 hover:text-indigo-900 font-extrabold text-[10px] rounded-lg border border-indigo-200 shadow-2xs cursor-pointer"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>Copy URL</span>
+                  </button>
+                </div>
+
+                <div className="font-mono text-[10px] text-indigo-800 bg-white/80 px-2.5 py-1.5 rounded-xl border border-indigo-200/90 flex items-center justify-between">
+                  <span>https://rentawas.com/api/webhooks/stripe</span>
+                </div>
+
+                <div className="text-[11px] space-y-1 pt-1 text-slate-700 font-medium">
+                  <p className="font-bold text-slate-900 text-[11px]">How to configure in Stripe:</p>
+                  <ol className="list-decimal list-inside space-y-0.5 text-[10px] text-slate-600">
+                    <li>Copy <code className="bg-indigo-100 text-indigo-900 px-1 py-0.5 rounded font-mono">https://rentawas.com/api/webhooks/stripe</code></li>
+                    <li>Open <strong>Stripe Dashboard &gt; Developers &gt; Webhooks &gt; Add Endpoint</strong></li>
+                    <li>Paste the URL and select events: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">payment_intent.succeeded</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">invoice.paid</code>, and <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">charge.failed</code></li>
+                  </ol>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                {connectedMap.stripe ? (
+                  <button
+                    type="button"
+                    onClick={handleDisconnectStripe}
+                    disabled={savingStripe}
+                    className="px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl cursor-pointer transition-colors"
+                  >
+                    Disconnect Integration
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={savingStripe}
+                    className="px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2"
+                  >
+                    {savingStripe ? (
+                      <span>Saving &amp; Verifying...</span>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Save &amp; Connect Stripe</span>
                       </>
                     )}
                   </button>

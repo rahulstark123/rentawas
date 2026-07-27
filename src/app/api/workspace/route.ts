@@ -47,6 +47,12 @@ export async function GET(request: Request) {
         razorpayWebhookSecret: workspace?.razorpayWebhookSecret || "",
         razorpayEnvMode: workspace?.razorpayEnvMode || "test",
         razorpayConnected: workspace?.razorpayConnected ?? false,
+        stripePublishableKey: workspace?.stripePublishableKey || "",
+        stripeSecretKey: workspace?.stripeSecretKey || "",
+        stripeWebhookSecret: workspace?.stripeWebhookSecret || "",
+        stripeConnectAccountId: workspace?.stripeConnectAccountId || "",
+        stripeEnvMode: workspace?.stripeEnvMode || "test",
+        stripeConnected: workspace?.stripeConnected ?? false,
       },
     });
   } catch (error: any) {
@@ -57,7 +63,7 @@ export async function GET(request: Request) {
   }
 }
 
-// PATCH /api/workspace - Update workspace details (e.g. active subscription plan, Razorpay keys)
+// PATCH /api/workspace - Update workspace details (e.g. active subscription plan, Razorpay & Stripe keys)
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
@@ -72,7 +78,13 @@ export async function PATCH(request: Request) {
       razorpayMerchantVpa,
       razorpayWebhookSecret,
       razorpayEnvMode,
-      razorpayConnected
+      razorpayConnected,
+      stripePublishableKey,
+      stripeSecretKey,
+      stripeWebhookSecret,
+      stripeConnectAccountId,
+      stripeEnvMode,
+      stripeConnected
     } = body;
 
     const workspaceIdNum = wid ? parseInt(String(wid), 10) : 1;
@@ -90,6 +102,12 @@ export async function PATCH(request: Request) {
         ...(razorpayWebhookSecret !== undefined ? { razorpayWebhookSecret } : {}),
         ...(razorpayEnvMode !== undefined ? { razorpayEnvMode } : {}),
         ...(razorpayConnected !== undefined ? { razorpayConnected } : {}),
+        ...(stripePublishableKey !== undefined ? { stripePublishableKey } : {}),
+        ...(stripeSecretKey !== undefined ? { stripeSecretKey } : {}),
+        ...(stripeWebhookSecret !== undefined ? { stripeWebhookSecret } : {}),
+        ...(stripeConnectAccountId !== undefined ? { stripeConnectAccountId } : {}),
+        ...(stripeEnvMode !== undefined ? { stripeEnvMode } : {}),
+        ...(stripeConnected !== undefined ? { stripeConnected } : {}),
       },
     });
 
