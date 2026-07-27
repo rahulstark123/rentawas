@@ -210,7 +210,7 @@ export default function EarlyAccessModal({ isOpen, onClose }: EarlyAccessModalPr
                     <option value="Landlord / Owner (1 - 5 Properties)">Landlord / Owner (1 - 5 Properties)</option>
                     <option value="Landlord / Owner (6 - 20 Properties)">Landlord / Owner (6 - 20 Properties)</option>
                     <option value="Portfolio Owner (50+ Properties)">Portfolio Owner (50+ Properties)</option>
-                    <option value="Tenant / Resident">Tenant / Resident</option>
+                    <option value="Tenant / Normal User">Tenant / Normal User</option>
                   </select>
                   <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
                     <ChevronDown className="w-4 h-4" />

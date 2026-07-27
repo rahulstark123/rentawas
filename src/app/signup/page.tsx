@@ -267,7 +267,7 @@ export default function SignupPage() {
                 }`}
               >
                 <User className={`w-4 h-4 ${role === "tenant" ? "text-purple-600" : ""}`} />
-                <span>Tenant / Resident</span>
+                <span>Tenant / Normal User</span>
               </button>
             </div>
 
