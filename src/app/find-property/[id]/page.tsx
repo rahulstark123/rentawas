@@ -26,7 +26,10 @@ import {
   Compass,
   Layers,
   Info,
-  X
+  X,
+  Images,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { useToast } from "@/components/ui/Toast";
@@ -43,6 +46,7 @@ interface PropertyItem {
   rating: number;
   reviewsCount: number;
   image: string;
+  images: string[];
   tags: string[];
   ownerName: string;
   ownerPhone: string;
@@ -62,6 +66,13 @@ const DEFAULT_PROPERTIES: PropertyItem[] = [
     rating: 4.9,
     reviewsCount: 14,
     image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80"
+    ],
     tags: ["Fully Furnished", "Zero Brokerage", "Gated Security"],
     ownerName: "Alexander Wright (Owner)",
     ownerPhone: "+91 98765 43210",
@@ -79,6 +90,12 @@ const DEFAULT_PROPERTIES: PropertyItem[] = [
     rating: 4.8,
     reviewsCount: 9,
     image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80"
+    ],
     tags: ["Fully Furnished", "WiFi Included", "Power Backup"],
     ownerName: "Priya Nair (Owner)",
     ownerPhone: "+91 98123 45678",
@@ -96,6 +113,12 @@ const DEFAULT_PROPERTIES: PropertyItem[] = [
     rating: 4.9,
     reviewsCount: 22,
     image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80"
+    ],
     tags: ["3 Meals Included", "Daily Housekeeping", "High-Speed WiFi"],
     ownerName: "Rajesh Kumar (Manager)",
     ownerPhone: "+91 99887 76655",
@@ -113,6 +136,12 @@ const DEFAULT_PROPERTIES: PropertyItem[] = [
     rating: 5.0,
     reviewsCount: 18,
     image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80"
+    ],
     tags: ["Luxury Interiors", "Covered Parking", "Clubhouse Access"],
     ownerName: "Dr. Vikram Reddy (Owner)",
     ownerPhone: "+91 97000 11223",
@@ -131,6 +160,10 @@ export default function PropertyDetailPage() {
   const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
+  // Photo Lightbox Carousel State
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
   // Lead Contact Modal State
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [leadName, setLeadName] = useState("");
@@ -141,6 +174,14 @@ export default function PropertyDetailPage() {
   const [moveInDate, setMoveInDate] = useState("");
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
   const [leadSubmitted, setLeadSubmitted] = useState(false);
+
+  const defaultGalleryFallbacks = [
+    "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80"
+  ];
 
   useEffect(() => {
     async function loadProperty() {
@@ -153,6 +194,24 @@ export default function PropertyDetailPage() {
 
         if (json.success && json.data) {
           const item = json.data;
+          
+          let rawImgs: string[] = [];
+          if (Array.isArray(item.images) && item.images.length > 0) {
+            rawImgs = item.images;
+          } else if (Array.isArray(item.imageUrls) && item.imageUrls.length > 0) {
+            rawImgs = item.imageUrls;
+          } else if (item.mainImage || item.image || item.coverImage) {
+            rawImgs = [item.mainImage || item.image || item.coverImage];
+          }
+
+          // Fill up to at least 5 images using default gallery fallbacks
+          const mergedImages = [...rawImgs];
+          defaultGalleryFallbacks.forEach((fb) => {
+            if (mergedImages.length < 5 && !mergedImages.includes(fb)) {
+              mergedImages.push(fb);
+            }
+          });
+
           setProperty({
             id: item.id,
             title: item.title,
@@ -164,7 +223,8 @@ export default function PropertyDetailPage() {
             size: item.deposit ? `Deposit: ₹${item.deposit.toLocaleString("en-IN")}` : item.availableFrom || "Ready to Move",
             rating: 4.9,
             reviewsCount: 14,
-            image: item.mainImage || item.image || item.coverImage || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            image: mergedImages[0],
+            images: mergedImages,
             tags: Array.isArray(item.amenities) && item.amenities.length > 0 ? item.amenities : ["Zero Fee", "Direct Owner", "Verified", "Immediate Move-In"],
             ownerName: item.contactPersonName ? `${item.contactPersonName} (Owner)` : "Property Landlord",
             ownerPhone: item.contactNumber || item.ownerPhone || "+91 Contact via RentAwas",
@@ -177,14 +237,20 @@ export default function PropertyDetailPage() {
         // Try local static fallback list if API fails
         const found = DEFAULT_PROPERTIES.find((p) => p.id.toLowerCase() === propertyId?.toLowerCase());
         if (found) {
-          setProperty(found);
+          const merged = [...(found.images || [found.image])];
+          defaultGalleryFallbacks.forEach((fb) => {
+            if (merged.length < 5 && !merged.includes(fb)) {
+              merged.push(fb);
+            }
+          });
+          setProperty({ ...found, images: merged });
         } else {
-          setProperty(DEFAULT_PROPERTIES[0]);
+          setProperty({ ...DEFAULT_PROPERTIES[0], images: defaultGalleryFallbacks });
         }
       } catch (err) {
         console.error("Error loading property detail:", err);
         const found = DEFAULT_PROPERTIES.find((p) => p.id.toLowerCase() === propertyId?.toLowerCase());
-        setProperty(found || DEFAULT_PROPERTIES[0]);
+        setProperty(found ? { ...found, images: defaultGalleryFallbacks } : { ...DEFAULT_PROPERTIES[0], images: defaultGalleryFallbacks });
       } finally {
         setIsLoading(false);
       }
@@ -280,12 +346,15 @@ export default function PropertyDetailPage() {
           </div>
         </div>
 
-        {/* Hero Gallery Grid (Airbnb Style) */}
+        {/* Hero Gallery Grid (Airbnb / MagicBricks Style) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 rounded-3xl overflow-hidden shadow-md bg-white border border-slate-200/90 relative group">
-          {/* Main Primary Image */}
-          <div className="lg:col-span-2 relative h-72 sm:h-96 md:h-[460px] bg-slate-100 overflow-hidden">
+          {/* Main Primary Image (Photo 1) */}
+          <div
+            onClick={() => { setLightboxIndex(0); setIsLightboxOpen(true); }}
+            className="lg:col-span-2 relative h-72 sm:h-96 md:h-[460px] bg-slate-100 overflow-hidden cursor-pointer"
+          >
             <Image
-              src={property.image}
+              src={property.images?.[0] || property.image}
               alt={property.title}
               fill
               unoptimized
@@ -309,27 +378,56 @@ export default function PropertyDetailPage() {
               <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Monthly Rent</div>
               <div className="text-2xl font-black text-slate-900">{property.price} <span className="text-xs font-semibold text-slate-500">/ month</span></div>
             </div>
+
+            {/* Floating All Photos Action Chip */}
+            <div className="absolute bottom-4 right-4 bg-slate-950/80 hover:bg-slate-950 text-white backdrop-blur-md px-3.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-lg border border-white/20 transition-all">
+              <Images className="w-4 h-4 text-orange-400" />
+              <span>View All {property.images?.length || 1} Photos</span>
+            </div>
           </div>
 
-          {/* Side Thumbnail Grid */}
+          {/* Side Thumbnail Grid (Photo 2 & Photo 3 with +X More Photos Overlay) */}
           <div className="hidden lg:grid grid-rows-2 gap-4 h-[460px]">
-            <div className="relative h-full w-full bg-slate-100 overflow-hidden">
+            {/* Photo 2 */}
+            <div
+              onClick={() => { setLightboxIndex(1); setIsLightboxOpen(true); }}
+              className="relative h-full w-full bg-slate-100 overflow-hidden cursor-pointer group/thumb"
+            >
               <Image
-                src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80"
-                alt="Interior Bedroom View"
+                src={property.images?.[1] || property.images?.[0] || property.image}
+                alt={`${property.title} Interior 2`}
                 fill
                 unoptimized
-                className="object-cover hover:scale-105 transition-transform duration-500"
+                className="object-cover group-hover/thumb:scale-105 transition-transform duration-500"
               />
             </div>
-            <div className="relative h-full w-full bg-slate-100 overflow-hidden">
+
+            {/* Photo 3 with +X More Photos Overlay */}
+            <div
+              onClick={() => { setLightboxIndex(2); setIsLightboxOpen(true); }}
+              className="relative h-full w-full bg-slate-100 overflow-hidden cursor-pointer group/thumb"
+            >
               <Image
-                src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80"
-                alt="Living Room View"
+                src={property.images?.[2] || property.images?.[0] || property.image}
+                alt={`${property.title} Interior 3`}
                 fill
                 unoptimized
-                className="object-cover hover:scale-105 transition-transform duration-500"
+                className="object-cover group-hover/thumb:scale-105 transition-transform duration-500"
               />
+
+              {/* +X More Photos Overlay */}
+              {(property.images?.length || 0) > 3 ? (
+                <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-xs flex flex-col items-center justify-center text-white transition-opacity group-hover/thumb:bg-slate-950/50">
+                  <Images className="w-7 h-7 text-amber-400 mb-1" />
+                  <span className="text-lg font-black tracking-tight">+{property.images.length - 2} More Photos</span>
+                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-0.5">Click to Open Gallery</span>
+                </div>
+              ) : (
+                <div className="absolute bottom-3 right-3 bg-slate-950/70 text-white backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] font-extrabold flex items-center gap-1">
+                  <Images className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Gallery</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -633,6 +731,79 @@ export default function PropertyDetailPage() {
               </form>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Full-Screen Photo Lightbox Carousel Modal */}
+      {isLightboxOpen && property.images && property.images.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col justify-between p-4 sm:p-6 font-sans animate-in fade-in duration-200">
+          
+          {/* Lightbox Header Bar */}
+          <div className="flex items-center justify-between text-white shrink-0 z-10 max-w-7xl mx-auto w-full">
+            <div>
+              <h3 className="text-sm font-extrabold text-white truncate max-w-xs sm:max-w-md">{property.title}</h3>
+              <p className="text-[11px] text-slate-400 font-semibold">
+                Photo {lightboxIndex + 1} of {property.images.length}
+              </p>
+            </div>
+            <button
+              onClick={() => setIsLightboxOpen(false)}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Lightbox Main Stage Image */}
+          <div className="relative flex-1 max-w-5xl w-full mx-auto my-4 flex items-center justify-center">
+            <div className="relative w-full h-full max-h-[72vh] rounded-2xl overflow-hidden shadow-2xl">
+              <Image
+                src={property.images[lightboxIndex]}
+                alt={`${property.title} Photo ${lightboxIndex + 1}`}
+                fill
+                unoptimized
+                className="object-contain"
+              />
+            </div>
+
+            {/* Previous Button */}
+            <button
+              onClick={() => setLightboxIndex((prev) => (prev > 0 ? prev - 1 : property.images.length - 1))}
+              className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all cursor-pointer border border-white/20 shadow-xl"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+
+            {/* Next Button */}
+            <button
+              onClick={() => setLightboxIndex((prev) => (prev < property.images.length - 1 ? prev + 1 : 0))}
+              className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all cursor-pointer border border-white/20 shadow-xl"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Lightbox Bottom Thumbnail Strip */}
+          <div className="flex items-center justify-center gap-2 sm:gap-3 overflow-x-auto py-2 shrink-0 max-w-3xl mx-auto w-full">
+            {property.images.map((imgUrl, idx) => (
+              <button
+                key={idx}
+                onClick={() => setLightboxIndex(idx)}
+                className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden transition-all shrink-0 cursor-pointer border-2 ${
+                  lightboxIndex === idx ? "border-[#FF6B00] scale-105 shadow-md" : "border-transparent opacity-50 hover:opacity-100"
+                }`}
+              >
+                <Image
+                  src={imgUrl}
+                  alt={`Thumb ${idx + 1}`}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                />
+              </button>
+            ))}
+          </div>
+
         </div>
       )}
 
