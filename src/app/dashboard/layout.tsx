@@ -254,7 +254,7 @@ export default function DashboardLayout({
     { id: "payments", name: "Rent Payments", href: "/dashboard/payments", icon: CreditCard },
     { id: "leases", name: "AI Documents", href: "/dashboard/leases", icon: FileText, spark: true },
     { id: "tenants", name: "Tenants & Health", href: "/dashboard/tenants", icon: Users },
-    { id: "maintenance", name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench, count: 3 },
+    { id: "maintenance", name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench },
     { id: "announcements", name: "Announcements", href: "/dashboard/announcements", icon: Megaphone },
     { id: "expenses", name: "Property Expenses", href: "/dashboard/expenses", icon: Receipt },
     { id: "settings", name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
@@ -262,7 +262,7 @@ export default function DashboardLayout({
   ];
 
   const listingNavItems = [
-    { id: "inquiries", name: "Tenant Inquiries & Leads", subTab: "inquiries", icon: Users, count: 3, badge: "FREE" },
+    { id: "inquiries", name: "Tenant Inquiries & Leads", subTab: "inquiries", icon: Users, badge: "FREE" },
     { id: "myListings", name: "My Published Listings", subTab: "myListings", icon: Building2 },
     { id: "publicSite", name: "Public Marketplace", href: "/find-property", external: true, icon: Search },
     { id: "settings", name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
@@ -518,12 +518,6 @@ export default function DashboardLayout({
                         {item.badge}
                       </span>
                     )}
-
-                    {!isCollapsed && item.count && (
-                      <span className="w-4 h-4 rounded-full bg-orange-500 text-white text-[9px] font-bold flex items-center justify-center">
-                        {item.count}
-                      </span>
-                    )}
                   </button>
                 );
               }
@@ -559,12 +553,6 @@ export default function DashboardLayout({
                       item.badge === "AUTO" ? "bg-emerald-500/20 text-emerald-400" : "bg-blue-500/20 text-blue-400"
                     }`}>
                       {item.badge}
-                    </span>
-                  )}
-
-                  {!isCollapsed && item.count && (
-                    <span className="w-4 h-4 rounded-full bg-orange-500 text-white text-[9px] font-bold flex items-center justify-center">
-                      {item.count}
                     </span>
                   )}
                 </Link>
