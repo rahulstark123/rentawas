@@ -1142,13 +1142,6 @@ export default function WorkspaceSettingsPage() {
 
                 <div className="flex items-center gap-2">
                   <button
-                    type="button"
-                    onClick={() => setShowRazorpayModal(false)}
-                    className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
                     type="submit"
                     disabled={savingRazorpay}
                     className="px-5 py-2.5 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2"
