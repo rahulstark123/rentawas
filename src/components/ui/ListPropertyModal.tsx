@@ -816,33 +816,37 @@ export default function ListPropertyModal({
               </button>
             </div>
 
-            {/* Simulated Interactive Map Container */}
-            <div className="relative h-64 w-full bg-slate-900 rounded-2xl overflow-hidden border border-slate-300 shadow-inner group">
-              {/* Map grid lines & tiles background */}
-              <div
-                className="absolute inset-0 opacity-40 bg-[radial-gradient(#FF6B00_1px,transparent_1px)] [background-size:16px_16px]"
+            {/* Live Interactive Map Container */}
+            <div className="relative h-72 w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-300 shadow-inner group">
+              <iframe
+                title="Property Map Location"
+                width="100%"
+                height="100%"
+                className="border-0 w-full h-full"
+                loading="lazy"
+                allowFullScreen
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(
+                  fullAddress || `${locality || city || "Bengaluru"}, ${stateName || "Karnataka"} ${pincode || ""}`
+                )}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
               />
-              
-              {/* Simulated Map Visual */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 flex flex-col items-center justify-center text-center p-4">
-                <div className="w-12 h-12 rounded-full bg-[#FF6B00]/20 border border-[#FF6B00] flex items-center justify-center animate-bounce mb-2">
-                  <MapPin className="w-6 h-6 text-[#FF6B00]" />
+
+              {/* Floating Address Badge */}
+              <div className="absolute top-3 left-3 z-10 bg-slate-900/90 backdrop-blur-md text-white px-3 py-2 rounded-xl border border-slate-700/80 shadow-lg text-xs font-bold flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#FF6B00]/20 border border-[#FF6B00] flex items-center justify-center shrink-0">
+                  <MapPin className="w-4 h-4 text-[#FF6B00]" />
                 </div>
-                <div className="text-white font-extrabold text-xs tracking-wide">
-                  {locality || city ? `${locality || "Indiranagar"}, ${city || "Bengaluru"}` : "Bengaluru, Karnataka"}
-                </div>
-                <div className="text-[10px] text-slate-300 font-mono mt-1">
-                  GPS: {pinnedCoords?.lat.toFixed(4)}° N, {pinnedCoords?.lng.toFixed(4)}° E
-                </div>
-                {fullAddress && (
-                  <div className="text-[10px] text-slate-400 max-w-xs truncate mt-0.5">
-                    {fullAddress}
+                <div>
+                  <div className="font-extrabold text-white text-xs truncate max-w-[220px]">
+                    {locality || city || "Property Location"}
                   </div>
-                )}
+                  <div className="text-[10px] text-slate-300 font-mono">
+                    {pincode ? `PIN: ${pincode}` : "Live Map Active"} • {stateName || "India"}
+                  </div>
+                </div>
               </div>
 
               {/* Map Controls */}
-              <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-white/90 backdrop-blur-xs p-1.5 rounded-xl border border-slate-200 shadow-md">
+              <div className="absolute bottom-3 right-3 z-10 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -855,9 +859,9 @@ export default function ListPropertyModal({
                       toast("GPS location captured!", "info");
                     }
                   }}
-                  className="flex items-center gap-1 px-2.5 py-1.5 bg-[#FF6B00] text-white rounded-lg text-[10px] font-extrabold shadow-2xs hover:bg-[#E56000] cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FF6B00] text-white rounded-xl text-xs font-extrabold shadow-md hover:bg-[#E56000] cursor-pointer transition-all uppercase tracking-wider"
                 >
-                  <Crosshair className="w-3 h-3" />
+                  <Crosshair className="w-3.5 h-3.5" />
                   <span>Locate Me</span>
                 </button>
               </div>
