@@ -1,29 +1,93 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/listings?wid=1&city=Bengaluru&status=Active
+// GET /api/listings?isLive=true&page=1&limit=12&search=Indiranagar&propertyType=Apartment&bhk=2+BHK&maxRent=30000
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const widParam = searchParams.get("wid");
     const city = searchParams.get("city");
     const status = searchParams.get("status");
+    const isLiveParam = searchParams.get("isLive");
+    const search = searchParams.get("search") || searchParams.get("query");
+    const propertyType = searchParams.get("propertyType");
+    const bhk = searchParams.get("bhk");
+    const maxRentParam = searchParams.get("maxRent");
+    
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || "12", 10)));
+    const skip = (page - 1) * limit;
 
     const whereClause: any = {};
+
     if (widParam) {
       const wid = parseInt(widParam, 10);
       if (!isNaN(wid)) whereClause.workspaceId = wid;
     }
-    if (city) whereClause.city = { contains: city, mode: "insensitive" };
-    if (status) whereClause.status = status;
 
-    const listings = await prisma.propertyListing.findMany({
-      where: whereClause,
-      orderBy: { createdAt: "desc" },
-    });
+    if (isLiveParam === "true") {
+      whereClause.isLive = true;
+      whereClause.status = "Active";
+    } else if (status) {
+      whereClause.status = status;
+    }
+
+    if (city && city !== "All") {
+      whereClause.city = { contains: city, mode: "insensitive" };
+    }
+
+    if (propertyType && propertyType !== "All") {
+      whereClause.propertyType = { contains: propertyType, mode: "insensitive" };
+    }
+
+    if (bhk && bhk !== "All") {
+      whereClause.propertyType = { contains: bhk, mode: "insensitive" };
+    }
+
+    if (maxRentParam && maxRentParam !== "All") {
+      if (maxRentParam === "under15k") whereClause.rent = { lte: 15000 };
+      else if (maxRentParam === "15k-30k") whereClause.rent = { gte: 15000, lte: 30000 };
+      else if (maxRentParam === "30k-50k") whereClause.rent = { gte: 30000, lte: 50000 };
+      else if (maxRentParam === "above50k") whereClause.rent = { gte: 50000 };
+      else {
+        const parsedMax = parseFloat(maxRentParam);
+        if (!isNaN(parsedMax)) whereClause.rent = { lte: parsedMax };
+      }
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      whereClause.OR = [
+        { title: { contains: q, mode: "insensitive" } },
+        { city: { contains: q, mode: "insensitive" } },
+        { locality: { contains: q, mode: "insensitive" } },
+        { stateName: { contains: q, mode: "insensitive" } },
+        { fullAddress: { contains: q, mode: "insensitive" } },
+        { pincode: { contains: q, mode: "insensitive" } },
+      ];
+    }
+
+    const [total, listings] = await Promise.all([
+      prisma.propertyListing.count({ where: whereClause }),
+      prisma.propertyListing.findMany({
+        where: whereClause,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
       success: true,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasMore: page < totalPages,
+      },
       count: listings.length,
       data: listings,
     });

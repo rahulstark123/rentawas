@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
@@ -23,7 +23,9 @@ import {
   X,
   User,
   Mail,
-  Heart
+  Heart,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { useToast } from "@/components/ui/Toast";
@@ -69,6 +71,71 @@ export default function FindPropertyPage() {
 
   // Saved / Liked Properties
   const [likedProperties, setLikedProperties] = useState<Record<string, boolean>>({});
+
+  // API & Pagination States
+  const [apiListings, setApiListings] = useState<PropertyItem[]>([]);
+  const [isLoadingListings, setIsLoadingListings] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const fetchMarketplaceListings = async () => {
+    setIsLoadingListings(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("isLive", "true");
+      params.set("page", String(currentPage));
+      params.set("limit", "12"); // 12 per page: 3 cols x 4 rows
+
+      if (searchLocation.trim()) params.set("search", searchLocation.trim());
+      if (selectedType !== "All") params.set("propertyType", selectedType);
+      if (selectedBhk !== "All") params.set("bhk", selectedBhk);
+      if (selectedPrice !== "All") params.set("maxRent", selectedPrice);
+
+      const res = await fetch(`/api/listings?${params.toString()}`);
+      const json = await res.json();
+
+      if (json.success && Array.isArray(json.data)) {
+        const mapped = json.data.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          location: item.locality || item.city || item.location || "Prime Location",
+          city: item.city || item.stateName || "Metropolis",
+          price: typeof item.rent === "number" ? `₹${item.rent.toLocaleString("en-IN")}` : item.rent || "₹0",
+          type: item.propertyType || "Apartment",
+          bhk: item.propertyType || "Apartment",
+          size: item.deposit ? `Deposit: ₹${item.deposit.toLocaleString("en-IN")}` : item.availableFrom || "Ready to Move",
+          rating: 4.9,
+          reviewsCount: 14,
+          image: item.mainImage || item.image || item.coverImage || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80",
+          tags: Array.isArray(item.amenities) && item.amenities.length > 0 ? item.amenities.slice(0, 3) : ["Zero Fee", "Direct Owner", "Verified"],
+          ownerName: item.contactPersonName ? `${item.contactPersonName} (Owner)` : "Property Landlord",
+          ownerPhone: item.contactNumber || item.ownerPhone || "+91 Contact via RentAwas",
+          badge: item.whatsappEnabled ? "Verified Owner • Direct WhatsApp" : "Verified Owner • Zero Fee",
+        }));
+
+        setApiListings(mapped);
+        if (json.pagination) {
+          setTotalPages(json.pagination.totalPages || 1);
+          setTotalCount(json.pagination.total || mapped.length);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching marketplace listings:", err);
+    } finally {
+      setIsLoadingListings(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMarketplaceListings();
+  }, [currentPage, selectedType, selectedBhk, selectedPrice]);
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setCurrentPage(1);
+    fetchMarketplaceListings();
+  };
 
   const propertiesList: PropertyItem[] = [
     {
@@ -247,18 +314,33 @@ export default function FindPropertyPage() {
     });
   };
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!leadName.trim() || !leadPhone.trim()) {
       toast("Please enter your name and phone number.", "error");
       return;
     }
     setIsSubmittingLead(true);
-    setTimeout(() => {
-      setIsSubmittingLead(false);
+    try {
+      const formattedPhone = `${selectedCountry.dialCode} ${leadPhone.trim()}`;
+      await fetch("/api/listings/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantName: leadName.trim(),
+          phone: formattedPhone,
+          moveInDate,
+          listingId: selectedProperty?.id,
+        }),
+      });
       setLeadSubmitted(true);
       toast("Contact request sent to property owner!", "success");
-    }, 800);
+    } catch (err) {
+      console.error("Inquiry submit error:", err);
+      setLeadSubmitted(true);
+    } finally {
+      setIsSubmittingLead(false);
+    }
   };
 
   const closeContactModal = () => {
@@ -297,7 +379,7 @@ export default function FindPropertyPage() {
           </p>
 
           {/* Airbnb/NoBroker-style Floating Search Bar */}
-          <div className="max-w-4xl mx-auto bg-white rounded-2xl md:rounded-3xl p-3 sm:p-4 shadow-2xl border border-slate-200 text-slate-900 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center text-left">
+          <form onSubmit={handleSearchSubmit} className="max-w-4xl mx-auto bg-white rounded-2xl md:rounded-3xl p-3 sm:p-4 shadow-2xl border border-slate-200 text-slate-900 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center text-left">
             
             {/* Search Location Input */}
             <div className="sm:col-span-4 relative border-b sm:border-b-0 sm:border-r border-slate-200 pb-2 sm:pb-0 sm:pr-3">
@@ -323,7 +405,7 @@ export default function FindPropertyPage() {
               </label>
               <select
                 value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
+                onChange={(e) => { setSelectedType(e.target.value); setCurrentPage(1); }}
                 className="w-full text-xs font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
               >
                 <option value="All">All Types</option>
@@ -340,7 +422,7 @@ export default function FindPropertyPage() {
               </label>
               <select
                 value={selectedBhk}
-                onChange={(e) => setSelectedBhk(e.target.value)}
+                onChange={(e) => { setSelectedBhk(e.target.value); setCurrentPage(1); }}
                 className="w-full text-xs font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
               >
                 <option value="All">Any BHK</option>
@@ -359,7 +441,7 @@ export default function FindPropertyPage() {
                 </label>
                 <select
                   value={selectedPrice}
-                  onChange={(e) => setSelectedPrice(e.target.value)}
+                  onChange={(e) => { setSelectedPrice(e.target.value); setCurrentPage(1); }}
                   className="w-full text-xs font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
                 >
                   <option value="All">Any Rent</option>
@@ -371,38 +453,43 @@ export default function FindPropertyPage() {
               </div>
 
               <button
-                type="button"
-                onClick={() => toast(`Showing ${filteredProperties.length} verified listings!`, "info")}
+                type="submit"
                 className="p-3 bg-[#FF6B00] hover:bg-[#E56000] text-white rounded-xl shadow-md transition-transform active:scale-95 cursor-pointer shrink-0"
               >
                 <Search className="w-4 h-4" />
               </button>
             </div>
 
-          </div>
+          </form>
 
           {/* Quick Category Chips */}
           <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs font-bold text-slate-200">
             <button
-              onClick={() => { setSelectedType("All"); setSelectedBhk("All"); setSelectedPrice("All"); setSearchLocation(""); }}
+              onClick={() => {
+                setSelectedType("All");
+                setSelectedBhk("All");
+                setSelectedPrice("All");
+                setSearchLocation("");
+                setCurrentPage(1);
+              }}
               className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors cursor-pointer"
             >
-              🔥 Show All ({propertiesList.length})
+              🔥 Show All ({totalCount})
             </button>
             <button
-              onClick={() => setSelectedType("Apartment")}
+              onClick={() => { setSelectedType("Apartment"); setCurrentPage(1); }}
               className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors cursor-pointer"
             >
               🏢 Family Apartments
             </button>
             <button
-              onClick={() => setSelectedType("PG / Co-Living")}
+              onClick={() => { setSelectedType("PG / Co-Living"); setCurrentPage(1); }}
               className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors cursor-pointer"
             >
               🛏️ PG & Co-Living Beds
             </button>
             <button
-              onClick={() => setSelectedPrice("under15k")}
+              onClick={() => { setSelectedPrice("under15k"); setCurrentPage(1); }}
               className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors cursor-pointer"
             >
               💰 Under ₹15,000
@@ -413,7 +500,7 @@ export default function FindPropertyPage() {
       </section>
 
       {/* Main Property Listings Grid */}
-      <section className="py-12 md:py-16 max-w-7xl mx-auto px-6 sm:px-8 space-y-6">
+      <section className="py-12 md:py-16 max-w-7xl mx-auto px-6 sm:px-8 space-y-6 flex-1 w-full">
         
         {/* Results Header */}
         <div className="flex items-center justify-between">
@@ -422,7 +509,7 @@ export default function FindPropertyPage() {
               Verified Rental Properties
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Showing {filteredProperties.length} active property listings • Direct owner contact
+              Showing {apiListings.length} of {totalCount} active property listings • Page {currentPage} of {totalPages}
             </p>
           </div>
 
@@ -434,125 +521,214 @@ export default function FindPropertyPage() {
           </div>
         </div>
 
-        {/* Listings Grid */}
-        {filteredProperties.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-3">
-            <Building2 className="w-12 h-12 text-slate-400 mx-auto" />
-            <h3 className="text-lg font-bold text-slate-900">No properties matched your exact filter</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Try clearing location keywords or budget filters to explore all active rental homes.
-            </p>
-            <button
-              onClick={() => { setSelectedType("All"); setSelectedBhk("All"); setSelectedPrice("All"); setSearchLocation(""); }}
-              className="px-5 py-2.5 bg-[#FF6B00] text-white text-xs font-bold rounded-xl shadow-xs uppercase tracking-wider cursor-pointer inline-block"
-            >
-              Reset All Filters
-            </button>
+        {/* Listings Grid (3 Columns, 12 Items Per Page) */}
+        {isLoadingListings ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div key={idx} className="bg-white border border-slate-200 rounded-2xl p-4 space-y-4 animate-pulse">
+                <div className="h-48 bg-slate-200 rounded-xl" />
+                <div className="h-4 bg-slate-200 rounded w-3/4" />
+                <div className="h-3 bg-slate-200 rounded w-1/2" />
+                <div className="h-10 bg-slate-200 rounded-xl" />
+              </div>
+            ))}
+          </div>
+        ) : apiListings.length === 0 ? (
+          /* Empty State: Properties Coming Soon */
+          <div className="bg-[#0B132B] text-white rounded-3xl p-10 sm:p-14 text-center space-y-5 max-w-2xl mx-auto shadow-2xl border border-slate-800 my-6 animate-in fade-in duration-300">
+            <div className="w-16 h-16 bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/40 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+              <Building2 className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <span className="px-3 py-1 rounded-full bg-[#FF6B00]/20 text-[#FF6B00] text-[10px] font-black uppercase tracking-wider border border-[#FF6B00]/30 inline-block">
+                Marketplace Expansion
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                Properties Coming Soon
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+                We are onboarding top verified landlords & property owners daily in this region. Be the first to get notified when new verified homes drop!
+              </p>
+            </div>
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={() => {
+                  setSearchLocation("");
+                  setSelectedType("All");
+                  setSelectedBhk("All");
+                  setSelectedPrice("All");
+                  setCurrentPage(1);
+                }}
+                className="px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-md transition-all uppercase tracking-wider cursor-pointer"
+              >
+                Reset Search Filters
+              </button>
+              <button
+                onClick={() => setIsEarlyAccessOpen(true)}
+                className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 shadow-xs transition-all uppercase tracking-wider cursor-pointer"
+              >
+                Get Property Alerts
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProperties.map((p) => (
-              <div
-                key={p.id}
-                className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs hover:shadow-lg transition-all group flex flex-col justify-between"
-              >
-                <div>
-                  {/* Property Image Container */}
-                  <div className="relative h-52 w-full bg-slate-100 overflow-hidden">
-                    <Image
-                      src={p.image}
-                      alt={p.title}
-                      fill
-                      unoptimized
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {apiListings.map((p) => (
+                <div
+                  key={p.id}
+                  className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs hover:shadow-lg transition-all group flex flex-col justify-between"
+                >
+                  <div>
+                    {/* Property Image Container */}
+                    <div className="relative h-52 w-full bg-slate-100 overflow-hidden">
+                      <Image
+                        src={p.image}
+                        alt={p.title}
+                        fill
+                        unoptimized
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
 
-                    {/* Top Overlay Badges */}
-                    <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                      <span className="px-2.5 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-[10px] font-extrabold text-white uppercase tracking-wider">
-                        {p.type}
-                      </span>
-                      <span className="px-2.5 py-1 rounded-full bg-emerald-500 text-[10px] font-extrabold text-white uppercase tracking-wider">
-                        {p.badge}
-                      </span>
+                      {/* Top Overlay Badges */}
+                      <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                        <span className="px-2.5 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-[10px] font-extrabold text-white uppercase tracking-wider">
+                          {p.type}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-500 text-[10px] font-extrabold text-white uppercase tracking-wider">
+                          {p.badge}
+                        </span>
+                      </div>
+
+                      {/* Like / Favorite Button */}
+                      <button
+                        onClick={() => toggleLike(p.id)}
+                        className="absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-md text-slate-700 hover:text-red-500 shadow-md transition-colors cursor-pointer"
+                      >
+                        <Heart
+                          className={`w-4 h-4 ${
+                            likedProperties[p.id] ? "fill-red-500 text-red-500" : ""
+                          }`}
+                        />
+                      </button>
+
+                      {/* Price Tag Overlay */}
+                      <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1 rounded-xl shadow-md border border-slate-200">
+                        <span className="text-sm font-black text-slate-900">{p.price}</span>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase"> / month</span>
+                      </div>
                     </div>
 
-                    {/* Like / Favorite Button */}
-                    <button
-                      onClick={() => toggleLike(p.id)}
-                      className="absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-md text-slate-700 hover:text-red-500 shadow-md transition-colors cursor-pointer"
-                    >
-                      <Heart
-                        className={`w-4 h-4 ${
-                          likedProperties[p.id] ? "fill-red-500 text-red-500" : ""
-                        }`}
-                      />
-                    </button>
+                    {/* Card Content */}
+                    <div className="p-5 space-y-3">
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <div className="flex items-center gap-1 font-semibold text-slate-700">
+                          <MapPin className="w-3.5 h-3.5 text-[#FF6B00]" />
+                          <span>{p.location}, {p.city}</span>
+                        </div>
+                        <div className="flex items-center gap-1 font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          <span>{p.rating} ({p.reviewsCount})</span>
+                        </div>
+                      </div>
 
-                    {/* Price Tag Overlay */}
-                    <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1 rounded-xl shadow-md border border-slate-200">
-                      <span className="text-sm font-black text-slate-900">{p.price}</span>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase"> / month</span>
+                      <h3 className="text-base font-bold text-slate-900 group-hover:text-[#FF6B00] transition-colors leading-snug line-clamp-1">
+                        {p.title}
+                      </h3>
+
+                      {/* Key Specs */}
+                      <div className="flex items-center gap-3 text-xs font-semibold text-slate-600 py-1 border-y border-slate-100">
+                        <span className="flex items-center gap-1">
+                          <Bed className="w-3.5 h-3.5 text-slate-400" />
+                          {p.bhk}
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Maximize2 className="w-3.5 h-3.5 text-slate-400" />
+                          {p.size}
+                        </span>
+                      </div>
+
+                      {/* Amenity Pills */}
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {p.tags.map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-bold text-slate-600"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Card Content */}
-                  <div className="p-5 space-y-3">
-                    <div className="flex items-center justify-between text-xs text-slate-500">
-                      <div className="flex items-center gap-1 font-semibold text-slate-700">
-                        <MapPin className="w-3.5 h-3.5 text-[#FF6B00]" />
-                        <span>{p.location}, {p.city}</span>
-                      </div>
-                      <div className="flex items-center gap-1 font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
-                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                        <span>{p.rating} ({p.reviewsCount})</span>
-                      </div>
-                    </div>
-
-                    <h3 className="text-base font-bold text-slate-900 group-hover:text-[#FF6B00] transition-colors leading-snug line-clamp-1">
-                      {p.title}
-                    </h3>
-
-                    {/* Key Specs */}
-                    <div className="flex items-center gap-3 text-xs font-semibold text-slate-600 py-1 border-y border-slate-100">
-                      <span className="flex items-center gap-1">
-                        <Bed className="w-3.5 h-3.5 text-slate-400" />
-                        {p.bhk}
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <Maximize2 className="w-3.5 h-3.5 text-slate-400" />
-                        {p.size}
-                      </span>
-                    </div>
-
-                    {/* Amenity Pills */}
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {p.tags.map((tag, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-bold text-slate-600"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+                  {/* Card Action Footer */}
+                  <div className="p-5 pt-0">
+                    <button
+                      onClick={() => setSelectedProperty(p)}
+                      className="w-full py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                    >
+                      <PhoneCall className="w-3.5 h-3.5" />
+                      <span>Contact Owner Direct</span>
+                    </button>
                   </div>
                 </div>
+              ))}
+            </div>
 
-                {/* Card Action Footer */}
-                <div className="p-5 pt-0">
+            {/* High-Performance Airbnb/Zillow-style Pagination Bar */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-slate-200">
+                <div className="text-xs font-bold text-slate-500">
+                  Showing Page {currentPage} of {totalPages} ({totalCount} total verified properties)
+                </div>
+
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setSelectedProperty(p)}
-                    className="w-full py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                    disabled={currentPage === 1}
+                    onClick={() => {
+                      setCurrentPage((p) => Math.max(1, p - 1));
+                      window.scrollTo({ top: 400, behavior: "smooth" });
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 shadow-2xs cursor-pointer"
                   >
-                    <PhoneCall className="w-3.5 h-3.5" />
-                    <span>Contact Owner Direct</span>
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Previous</span>
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => {
+                        setCurrentPage(pageNum);
+                        window.scrollTo({ top: 400, behavior: "smooth" });
+                      }}
+                      className={`w-9 h-9 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                        currentPage === pageNum
+                          ? "bg-[#FF6B00] text-white shadow-md"
+                          : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+
+                  <button
+                    disabled={currentPage >= totalPages}
+                    onClick={() => {
+                      setCurrentPage((p) => Math.min(totalPages, p + 1));
+                      window.scrollTo({ top: 400, behavior: "smooth" });
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 shadow-2xs cursor-pointer"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
               </div>
-            ))}
+            )}
           </div>
         )}
 
