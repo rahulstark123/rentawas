@@ -52,8 +52,7 @@ export default function ListPropertyModal({
   // Form State
   const [propertyType, setPropertyType] = useState("Flat / Apartment");
   const [title, setTitle] = useState("");
-  const [bhk, setBhk] = useState("2 BHK");
-  const [floor, setFloor] = useState("3rd Floor");
+  const [description, setDescription] = useState("");
 
   const [rent, setRent] = useState("");
   const [deposit, setDeposit] = useState("");
@@ -112,7 +111,8 @@ export default function ListPropertyModal({
       id: `LIST-${Date.now()}`,
       title,
       rent: `₹${parseInt(rent).toLocaleString("en-IN")}/mo`,
-      bhk,
+      bhk: propertyType,
+      description,
       location: `${locality}, ${city}`,
       status: "Active",
       inquiriesCount: 0,
@@ -257,37 +257,18 @@ export default function ListPropertyModal({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      BHK / Bedrooms
-                    </label>
-                    <select
-                      value={bhk}
-                      onChange={(e) => setBhk(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                    >
-                      <option value="1 BHK">1 BHK</option>
-                      <option value="2 BHK">2 BHK</option>
-                      <option value="3 BHK">3 BHK</option>
-                      <option value="4+ BHK">4+ BHK</option>
-                      <option value="Single PG Bed">Single PG Bed</option>
-                      <option value="Studio Flat">Studio Flat</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Floor Level
-                    </label>
-                    <input
-                      type="text"
-                      value={floor}
-                      onChange={(e) => setFloor(e.target.value)}
-                      placeholder="e.g. 3rd of 12 Floors"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>Property Description &amp; Highlights</span>
+                    <span className="text-[10px] text-slate-400 lowercase font-normal">Optional details for prospective tenants</span>
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Provide a detailed description of the property highlights, floor level, bedroom layouts, nearby landmarks, rules, or special facilities (e.g. Spacious 2BHK on 3rd Floor with North facing balcony, 24x7 power backup, near Tech Park)..."
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] leading-relaxed resize-none"
+                  />
                 </div>
               </motion.div>
             )}
@@ -485,8 +466,8 @@ export default function ListPropertyModal({
                     </div>
                     <div>
                       <div className="font-extrabold text-slate-900 text-sm">{title || "Property Title"}</div>
-                      <div className="text-xs text-[#FF6B00] font-black">₹{rent}/month • {bhk}</div>
-                      <div className="text-xs text-slate-500 font-medium">{locality}, {city}</div>
+                      <div className="text-xs text-[#FF6B00] font-black">₹{rent || "0"}/month • {propertyType}</div>
+                      <div className="text-xs text-slate-500 font-medium">{locality || "Locality"}, {city || "City"}</div>
                     </div>
                   </div>
                 </div>
