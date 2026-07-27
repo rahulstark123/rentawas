@@ -1104,24 +1104,37 @@ export default function WorkspaceSettingsPage() {
                 />
               </div>
 
-              {/* Webhook URL Info Box */}
-              <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-xl text-[11px] space-y-1 text-blue-900">
-                <div className="font-bold flex items-center justify-between">
-                  <span>Webhook Endpoint URL for Razorpay Dashboard:</span>
+              {/* Webhook Setup Instructions Note Box */}
+              <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-2xl space-y-2 text-blue-950">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-xs uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Razorpay Webhook Setup Guide</span>
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText("https://rentawas.com/api/webhooks/razorpay");
                       toast("Webhook URL copied to clipboard!", "success");
                     }}
-                    className="flex items-center gap-1 text-blue-700 hover:text-blue-900 font-extrabold cursor-pointer"
+                    className="flex items-center gap-1 px-2.5 py-1 bg-white text-blue-700 hover:text-blue-900 font-extrabold text-[10px] rounded-lg border border-blue-200 shadow-2xs cursor-pointer"
                   >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copy</span>
+                    <Copy className="w-3 h-3" />
+                    <span>Copy URL</span>
                   </button>
                 </div>
-                <div className="font-mono text-[10px] text-blue-700 bg-white/70 px-2 py-1 rounded border border-blue-200">
-                  https://rentawas.com/api/webhooks/razorpay
+
+                <div className="font-mono text-[10px] text-blue-800 bg-white/80 px-2.5 py-1.5 rounded-xl border border-blue-200/90 flex items-center justify-between">
+                  <span>https://rentawas.com/api/webhooks/razorpay</span>
+                </div>
+
+                <div className="text-[11px] space-y-1 pt-1 text-slate-700 font-medium">
+                  <p className="font-bold text-slate-900 text-[11px]">How to configure in Razorpay:</p>
+                  <ol className="list-decimal list-inside space-y-0.5 text-[10px] text-slate-600">
+                    <li>Copy <code className="bg-blue-100 text-blue-900 px-1 py-0.5 rounded font-mono">https://rentawas.com/api/webhooks/razorpay</code></li>
+                    <li>Open <strong>Razorpay Dashboard &gt; Settings &gt; Webhooks</strong></li>
+                    <li>Paste the URL and select events: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">payment.captured</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">order.paid</code>, and <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">payment.failed</code></li>
+                  </ol>
                 </div>
               </div>
 
