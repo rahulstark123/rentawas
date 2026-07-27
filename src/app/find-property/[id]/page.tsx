@@ -768,22 +768,14 @@ export default function PropertyDetailPage() {
               </div>
 
               {/* Landlord Profile Box */}
-              <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
+              <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-orange-100 border border-orange-200 text-[#FF6B00] font-extrabold text-sm flex items-center justify-center">
                     <User className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="text-xs font-extrabold text-slate-900">{property.ownerName}</div>
-                    <div className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                      <Check className="w-3 h-3 text-emerald-500" />
-                      Verified Landlord
-                    </div>
                   </div>
-                </div>
-                <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1 pt-1 border-t border-slate-200/60">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Responds in &lt; 15 mins (99% response rate)</span>
                 </div>
               </div>
 
