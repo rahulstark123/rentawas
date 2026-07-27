@@ -49,7 +49,7 @@ export default function TenantLayout({
     propertyAddress: "1420 5th Ave, Seattle WA",
     monthlyRent: 3200,
     initials: "RS",
-    maintenancesCount: 1,
+    maintenancesCount: 0,
     documentsCount: 8,
   });
 
@@ -76,7 +76,7 @@ export default function TenantLayout({
               propertyAddress: d.propertyAddress,
               monthlyRent: d.monthlyRent || 3200,
               initials: init || "TN",
-              maintenancesCount: Array.isArray(d.maintenances) && d.maintenances.length > 0 ? d.maintenances.length : 1,
+              maintenancesCount: Array.isArray(d.maintenances) ? d.maintenances.length : 0,
               documentsCount: Array.isArray(d.documents) && d.documents.length > 0 ? d.documents.length : 8,
             });
           }
