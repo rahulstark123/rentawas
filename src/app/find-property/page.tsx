@@ -591,13 +591,10 @@ export default function FindPropertyPage() {
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
                       />
 
-                      {/* Top Overlay Badges */}
+                      {/* Top Overlay Badge */}
                       <div className="absolute top-3 left-3 flex items-center gap-1.5">
                         <span className="px-2.5 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-[10px] font-extrabold text-white uppercase tracking-wider">
                           {p.type}
-                        </span>
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-500 text-[10px] font-extrabold text-white uppercase tracking-wider">
-                          {p.badge}
                         </span>
                       </div>
 
