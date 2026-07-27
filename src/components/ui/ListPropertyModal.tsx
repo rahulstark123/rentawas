@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -27,7 +27,8 @@ import {
   Compass,
   Crosshair,
   Map,
-  Navigation
+  Navigation,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -99,11 +100,72 @@ export default function ListPropertyModal({
   const [city, setCity] = useState("Bengaluru");
   const [locality, setLocality] = useState("");
   const [fullAddress, setFullAddress] = useState("");
+  const [isSearchingPincode, setIsSearchingPincode] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [pinnedCoords, setPinnedCoords] = useState<{ lat: number; lng: number } | null>({
     lat: 12.9716,
     lng: 77.5946,
   });
+
+  // Debounced Pincode/Zip Worldwide Lookup (1.5s delay to prevent API spam)
+  useEffect(() => {
+    const trimmedPin = pincode.trim();
+    if (!trimmedPin || trimmedPin.length < 3) return;
+
+    const handler = setTimeout(async () => {
+      try {
+        setIsSearchingPincode(true);
+
+        // 1. Indian 6-digit PIN code lookup
+        if (/^\d{6}$/.test(trimmedPin)) {
+          const res = await fetch(`https://api.postalpincode.in/pincode/${trimmedPin}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json && json[0] && json[0].Status === "Success" && json[0].PostOffice?.length > 0) {
+              const po = json[0].PostOffice[0];
+              const dist = po.District || po.Division || "";
+              const st = po.State || "";
+              const loc = po.Name || po.Block || "";
+              if (dist) setCity(dist);
+              if (st) setStateName(st);
+              if (loc) setLocality(loc);
+              setFullAddress(`${loc ? loc + ", " : ""}${dist}, ${st} - ${trimmedPin}`);
+              toast(`Auto-filled address for PIN Code ${trimmedPin}`, "success");
+              setIsSearchingPincode(false);
+              return;
+            }
+          }
+        }
+
+        // 2. Global Worldwide Postal Code Lookup via OpenStreetMap Nominatim
+        const globalRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(trimmedPin)}&format=jsonv2&addressdetails=1`
+        );
+        if (globalRes.ok) {
+          const globalData = await globalRes.json();
+          if (Array.isArray(globalData) && globalData.length > 0) {
+            const place = globalData[0];
+            const addr = place.address || {};
+            const detectedCity = addr.city || addr.town || addr.village || addr.county || addr.state_district || "";
+            const detectedState = addr.state || addr.region || addr.country || "";
+            const detectedLocality = addr.suburb || addr.neighbourhood || (place.display_name ? place.display_name.split(",")[0] : "");
+
+            if (detectedCity) setCity(detectedCity);
+            if (detectedState) setStateName(detectedState);
+            if (detectedLocality) setLocality(detectedLocality);
+            setFullAddress(`${detectedLocality ? detectedLocality + ", " : ""}${detectedCity}, ${detectedState} ${trimmedPin}`);
+            toast(`Global address auto-detected for postal code ${trimmedPin}`, "success");
+          }
+        }
+      } catch (err) {
+        console.warn("Pincode lookup error:", err);
+      } finally {
+        setIsSearchingPincode(false);
+      }
+    }, 1500);
+
+    return () => clearTimeout(handler);
+  }, [pincode]);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
     "wifi",
     "parking",
@@ -514,15 +576,21 @@ export default function ListPropertyModal({
                 {/* Grid 1: Pincode & State / Region */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Pincode / Postal Code *
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                      <span>Pincode / Postal Code *</span>
+                      {isSearchingPincode && (
+                        <span className="text-[10px] text-[#FF6B00] font-bold flex items-center gap-1 animate-pulse">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <span>Detecting Location...</span>
+                        </span>
+                      )}
                     </label>
                     <input
                       type="text"
                       required
                       value={pincode}
                       onChange={(e) => setPincode(e.target.value)}
-                      placeholder="e.g. 560038"
+                      placeholder="e.g. 560038 or 90210"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
