@@ -307,8 +307,8 @@ export default function ListPropertyModal({
     }
   };
 
-  const [ownerName, setOwnerName] = useState("Alexander Wright");
-  const [ownerPhone, setOwnerPhone] = useState("+91 98765 43210");
+  const [contactPersonName, setContactPersonName] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
 
   if (!isOpen) return null;
@@ -346,14 +346,22 @@ export default function ListPropertyModal({
     const newEntry = {
       id: `LIST-${Date.now()}`,
       title,
-      rent: `₹${parseInt(rent).toLocaleString("en-IN")}/mo`,
+      rent: rent ? `₹${parseInt(rent).toLocaleString("en-IN")}/mo` : "₹0/mo",
       bhk: propertyType,
       description,
       location: `${locality}, ${city}`,
+      pincode,
+      stateName,
+      fullAddress,
       status: "Active",
       inquiriesCount: 0,
-      image: imageUrl,
-      ownerPhone,
+      image: mainImage || imageUrl,
+      coverImage,
+      galleryImages,
+      contactPersonName,
+      contactNumber,
+      ownerPhone: contactNumber,
+      whatsappEnabled,
     };
     onSuccess(newEntry);
     toast("Property published to RentAwas Marketplace for 100% Free!", "success");
@@ -363,6 +371,8 @@ export default function ListPropertyModal({
     setTitle("");
     setRent("");
     setLocality("");
+    setContactPersonName("");
+    setContactNumber("");
   };
 
   return (
@@ -1050,25 +1060,27 @@ export default function ListPropertyModal({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Owner Contact Name
+                      Contact Person Name
                     </label>
                     <input
                       type="text"
-                      value={ownerName}
-                      onChange={(e) => setOwnerName(e.target.value)}
+                      value={contactPersonName}
+                      onChange={(e) => setContactPersonName(e.target.value)}
+                      placeholder="e.g. Rahul Sharma"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Direct Phone Number *
+                      Contact Number *
                     </label>
                     <input
                       type="text"
                       required
-                      value={ownerPhone}
-                      onChange={(e) => setOwnerPhone(e.target.value)}
+                      value={contactNumber}
+                      onChange={(e) => setContactNumber(e.target.value)}
+                      placeholder="e.g. +91 98765 43210"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
