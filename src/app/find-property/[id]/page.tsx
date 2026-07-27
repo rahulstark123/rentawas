@@ -632,6 +632,27 @@ export default function PropertyDetailPage() {
               </div>
             </div>
 
+            {/* About This Home Description */}
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-3 shadow-2xs">
+              <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+                Description
+              </h3>
+              {property.description?.trim() ? (
+                <p className="text-xs text-slate-600 leading-relaxed font-medium whitespace-pre-line">
+                  {property.description}
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                    Welcome to {property.title}, a beautifully designed {property.bhk} rental home situated in the prime locality of {property.location}, {property.city}. Featuring abundant natural sunlight, high-grade flooring, modern electrical fixtures, and prompt maintenance services managed by RentAwas.
+                  </p>
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                    Ideal for working professionals and small families seeking zero-brokerage direct landlord renting. Walking distance to public transport, metro stations, tech hubs, supermarkets, and dining.
+                  </p>
+                </>
+              )}
+            </div>
+
             {/* Quick Overview Badges Grid */}
             <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-4 shadow-2xs">
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
@@ -700,27 +721,6 @@ export default function PropertyDetailPage() {
                   <div className="text-[11px] text-purple-600 font-semibold">Direct Owner Listing</div>
                 </div>
               </div>
-            </div>
-
-            {/* About This Home Description */}
-            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-3 shadow-2xs">
-              <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
-                Description
-              </h3>
-              {property.description?.trim() ? (
-                <p className="text-xs text-slate-600 leading-relaxed font-medium whitespace-pre-line">
-                  {property.description}
-                </p>
-              ) : (
-                <>
-                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    Welcome to {property.title}, a beautifully designed {property.bhk} rental home situated in the prime locality of {property.location}, {property.city}. Featuring abundant natural sunlight, high-grade flooring, modern electrical fixtures, and prompt maintenance services managed by RentAwas.
-                  </p>
-                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    Ideal for working professionals and small families seeking zero-brokerage direct landlord renting. Walking distance to public transport, metro stations, tech hubs, supermarkets, and dining.
-                  </p>
-                </>
-              )}
             </div>
 
             {/* Amenities Grid */}
