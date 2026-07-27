@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { useToast } from "@/components/ui/Toast";
+import { supabase } from "@/lib/supabase";
 
 interface PropertyItem {
   id: string;
@@ -68,6 +69,22 @@ export default function FindPropertyPage() {
   const [moveInDate, setMoveInDate] = useState("");
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
   const [leadSubmitted, setLeadSubmitted] = useState(false);
+
+  // User Session & Wishlist Auth Control
+  const [userSession, setUserSession] = useState<any>(null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Saved / Liked Properties
   const [likedProperties, setLikedProperties] = useState<Record<string, boolean>>({});
@@ -305,6 +322,10 @@ export default function FindPropertyPage() {
   });
 
   const toggleLike = (id: string) => {
+    if (!userSession) {
+      setIsLoginModalOpen(true);
+      return;
+    }
     setLikedProperties((prev) => {
       const isLiked = !prev[id];
       if (isLiked) {
@@ -842,6 +863,55 @@ export default function FindPropertyPage() {
               </form>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* Login Required Modal for Wishlist */}
+      {isLoginModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 font-sans animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 text-center space-y-5 shadow-2xl relative">
+            <button
+              onClick={() => setIsLoginModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-16 h-16 bg-gradient-to-tr from-[#FF6B00] to-amber-500 text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-orange-500/20">
+              <Heart className="w-8 h-8 fill-white text-white" />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                Log In to Save to Wishlist
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-1.5 leading-relaxed">
+                Save your favorite rental homes, apartments, and PG beds to access them anytime across all your devices.
+              </p>
+            </div>
+
+            <div className="space-y-2.5 pt-1">
+              <Link
+                href="/login"
+                className="w-full py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+              >
+                <span>Log In to Your Account</span>
+              </Link>
+              <Link
+                href="/signup?role=tenant"
+                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+              >
+                <span>Create Free Tenant Account</span>
+              </Link>
+            </div>
+
+            <button
+              onClick={() => setIsLoginModalOpen(false)}
+              className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer block mx-auto pt-1"
+            >
+              Continue Browsing
+            </button>
           </div>
         </div>
       )}

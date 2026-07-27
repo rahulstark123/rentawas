@@ -308,27 +308,29 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Access Role */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Access Role *
-                </label>
-                <div className="relative">
-                  <select
-                    value={accessRole}
-                    onChange={(e) => setAccessRole(e.target.value)}
-                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00] transition-all cursor-pointer"
-                  >
-                    <option value="Owner">Owner (Portfolio & Financial Control)</option>
-                    <option value="Admin">Admin (Workspace Administrator)</option>
-                    <option value="Manager">Manager (Property & Tenant Operations)</option>
-                    <option value="Employee">Employee (Staff & Operations)</option>
-                  </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                    <ChevronDown className="w-4 h-4" />
+              {/* Access Role (Landlord / Team only) */}
+              {role === "owner" && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Access Role *
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={accessRole}
+                      onChange={(e) => setAccessRole(e.target.value)}
+                      className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00] transition-all cursor-pointer"
+                    >
+                      <option value="Owner">Owner (Portfolio & Financial Control)</option>
+                      <option value="Admin">Admin (Workspace Administrator)</option>
+                      <option value="Manager">Manager (Property & Tenant Operations)</option>
+                      <option value="Employee">Employee (Staff & Operations)</option>
+                    </select>
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Email Input */}
               <div>
@@ -363,8 +365,8 @@ export default function SignupPage() {
                 />
               </div>
 
-              {/* Role specific extra field */}
-              {role === "owner" ? (
+              {/* Role specific extra field (Owner portfolio size only) */}
+              {role === "owner" && (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Estimated Property Portfolio Size
@@ -384,17 +386,6 @@ export default function SignupPage() {
                       <ChevronDown className="w-4 h-4" />
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Property Access Code / Lease ID (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. RENT-8924-WA"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00] transition-all"
-                  />
                 </div>
               )}
 
