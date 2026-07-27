@@ -22,7 +22,8 @@ import {
   Lock,
   Tv,
   Utensils,
-  ChevronDown
+  ChevronDown,
+  Check
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -41,6 +42,19 @@ const AMENITIES_LIST = [
   { id: "kitchen", label: "Modular Kitchen", icon: Utensils },
 ];
 
+const TENANT_CATEGORY_OPTIONS = [
+  "Any / Open to All",
+  "Families & Married Couples",
+  "Working Male Professionals",
+  "Working Female Professionals",
+  "Girls / Female Students Only",
+  "Boys / Male Students Only",
+  "Corporate & IT Professionals",
+  "Expat / Foreign Nationals",
+  "Doctors & Healthcare Staff",
+  "Couples / Live-in Partners",
+];
+
 export default function ListPropertyModal({
   isOpen,
   onClose,
@@ -56,9 +70,24 @@ export default function ListPropertyModal({
 
   const [rent, setRent] = useState("");
   const [deposit, setDeposit] = useState("");
-  const [tenantType, setTenantType] = useState("Any Allowed");
+  const [tenantTypes, setTenantTypes] = useState<string[]>(["Any / Open to All"]);
+  const [isTenantDropdownOpen, setIsTenantDropdownOpen] = useState(false);
   const [availableFrom, setAvailableFrom] = useState("Immediately");
   const [maintenance, setMaintenance] = useState("Included");
+
+  const toggleTenantCategory = (cat: string) => {
+    if (cat === "Any / Open to All") {
+      setTenantTypes(["Any / Open to All"]);
+      return;
+    }
+    const filtered = tenantTypes.filter((c) => c !== "Any / Open to All");
+    if (filtered.includes(cat)) {
+      const next = filtered.filter((c) => c !== cat);
+      setTenantTypes(next.length === 0 ? ["Any / Open to All"] : next);
+    } else {
+      setTenantTypes([...filtered, cat]);
+    }
+  };
 
   const [city, setCity] = useState("Bengaluru");
   const [locality, setLocality] = useState("");
@@ -314,24 +343,71 @@ export default function ListPropertyModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                    Preferred Tenant Category
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>Preferred Tenant Categories *</span>
+                    <span className="text-[10px] text-slate-400 lowercase font-normal">Select multiple if applicable</span>
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {["Any Allowed", "Family", "Bachelors", "Girls Only"].map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => setTenantType(cat)}
-                        className={`p-2.5 rounded-xl border text-xs font-bold transition-all text-center cursor-pointer ${
-                          tenantType === cat
-                            ? "bg-[#FF6B00] text-white border-[#FF6B00]"
-                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
+                  
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsTenantDropdownOpen(!isTenantDropdownOpen)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] flex items-center justify-between cursor-pointer text-left shadow-2xs min-h-[42px]"
+                    >
+                      <div className="flex flex-wrap gap-1.5 items-center max-w-[88%] py-0.5">
+                        {tenantTypes.length === 0 ? (
+                          <span className="text-slate-400 font-normal">Select preferred tenant categories...</span>
+                        ) : (
+                          tenantTypes.map((cat) => (
+                            <span
+                              key={cat}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#FF6B00]/10 text-[#FF6B00] border border-[#FF6B00]/30 text-[11px] font-extrabold"
+                            >
+                              <span>{cat}</span>
+                              <X
+                                className="w-3 h-3 hover:text-red-600 cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleTenantCategory(cat);
+                                }}
+                              />
+                            </span>
+                          ))
+                        )}
+                      </div>
+                      <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${isTenantDropdownOpen ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {isTenantDropdownOpen && (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 max-h-56 overflow-y-auto space-y-1 custom-scrollbar animate-in fade-in zoom-in-95 duration-150">
+                        {TENANT_CATEGORY_OPTIONS.map((cat) => {
+                          const isSelected = tenantTypes.includes(cat);
+                          return (
+                            <div
+                              key={cat}
+                              onClick={() => toggleTenantCategory(cat)}
+                              className={`flex items-center justify-between p-2.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                                isSelected
+                                  ? "bg-[#FF6B00]/10 text-[#FF6B00]"
+                                  : "text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              <span className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 rounded text-[#FF6B00] focus:ring-[#FF6B00] accent-[#FF6B00]"
+                                />
+                                <span>{cat}</span>
+                              </span>
+                              {isSelected && <Check className="w-4 h-4 text-[#FF6B00]" />}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
 
