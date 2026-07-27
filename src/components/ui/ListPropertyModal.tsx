@@ -28,7 +28,18 @@ import {
   Crosshair,
   Map,
   Navigation,
-  Loader2
+  Loader2,
+  Wind,
+  Waves,
+  RefreshCw,
+  BatteryCharging,
+  Sun,
+  Droplets,
+  Heart,
+  Flame,
+  Laptop,
+  Shirt,
+  Layers
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -39,12 +50,26 @@ interface ListPropertyModalProps {
 }
 
 const AMENITIES_LIST = [
-  { id: "wifi", label: "High-Speed WiFi", icon: Wifi },
-  { id: "parking", label: "Covered Parking", icon: Car },
-  { id: "gym", label: "Gym & Fitness", icon: Dumbbell },
-  { id: "security", label: "24x7 Security", icon: Lock },
-  { id: "tv", label: "Furnished & TV", icon: Tv },
-  { id: "kitchen", label: "Modular Kitchen", icon: Utensils },
+  { id: "wifi", label: "High-Speed WiFi & Fiber", icon: Wifi },
+  { id: "parking", label: "Covered Car Parking", icon: Car },
+  { id: "gym", label: "Gym & Fitness Center", icon: Dumbbell },
+  { id: "security", label: "24x7 Security & CCTV", icon: Lock },
+  { id: "ac", label: "Air Conditioning (AC)", icon: Wind },
+  { id: "backup", label: "100% Power Backup", icon: Zap },
+  { id: "tv", label: "Fully Furnished & Smart TV", icon: Tv },
+  { id: "kitchen", label: "Modular Kitchen & Piped Gas", icon: Utensils },
+  { id: "pool", label: "Swimming Pool & Clubhouse", icon: Waves },
+  { id: "laundry", label: "Washing Machine & Laundry", icon: Shirt },
+  { id: "ev", label: "EV Vehicle Charging", icon: BatteryCharging },
+  { id: "balcony", label: "Private Balcony / Terrace", icon: Sun },
+  { id: "lift", label: "Elevator / Lift Access", icon: Layers },
+  { id: "ro", label: "RO Water Purifier", icon: Droplets },
+  { id: "pet", label: "Pet Friendly Property", icon: Heart },
+  { id: "geyser", label: "Geyser & Hot Water", icon: Flame },
+  { id: "maid", label: "Housekeeping & Cleaning", icon: Sparkles },
+  { id: "study", label: "Study Desk & Workstation", icon: Laptop },
+  { id: "gated", label: "Gated Security Community", icon: ShieldCheck },
+  { id: "intercom", label: "Intercom & Video Door", icon: Phone },
 ];
 
 const TENANT_CATEGORY_OPTIONS = [
@@ -166,6 +191,35 @@ export default function ListPropertyModal({
 
     return () => clearTimeout(handler);
   }, [pincode]);
+
+  const reverseGeocodeCoords = async (lat: number, lng: number) => {
+    try {
+      setIsSearchingPincode(true);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2&addressdetails=1`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const addr = data.address || {};
+        const detectedPin = addr.postcode || "";
+        const detectedCity = addr.city || addr.town || addr.village || addr.county || addr.state_district || "";
+        const detectedState = addr.state || addr.region || addr.country || "";
+        const detectedLocality = addr.suburb || addr.neighbourhood || addr.road || (data.display_name ? data.display_name.split(",")[0] : "");
+
+        if (detectedPin) setPincode(detectedPin);
+        if (detectedCity) setCity(detectedCity);
+        if (detectedState) setStateName(detectedState);
+        if (detectedLocality) setLocality(detectedLocality);
+        if (data.display_name) setFullAddress(data.display_name);
+
+        toast("Address & location fields updated from map pin!", "success");
+      }
+    } catch (err) {
+      console.warn("Reverse geocoding error:", err);
+    } finally {
+      setIsSearchingPincode(false);
+    }
+  };
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
     "wifi",
     "parking",
@@ -657,10 +711,11 @@ export default function ListPropertyModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                    Key Amenities Included
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                    <span>Key Amenities Included ({selectedAmenities.length} selected)</span>
+                    <span className="text-[10px] text-slate-400 lowercase font-normal">Tap to select/deselect</span>
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto p-1 custom-scrollbar border border-slate-100 rounded-2xl bg-slate-50/50">
                     {AMENITIES_LIST.map((item) => {
                       const Icon = item.icon;
                       const isSelected = selectedAmenities.includes(item.id);
@@ -863,9 +918,10 @@ export default function ListPropertyModal({
                   type="button"
                   onClick={() => {
                     if (navigator.geolocation) {
-                      navigator.geolocation.getCurrentPosition((pos) => {
-                        setPinnedCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-                        toast("Current GPS location pinned!", "success");
+                      navigator.geolocation.getCurrentPosition(async (pos) => {
+                        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        setPinnedCoords(coords);
+                        await reverseGeocodeCoords(coords.lat, coords.lng);
                       });
                     } else {
                       toast("GPS location captured!", "info");
@@ -885,8 +941,12 @@ export default function ListPropertyModal({
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  toast("Property location coordinates confirmed on map!", "success");
+                onClick={async () => {
+                  if (pinnedCoords) {
+                    await reverseGeocodeCoords(pinnedCoords.lat, pinnedCoords.lng);
+                  } else {
+                    toast("Property location coordinates confirmed on map!", "success");
+                  }
                   setShowMapPicker(false);
                 }}
                 className="px-4 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer transition-all uppercase tracking-wider"
