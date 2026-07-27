@@ -39,8 +39,9 @@ import {
   Copy,
   AlertTriangle
 } from "lucide-react";
-import { IconAutopilotRent } from "@/components/ui/CustomIcons";
 import { supabase } from "@/lib/supabase";
+import LogoutAnimation from "@/components/LogoutAnimation";
+import { IconAutopilotRent } from "@/components/ui/CustomIcons";
 import { useToast } from "@/components/ui/Toast";
 import GlobalSearchModal from "@/components/ui/GlobalSearchModal";
 import ListPropertyModal from "@/components/ui/ListPropertyModal";
@@ -140,6 +141,21 @@ export default function DashboardLayout({
   const [newRent, setNewRent] = useState("");
   const [newBhk, setNewBhk] = useState("2 BHK");
   const [newLocation, setNewLocation] = useState("");
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsLoggingOut(true);
+    setShowProfileMenu(false);
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Signout error:", err);
+    }
+    setTimeout(() => {
+      router.push("/login");
+    }, 1300);
+  };
 
   useEffect(() => {
     async function loadWorkspacePlan() {
@@ -575,9 +591,9 @@ export default function DashboardLayout({
             </div>
 
             {!isCollapsed && (
-              <Link href="/login" title="Log Out" className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer">
+              <button onClick={handleLogout} title="Log Out" className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer">
                 <LogOut className="w-4 h-4" />
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -722,14 +738,13 @@ export default function DashboardLayout({
 
                 <div className="border-t border-slate-100 my-1" />
 
-                <Link
-                  href="/login"
-                  onClick={() => setShowProfileMenu(false)}
+                <button
+                  onClick={handleLogout}
                   className="w-full px-3 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl flex items-center gap-2.5 cursor-pointer transition-colors"
                 >
                   <LogOut className="w-4 h-4 text-rose-600" />
                   <span>Log Out</span>
-                </Link>
+                </button>
               </div>
             )}
           </div>
@@ -1075,6 +1090,8 @@ export default function DashboardLayout({
         }}
       />
 
+      {/* Logout Animation Overlay */}
+      <LogoutAnimation isLoggingOut={isLoggingOut} userRole="landlord" />
     </div>
   );
 }

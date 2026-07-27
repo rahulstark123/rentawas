@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { 
   LayoutDashboard, 
   CreditCard, 
@@ -21,6 +21,7 @@ import {
   Building
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import LogoutAnimation from "@/components/LogoutAnimation";
 
 export default function TenantLayout({
   children,
@@ -28,8 +29,10 @@ export default function TenantLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const [tenantProfile, setTenantProfile] = useState<{
     name: string;
@@ -52,6 +55,19 @@ export default function TenantLayout({
     maintenancesCount: 0,
     documentsCount: 0,
   });
+
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Signout error:", err);
+    }
+    setTimeout(() => {
+      router.push("/login");
+    }, 1300);
+  };
 
   useEffect(() => {
     async function loadTenantData() {
@@ -214,9 +230,9 @@ export default function TenantLayout({
                 <div className="text-[10px] text-slate-400 truncate">{tenantProfile.email}</div>
               </div>
             </div>
-            <Link href="/login" title="Log Out" className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+            <button onClick={handleLogout} title="Log Out" className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer">
               <LogOut className="w-4 h-4" />
-            </Link>
+            </button>
           </div>
         </div>
       </aside>
@@ -285,6 +301,7 @@ export default function TenantLayout({
         </main>
       </div>
 
+      <LogoutAnimation isLoggingOut={isLoggingOut} userRole="resident" />
     </div>
   );
 }
