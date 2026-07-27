@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
@@ -61,6 +62,7 @@ interface PropertyItem {
 }
 
 export default function FindPropertyPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
   
@@ -744,7 +746,7 @@ export default function FindPropertyPage() {
               {apiListings.map((p) => (
                 <div
                   key={p.id}
-                  onClick={() => setViewingPropertyDetail(p)}
+                  onClick={() => router.push(`/find-property/${p.id}`)}
                   className="bg-white border border-slate-200/90 hover:border-[#FF6B00]/40 rounded-2xl overflow-hidden shadow-2xs hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-1.5 transition-all duration-300 group flex flex-col justify-between cursor-pointer"
                 >
                   <div>
@@ -819,16 +821,14 @@ export default function FindPropertyPage() {
 
                   {/* Card Action Footer - Reveals smoothly on hover */}
                   <div className="p-5 pt-0 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setViewingPropertyDetail(p);
-                      }}
+                    <Link
+                      href={`/find-property/${p.id}`}
+                      onClick={(e) => e.stopPropagation()}
                       className="w-full py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
                     >
                       <Eye className="w-4 h-4" />
                       <span>View Details</span>
-                    </button>
+                    </Link>
                   </div>
                 </div>
               ))}
