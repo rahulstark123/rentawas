@@ -7,15 +7,15 @@ import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
-import { 
-  MapPin, 
-  Bed, 
-  Maximize2, 
-  ShieldCheck, 
-  Star, 
-  PhoneCall, 
-  Calendar, 
-  CheckCircle2, 
+import {
+  MapPin,
+  Bed,
+  Maximize2,
+  ShieldCheck,
+  Star,
+  PhoneCall,
+  Calendar,
+  CheckCircle2,
   ArrowLeft,
   Share2,
   Building2,
@@ -29,7 +29,10 @@ import {
   X,
   Images,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  WifiOff,
+  RotateCcw,
+  AlertCircle
 } from "lucide-react";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { useToast } from "@/components/ui/Toast";
@@ -157,6 +160,10 @@ export default function PropertyDetailPage() {
 
   const [property, setProperty] = useState<PropertyItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [errorType, setErrorType] = useState<"network_error" | "not_found">("not_found");
+  const [errorMessage, setErrorMessage] = useState("");
+
   const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -183,79 +190,110 @@ export default function PropertyDetailPage() {
     "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80"
   ];
 
-  useEffect(() => {
-    async function loadProperty() {
-      if (!propertyId) return;
-      setIsLoading(true);
-      try {
-        // Fetch ID-wise from GET /api/listings/[id]
-        const res = await fetch(`/api/listings/${encodeURIComponent(propertyId)}`);
-        const json = await res.json();
-
-        if (json.success && json.data) {
-          const item = json.data;
-          
-          let rawImgs: string[] = [];
-          if (Array.isArray(item.images) && item.images.length > 0) {
-            rawImgs = item.images;
-          } else if (Array.isArray(item.imageUrls) && item.imageUrls.length > 0) {
-            rawImgs = item.imageUrls;
-          } else if (item.mainImage || item.image || item.coverImage) {
-            rawImgs = [item.mainImage || item.image || item.coverImage];
-          }
-
-          // Fill up to at least 5 images using default gallery fallbacks
-          const mergedImages = [...rawImgs];
-          defaultGalleryFallbacks.forEach((fb) => {
-            if (mergedImages.length < 5 && !mergedImages.includes(fb)) {
-              mergedImages.push(fb);
-            }
-          });
-
-          setProperty({
-            id: item.id,
-            title: item.title,
-            location: item.locality || item.location || item.city || "Prime Locality",
-            city: item.city || item.stateName || "Metropolis",
-            price: typeof item.rent === "number" ? `₹${item.rent.toLocaleString("en-IN")}` : item.rent || "₹0",
-            type: item.propertyType || "Apartment",
-            bhk: item.propertyType || "Apartment",
-            size: item.deposit ? `Deposit: ₹${item.deposit.toLocaleString("en-IN")}` : item.availableFrom || "Ready to Move",
-            rating: 4.9,
-            reviewsCount: 14,
-            image: mergedImages[0],
-            images: mergedImages,
-            tags: Array.isArray(item.amenities) && item.amenities.length > 0 ? item.amenities : ["Zero Fee", "Direct Owner", "Verified", "Immediate Move-In"],
-            ownerName: item.contactPersonName ? `${item.contactPersonName} (Owner)` : "Property Landlord",
-            ownerPhone: item.contactNumber || item.ownerPhone || "+91 Contact via RentAwas",
-            badge: "Verified Owner • Zero Fee",
-          });
+  const loadProperty = async () => {
+    if (!propertyId) return;
+    setIsLoading(true);
+    setHasError(false);
+    try {
+      // Fetch ID-wise from GET /api/listings/[id]
+      const res = await fetch(`/api/listings/${encodeURIComponent(propertyId)}`);
+      
+      if (res.status === 404) {
+        const found = DEFAULT_PROPERTIES.find((p) => p.id.toLowerCase() === propertyId?.toLowerCase());
+        if (found) {
+          setProperty(found);
           setIsLoading(false);
           return;
         }
-
-        // Try local static fallback list if API fails
-        const found = DEFAULT_PROPERTIES.find((p) => p.id.toLowerCase() === propertyId?.toLowerCase());
-        if (found) {
-          const merged = [...(found.images || [found.image])];
-          defaultGalleryFallbacks.forEach((fb) => {
-            if (merged.length < 5 && !merged.includes(fb)) {
-              merged.push(fb);
-            }
-          });
-          setProperty({ ...found, images: merged });
-        } else {
-          setProperty({ ...DEFAULT_PROPERTIES[0], images: defaultGalleryFallbacks });
-        }
-      } catch (err) {
-        console.error("Error loading property detail:", err);
-        const found = DEFAULT_PROPERTIES.find((p) => p.id.toLowerCase() === propertyId?.toLowerCase());
-        setProperty(found ? { ...found, images: defaultGalleryFallbacks } : { ...DEFAULT_PROPERTIES[0], images: defaultGalleryFallbacks });
-      } finally {
+        setHasError(true);
+        setErrorType("not_found");
+        setErrorMessage("Property not found. This listing may have been removed or rented out.");
         setIsLoading(false);
+        return;
       }
-    }
 
+      if (!res.ok) {
+        throw new Error(`Server status ${res.status}`);
+      }
+
+      const json = await res.json();
+
+      if (json.success && json.data) {
+        const item = json.data;
+        
+        let rawImgs: string[] = [];
+        if (Array.isArray(item.images) && item.images.length > 0) {
+          rawImgs = item.images;
+        } else if (Array.isArray(item.imageUrls) && item.imageUrls.length > 0) {
+          rawImgs = item.imageUrls;
+        } else if (item.mainImage || item.image || item.coverImage) {
+          rawImgs = [item.mainImage || item.image || item.coverImage];
+        }
+
+        // Fill up to at least 5 images using default gallery fallbacks
+        const mergedImages = [...rawImgs];
+        defaultGalleryFallbacks.forEach((fb) => {
+          if (mergedImages.length < 5 && !mergedImages.includes(fb)) {
+            mergedImages.push(fb);
+          }
+        });
+
+        setProperty({
+          id: item.id,
+          title: item.title,
+          location: item.locality || item.location || item.city || "Prime Locality",
+          city: item.city || item.stateName || "Metropolis",
+          price: typeof item.rent === "number" ? `₹${item.rent.toLocaleString("en-IN")}` : item.rent || "₹0",
+          type: item.propertyType || "Apartment",
+          bhk: item.propertyType || "Apartment",
+          size: item.deposit ? `Deposit: ₹${item.deposit.toLocaleString("en-IN")}` : item.availableFrom || "Ready to Move",
+          rating: 4.9,
+          reviewsCount: 14,
+          image: mergedImages[0],
+          images: mergedImages,
+          tags: Array.isArray(item.amenities) && item.amenities.length > 0 ? item.amenities : ["Zero Fee", "Direct Owner", "Verified", "Immediate Move-In"],
+          ownerName: item.contactPersonName ? `${item.contactPersonName} (Owner)` : "Property Landlord",
+          ownerPhone: item.contactNumber || item.ownerPhone || "+91 Contact via RentAwas",
+          badge: "Verified Owner • Zero Fee",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Try local static fallback list if API fails
+      const found = DEFAULT_PROPERTIES.find((p) => p.id.toLowerCase() === propertyId?.toLowerCase());
+      if (found) {
+        const merged = [...(found.images || [found.image])];
+        defaultGalleryFallbacks.forEach((fb) => {
+          if (merged.length < 5 && !merged.includes(fb)) {
+            merged.push(fb);
+          }
+        });
+        setProperty({ ...found, images: merged });
+        setIsLoading(false);
+        return;
+      }
+
+      setHasError(true);
+      setErrorType("not_found");
+      setErrorMessage("The property listing you requested could not be found.");
+    } catch (err) {
+      console.error("Error loading property detail:", err);
+      const found = DEFAULT_PROPERTIES.find((p) => p.id.toLowerCase() === propertyId?.toLowerCase());
+      if (found) {
+        setProperty({ ...found, images: defaultGalleryFallbacks });
+        setIsLoading(false);
+        return;
+      }
+      setHasError(true);
+      setErrorType("network_error");
+      setErrorMessage("Unable to connect to the server. Please check your internet connection and try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadProperty();
   }, [propertyId]);
 
@@ -314,17 +352,72 @@ export default function PropertyDetailPage() {
     );
   }
 
+  // Error State View (Network Failure or 404 Not Found)
+  if (hasError) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans flex flex-col justify-between">
+        <Navbar onOpenEarlyAccess={() => setIsEarlyAccessOpen(true)} variant="light" />
+
+        <main className="pt-24 pb-20 px-6 max-w-xl mx-auto w-full flex-1 flex items-center justify-center">
+          <div className="bg-white border border-slate-200 rounded-3xl p-8 sm:p-10 text-center space-y-6 shadow-xl w-full">
+            <div className="w-20 h-20 rounded-3xl bg-orange-50 border border-orange-200 text-[#FF6B00] flex items-center justify-center mx-auto shadow-inner">
+              {errorType === "network_error" ? (
+                <WifiOff className="w-10 h-10 animate-pulse" />
+              ) : (
+                <AlertCircle className="w-10 h-10 text-amber-500" />
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-extrabold uppercase tracking-wider">
+                {errorType === "network_error" ? "Connection Issue" : "404 Not Found"}
+              </span>
+              <h2 className="text-2xl font-black text-slate-900">
+                {errorType === "network_error" ? "Network Connection Failed" : "Property Not Found"}
+              </h2>
+              <p className="text-xs text-slate-600 leading-relaxed max-w-md mx-auto font-medium">
+                {errorMessage}
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+              {errorType === "network_error" && (
+                <button
+                  onClick={loadProperty}
+                  className="w-full sm:flex-1 py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Retry Connection</span>
+                </button>
+              )}
+              <Link
+                href="/find-property"
+                className="w-full sm:flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-center"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>All Properties</span>
+              </Link>
+            </div>
+          </div>
+        </main>
+
+        <Footer />
+        <EarlyAccessModal isOpen={isEarlyAccessOpen} onClose={() => setIsEarlyAccessOpen(false)} />
+      </div>
+    );
+  }
+
   if (!property) return null;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-orange-100 selection:text-orange-600 flex flex-col justify-between">
-      
+
       {/* Top Header */}
       <Navbar onOpenEarlyAccess={() => setIsEarlyAccessOpen(true)} variant="light" />
 
       {/* Main Container */}
       <main className="pt-20 pb-16 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto w-full space-y-6 flex-1">
-        
+
         {/* Back Link & Breadcrumb Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-semibold text-slate-500 pt-2">
           <button
@@ -361,7 +454,7 @@ export default function PropertyDetailPage() {
               priority
               className="object-cover group-hover:scale-105 transition-transform duration-700"
             />
-            
+
             {/* Top Badges */}
             <div className="absolute top-4 left-4 flex items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-slate-950/85 backdrop-blur-md text-xs font-extrabold text-white uppercase tracking-wider shadow-md">
@@ -434,10 +527,10 @@ export default function PropertyDetailPage() {
 
         {/* Property Main Details & Sidebar Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
+
           {/* Left Column (Details & Specifications) */}
           <div className="lg:col-span-8 space-y-8">
-            
+
             {/* Title & Location Header */}
             <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-4 shadow-2xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -532,7 +625,7 @@ export default function PropertyDetailPage() {
             {/* About This Home Description */}
             <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-3 shadow-2xs">
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
-                About This Rental Home
+                Description
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed font-medium">
                 Welcome to {property.title}, a beautifully designed {property.bhk} rental home situated in the prime locality of {property.location}, {property.city}. Featuring abundant natural sunlight, high-grade flooring, modern electrical fixtures, and prompt maintenance services managed by RentAwas.
@@ -574,7 +667,7 @@ export default function PropertyDetailPage() {
 
           {/* Right Column (Sticky Landlord & Action Sidebar) */}
           <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
-            
+
             {/* Contact Owner Direct Card */}
             <div className="bg-white border border-slate-200/90 rounded-3xl p-6 space-y-5 shadow-xl shadow-slate-200/50">
               <div className="space-y-1">
@@ -737,7 +830,7 @@ export default function PropertyDetailPage() {
       {/* Full-Screen Photo Lightbox Carousel Modal */}
       {isLightboxOpen && property.images && property.images.length > 0 && (
         <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col justify-between p-4 sm:p-6 font-sans animate-in fade-in duration-200">
-          
+
           {/* Lightbox Header Bar */}
           <div className="flex items-center justify-between text-white shrink-0 z-10 max-w-7xl mx-auto w-full">
             <div>
@@ -789,9 +882,8 @@ export default function PropertyDetailPage() {
               <button
                 key={idx}
                 onClick={() => setLightboxIndex(idx)}
-                className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden transition-all shrink-0 cursor-pointer border-2 ${
-                  lightboxIndex === idx ? "border-[#FF6B00] scale-105 shadow-md" : "border-transparent opacity-50 hover:opacity-100"
-                }`}
+                className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden transition-all shrink-0 cursor-pointer border-2 ${lightboxIndex === idx ? "border-[#FF6B00] scale-105 shadow-md" : "border-transparent opacity-50 hover:opacity-100"
+                  }`}
               >
                 <Image
                   src={imgUrl}
