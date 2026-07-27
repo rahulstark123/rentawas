@@ -50,7 +50,7 @@ export default function TenantLayout({
     monthlyRent: 3200,
     initials: "RS",
     maintenancesCount: 0,
-    documentsCount: 8,
+    documentsCount: 0,
   });
 
   useEffect(() => {
@@ -68,6 +68,8 @@ export default function TenantLayout({
               ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
               : d.name.substring(0, 2).toUpperCase();
 
+            const realDocsCount = (Array.isArray(d.documents) ? d.documents.length : 0) + (d.govIdUrl ? 1 : 0) + (d.leaseDocUrl ? 1 : 0);
+
             setTenantProfile({
               name: d.name,
               email: d.email,
@@ -77,7 +79,7 @@ export default function TenantLayout({
               monthlyRent: d.monthlyRent || 3200,
               initials: init || "TN",
               maintenancesCount: Array.isArray(d.maintenances) ? d.maintenances.length : 0,
-              documentsCount: Array.isArray(d.documents) && d.documents.length > 0 ? d.documents.length : 8,
+              documentsCount: realDocsCount,
             });
           }
         }

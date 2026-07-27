@@ -67,7 +67,9 @@ export const INITIAL_DOCUMENTS: TenantDoc[] = [
 ];
 
 export default function TenantDocumentsPage() {
-  const [documents, setDocuments] = useState<TenantDoc[]>(INITIAL_DOCUMENTS);
+  const [tenant, setTenant] = useState<any>(null);
+  const [documents, setDocuments] = useState<TenantDoc[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [previewDoc, setPreviewDoc] = useState<TenantDoc | null>(null);
@@ -80,33 +82,71 @@ export default function TenantDocumentsPage() {
   useEffect(() => {
     async function loadTenantDocs() {
       try {
+        setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
         const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
         const res = await fetch(`/api/tenant/me${emailParam}`);
         if (res.ok) {
           const json = await res.json();
-          if (json.data && Array.isArray(json.data.documents) && json.data.documents.length > 0) {
-            const dbDocs: TenantDoc[] = json.data.documents.map((d: any, idx: number) => ({
-              id: d.id || `DOC-DB-${idx + 1}`,
-              title: d.title || d.fileName || "Uploaded Tenant Document",
-              category: d.docType === "Lease Agreement" ? "Lease & Addendums" : "ID & Verification",
-              icon: d.docType === "Lease Agreement" ? FileText : UserCheck,
-              date: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : "Uploaded",
-              size: d.fileSize || "1.2 MB",
-              status: "Verified",
-              description: `Uploaded document file: ${d.fileName || "tenant_doc.pdf"}. Verified in DB.`,
-              fileUrl: d.fileUrl,
-            }));
-            setDocuments([...dbDocs, ...INITIAL_DOCUMENTS]);
+          if (json.data) {
+            setTenant(json.data);
+            const userDocs: TenantDoc[] = [];
+
+            if (json.data.leaseDocUrl) {
+              userDocs.push({
+                id: "DOC-LEASE",
+                title: `Signed Residential Lease Agreement (${json.data.propertyName} — ${json.data.unitNumber})`,
+                category: "Lease & Addendums",
+                icon: FileText,
+                date: json.data.leaseStart ? new Date(json.data.leaseStart).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Verified",
+                size: "1.4 MB",
+                status: "Verified",
+                description: `Official tenancy lease agreement contract for ${json.data.propertyName} — ${json.data.unitNumber}.`,
+                fileUrl: json.data.leaseDocUrl,
+              });
+            }
+
+            if (json.data.govIdUrl) {
+              userDocs.push({
+                id: "DOC-GOVID",
+                title: `${json.data.govIdType || "Government Photo ID"} Verification (${json.data.govIdNumber || "KYC"})`,
+                category: "ID & Verification",
+                icon: UserCheck,
+                date: json.data.createdAt ? new Date(json.data.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Verified",
+                size: "850 KB",
+                status: "Verified",
+                description: `Verified ${json.data.govIdType || "Government Photo ID"} record on file with property management.`,
+                fileUrl: json.data.govIdUrl,
+              });
+            }
+
+            if (Array.isArray(json.data.documents) && json.data.documents.length > 0) {
+              json.data.documents.forEach((d: any, idx: number) => {
+                userDocs.push({
+                  id: d.id || `DOC-DB-${idx + 1}`,
+                  title: d.title || d.fileName || "Uploaded Tenant Document",
+                  category: d.docType === "Lease Agreement" ? "Lease & Addendums" : "ID & Verification",
+                  icon: d.docType === "Lease Agreement" ? FileText : UserCheck,
+                  date: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : "Uploaded",
+                  size: d.fileSize || "1.2 MB",
+                  status: "Verified",
+                  description: `Uploaded document file: ${d.fileName || "tenant_doc.pdf"}. Verified in DB.`,
+                  fileUrl: d.fileUrl,
+                });
+              });
+            }
+
+            setDocuments(userDocs);
           }
         }
       } catch (err) {
         console.error("Error fetching tenant docs:", err);
+      } finally {
+        setLoading(false);
       }
     }
     loadTenantDocs();
   }, []);
-
 
   const categories = ["All", "Lease & Addendums", "Receipts & Tax", "ID & Verification", "Vehicle & Passes"];
 
@@ -136,6 +176,8 @@ export default function TenantDocumentsPage() {
     setUploadTitle("");
     setShowUploadModal(false);
   };
+
+  const isKycVerified = tenant?.govIdUrl || documents.some(d => d.category === "ID & Verification");
 
   return (
     <div className="space-y-8">
@@ -174,18 +216,24 @@ export default function TenantDocumentsPage() {
         </div>
 
         <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Identity & KYC Status</span>
-          <div className="text-2xl font-black text-emerald-600 mt-1 flex items-center gap-2">
-            <span>Verified</span>
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Identity &amp; KYC Status</span>
+          <div className={`text-2xl font-black mt-1 flex items-center gap-2 ${isKycVerified ? "text-emerald-600" : "text-amber-600"}`}>
+            <span>{isKycVerified ? "Verified" : "Pending ID"}</span>
+            {isKycVerified ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <Lock className="w-5 h-5 text-amber-600" />}
           </div>
-          <div className="text-xs text-slate-500 mt-0.5">Passports & Driver ID Verified</div>
+          <div className="text-xs text-slate-500 mt-0.5">
+            {isKycVerified ? "Passports & Driver ID Verified" : "Govt ID Upload Recommended"}
+          </div>
         </div>
 
         <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Contract Term</span>
-          <div className="text-2xl font-black text-slate-900 mt-1">2025 – 2026</div>
-          <div className="text-xs text-purple-700 font-bold mt-0.5">The Regent — Unit 302</div>
+          <div className="text-2xl font-black text-slate-900 mt-1">
+            {tenant?.leaseStart ? new Date(tenant.leaseStart).getFullYear() : "2026"} – {tenant?.leaseEnd ? new Date(tenant.leaseEnd).getFullYear() : "2027"}
+          </div>
+          <div className="text-xs text-purple-700 font-bold mt-0.5">
+            {tenant?.propertyName || "The Regent"} — {tenant?.unitNumber || "Unit 302"}
+          </div>
         </div>
       </div>
 
@@ -221,61 +269,101 @@ export default function TenantDocumentsPage() {
         </div>
       </div>
 
-      {/* Documents Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {filteredDocs.map((doc) => {
-          const Icon = doc.icon;
-          return (
-            <div
-              key={doc.id}
-              className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
-            >
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 shrink-0">
-                      <Icon className="w-5 h-5" />
+      {/* Documents Grid or Empty State */}
+      {loading ? (
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center shadow-2xs">
+          <p className="text-xs font-bold text-slate-600">Loading vault documents...</p>
+        </div>
+      ) : filteredDocs.length === 0 ? (
+        <div className="bg-white border border-slate-200/90 rounded-3xl p-12 text-center space-y-4 shadow-2xs">
+          <div className="w-16 h-16 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
+            <FileText className="w-8 h-8" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1">
+            <h3 className="text-base font-bold text-slate-900">No Documents Uploaded</h3>
+            <p className="text-xs text-slate-500">
+              No files or lease contracts have been uploaded for{" "}
+              <span className="font-semibold text-slate-700">
+                {tenant?.name || "this resident"} at {tenant?.propertyName || "Property"} — {tenant?.unitNumber || "Unit"}
+              </span> yet.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Upload Document</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {filteredDocs.map((doc) => {
+            const Icon = doc.icon;
+            return (
+              <div
+                key={doc.id}
+                className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 shrink-0">
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">{doc.id}</span>
+                        <h3 className="text-sm font-bold text-slate-900 leading-snug">{doc.title}</h3>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">{doc.id}</span>
-                      <h3 className="text-sm font-bold text-slate-900 leading-snug">{doc.title}</h3>
-                    </div>
+
+                    <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-50 text-emerald-700 uppercase shrink-0">
+                      {doc.status}
+                    </span>
                   </div>
 
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-50 text-emerald-700 uppercase shrink-0">
-                    {doc.status}
-                  </span>
+                  <p className="text-xs text-slate-600 leading-relaxed">{doc.description}</p>
                 </div>
 
-                <p className="text-xs text-slate-600 leading-relaxed">{doc.description}</p>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <div className="text-[11px] text-slate-400 font-medium">
+                    {doc.date} • {doc.size}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (doc.fileUrl) {
+                          window.open(doc.fileUrl, "_blank");
+                        } else {
+                          setPreviewDoc(doc);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Preview</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (doc.fileUrl) {
+                          window.open(doc.fileUrl, "_blank");
+                        } else {
+                          alert(`Downloading ${doc.title}...`);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer uppercase tracking-wider"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>PDF</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                <div className="text-[11px] text-slate-400 font-medium">
-                  {doc.date} • {doc.size}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setPreviewDoc(doc)}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>Preview</span>
-                  </button>
-                  <button
-                    onClick={() => alert(`Downloading ${doc.title}...`)}
-                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer uppercase tracking-wider"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>PDF</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Document Preview Drawer Modal */}
       {previewDoc && (
