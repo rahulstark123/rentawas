@@ -378,9 +378,9 @@ export default function ListPropertyModal({
                       <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${isTenantDropdownOpen ? "rotate-180" : ""}`} />
                     </button>
 
-                    {/* Dropdown Menu */}
+                    {/* Inline Expanding Dropdown Menu */}
                     {isTenantDropdownOpen && (
-                      <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 max-h-56 overflow-y-auto space-y-1 custom-scrollbar animate-in fade-in zoom-in-95 duration-150">
+                      <div className="mt-2 bg-white border border-slate-200 rounded-2xl shadow-sm p-2 max-h-56 overflow-y-auto space-y-1 custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-150">
                         {TENANT_CATEGORY_OPTIONS.map((cat) => {
                           const isSelected = tenantTypes.includes(cat);
                           return (
