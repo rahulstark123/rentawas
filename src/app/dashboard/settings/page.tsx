@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { 
   Building2, 
   CreditCard, 
@@ -211,7 +212,7 @@ export default function WorkspaceSettingsPage() {
       <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl overflow-x-auto custom-scrollbar">
         {[
           { id: "general", label: "Organization & Profile", icon: Building2 },
-          { id: "integrations", label: "Integrations", icon: Blocks, badge: "10 CONNECTED" },
+          { id: "integrations", label: "Integrations", icon: Blocks, badge: "3 SUPPORTED" },
           { id: "team", label: "Team Members", icon: Users, count: team.length },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -473,17 +474,17 @@ export default function WorkspaceSettingsPage() {
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                   <Blocks className="w-5 h-5 text-[#FF6B00]" />
-                  <span>Third-Party Integrations &amp; Connected Apps</span>
+                  <span>Payment Gateway &amp; Banking Integrations</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Connect payment processors, accounting platforms, CRM tools, communication channels, and API webhooks.
+                  Connect direct payment processors and settlement gateways for automated rent collection.
                 </p>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
                 <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>10 Connected Apps</span>
+                  <span>3 Payment Integrations Supported</span>
                 </span>
               </div>
             </div>
@@ -491,7 +492,7 @@ export default function WorkspaceSettingsPage() {
             {/* Filter Pills & Search */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
               <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 sm:pb-0">
-                {["All", "Payments", "Accounting", "Communication", "Tenant KYC", "Automation", "Legal"].map((cat) => (
+                {["All Integrations", "Payment Gateways", "Instant Settlement"].map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setSelectedIntegrationCategory(cat)}
@@ -519,133 +520,44 @@ export default function WorkspaceSettingsPage() {
             </div>
           </div>
 
-          {/* Integration Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {/* Integration Cards Grid - strictly Stripe, Razorpay & PayPal */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               {
                 id: "stripe",
-                name: "Stripe Connect & ACH",
-                category: "Payments",
-                icon: CreditCard,
-                iconBg: "bg-indigo-50 border-indigo-200 text-indigo-600",
+                name: "Stripe Connect & ACH Direct",
+                category: "Payment Gateway",
+                logo: "/assests/stripe icon.jpeg",
                 description: "Automated monthly rent collection via ACH Direct Debit, Credit/Debit Cards, Apple Pay, and Google Pay.",
-                meta: "Fee: 0.5% cap ($5 max) • Real-time Webhooks",
+                meta: "Fee: 0.5% ACH Cap ($5 max) • Global Payouts",
                 popular: true,
               },
               {
                 id: "razorpay",
-                name: "Razorpay & UPI Instant",
-                category: "Payments",
-                icon: Zap,
-                iconBg: "bg-blue-50 border-blue-200 text-blue-600",
-                description: "Instant UPI QR Code scan, PhonePe, GPay & NetBanking settlements for Indian rental properties.",
+                name: "Razorpay & UPI Instant Settlement",
+                category: "Payment Gateway",
+                logo: "/assests/razorpay icon.jpeg",
+                description: "Instant UPI QR Code scan (PhonePe, GPay, Paytm) & NetBanking settlements for Indian & SE Asian properties.",
                 meta: "0% Fee on UPI • Instant VPA Settlement",
                 popular: true,
               },
               {
-                id: "quickbooks",
-                name: "QuickBooks Online",
-                category: "Accounting",
-                icon: FileText,
-                iconBg: "bg-emerald-50 border-emerald-200 text-emerald-600",
-                description: "Bi-directional ledger sync for rent invoices, maintenance expenses, tax reports, and Chart of Accounts.",
-                meta: "Auto Sync: Every 6 hours • Multi-entity support",
-                popular: true,
-              },
-              {
-                id: "xero",
-                name: "Xero Cloud Accounting",
-                category: "Accounting",
-                icon: Building2,
-                iconBg: "bg-cyan-50 border-cyan-200 text-cyan-600",
-                description: "Reconcile rental payments, security deposits, and contractor invoices automatically with Xero accounts.",
-                meta: "Bank Reconciliation API • Invoice Matching",
-              },
-              {
-                id: "plaid",
-                name: "Plaid Bank Verification",
-                category: "Tenant KYC",
-                icon: ShieldCheck,
-                iconBg: "bg-slate-100 border-slate-300 text-slate-900",
-                description: "Instantly verify tenant bank balances, income proofs, and account routing during online tenant onboarding.",
-                meta: "12,000+ US/UK Banks • Income Audit API",
-              },
-              {
-                id: "whatsapp",
-                name: "WhatsApp Business API",
-                category: "Communication",
-                icon: MessageSquare,
-                iconBg: "bg-emerald-50 border-emerald-200 text-emerald-600",
-                description: "Send automated rent due reminders, PDF payment receipts, and maintenance ticket updates via WhatsApp.",
-                meta: "Official Meta API • High Delivery Rate",
-                popular: true,
-              },
-              {
-                id: "zapier",
-                name: "Zapier Automation Hub",
-                category: "Automation",
-                icon: Puzzle,
-                iconBg: "bg-orange-50 border-orange-200 text-orange-600",
-                description: "Trigger custom 5,000+ app workflows on new tenant creation, rent invoice issuance, or maintenance requests.",
-                meta: "Custom Webhooks • 5,000+ Apps Supported",
-                popular: true,
-              },
-              {
-                id: "google_cal",
-                name: "Google Calendar Sync",
-                category: "Communication",
-                icon: Calendar,
-                iconBg: "bg-blue-50 border-blue-200 text-blue-600",
-                description: "Automatically schedule unit walkthroughs, vendor maintenance visits, and lease renewal reminders.",
-                meta: "Bi-directional Calendar Sync",
-              },
-              {
-                id: "slack",
-                name: "Slack Team Alerts",
-                category: "Communication",
-                icon: MessageSquare,
-                iconBg: "bg-purple-50 border-purple-200 text-purple-600",
-                description: "Get real-time channel alerts when a tenant submits urgent maintenance, pays rent, or signs a new lease.",
-                meta: "Bot Webhooks • Channel Alerts",
-              },
-              {
-                id: "twilio",
-                name: "Twilio SMS & Voice",
-                category: "Communication",
-                icon: PhoneCall,
-                iconBg: "bg-rose-50 border-rose-200 text-rose-600",
-                description: "Broadcast SMS notices to property residents or send 2-factor OTP verification during tenant login.",
-                meta: "Global SMS Delivery • Automated Triggers",
-              },
-              {
-                id: "docusign",
-                name: "DocuSign E-Signature",
-                category: "Legal",
-                icon: FileCheck,
-                iconBg: "bg-amber-50 border-amber-200 text-amber-600",
-                description: "Seamlessly execute e-signed residential lease agreements, pet addendums, and move-in inspection forms.",
-                meta: "Audit-Trail Verified • PDF E-Sign",
-              },
-              {
                 id: "paypal",
-                name: "PayPal & Venmo Business",
-                category: "Payments",
-                icon: DollarSign,
-                iconBg: "bg-sky-50 border-sky-200 text-sky-600",
-                description: "Accept international card payments and Venmo transfers from global & expat residents.",
-                meta: "Venmo QR Code • International Cards",
+                name: "PayPal & Venmo Commerce",
+                category: "Payment Gateway",
+                logo: "/assests/paypal icon.svg",
+                description: "Accept international card payments, PayPal wallets, and Venmo transfers from global & expat residents.",
+                meta: "Venmo QR Code • International Cards & Wallets",
+                popular: false,
               },
             ]
               .filter((item) => {
-                const matchesCat =
-                  selectedIntegrationCategory === "All" || item.category === selectedIntegrationCategory;
                 const matchesSearch =
                   item.name.toLowerCase().includes(integrationSearch.toLowerCase()) ||
                   item.description.toLowerCase().includes(integrationSearch.toLowerCase());
-                return matchesCat && matchesSearch;
+                return matchesSearch;
               })
               .map((item) => {
-                const Icon = item.icon;
                 const isConnected = !!connectedMap[item.id];
                 return (
                   <div
@@ -654,12 +566,18 @@ export default function WorkspaceSettingsPage() {
                       isConnected ? "border-slate-200/90" : "border-slate-200/60 opacity-90"
                     }`}
                   >
-                    <div className="space-y-3">
-                      {/* Top Bar: Icon, Category & Toggle */}
+                    <div className="space-y-4">
+                      {/* Top Bar: Logo, Name & Toggle */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-3">
-                          <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${item.iconBg}`}>
-                            <Icon className="w-5 h-5" />
+                          <div className="w-12 h-12 rounded-2xl border border-slate-200 bg-white p-1.5 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden">
+                            <Image
+                              src={item.logo}
+                              alt={item.name}
+                              width={40}
+                              height={40}
+                              className="object-contain max-h-full w-auto"
+                            />
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5">
@@ -670,7 +588,7 @@ export default function WorkspaceSettingsPage() {
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mt-0.5">
                               {item.category}
                             </span>
                           </div>
@@ -700,17 +618,17 @@ export default function WorkspaceSettingsPage() {
                       </p>
 
                       {/* Meta Pill */}
-                      <div className="text-[10px] bg-slate-50 p-2 rounded-xl border border-slate-100 text-slate-500 font-medium">
+                      <div className="text-[10px] bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-slate-500 font-medium">
                         {item.meta}
                       </div>
                     </div>
 
                     {/* Bottom Action Footer */}
                     <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <span className={`text-[11px] font-extrabold flex items-center gap-1 ${
+                      <span className={`text-[11px] font-extrabold flex items-center gap-1.5 ${
                         isConnected ? "text-emerald-600" : "text-slate-400"
                       }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-emerald-500" : "bg-slate-300"}`} />
+                        <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500" : "bg-slate-300"}`} />
                         <span>{isConnected ? "Connected & Active" : "Available"}</span>
                       </span>
 
@@ -723,7 +641,7 @@ export default function WorkspaceSettingsPage() {
                             toast(`Opening ${item.name} API & Webhook Configuration...`, "info");
                           }
                         }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                           isConnected
                             ? "bg-slate-100 hover:bg-slate-200 text-slate-800"
                             : "bg-[#FF6B00] hover:bg-[#E56000] text-white shadow-xs"
