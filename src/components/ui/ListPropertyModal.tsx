@@ -244,29 +244,58 @@ export default function ListPropertyModal({
     "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
   ]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, target: "main" | "cover" | "gallery") => {
+  // Client-Side Canvas Image Compression (Converts to WebP, reduces file size by up to 80-90%)
+  const compressImageFile = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = document.createElement("img");
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedDataUrl = canvas.toDataURL("image/webp", quality);
+            resolve(compressedDataUrl);
+          } else {
+            resolve(event.target?.result as string);
+          }
+        };
+        img.onerror = () => resolve(event.target?.result as string);
+      };
+    });
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: "main" | "cover" | "gallery") => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     if (target === "main") {
       const file = files[0];
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        setMainImage(result);
-        setImageUrl(result);
-        toast("Main property image uploaded!", "success");
-      };
-      reader.readAsDataURL(file);
+      toast("Compressing & uploading main image...", "info");
+      const compressed = await compressImageFile(file, 1200, 0.8);
+      setMainImage(compressed);
+      setImageUrl(compressed);
+      toast("Main image compressed & uploaded!", "success");
     } else if (target === "cover") {
       const file = files[0];
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        setCoverImage(result);
-        toast("Cover banner image uploaded!", "success");
-      };
-      reader.readAsDataURL(file);
+      toast("Compressing & uploading cover banner...", "info");
+      const compressed = await compressImageFile(file, 1600, 0.8);
+      setCoverImage(compressed);
+      toast("Cover image compressed & uploaded!", "success");
     } else if (target === "gallery") {
       const remainingSlots = 5 - galleryImages.length;
       if (remainingSlots <= 0) {
@@ -274,15 +303,17 @@ export default function ListPropertyModal({
         return;
       }
       const filesToProcess = Array.from(files).slice(0, remainingSlots);
-      filesToProcess.forEach((file) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const result = event.target?.result as string;
-          setGalleryImages((prev) => (prev.length < 5 ? [...prev, result] : prev));
-        };
-        reader.readAsDataURL(file);
+      toast(`Compressing ${filesToProcess.length} gallery image(s)...`, "info");
+      
+      const compressedResults = await Promise.all(
+        filesToProcess.map((file) => compressImageFile(file, 1000, 0.75))
+      );
+
+      setGalleryImages((prev) => {
+        const next = [...prev, ...compressedResults];
+        return next.slice(0, 5);
       });
-      toast(`Uploaded ${filesToProcess.length} gallery photo(s)`, "success");
+      toast(`Uploaded & compressed ${compressedResults.length} gallery photo(s)!`, "success");
     }
   };
 
