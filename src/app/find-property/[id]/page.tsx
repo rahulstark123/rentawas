@@ -215,6 +215,110 @@ export default function PropertyDetailPage() {
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
   const [leadSubmitted, setLeadSubmitted] = useState(false);
 
+  // Review System State & Rating Categories
+  interface ReviewItem {
+    id: string;
+    author: string;
+    status: string;
+    date: string;
+    overallRating: number;
+    conditionRating: number;
+    localityRating: number;
+    landlordRating: number;
+    headline: string;
+    comment: string;
+    tags: string[];
+  }
+
+  const [reviewsList, setReviewsList] = useState<ReviewItem[]>([
+    {
+      id: "REV-101",
+      author: "Rahul Raj",
+      status: "Current Resident",
+      date: "July 2026",
+      overallRating: 5,
+      conditionRating: 5,
+      localityRating: 5,
+      landlordRating: 5,
+      headline: "Extremely peaceful locality with great connectivity!",
+      comment: "Living here for over 8 months. The landlord is super helpful and repairs are addressed within hours. Gated security and fiber wifi make work from home seamless.",
+      tags: ["Peaceful Locality", "Prompt Maintenance", "Zero Brokerage"],
+    },
+    {
+      id: "REV-102",
+      author: "Ananya Sharma",
+      status: "Verified Past Tenant",
+      date: "June 2026",
+      overallRating: 4.5,
+      conditionRating: 4,
+      localityRating: 5,
+      landlordRating: 5,
+      headline: "Safe neighborhood for working women & 100% deposit refund",
+      comment: "Smooth move-in and complete deposit returned without any unjustified deductions upon move-out. Walking distance to market and metro.",
+      tags: ["Safe for Women", "100% Deposit Refund", "Metro Connectivity"],
+    },
+  ]);
+
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewerName, setReviewerName] = useState("");
+  const [residentStatus, setResidentStatus] = useState("Current Resident");
+  const [overallRating, setOverallRating] = useState(5);
+  const [conditionRating, setConditionRating] = useState(5);
+  const [localityRating, setLocalityRating] = useState(5);
+  const [landlordRating, setLandlordRating] = useState(5);
+  const [reviewHeadline, setReviewHeadline] = useState("");
+  const [reviewComment, setReviewComment] = useState("");
+  const [selectedReviewTags, setSelectedReviewTags] = useState<string[]>(["Zero Brokerage"]);
+
+  const REVIEW_TAG_OPTIONS = [
+    "Peaceful Locality",
+    "Prompt Maintenance",
+    "Zero Brokerage",
+    "Safe for Women",
+    "Metro Connectivity",
+    "100% Deposit Refund",
+    "Spacious & Ventilated",
+    "Great Landlord",
+  ];
+
+  const toggleReviewTag = (tag: string) => {
+    if (selectedReviewTags.includes(tag)) {
+      setSelectedReviewTags(selectedReviewTags.filter((t) => t !== tag));
+    } else {
+      setSelectedReviewTags([...selectedReviewTags, tag]);
+    }
+  };
+
+  const handleReviewSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewerName.trim() || !reviewComment.trim()) {
+      toast("Please enter your name and review feedback.", "error");
+      return;
+    }
+
+    const newReview: ReviewItem = {
+      id: `REV-${Date.now()}`,
+      author: reviewerName.trim(),
+      status: residentStatus,
+      date: "Just now",
+      overallRating,
+      conditionRating,
+      localityRating,
+      landlordRating,
+      headline: reviewHeadline.trim() || "Verified Resident Review",
+      comment: reviewComment.trim(),
+      tags: selectedReviewTags,
+    };
+
+    setReviewsList([newReview, ...reviewsList]);
+    setIsReviewModalOpen(false);
+    toast("Thank you! Your resident review has been published.", "success");
+
+    setReviewerName("");
+    setReviewHeadline("");
+    setReviewComment("");
+  };
+
   const defaultGalleryFallbacks = [
     "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
@@ -620,9 +724,19 @@ export default function PropertyDetailPage() {
                     {property.title}
                   </h1>
                 </div>
-                <div className="flex items-center gap-1.5 font-bold text-amber-600 bg-amber-50 px-3.5 py-1.5 rounded-2xl border border-amber-200 shrink-0 w-fit">
-                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  <span className="text-xs">{property.rating} ({property.reviewsCount} Verified Reviews)</span>
+                <div className="flex flex-col items-start sm:items-end gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-600 bg-amber-50 px-3.5 py-1.5 rounded-2xl border border-amber-200 shrink-0 w-fit">
+                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                    <span className="text-xs">{property.rating} ({reviewsList.length || property.reviewsCount} Verified Reviews)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsReviewModalOpen(true)}
+                    className="px-3.5 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] active:scale-95 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 uppercase tracking-wider cursor-pointer"
+                  >
+                    <Star className="w-3.5 h-3.5 fill-white text-white" />
+                    <span>Write a Review</span>
+                  </button>
                 </div>
               </div>
 
@@ -748,6 +862,94 @@ export default function PropertyDetailPage() {
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span>Covered Parking</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Resident Ratings & Reviews Section */}
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+                    Resident Ratings & Reviews ({reviewsList.length})
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Verified feedback from current residents and past tenants.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsReviewModalOpen(true)}
+                  className="px-4 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 uppercase tracking-wider cursor-pointer shrink-0 w-fit"
+                >
+                  <Star className="w-3.5 h-3.5 fill-white text-white" />
+                  <span>Write a Review</span>
+                </button>
+              </div>
+
+              {/* 4 Category Score Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 bg-amber-50/60 border border-amber-200/70 rounded-2xl space-y-1">
+                  <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Overall Rating</div>
+                  <div className="text-lg font-black text-slate-900 flex items-center gap-1">
+                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                    <span>4.9 / 5</span>
+                  </div>
+                </div>
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Property Quality</div>
+                  <div className="text-lg font-black text-slate-900">4.8 / 5</div>
+                </div>
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Locality & Safety</div>
+                  <div className="text-lg font-black text-slate-900">5.0 / 5</div>
+                </div>
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Landlord Service</div>
+                  <div className="text-lg font-black text-slate-900">4.9 / 5</div>
+                </div>
+              </div>
+
+              {/* Reviews List */}
+              <div className="space-y-4 pt-2">
+                {reviewsList.map((rev) => (
+                  <div key={rev.id} className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-[#0B132B] text-white font-extrabold text-xs flex items-center justify-center">
+                          {rev.author.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                            <span>{rev.author}</span>
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase">
+                              {rev.status}
+                            </span>
+                          </div>
+                          <div className="text-[10px] font-semibold text-slate-400">{rev.date}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 bg-amber-100/80 text-amber-900 px-2.5 py-1 rounded-xl text-xs font-black">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>{rev.overallRating}.0</span>
+                      </div>
+                    </div>
+
+                    <h4 className="text-xs font-extrabold text-slate-900 leading-snug">{rev.headline}</h4>
+                    <p className="text-xs text-slate-600 leading-relaxed font-medium">{rev.comment}</p>
+
+                    {/* Review Tag Badges */}
+                    {rev.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {rev.tags.map((t, idx) => (
+                          <span key={idx} className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-600">
+                            ✓ {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -977,6 +1179,210 @@ export default function PropertyDetailPage() {
             ))}
           </div>
 
+        </div>
+      )}
+
+      {/* Write a Review Modal */}
+      {isReviewModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 font-sans animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="bg-[#0B132B] p-5 text-white relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsReviewModalOpen(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer z-10"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-extrabold uppercase tracking-wider mb-2">
+                Resident Review
+              </span>
+              <h3 className="text-lg font-bold text-white pr-8">Write a Review for {property.title}</h3>
+              <p className="text-xs text-slate-300">Share your honest experience for future tenants</p>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleReviewSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
+              {/* Reviewer Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                    Your Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={reviewerName}
+                    onChange={(e) => setReviewerName(e.target.value)}
+                    placeholder="e.g. Rahul Raj"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                    Resident Status *
+                  </label>
+                  <select
+                    value={residentStatus}
+                    onChange={(e) => setResidentStatus(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                  >
+                    <option value="Current Resident">Current Resident</option>
+                    <option value="Verified Past Tenant">Verified Past Tenant</option>
+                    <option value="Visited / Prospect">Visited / Prospect</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 4 Rating Category Star Selectors */}
+              <div className="space-y-2">
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                  Rating Categories (1 - 5 Stars) *
+                </label>
+
+                <div className="space-y-2">
+                  {/* Category 1: Overall */}
+                  <div className="flex items-center justify-between p-2.5 bg-amber-50/50 border border-amber-200/80 rounded-xl">
+                    <span className="text-xs font-extrabold text-amber-900">Overall Property Rating</span>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setOverallRating(star)}
+                          className="p-1 cursor-pointer transition-transform hover:scale-125"
+                        >
+                          <Star className={`w-4 h-4 ${star <= overallRating ? "fill-amber-400 text-amber-400" : "text-slate-300"}`} />
+                        </button>
+                      ))}
+                      <span className="text-xs font-black text-slate-900 ml-1">{overallRating}.0</span>
+                    </div>
+                  </div>
+
+                  {/* Category 2: Property Condition */}
+                  <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                    <span className="text-xs font-bold text-slate-700">Property Quality & Construction</span>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setConditionRating(star)}
+                          className="p-1 cursor-pointer transition-transform hover:scale-125"
+                        >
+                          <Star className={`w-4 h-4 ${star <= conditionRating ? "fill-amber-400 text-amber-400" : "text-slate-300"}`} />
+                        </button>
+                      ))}
+                      <span className="text-xs font-black text-slate-900 ml-1">{conditionRating}.0</span>
+                    </div>
+                  </div>
+
+                  {/* Category 3: Locality & Safety */}
+                  <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                    <span className="text-xs font-bold text-slate-700">Locality, Transport & Safety</span>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setLocalityRating(star)}
+                          className="p-1 cursor-pointer transition-transform hover:scale-125"
+                        >
+                          <Star className={`w-4 h-4 ${star <= localityRating ? "fill-amber-400 text-amber-400" : "text-slate-300"}`} />
+                        </button>
+                      ))}
+                      <span className="text-xs font-black text-slate-900 ml-1">{localityRating}.0</span>
+                    </div>
+                  </div>
+
+                  {/* Category 4: Landlord & Responsiveness */}
+                  <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                    <span className="text-xs font-bold text-slate-700">Landlord Responsiveness</span>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setLandlordRating(star)}
+                          className="p-1 cursor-pointer transition-transform hover:scale-125"
+                        >
+                          <Star className={`w-4 h-4 ${star <= landlordRating ? "fill-amber-400 text-amber-400" : "text-slate-300"}`} />
+                        </button>
+                      ))}
+                      <span className="text-xs font-black text-slate-900 ml-1">{landlordRating}.0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Review Headline */}
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                  Review Headline *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={reviewHeadline}
+                  onChange={(e) => setReviewHeadline(e.target.value)}
+                  placeholder="e.g. Peaceful flat with super responsive landlord!"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              {/* Review Feedback Comment */}
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                  Detailed Experience & Feedback *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Share details about locality, water/electricity, landlord behavior, or security..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              {/* Tag Selection Pills */}
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Highlight Key Pros & Tags
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {REVIEW_TAG_OPTIONS.map((tag) => {
+                    const isSelected = selectedReviewTags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleReviewTag(tag)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-[#FF6B00] text-white shadow-xs"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        }`}
+                      >
+                        {isSelected ? "✓ " : "+ "}{tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs rounded-xl shadow-lg shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
+              >
+                Submit Resident Review
+              </button>
+            </form>
+          </div>
         </div>
       )}
 
