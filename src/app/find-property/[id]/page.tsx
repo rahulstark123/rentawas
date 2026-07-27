@@ -69,6 +69,8 @@ const formatAmenityTag = (tag: string): string => {
 interface PropertyItem {
   id: string;
   title: string;
+  description?: string;
+  deposit?: number | null;
   location: string;
   city: string;
   price: string;
@@ -286,6 +288,8 @@ export default function PropertyDetailPage() {
         setProperty({
           id: item.id,
           title: item.title,
+          description: item.description || "",
+          deposit: item.deposit,
           location: item.locality || item.location || item.city || "Prime Locality",
           city: item.city || item.stateName || "Metropolis",
           price: typeof item.rent === "number" ? `₹${item.rent.toLocaleString("en-IN")}` : item.rent || "₹0",
@@ -684,7 +688,9 @@ export default function PropertyDetailPage() {
 
                 <div className="p-4 bg-emerald-50/50 border border-emerald-200/60 rounded-2xl space-y-1">
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Security Deposit</div>
-                  <div className="text-xl font-black text-emerald-700">₹2,000</div>
+                  <div className="text-xl font-black text-emerald-700">
+                    {property.deposit ? `₹${Number(property.deposit).toLocaleString("en-IN")}` : "₹0 Deposit"}
+                  </div>
                   <div className="text-[11px] text-emerald-600 font-semibold">100% Refundable</div>
                 </div>
 
@@ -701,12 +707,20 @@ export default function PropertyDetailPage() {
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
                 Description
               </h3>
-              <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                Welcome to {property.title}, a beautifully designed {property.bhk} rental home situated in the prime locality of {property.location}, {property.city}. Featuring abundant natural sunlight, high-grade flooring, modern electrical fixtures, and prompt maintenance services managed by RentAwas.
-              </p>
-              <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                Ideal for working professionals and small families seeking zero-brokerage direct landlord renting. Walking distance to public transport, metro stations, tech hubs, supermarkets, and dining.
-              </p>
+              {property.description?.trim() ? (
+                <p className="text-xs text-slate-600 leading-relaxed font-medium whitespace-pre-line">
+                  {property.description}
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                    Welcome to {property.title}, a beautifully designed {property.bhk} rental home situated in the prime locality of {property.location}, {property.city}. Featuring abundant natural sunlight, high-grade flooring, modern electrical fixtures, and prompt maintenance services managed by RentAwas.
+                  </p>
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                    Ideal for working professionals and small families seeking zero-brokerage direct landlord renting. Walking distance to public transport, metro stations, tech hubs, supermarkets, and dining.
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Amenities Grid */}
