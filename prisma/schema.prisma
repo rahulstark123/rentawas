@@ -51,6 +51,7 @@ model Workspace {
   supportTickets SupportTicket[]
   announcements  Announcement[]
   propertyListings PropertyListing[]
+  tenantInquiries  TenantInquiry[]
   
   // Razorpay Payment Gateway Config
   razorpayKeyId         String?
@@ -500,6 +501,9 @@ model PropertyListing {
   isLive             Boolean  @default(true)
   status             String   @default("Active") // "Active", "Draft", "Rented"
   inquiriesCount     Int      @default(0)
+  viewsCount         Int      @default(0)
+
+  inquiries          TenantInquiry[]
 
   workspaceId        Int?
   workspace          Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
@@ -509,5 +513,28 @@ model PropertyListing {
 
   @@index([workspaceId])
   @@index([city])
+  @@index([status])
+}
+
+model TenantInquiry {
+  id              String           @id @default(cuid())
+  tenantName      String
+  phone           String
+  email           String?
+  moveInDate      String?
+  status          String           @default("Inquiry Pending") // "Inquiry Pending", "Visit Scheduled", "Tenant Chosen", "Contacted"
+  notes           String?
+  
+  listingId       String?
+  listing         PropertyListing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  
+  workspaceId     Int?
+  workspace       Workspace?       @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([workspaceId])
+  @@index([listingId])
   @@index([status])
 }

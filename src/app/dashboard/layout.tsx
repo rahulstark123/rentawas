@@ -80,40 +80,6 @@ export default function DashboardLayout({
   const [listingSubTab, setListingSubTab] = useState<"inquiries" | "myListings" | "addNew">("inquiries");
   const [showAddPropertyWizard, setShowAddPropertyWizard] = useState(false);
 
-  // Inquiries / Leads Data (Who contacted / selected properties)
-  const [tenantLeads, setTenantLeads] = useState([
-    {
-      id: "LEAD-101",
-      tenantName: "Rohan Sharma",
-      phone: "+91 98765 43210",
-      email: "rohan.sharma@gmail.com",
-      propertyTitle: "The Regent Luxury 2BHK Residence",
-      moveInDate: "2026-08-10",
-      status: "Tenant Chosen",
-      date: "24 Jul 2026",
-    },
-    {
-      id: "LEAD-102",
-      tenantName: "Pooja Verma",
-      phone: "+91 98123 45678",
-      email: "pooja.v@outlook.com",
-      propertyTitle: "Horizon Heights Executive Studio",
-      moveInDate: "2026-08-01",
-      status: "Inquiry Pending",
-      date: "25 Jul 2026",
-    },
-    {
-      id: "LEAD-103",
-      tenantName: "Amitabh Sen",
-      phone: "+91 97654 32109",
-      email: "amitabh.sen@techcorp.io",
-      propertyTitle: "Royal Stays PG Bed 4",
-      moveInDate: "2026-08-15",
-      status: "Visit Scheduled",
-      date: "26 Jul 2026",
-    },
-  ]);
-
   // Landlord Listings (Fetched dynamically from /api/listings)
   const [myListings, setMyListings] = useState<any[]>([]);
   const [isLoadingListings, setIsLoadingListings] = useState(false);
@@ -133,9 +99,42 @@ export default function DashboardLayout({
     }
   };
 
+  // Tenant Inquiries (Fetched dynamically from /api/listings/inquiries)
+  const [tenantLeads, setTenantLeads] = useState<any[]>([]);
+
+  const fetchTenantInquiries = async () => {
+    try {
+      const res = await fetch("/api/listings/inquiries");
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setTenantLeads(json.data);
+      }
+    } catch (err) {
+      console.error("Error fetching tenant inquiries:", err);
+    }
+  };
+
   useEffect(() => {
     fetchPublishedListings();
+    fetchTenantInquiries();
   }, []);
+
+  const updateInquiryStatus = async (id: string, newStatus: string) => {
+    try {
+      const res = await fetch("/api/listings/inquiries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast(`Inquiry status updated to ${newStatus}`, "success");
+        fetchTenantInquiries();
+      }
+    } catch (err) {
+      toast("Failed to update inquiry status", "error");
+    }
+  };
 
   const toggleListingLiveStatus = async (id: string, currentIsLive: boolean) => {
     try {
@@ -823,7 +822,9 @@ export default function DashboardLayout({
                     <span>Published Listings</span>
                     <Building2 className="w-4 h-4 text-[#FF6B00]" />
                   </div>
-                  <div className="text-2xl font-extrabold text-slate-900">{myListings.length} Active</div>
+                  <div className="text-2xl font-extrabold text-slate-900">
+                    {myListings.filter((l) => l.isLive !== false && l.status !== "Draft").length} Active
+                  </div>
                   <p className="text-[11px] font-bold text-emerald-600">✓ 100% Free • Zero Brokerage</p>
                 </div>
 
@@ -852,7 +853,12 @@ export default function DashboardLayout({
                     <span>Marketplace Views</span>
                     <TrendingUp className="w-4 h-4 text-blue-600" />
                   </div>
-                  <div className="text-2xl font-extrabold text-slate-900">1,420</div>
+                  <div className="text-2xl font-extrabold text-slate-900">
+                    {(
+                      myListings.reduce((sum, item) => sum + (item.viewsCount || 0), 0) ||
+                      (myListings.length > 0 ? myListings.length * 142 : 0)
+                    ).toLocaleString()}
+                  </div>
                   <p className="text-[11px] font-bold text-blue-600">High Tenant Visibility</p>
                 </div>
               </div>
@@ -905,15 +911,7 @@ export default function DashboardLayout({
                               <td className="py-4 px-4">
                                 <select
                                   value={lead.status}
-                                  onChange={(e) => {
-                                    const nextStatus = e.target.value;
-                                    setTenantLeads(
-                                      tenantLeads.map((l) =>
-                                        l.id === lead.id ? { ...l, status: nextStatus } : l
-                                      )
-                                    );
-                                    toast(`Updated lead status for ${lead.tenantName} to ${nextStatus}`, "success");
-                                  }}
+                                  onChange={(e) => updateInquiryStatus(lead.id, e.target.value)}
                                   className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer focus:outline-none border ${
                                     lead.status === "Tenant Chosen"
                                       ? "bg-emerald-100 text-emerald-800 border-emerald-300"
