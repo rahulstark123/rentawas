@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, 
@@ -23,7 +23,11 @@ import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState<"owner" | "tenant">("owner");
+  const searchParams = useSearchParams();
+  const roleParam = searchParams.get("role");
+  const redirectParam = searchParams.get("redirect");
+
+  const [role, setRole] = useState<"owner" | "tenant">(roleParam === "tenant" ? "tenant" : "owner");
   const [emailInput, setEmailInput] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -31,6 +35,11 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const getTargetRedirect = () => {
+    if (redirectParam) return redirectParam;
+    return role === "tenant" ? "/tenant/dashboard" : "/dashboard";
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,30 +55,16 @@ export default function LoginPage() {
       if (error) {
         // Fallback for demo testing / unregistered emails: allow instant entry into dashboard
         console.warn("Supabase auth notice:", error.message);
-        if (role === "tenant") {
-          router.push("/tenant/dashboard");
-        } else {
-          router.push("/dashboard");
-        }
+        router.push(getTargetRedirect());
         setIsLoading(false);
         return;
       }
 
       // Successful login — check user metadata for role
-      const userRole = data.user?.user_metadata?.role;
-
-      if (role === "tenant" || userRole === "tenant") {
-        router.push("/tenant/dashboard");
-      } else {
-        router.push("/dashboard");
-      }
+      router.push(getTargetRedirect());
     } catch (err: unknown) {
       // Fallback redirect on error
-      if (role === "tenant") {
-        router.push("/tenant/dashboard");
-      } else {
-        router.push("/dashboard");
-      }
+      router.push(getTargetRedirect());
       setIsLoading(false);
     }
   };
@@ -81,7 +76,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${role === "tenant" ? "/tenant/dashboard" : "/dashboard"}`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(getTargetRedirect())}`,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -392,8 +387,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (role === "tenant") router.push("/tenant/dashboard");
-                  else router.push("/dashboard");
+                  router.push(getTargetRedirect());
                 }}
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-md uppercase tracking-wider"
               >

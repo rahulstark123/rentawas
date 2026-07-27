@@ -928,7 +928,7 @@ export default function FindPropertyPage() {
 
             <div className="space-y-2.5 pt-1">
               <Link
-                href="/login"
+                href="/login?role=tenant&redirect=/tenant/wishlist"
                 className="w-full py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
               >
                 <span>Log In to Your Account</span>
