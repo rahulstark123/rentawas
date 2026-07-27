@@ -252,17 +252,31 @@ export default function PropertyDetailPage() {
       if (json.success && json.data) {
         const item = json.data;
         
-        let rawImgs: string[] = [];
-        if (Array.isArray(item.images) && item.images.length > 0) {
-          rawImgs = item.images;
-        } else if (Array.isArray(item.imageUrls) && item.imageUrls.length > 0) {
-          rawImgs = item.imageUrls;
-        } else if (item.mainImage || item.image || item.coverImage) {
-          rawImgs = [item.mainImage || item.image || item.coverImage];
+        const uploadedPhotos: string[] = [];
+        if (item.mainImage) uploadedPhotos.push(item.mainImage);
+        if (item.coverImage && !uploadedPhotos.includes(item.coverImage)) {
+          uploadedPhotos.push(item.coverImage);
+        }
+        if (Array.isArray(item.galleryImages)) {
+          item.galleryImages.forEach((img: string) => {
+            if (img && typeof img === "string" && !uploadedPhotos.includes(img)) {
+              uploadedPhotos.push(img);
+            }
+          });
+        }
+        if (Array.isArray(item.images)) {
+          item.images.forEach((img: string) => {
+            if (img && typeof img === "string" && !uploadedPhotos.includes(img)) {
+              uploadedPhotos.push(img);
+            }
+          });
+        }
+        if (item.image && !uploadedPhotos.includes(item.image)) {
+          uploadedPhotos.push(item.image);
         }
 
         // Fill up to at least 5 images using default gallery fallbacks
-        const mergedImages = [...rawImgs];
+        const mergedImages = [...uploadedPhotos];
         defaultGalleryFallbacks.forEach((fb) => {
           if (mergedImages.length < 5 && !mergedImages.includes(fb)) {
             mergedImages.push(fb);
@@ -280,10 +294,10 @@ export default function PropertyDetailPage() {
           size: item.deposit ? `Deposit: ₹${item.deposit.toLocaleString("en-IN")}` : item.availableFrom || "Ready to Move",
           rating: 4.9,
           reviewsCount: 14,
-          image: mergedImages[0],
+          image: uploadedPhotos[0] || mergedImages[0],
           images: mergedImages,
-          mainImage: item.mainImage || item.image || mergedImages[0],
-          coverImage: item.coverImage || mergedImages[1] || mergedImages[0],
+          mainImage: item.mainImage || uploadedPhotos[0] || mergedImages[0],
+          coverImage: item.coverImage || (uploadedPhotos.length > 1 ? uploadedPhotos[1] : mergedImages[1] || mergedImages[0]),
           tags: Array.isArray(item.amenities) && item.amenities.length > 0 
             ? item.amenities.map(formatAmenityTag) 
             : ["Zero Fee", "Direct Owner", "Verified", "Immediate Move-In"],
