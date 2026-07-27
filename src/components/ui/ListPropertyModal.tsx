@@ -830,6 +830,18 @@ export default function ListPropertyModal({
                 )}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
               />
 
+              {/* Central Map Location Marker Pin */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-20 pointer-events-none flex flex-col items-center animate-in zoom-in duration-200">
+                <div className="bg-[#FF6B00] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-lg border border-white mb-1 uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Property Location</span>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-[#FF6B00] text-white flex items-center justify-center shadow-xl border-2 border-white ring-4 ring-[#FF6B00]/40 animate-bounce">
+                  <MapPin className="w-5 h-5 text-white fill-white" />
+                </div>
+                <div className="w-3 h-1.5 rounded-full bg-slate-900/70 blur-[1px] mt-0.5" />
+              </div>
+
               {/* Floating Address Badge */}
               <div className="absolute top-3 left-3 z-10 bg-slate-900/90 backdrop-blur-md text-white px-3 py-2 rounded-xl border border-slate-700/80 shadow-lg text-xs font-bold flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-[#FF6B00]/20 border border-[#FF6B00] flex items-center justify-center shrink-0">
