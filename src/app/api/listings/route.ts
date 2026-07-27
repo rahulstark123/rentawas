@@ -132,3 +132,68 @@ export async function POST(request: Request) {
     );
   }
 }
+
+// PATCH /api/listings
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, isLive, status } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Missing required listing id." }, { status: 400 });
+    }
+
+    const updateData: any = {};
+    if (typeof isLive === "boolean") {
+      updateData.isLive = isLive;
+      updateData.status = isLive ? "Active" : "Draft";
+    }
+    if (status) {
+      updateData.status = status;
+    }
+
+    const updated = await prisma.propertyListing.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Listing status updated to ${updated.status}`,
+      data: updated,
+    });
+  } catch (error: any) {
+    console.error("PATCH /api/listings error:", error);
+    return NextResponse.json(
+      { error: "Failed to update property listing", details: error?.message },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/listings?id=xxx
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "Missing required listing id." }, { status: 400 });
+    }
+
+    await prisma.propertyListing.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Property listing deleted successfully.",
+    });
+  } catch (error: any) {
+    console.error("DELETE /api/listings error:", error);
+    return NextResponse.json(
+      { error: "Failed to delete property listing", details: error?.message },
+      { status: 500 }
+    );
+  }
+}

@@ -114,27 +114,62 @@ export default function DashboardLayout({
     },
   ]);
 
-  // Landlord Listings
-  const [myListings, setMyListings] = useState([
-    {
-      id: "LIST-1",
-      title: "The Regent Luxury 2BHK Residence",
-      rent: "₹28,500/mo",
-      bhk: "2 BHK",
-      location: "Indiranagar, Bengaluru",
-      status: "Active",
-      inquiriesCount: 14,
-    },
-    {
-      id: "LIST-2",
-      title: "Horizon Heights Executive Studio",
-      rent: "₹18,000/mo",
-      bhk: "1 BHK",
-      location: "HSR Layout, Bengaluru",
-      status: "Active",
-      inquiriesCount: 9,
-    },
-  ]);
+  // Landlord Listings (Fetched dynamically from /api/listings)
+  const [myListings, setMyListings] = useState<any[]>([]);
+  const [isLoadingListings, setIsLoadingListings] = useState(false);
+
+  const fetchPublishedListings = async () => {
+    setIsLoadingListings(true);
+    try {
+      const res = await fetch("/api/listings");
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setMyListings(json.data);
+      }
+    } catch (err) {
+      console.error("Error fetching published listings:", err);
+    } finally {
+      setIsLoadingListings(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPublishedListings();
+  }, []);
+
+  const toggleListingLiveStatus = async (id: string, currentIsLive: boolean) => {
+    try {
+      const nextIsLive = !currentIsLive;
+      const res = await fetch("/api/listings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, isLive: nextIsLive }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast(`Listing status updated to ${nextIsLive ? "Live" : "Draft"}`, "success");
+        fetchPublishedListings();
+      }
+    } catch (err) {
+      toast("Failed to update listing status", "error");
+    }
+  };
+
+  const deleteListingItem = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this property listing?")) return;
+    try {
+      const res = await fetch(`/api/listings?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast("Property listing deleted", "info");
+        fetchPublishedListings();
+      }
+    } catch (err) {
+      toast("Failed to delete listing", "error");
+    }
+  };
 
   // Form state for New Free Property Listing
   const [newTitle, setNewTitle] = useState("");
@@ -904,11 +939,11 @@ export default function DashboardLayout({
 
               {/* SUB TAB 2: My Published Listings */}
               {listingSubTab === "myListings" && (
-                <div className="space-y-4">
+                <div className="space-y-4 font-sans">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-extrabold text-slate-900">Your Active Free Property Listings</h3>
-                      <p className="text-xs text-slate-500 font-medium">Listings visible on RentAwas Marketplace</p>
+                      <p className="text-xs text-slate-500 font-medium">Manage your properties published on RentAwas Marketplace</p>
                     </div>
                     <button
                       onClick={() => setShowAddPropertyWizard(true)}
@@ -919,36 +954,135 @@ export default function DashboardLayout({
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {myListings.map((item) => (
-                      <div key={item.id} className="p-6 border border-slate-200/90 rounded-2xl bg-white space-y-4 shadow-2xs hover:shadow-md transition-all">
-                        <div className="flex items-center justify-between">
-                          <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold uppercase border border-emerald-200">
-                            {item.status} • 100% Free
-                          </span>
-                          <span className="text-sm font-black text-[#FF6B00]">{item.rent}</span>
-                        </div>
+                  {isLoadingListings ? (
+                    <div className="py-12 text-center space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
+                      <div className="w-8 h-8 border-3 border-[#FF6B00] border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="text-xs font-bold text-slate-600">Loading your published property listings...</p>
+                    </div>
+                  ) : myListings.length === 0 ? (
+                    <div className="py-12 px-6 text-center space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
+                      <Building2 className="w-10 h-10 text-slate-300 mx-auto" />
+                      <h4 className="font-extrabold text-slate-900 text-sm">No Property Listings Found</h4>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                        You have not published any vacant units yet. Create your first listing to start receiving direct tenant inquiries.
+                      </p>
+                      <button
+                        onClick={() => setShowAddPropertyWizard(true)}
+                        className="px-4 py-2.5 bg-[#FF6B00] text-white text-xs font-bold rounded-xl shadow-xs hover:bg-[#E56000] cursor-pointer inline-flex items-center gap-1.5 mt-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>List Property For Free</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {myListings.map((item) => {
+                        const rentDisplay =
+                          typeof item.rent === "number"
+                            ? `₹${item.rent.toLocaleString("en-IN")}/mo`
+                            : item.rent || "₹0/mo";
+                        const isCurrentlyLive = item.isLive !== false && item.status !== "Draft";
+                        const locationText =
+                          item.locality || item.city
+                            ? `${item.locality || ""}${item.locality && item.city ? ", " : ""}${item.city || ""}`
+                            : item.location || "Location specified";
 
-                        <div>
-                          <h4 className="font-extrabold text-slate-900 text-base">{item.title}</h4>
-                          <p className="text-xs text-slate-500 font-medium mt-0.5">{item.location} • {item.bhk}</p>
-                        </div>
-
-                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                          <span className="font-extrabold text-slate-800">🔥 {item.inquiriesCount} Inquiries Received</span>
-                          <button
-                            onClick={() => {
-                              setListingSubTab("inquiries");
-                              toast(`Viewing tenant inquiries for ${item.title}`, "info");
-                            }}
-                            className="px-3 py-1.5 bg-slate-900 text-white rounded-lg font-bold hover:bg-slate-800 cursor-pointer"
+                        return (
+                          <div
+                            key={item.id}
+                            className="p-5 border border-slate-200/90 rounded-2xl bg-white space-y-4 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between"
                           >
-                            View Inquiries
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                            <div className="space-y-3">
+                              {/* Header Badges & Rent */}
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span
+                                    className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border ${
+                                      isCurrentlyLive
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : "bg-amber-50 text-amber-700 border-amber-200"
+                                    }`}
+                                  >
+                                    {isCurrentlyLive ? "● Live on Marketplace" : "Draft (Private)"}
+                                  </span>
+                                  {item.whatsappEnabled && (
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-extrabold uppercase">
+                                      WhatsApp
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-base font-black text-[#FF6B00] shrink-0">{rentDisplay}</span>
+                              </div>
+
+                              {/* Thumbnail & Info */}
+                              <div className="flex gap-3">
+                                {item.mainImage || item.image ? (
+                                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200 relative">
+                                    <Image
+                                      src={item.mainImage || item.image}
+                                      alt={item.title}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-16 h-16 rounded-xl bg-slate-100 shrink-0 border border-slate-200 flex items-center justify-center text-slate-400">
+                                    <Building2 className="w-6 h-6" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-extrabold text-slate-900 text-sm truncate">{item.title}</h4>
+                                  <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                                    {locationText} • {item.propertyType || item.bhk || "Property"}
+                                  </p>
+                                  {item.contactPersonName && (
+                                    <p className="text-[11px] text-slate-600 font-semibold mt-1 truncate">
+                                      Contact: {item.contactPersonName} ({item.contactNumber || item.ownerPhone || "N/A"})
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Controls Footer */}
+                            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+                              {/* Live Toggle Switch */}
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={isCurrentlyLive}
+                                  onChange={() => toggleListingLiveStatus(item.id, isCurrentlyLive)}
+                                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 accent-emerald-600"
+                                />
+                                <span className="text-[11px] font-bold text-slate-700">
+                                  {isCurrentlyLive ? "Live" : "Draft"}
+                                </span>
+                              </label>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => deleteListingItem(item.id)}
+                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Delete Property Listing"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setListingSubTab("inquiries");
+                                    toast(`Viewing tenant inquiries for ${item.title}`, "info");
+                                  }}
+                                  className="px-3 py-1.5 bg-slate-900 text-white rounded-lg font-bold text-xs hover:bg-slate-800 cursor-pointer"
+                                >
+                                  Inquiries ({item.inquiriesCount || 0})
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1072,8 +1206,8 @@ export default function DashboardLayout({
       <ListPropertyModal
         isOpen={showAddPropertyWizard}
         onClose={() => setShowAddPropertyWizard(false)}
-        onSuccess={(newListing) => {
-          setMyListings([newListing, ...myListings]);
+        onSuccess={() => {
+          fetchPublishedListings();
           setListingSubTab("myListings");
         }}
       />
