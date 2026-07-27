@@ -50,6 +50,15 @@ model Workspace {
   transactions   Transaction[]
   supportTickets SupportTicket[]
   announcements  Announcement[]
+  
+  // Razorpay Payment Gateway Config
+  razorpayKeyId         String?
+  razorpayKeySecret     String?
+  razorpayMerchantVpa   String?
+  razorpayWebhookSecret String?
+  razorpayEnvMode       String?   @default("test")
+  razorpayConnected     Boolean   @default(false)
+
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 

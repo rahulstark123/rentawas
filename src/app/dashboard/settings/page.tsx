@@ -27,7 +27,12 @@ import {
   ArrowRight,
   FileText,
   PhoneCall,
-  FileCheck
+  FileCheck,
+  Eye,
+  EyeOff,
+  Copy,
+  X,
+  Lock
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -62,17 +67,24 @@ export default function WorkspaceSettingsPage() {
   const [connectedMap, setConnectedMap] = useState<Record<string, boolean>>({
     stripe: true,
     razorpay: true,
-    quickbooks: true,
-    plaid: true,
-    whatsapp: true,
-    zapier: true,
-    google_cal: true,
-    slack: true,
-    twilio: true,
-    docusign: true,
+    paypal: false,
   });
 
+  // Razorpay Integration Modal & Credentials State
+  const [showRazorpayModal, setShowRazorpayModal] = useState(false);
+  const [razorpayEnvMode, setRazorpayEnvMode] = useState<"live" | "test">("live");
+  const [razorpayKeyId, setRazorpayKeyId] = useState("rzp_live_9a8B7c6D5e4F3g");
+  const [razorpayKeySecret, setRazorpayKeySecret] = useState("a1b2c3d4e5f6g7h8i9j0k1l2");
+  const [razorpayMerchantVpa, setRazorpayMerchantVpa] = useState("grandregency@icici");
+  const [razorpayWebhookSecret, setRazorpayWebhookSecret] = useState("whsec_rzp_98765432");
+  const [showRazorpaySecret, setShowRazorpaySecret] = useState(false);
+  const [savingRazorpay, setSavingRazorpay] = useState(false);
+
   const toggleIntegration = (id: string, name: string) => {
+    if (id === "razorpay") {
+      setShowRazorpayModal(true);
+      return;
+    }
     const isCurrentlyConnected = !!connectedMap[id];
     setConnectedMap((prev) => ({ ...prev, [id]: !isCurrentlyConnected }));
     toast(
@@ -83,12 +95,91 @@ export default function WorkspaceSettingsPage() {
     );
   };
 
+  const handleSaveRazorpay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!razorpayKeyId.trim() || !razorpayKeySecret.trim()) {
+      toast("Key ID and Key Secret are required for Razorpay configuration!", "error");
+      return;
+    }
+
+    try {
+      setSavingRazorpay(true);
+      const res = await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wid: 1,
+          razorpayKeyId,
+          razorpayKeySecret,
+          razorpayMerchantVpa,
+          razorpayWebhookSecret,
+          razorpayEnvMode,
+          razorpayConnected: true,
+        }),
+      });
+
+      if (res.ok) {
+        setConnectedMap((prev) => ({ ...prev, razorpay: true }));
+        setShowRazorpayModal(false);
+        toast("Razorpay API Keys & VPA saved and verified successfully! Tenant payment gateway activated.", "success");
+      } else {
+        toast("Failed to save Razorpay configuration.", "error");
+      }
+    } catch (err) {
+      toast("Error saving Razorpay settings.", "error");
+    } finally {
+      setSavingRazorpay(false);
+    }
+  };
+
+  const handleDisconnectRazorpay = async () => {
+    try {
+      setSavingRazorpay(true);
+      await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wid: 1,
+          razorpayConnected: false,
+        }),
+      });
+      setConnectedMap((prev) => ({ ...prev, razorpay: false }));
+      setShowRazorpayModal(false);
+      toast("Razorpay integration disconnected.", "info");
+    } catch (err) {
+      toast("Error disconnecting Razorpay.", "error");
+    } finally {
+      setSavingRazorpay(false);
+    }
+  };
+
   // Saved Feedback
   const [isSaved, setIsSaved] = useState(false);
 
   // Team Members State & API Integration
   const [loadingTeam, setLoadingTeam] = useState(true);
   const [team, setTeam] = useState<any[]>([]);
+
+  const fetchWorkspaceSettings = async () => {
+    try {
+      const res = await fetch("/api/workspace?wid=1");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data) {
+          if (json.data.razorpayKeyId) setRazorpayKeyId(json.data.razorpayKeyId);
+          if (json.data.razorpayKeySecret) setRazorpayKeySecret(json.data.razorpayKeySecret);
+          if (json.data.razorpayMerchantVpa) setRazorpayMerchantVpa(json.data.razorpayMerchantVpa);
+          if (json.data.razorpayWebhookSecret) setRazorpayWebhookSecret(json.data.razorpayWebhookSecret);
+          if (json.data.razorpayEnvMode) setRazorpayEnvMode(json.data.razorpayEnvMode as any);
+          if (json.data.razorpayConnected !== undefined) {
+            setConnectedMap((prev) => ({ ...prev, razorpay: json.data.razorpayConnected }));
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load workspace settings:", err);
+    }
+  };
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [memberName, setMemberName] = useState("");
@@ -124,6 +215,7 @@ export default function WorkspaceSettingsPage() {
   };
 
   useEffect(() => {
+    fetchWorkspaceSettings();
     fetchTeamMembers();
   }, []);
 
@@ -857,6 +949,223 @@ export default function WorkspaceSettingsPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Razorpay Integration Modal */}
+      {showRazorpayModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar font-sans">
+            
+            {/* Top Close Button */}
+            <button
+              type="button"
+              onClick={() => setShowRazorpayModal(false)}
+              className="absolute right-5 top-5 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Modal Header */}
+            <div className="flex items-start gap-4 border-b border-slate-100 pb-5">
+              <div className="w-14 h-14 rounded-2xl border border-slate-200 bg-white p-2 flex items-center justify-center shrink-0 shadow-xs">
+                <Image
+                  src="/assests/razorpay icon.jpeg"
+                  alt="Razorpay"
+                  width={48}
+                  height={48}
+                  className="object-contain"
+                />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">Razorpay Gateway API Setup</h3>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-blue-100 text-blue-800 uppercase">
+                    UPI &amp; CARDS
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Enter your official Razorpay Key ID, Key Secret, and VPA to allow tenants to pay rent instantly via PhonePe, GPay, Paytm &amp; Cards.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveRazorpay} className="space-y-5 text-xs">
+              
+              {/* Environment Radio Selector */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-2">
+                  API Environment Mode
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRazorpayEnvMode("live")}
+                    className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                      razorpayEnvMode === "live"
+                        ? "bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 text-emerald-900 font-extrabold"
+                        : "bg-slate-50 border-slate-200 text-slate-700 font-bold hover:bg-slate-100"
+                    }`}
+                  >
+                    <div>
+                      <div className="text-xs">Live Production</div>
+                      <div className="text-[10px] text-slate-500 font-mono">rzp_live_...</div>
+                    </div>
+                    {razorpayEnvMode === "live" && <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRazorpayEnvMode("test")}
+                    className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                      razorpayEnvMode === "test"
+                        ? "bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/20 text-amber-900 font-extrabold"
+                        : "bg-slate-50 border-slate-200 text-slate-700 font-bold hover:bg-slate-100"
+                    }`}
+                  >
+                    <div>
+                      <div className="text-xs">Test Sandbox Mode</div>
+                      <div className="text-[10px] text-slate-500 font-mono">rzp_test_...</div>
+                    </div>
+                    {razorpayEnvMode === "test" && <Check className="w-4 h-4 text-amber-600 stroke-[3]" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Key ID Field */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                  <span>Razorpay Key ID *</span>
+                  <span className="text-[10px] text-slate-400 lowercase">Found in Razorpay Dashboard &gt; API Keys</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={razorpayKeyId}
+                  onChange={(e) => setRazorpayKeyId(e.target.value)}
+                  placeholder={razorpayEnvMode === "live" ? "rzp_live_9a8B7c6D5e4F3g" : "rzp_test_9a8B7c6D5e4F3g"}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              {/* Key Secret Field */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                  <span>Razorpay Key Secret *</span>
+                  <span className="text-[10px] text-slate-400 lowercase">Private authentication key</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showRazorpaySecret ? "text" : "password"}
+                    required
+                    value={razorpayKeySecret}
+                    onChange={(e) => setRazorpayKeySecret(e.target.value)}
+                    placeholder="••••••••••••••••••••••••"
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRazorpaySecret(!showRazorpaySecret)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showRazorpaySecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Merchant VPA / UPI ID Field */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                  <span>Merchant VPA / UPI ID (Optional)</span>
+                  <span className="text-[10px] text-slate-400 lowercase">Direct UPI QR settlement</span>
+                </label>
+                <input
+                  type="text"
+                  value={razorpayMerchantVpa}
+                  onChange={(e) => setRazorpayMerchantVpa(e.target.value)}
+                  placeholder="e.g. rentawas@razorpay or management@icici"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              {/* Webhook Secret Field */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                  <span>Webhook Secret (Optional)</span>
+                  <span className="text-[10px] text-slate-400 lowercase">Verifies payment events</span>
+                </label>
+                <input
+                  type="text"
+                  value={razorpayWebhookSecret}
+                  onChange={(e) => setRazorpayWebhookSecret(e.target.value)}
+                  placeholder="whsec_rzp_98765432"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              {/* Webhook URL Info Box */}
+              <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-xl text-[11px] space-y-1 text-blue-900">
+                <div className="font-bold flex items-center justify-between">
+                  <span>Webhook Endpoint URL for Razorpay Dashboard:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText("https://rentawas.com/api/webhooks/razorpay");
+                      toast("Webhook URL copied to clipboard!", "success");
+                    }}
+                    className="flex items-center gap-1 text-blue-700 hover:text-blue-900 font-extrabold cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </button>
+                </div>
+                <div className="font-mono text-[10px] text-blue-700 bg-white/70 px-2 py-1 rounded border border-blue-200">
+                  https://rentawas.com/api/webhooks/razorpay
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                {connectedMap.razorpay ? (
+                  <button
+                    type="button"
+                    onClick={handleDisconnectRazorpay}
+                    disabled={savingRazorpay}
+                    className="px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl cursor-pointer transition-colors"
+                  >
+                    Disconnect Integration
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowRazorpayModal(false)}
+                    className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingRazorpay}
+                    className="px-5 py-2.5 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2"
+                  >
+                    {savingRazorpay ? (
+                      <span>Saving &amp; Verifying...</span>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Save &amp; Connect Razorpay</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

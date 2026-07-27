@@ -41,6 +41,12 @@ export async function GET(request: Request) {
         ownerName: workspace?.owner?.fullName || "Alexander Wright",
         ownerEmail: workspace?.owner?.email || "alexander@regencymanagement.com",
         unitsCount: unitsCount,
+        razorpayKeyId: workspace?.razorpayKeyId || "",
+        razorpayKeySecret: workspace?.razorpayKeySecret || "",
+        razorpayMerchantVpa: workspace?.razorpayMerchantVpa || "",
+        razorpayWebhookSecret: workspace?.razorpayWebhookSecret || "",
+        razorpayEnvMode: workspace?.razorpayEnvMode || "test",
+        razorpayConnected: workspace?.razorpayConnected ?? false,
       },
     });
   } catch (error: any) {
@@ -51,11 +57,23 @@ export async function GET(request: Request) {
   }
 }
 
-// PATCH /api/workspace - Update workspace details (e.g. active subscription plan)
+// PATCH /api/workspace - Update workspace details (e.g. active subscription plan, Razorpay keys)
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { wid, plan, name, currency, portfolioScale } = body;
+    const { 
+      wid, 
+      plan, 
+      name, 
+      currency, 
+      portfolioScale,
+      razorpayKeyId,
+      razorpayKeySecret,
+      razorpayMerchantVpa,
+      razorpayWebhookSecret,
+      razorpayEnvMode,
+      razorpayConnected
+    } = body;
 
     const workspaceIdNum = wid ? parseInt(String(wid), 10) : 1;
 
@@ -66,6 +84,12 @@ export async function PATCH(request: Request) {
         ...(name ? { name } : {}),
         ...(currency ? { currency } : {}),
         ...(portfolioScale ? { portfolioScale } : {}),
+        ...(razorpayKeyId !== undefined ? { razorpayKeyId } : {}),
+        ...(razorpayKeySecret !== undefined ? { razorpayKeySecret } : {}),
+        ...(razorpayMerchantVpa !== undefined ? { razorpayMerchantVpa } : {}),
+        ...(razorpayWebhookSecret !== undefined ? { razorpayWebhookSecret } : {}),
+        ...(razorpayEnvMode !== undefined ? { razorpayEnvMode } : {}),
+        ...(razorpayConnected !== undefined ? { razorpayConnected } : {}),
       },
     });
 
