@@ -232,16 +232,59 @@ export default function ListPropertyModal({
   const [imageUrl, setImageUrl] = useState(
     "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80"
   );
-  const [mainPhotoUrl, setMainPhotoUrl] = useState(
+  const [mainImage, setMainImage] = useState<string>(
     "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80"
   );
-  const [galleryPhotos, setGalleryPhotos] = useState<string[]>([
-    "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80",
+  const [coverImage, setCoverImage] = useState<string>(
+    "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80"
+  );
+  const [galleryImages, setGalleryImages] = useState<string[]>([
     "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
     "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80",
     "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
   ]);
-  const [customPhotoInput, setCustomPhotoInput] = useState("");
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, target: "main" | "cover" | "gallery") => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (target === "main") {
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setMainImage(result);
+        setImageUrl(result);
+        toast("Main property image uploaded!", "success");
+      };
+      reader.readAsDataURL(file);
+    } else if (target === "cover") {
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setCoverImage(result);
+        toast("Cover banner image uploaded!", "success");
+      };
+      reader.readAsDataURL(file);
+    } else if (target === "gallery") {
+      const remainingSlots = 5 - galleryImages.length;
+      if (remainingSlots <= 0) {
+        toast("Maximum 5 gallery photos allowed!", "error");
+        return;
+      }
+      const filesToProcess = Array.from(files).slice(0, remainingSlots);
+      filesToProcess.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
+          setGalleryImages((prev) => (prev.length < 5 ? [...prev, result] : prev));
+        };
+        reader.readAsDataURL(file);
+      });
+      toast(`Uploaded ${filesToProcess.length} gallery photo(s)`, "success");
+    }
+  };
 
   const [ownerName, setOwnerName] = useState("Alexander Wright");
   const [ownerPhone, setOwnerPhone] = useState("+91 98765 43210");
@@ -751,149 +794,159 @@ export default function ListPropertyModal({
                     })}
                   </div>
                 </div>
-
-                {/* Property Showcase & Photos Section */}
-                <div className="border-t border-slate-200 pt-4 space-y-3">
+                <div className="border-t border-slate-200 pt-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-[#FF6B00]" />
-                      <span>Property Media &amp; Showcase Photos</span>
+                      <span>Property Photos &amp; Showcase Uploads</span>
                     </label>
-                    <span className="text-[10px] text-slate-400 font-normal">Main hero cover &amp; gallery</span>
+                    <span className="text-[10px] text-slate-400 font-normal">1 Main Image • 1 Cover Image • Max 5 Gallery Photos</span>
                   </div>
 
-                  {/* Main Showcase Hero Cover Photo Card */}
-                  <div className="bg-slate-900 rounded-2xl p-4 text-white relative overflow-hidden border border-slate-800 shadow-md">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-1 rounded-lg bg-[#FF6B00] text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                  {/* 1 Main Image & 1 Cover Image Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* 1 Main Property Image */}
+                    <div className="bg-slate-900 rounded-2xl p-3.5 text-white border border-slate-800 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded-md bg-[#FF6B00] text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
                           <Star className="w-3 h-3 fill-white" />
-                          <span>Main Showcase Cover Photo</span>
+                          <span>1 Main Image</span>
                         </span>
+                        <span className="text-[9px] text-slate-400">Primary Hero Thumbnail</span>
                       </div>
-                      <span className="text-[10px] text-slate-400">Featured in tenant search results</span>
+
+                      <div className="relative h-28 w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 group">
+                        <Image src={mainImage} alt="Main Property Image" fill className="object-cover" />
+                        <label className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 cursor-pointer">
+                          <Upload className="w-5 h-5 text-white" />
+                          <span className="text-[10px] font-extrabold text-white uppercase">Upload Main File</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload(e, "main")}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={mainImage}
+                          onChange={(e) => {
+                            setMainImage(e.target.value);
+                            setImageUrl(e.target.value);
+                          }}
+                          placeholder="Or paste Main Image URL..."
+                          className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-[10px] font-mono text-white focus:outline-none focus:ring-1 focus:ring-[#FF6B00]"
+                        />
+                      </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-4 items-center">
-                      <div className="relative w-full sm:w-44 h-28 rounded-xl overflow-hidden bg-slate-800 shrink-0 border border-slate-700 shadow-inner group">
-                        <Image
-                          src={mainPhotoUrl}
-                          alt="Main cover photo"
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute top-2 left-2 bg-slate-950/80 backdrop-blur-xs text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/20">
-                          ⭐ MAIN COVER
-                        </div>
+                    {/* 1 Cover Banner Image */}
+                    <div className="bg-slate-900 rounded-2xl p-3.5 text-white border border-slate-800 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                          <Camera className="w-3 h-3 text-white" />
+                          <span>1 Cover Image</span>
+                        </span>
+                        <span className="text-[9px] text-slate-400">Header Banner Background</span>
                       </div>
 
-                      <div className="flex-1 space-y-2 w-full">
-                        <label className="block text-[11px] font-bold text-slate-300">
-                          Main Showcase Image URL:
-                        </label>
-                        <div className="flex gap-2">
+                      <div className="relative h-28 w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 group">
+                        <Image src={coverImage} alt="Cover Banner Image" fill className="object-cover" />
+                        <label className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 cursor-pointer">
+                          <Upload className="w-5 h-5 text-white" />
+                          <span className="text-[10px] font-extrabold text-white uppercase">Upload Cover File</span>
                           <input
-                            type="text"
-                            value={mainPhotoUrl}
-                            onChange={(e) => {
-                              setMainPhotoUrl(e.target.value);
-                              setImageUrl(e.target.value);
-                            }}
-                            placeholder="Paste image URL (https://...)"
-                            className="w-full px-3.5 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload(e, "cover")}
+                            className="hidden"
                           />
-                        </div>
-                        <p className="text-[10px] text-slate-400 leading-relaxed">
-                          Tip: Tap "Set Main" on any gallery thumbnail below to make it your primary cover photo.
-                        </p>
+                        </label>
+                      </div>
+
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={coverImage}
+                          onChange={(e) => setCoverImage(e.target.value)}
+                          placeholder="Or paste Cover Banner Image URL..."
+                          className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-[10px] font-mono text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
                       </div>
                     </div>
                   </div>
 
-                  {/* Photo Gallery Grid & Upload Input */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
-                      <span>Property Photo Gallery ({galleryPhotos.length} photos)</span>
-                      <span className="text-[10px] text-slate-400 font-normal">Add room, kitchen &amp; balcony photos</span>
-                    </label>
-
-                    {/* Custom Image URL Input Bar */}
-                    <div className="flex gap-2 mb-3">
-                      <input
-                        type="text"
-                        value={customPhotoInput}
-                        onChange={(e) => setCustomPhotoInput(e.target.value)}
-                        placeholder="Paste image URL (e.g. Unsplash, Imgur, Cloudinary link)..."
-                        className="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (customPhotoInput.trim()) {
-                            const newUrl = customPhotoInput.trim();
-                            setGalleryPhotos((prev) => [...prev, newUrl]);
-                            if (!mainPhotoUrl) {
-                              setMainPhotoUrl(newUrl);
-                              setImageUrl(newUrl);
-                            }
-                            setCustomPhotoInput("");
-                            toast("Photo added to gallery!", "success");
-                          }
-                        }}
-                        className="px-4 py-2 bg-[#FF6B00] text-white text-xs font-extrabold rounded-xl hover:bg-[#E56000] cursor-pointer shadow-2xs flex items-center gap-1 uppercase tracking-wider"
-                      >
-                        <ImagePlus className="w-4 h-4" />
-                        <span>Add Photo</span>
-                      </button>
+                  {/* Property Gallery Photos (Max 5 Images) */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        Gallery Photos ({galleryImages.length} / 5 Max Images)
+                      </label>
+                      
+                      <label className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1 cursor-pointer transition-all ${
+                        galleryImages.length >= 5
+                          ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                          : "bg-[#FF6B00] text-white hover:bg-[#E56000] shadow-xs"
+                      }`}>
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload Photos</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          disabled={galleryImages.length >= 5}
+                          onChange={(e) => handleFileUpload(e, "gallery")}
+                          className="hidden"
+                        />
+                      </label>
                     </div>
 
-                    {/* Gallery Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                      {galleryPhotos.map((url, idx) => {
-                        const isMain = mainPhotoUrl === url;
+                    {/* 5 Photo Slots Grid */}
+                    <div className="grid grid-cols-5 gap-2">
+                      {[0, 1, 2, 3, 4].map((slotIdx) => {
+                        const imgUrl = galleryImages[slotIdx];
                         return (
                           <div
-                            key={idx}
-                            className={`relative h-24 rounded-xl overflow-hidden border transition-all group ${
-                              isMain
-                                ? "ring-2 ring-[#FF6B00] border-[#FF6B00] shadow-md"
-                                : "border-slate-200 hover:border-slate-400"
+                            key={slotIdx}
+                            className={`relative h-20 rounded-xl border-2 overflow-hidden flex flex-col items-center justify-center transition-all ${
+                              imgUrl
+                                ? "border-slate-300 bg-slate-900 group"
+                                : "border-dashed border-slate-300 bg-white"
                             }`}
                           >
-                            <Image src={url} alt={`Gallery photo ${idx + 1}`} fill className="object-cover" />
-                            
-                            <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 p-2">
-                              {!isMain && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setMainPhotoUrl(url);
-                                    setImageUrl(url);
-                                    toast("Set as Main Showcase Cover Photo!", "success");
-                                  }}
-                                  className="p-1.5 bg-[#FF6B00] text-white rounded-lg text-[10px] font-bold shadow-xs cursor-pointer flex items-center gap-1 hover:bg-[#E56000]"
-                                >
-                                  <Star className="w-3 h-3 fill-white" />
-                                  <span>Set Main</span>
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setGalleryPhotos((prev) => prev.filter((_, i) => i !== idx));
-                                  toast("Photo removed", "info");
-                                }}
-                                className="p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold shadow-xs cursor-pointer"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-
-                            {isMain && (
-                              <div className="absolute top-1.5 left-1.5 bg-[#FF6B00] text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-0.5">
-                                <Star className="w-2.5 h-2.5 fill-white" />
-                                <span>MAIN</span>
-                              </div>
+                            {imgUrl ? (
+                              <>
+                                <Image src={imgUrl} alt={`Slot ${slotIdx + 1}`} fill className="object-cover" />
+                                <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setGalleryImages((prev) => prev.filter((_, i) => i !== slotIdx));
+                                      toast(`Removed photo slot ${slotIdx + 1}`, "info");
+                                    }}
+                                    className="p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <div className="absolute bottom-1 left-1 bg-slate-950/80 text-white text-[8px] font-bold px-1 rounded">
+                                  #{slotIdx + 1}
+                                </div>
+                              </>
+                            ) : (
+                              <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-1">
+                                <ImagePlus className="w-4 h-4 text-slate-400 mb-0.5" />
+                                <span className="text-[9px] font-bold text-slate-400 uppercase">Slot {slotIdx + 1}</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => handleFileUpload(e, "gallery")}
+                                  className="hidden"
+                                />
+                              </label>
                             )}
                           </div>
                         );
