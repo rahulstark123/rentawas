@@ -46,6 +46,7 @@ import {
   ImagePlus
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 
 interface ListPropertyModalProps {
   isOpen: boolean;
@@ -309,6 +310,9 @@ export default function ListPropertyModal({
 
   const [contactPersonName, setContactPersonName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<Country>(
+    () => ALL_COUNTRIES.find((c) => c.code === "IN") || ALL_COUNTRIES[0]
+  );
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
 
   if (!isOpen) return null;
@@ -343,6 +347,7 @@ export default function ListPropertyModal({
   };
 
   const handlePublish = () => {
+    const fullPhone = contactNumber.trim() ? `${selectedCountry.dialCode} ${contactNumber.trim()}` : "";
     const newEntry = {
       id: `LIST-${Date.now()}`,
       title,
@@ -360,7 +365,9 @@ export default function ListPropertyModal({
       galleryImages,
       contactPersonName,
       contactNumber,
-      ownerPhone: contactNumber,
+      countryDialCode: selectedCountry.dialCode,
+      countryCode: selectedCountry.code,
+      ownerPhone: fullPhone,
       whatsappEnabled,
     };
     onSuccess(newEntry);
@@ -1075,13 +1082,11 @@ export default function ListPropertyModal({
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                       Contact Number *
                     </label>
-                    <input
-                      type="text"
-                      required
+                    <CountryPhoneInput
                       value={contactNumber}
-                      onChange={(e) => setContactNumber(e.target.value)}
-                      placeholder="e.g. +91 98765 43210"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      onChange={setContactNumber}
+                      selectedCountry={selectedCountry}
+                      onCountryChange={setSelectedCountry}
                     />
                   </div>
                 </div>
