@@ -746,7 +746,7 @@ export default function FindPropertyPage() {
               {apiListings.map((p) => (
                 <div
                   key={p.id}
-                  onClick={() => router.push(`/find-property/${p.id}`)}
+                  onClick={() => window.open(`/find-property/${p.id}`, "_blank", "noopener,noreferrer")}
                   className="bg-white border border-slate-200/90 hover:border-[#FF6B00]/40 rounded-2xl overflow-hidden shadow-2xs hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-1.5 transition-all duration-300 group flex flex-col justify-between cursor-pointer"
                 >
                   <div>
@@ -823,6 +823,8 @@ export default function FindPropertyPage() {
                   <div className="p-5 pt-0 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
                     <Link
                       href={`/find-property/${p.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
                       className="w-full py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
                     >

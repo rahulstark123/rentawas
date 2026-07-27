@@ -16,7 +16,8 @@ import {
   CheckCircle2,
   Calendar,
   User,
-  X
+  X,
+  Eye
 } from "lucide-react";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { useToast } from "@/components/ui/Toast";
@@ -265,10 +266,19 @@ export default function TenantWishlistPage() {
               </div>
 
               {/* Footer Actions */}
-              <div className="p-5 pt-0 flex gap-2">
+              <div className="p-5 pt-0 flex items-center gap-2">
+                <Link
+                  href={`/find-property/${p.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-extrabold rounded-xl transition-all flex items-center justify-center gap-1.5 uppercase tracking-wider cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>View Details</span>
+                </Link>
                 <button
                   onClick={() => setSelectedProperty(p)}
-                  className="flex-1 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                  className="flex-1 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 uppercase tracking-wider cursor-pointer"
                 >
                   <PhoneCall className="w-3.5 h-3.5" />
                   <span>Contact Owner</span>
