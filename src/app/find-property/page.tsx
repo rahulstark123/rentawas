@@ -1102,18 +1102,20 @@ export default function FindPropertyPage() {
                 </div>
               </div>
 
-              {/* Mobile Phone Number with Country Code Picker */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Mobile Phone Number
-                </label>
-                <CountryPhoneInput
-                  value={authPhone}
-                  onChange={setAuthPhone}
-                  selectedCountry={authCountry}
-                  onCountryChange={setAuthCountry}
-                />
-              </div>
+              {/* Mobile Phone Number with Country Code Picker (Sign Up Only) */}
+              {authModalMode === "signup" && (
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Mobile Phone Number
+                  </label>
+                  <CountryPhoneInput
+                    value={authPhone}
+                    onChange={setAuthPhone}
+                    selectedCountry={authCountry}
+                    onCountryChange={setAuthCountry}
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
