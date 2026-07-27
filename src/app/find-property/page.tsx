@@ -84,6 +84,10 @@ export default function FindPropertyPage() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authFullName, setAuthFullName] = useState("");
+  const [authPhone, setAuthPhone] = useState("");
+  const [authCountry, setAuthCountry] = useState<Country>(
+    ALL_COUNTRIES.find((c) => c.code === "IN") || ALL_COUNTRIES[0]
+  );
   const [showAuthPassword, setShowAuthPassword] = useState(false);
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
 
@@ -1071,6 +1075,19 @@ export default function FindPropertyPage() {
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
+              </div>
+
+              {/* Mobile Phone Number with Country Code Picker */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Mobile Phone Number
+                </label>
+                <CountryPhoneInput
+                  value={authPhone}
+                  onChange={setAuthPhone}
+                  selectedCountry={authCountry}
+                  onCountryChange={setAuthCountry}
+                />
               </div>
 
               <div>
