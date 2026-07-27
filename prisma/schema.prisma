@@ -49,6 +49,7 @@ model Workspace {
   subscriptions  Subscription[]
   transactions   Transaction[]
   supportTickets SupportTicket[]
+  announcements  Announcement[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
@@ -420,4 +421,24 @@ model EarlyAccessLead {
   portfolioType String?  // "Landlord (1-5 Units)", "Portfolio Owner (50+ Units)", etc.
   notes         String?
   createdAt     DateTime @default(now())
+}
+
+model Announcement {
+  id               String     @id @default(cuid())
+  title            String
+  content          String
+  category         String     @default("General Notice") // "General Notice", "Maintenance Alert", "Policy Update", "Community Event", "Emergency Alert"
+  priority         String     @default("Normal") // "Normal", "Important", "Urgent"
+  targetScope      String     @default("ALL_PROPERTIES") // "ALL_PROPERTIES", "SPECIFIC_PROPERTIES", "SPECIFIC_TENANTS"
+  targetProperties String[]   // Property IDs or names
+  targetTenants    String[]   // Tenant IDs or emails
+  creatorName      String?    @default("Landlord / Management")
+
+  workspaceId      Int?
+  workspace        Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([workspaceId])
 }
