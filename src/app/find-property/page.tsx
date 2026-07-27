@@ -359,29 +359,27 @@ export default function FindPropertyPage() {
   }, []);
 
   const performWishlistSave = (property: PropertyItem) => {
-    setLikedProperties((prev) => {
-      const isLiked = !prev[property.id];
-      const nextMap = { ...prev, [property.id]: isLiked };
+    const isCurrentlyLiked = !!likedProperties[property.id];
+    const isLiked = !isCurrentlyLiked;
 
-      try {
-        const stored = localStorage.getItem("rentawas_wishlist_items");
-        let itemsArr: any[] = stored ? JSON.parse(stored) : [];
-        if (isLiked) {
-          if (!itemsArr.some((item) => item.id === property.id)) {
-            itemsArr.push(property);
-          }
-          toast(`Saved "${property.title}" to your wishlist!`, "success");
-        } else {
-          itemsArr = itemsArr.filter((item) => item.id !== property.id);
-          toast("Removed property from wishlist", "info");
+    setLikedProperties((prev) => ({ ...prev, [property.id]: isLiked }));
+
+    try {
+      const stored = localStorage.getItem("rentawas_wishlist_items");
+      let itemsArr: any[] = stored ? JSON.parse(stored) : [];
+      if (isLiked) {
+        if (!itemsArr.some((item) => item.id === property.id)) {
+          itemsArr.push(property);
         }
-        localStorage.setItem("rentawas_wishlist_items", JSON.stringify(itemsArr));
-      } catch (err) {
-        console.error("Error updating localStorage wishlist:", err);
+        toast(`Saved "${property.title}" to your wishlist!`, "success");
+      } else {
+        itemsArr = itemsArr.filter((item) => item.id !== property.id);
+        toast("Removed property from wishlist", "info");
       }
-
-      return nextMap;
-    });
+      localStorage.setItem("rentawas_wishlist_items", JSON.stringify(itemsArr));
+    } catch (err) {
+      console.error("Error updating localStorage wishlist:", err);
+    }
   };
 
   const toggleLike = (property: PropertyItem) => {

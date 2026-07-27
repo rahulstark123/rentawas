@@ -4,10 +4,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Menu, X, MessageSquareHeart, Sparkles } from "lucide-react";
+import { Menu, X, MessageSquareHeart, Sparkles, User } from "lucide-react";
 import ComingSoonModal from "@/components/ui/ComingSoonModal";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
+import { supabase } from "@/lib/supabase";
 
 interface NavbarProps {
   onOpenEarlyAccess?: () => void;
@@ -22,9 +23,22 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
   const [modalTitle, setModalTitle] = useState("Log In Portal Coming Soon!");
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isInternalEarlyAccessOpen, setIsInternalEarlyAccessOpen] = useState(false);
+  const [userSession, setUserSession] = useState<any>(null);
 
   const isFindProperty = pathname === "/find-property";
   const isHome = pathname === "/";
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -140,18 +154,6 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
 
           {/* Right: Actions */}
           <div className="hidden md:flex items-center gap-3 font-sans">
-            {/* Log In Button - Triggers Early Access Modal */}
-            <button
-              type="button"
-              onClick={handleOpenEarlyAccess}
-              className={`text-xs font-bold transition-all px-3.5 py-2 rounded-xl uppercase tracking-wider cursor-pointer ${
-                isDark
-                  ? "text-slate-200 hover:text-white hover:bg-white/10 border border-slate-700/80"
-                  : "text-slate-700 hover:text-slate-950 hover:bg-slate-100 border border-slate-200"
-              }`}
-            >
-              Log In
-            </button>
             {/* Feedback Button */}
             <button
               type="button"
@@ -165,6 +167,7 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
               <MessageSquareHeart size={14} />
               Feedback
             </button>
+
             {/* Early Access Button */}
             <button
               type="button"
@@ -174,6 +177,32 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
               <Sparkles className="w-3.5 h-3.5" />
               <span>Early Access</span>
             </button>
+
+            {/* Log In or Profile Icon - Positions after Early Access */}
+            {userSession ? (
+              <Link
+                href={userSession.user?.user_metadata?.role === "tenant" ? "/tenant/dashboard" : "/dashboard"}
+                className={`flex items-center gap-1.5 text-xs font-extrabold transition-all px-3.5 py-2 rounded-xl cursor-pointer uppercase tracking-wider ${
+                  isDark
+                    ? "text-purple-300 bg-purple-950/60 hover:bg-purple-900/80 border border-purple-500/40 shadow-xs"
+                    : "text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 shadow-xs"
+                }`}
+              >
+                <User className="w-4 h-4 text-purple-600 fill-purple-600" />
+                <span>My Portal</span>
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className={`text-xs font-bold transition-all px-4 py-2 rounded-xl uppercase tracking-wider cursor-pointer ${
+                  isDark
+                    ? "text-white bg-white/10 hover:bg-white/20 border border-white/20 shadow-xs"
+                    : "text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 shadow-xs"
+                }`}
+              >
+                Log In
+              </Link>
+            )}
           </div>
 
           {/* Mobile Hamburger Button */}
@@ -224,13 +253,6 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
             <div className="pt-3 border-t border-slate-800 flex flex-col gap-2.5">
               <button
                 type="button"
-                onClick={handleOpenEarlyAccess}
-                className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-slate-200 border border-slate-700 py-2.5 rounded-xl cursor-pointer uppercase tracking-wider hover:bg-white/10 transition-all text-center"
-              >
-                Log In
-              </button>
-              <button
-                type="button"
                 onClick={openFeedback}
                 className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-slate-200 border border-slate-700 py-2.5 rounded-xl cursor-pointer uppercase tracking-wider hover:bg-white/10 transition-all"
               >
@@ -245,6 +267,24 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Early Access</span>
               </button>
+              {userSession ? (
+                <Link
+                  href={userSession.user?.user_metadata?.role === "tenant" ? "/tenant/dashboard" : "/dashboard"}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-purple-300 bg-purple-950/80 border border-purple-500/40 py-2.5 rounded-xl cursor-pointer uppercase tracking-wider hover:bg-purple-900 transition-all text-center"
+                >
+                  <User className="w-4 h-4 text-purple-400 fill-purple-400" />
+                  <span>My Portal</span>
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-white bg-slate-800 border border-slate-700 py-2.5 rounded-xl cursor-pointer uppercase tracking-wider hover:bg-slate-700 transition-all text-center"
+                >
+                  Log In
+                </Link>
+              )}
             </div>
           </div>
         )}
