@@ -79,6 +79,8 @@ interface PropertyItem {
   reviewsCount: number;
   image: string;
   images: string[];
+  mainImage?: string;
+  coverImage?: string;
   tags: string[];
   ownerName: string;
   ownerPhone: string;
@@ -280,6 +282,8 @@ export default function PropertyDetailPage() {
           reviewsCount: 14,
           image: mergedImages[0],
           images: mergedImages,
+          mainImage: item.mainImage || item.image || mergedImages[0],
+          coverImage: item.coverImage || mergedImages[1] || mergedImages[0],
           tags: Array.isArray(item.amenities) && item.amenities.length > 0 
             ? item.amenities.map(formatAmenityTag) 
             : ["Zero Fee", "Direct Owner", "Verified", "Immediate Move-In"],
@@ -472,22 +476,24 @@ export default function PropertyDetailPage() {
 
         {/* Hero Gallery Grid (Airbnb / MagicBricks Style) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 rounded-3xl overflow-hidden shadow-md bg-white border border-slate-200/90 relative group">
-          {/* Main Primary Image (Photo 1) */}
+          {/* Main Primary Cover Container (Photo 1) */}
           <div
             onClick={() => { setLightboxIndex(0); setIsLightboxOpen(true); }}
-            className="lg:col-span-2 relative h-72 sm:h-96 md:h-[460px] bg-slate-100 overflow-hidden cursor-pointer"
+            className="lg:col-span-2 relative h-80 sm:h-96 md:h-[460px] bg-slate-900 overflow-hidden cursor-pointer"
           >
+            {/* Background Cover Image Banner */}
             <Image
-              src={property.images?.[0] || property.image}
-              alt={property.title}
+              src={property.coverImage || property.images?.[1] || property.images?.[0] || property.image}
+              alt={`${property.title} Cover Banner`}
               fill
               unoptimized
               priority
-              className="object-cover group-hover:scale-105 transition-transform duration-700"
+              className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-700"
             />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
 
             {/* Top Badges */}
-            <div className="absolute top-4 left-4 flex items-center gap-2">
+            <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
               <span className="px-3 py-1 rounded-full bg-slate-950/85 backdrop-blur-md text-xs font-extrabold text-white uppercase tracking-wider shadow-md">
                 {property.bhk}
               </span>
@@ -497,14 +503,37 @@ export default function PropertyDetailPage() {
               </span>
             </div>
 
-            {/* Price Overlay */}
-            <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl border border-slate-200">
-              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Monthly Rent</div>
-              <div className="text-2xl font-black text-slate-900">{property.price} <span className="text-xs font-semibold text-slate-500">/ month</span></div>
+            {/* Square Main Photo positioned in Bottom Left */}
+            <div className="absolute bottom-4 left-4 flex items-end gap-3 z-10">
+              <div 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex(0);
+                  setIsLightboxOpen(true);
+                }}
+                className="w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 aspect-square rounded-2xl border-4 border-white shadow-2xl overflow-hidden relative shrink-0 group/sq cursor-pointer bg-slate-950"
+              >
+                <Image
+                  src={property.mainImage || property.images?.[0] || property.image}
+                  alt={`${property.title} Main Photo`}
+                  fill
+                  unoptimized
+                  className="object-cover group-hover/sq:scale-110 transition-transform duration-500"
+                />
+                <div className="absolute top-1.5 left-1.5 bg-slate-950/80 backdrop-blur-md text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  Main Photo
+                </div>
+              </div>
+
+              {/* Price Overlay alongside Square Main Photo */}
+              <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl border border-slate-200">
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Monthly Rent</div>
+                <div className="text-xl sm:text-2xl font-black text-slate-900">{property.price} <span className="text-xs font-semibold text-slate-500">/ month</span></div>
+              </div>
             </div>
 
             {/* Floating All Photos Action Chip */}
-            <div className="absolute bottom-4 right-4 bg-slate-950/80 hover:bg-slate-950 text-white backdrop-blur-md px-3.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-lg border border-white/20 transition-all">
+            <div className="absolute bottom-4 right-4 bg-slate-950/80 hover:bg-slate-950 text-white backdrop-blur-md px-3.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-lg border border-white/20 transition-all z-10">
               <Images className="w-4 h-4 text-orange-400" />
               <span>View All {property.images?.length || 1} Photos</span>
             </div>
