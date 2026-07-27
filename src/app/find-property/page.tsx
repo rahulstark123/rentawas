@@ -29,7 +29,13 @@ import {
   Lock,
   Zap,
   Eye,
-  EyeOff
+  EyeOff,
+  Share2,
+  Check,
+  Compass,
+  Layers,
+  Shield,
+  Info
 } from "lucide-react";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { useToast } from "@/components/ui/Toast";
@@ -64,7 +70,8 @@ export default function FindPropertyPage() {
   const [selectedBhk, setSelectedBhk] = useState("All");
   const [selectedPrice, setSelectedPrice] = useState("All");
 
-  // Lead Contact Modal State
+  // Lead Contact & Detail Modal State
+  const [viewingPropertyDetail, setViewingPropertyDetail] = useState<PropertyItem | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<PropertyItem | null>(null);
   const [leadName, setLeadName] = useState("");
   const [leadPhone, setLeadPhone] = useState("");
@@ -737,7 +744,8 @@ export default function FindPropertyPage() {
               {apiListings.map((p) => (
                 <div
                   key={p.id}
-                  className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs hover:shadow-lg transition-all group flex flex-col justify-between"
+                  onClick={() => setViewingPropertyDetail(p)}
+                  className="bg-white border border-slate-200/90 hover:border-[#FF6B00]/40 rounded-2xl overflow-hidden shadow-2xs hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-1.5 transition-all duration-300 group flex flex-col justify-between cursor-pointer"
                 >
                   <div>
                     {/* Property Image Container */}
@@ -748,7 +756,7 @@ export default function FindPropertyPage() {
                         fill
                         unoptimized
                         sizes="(max-width: 768px) 100vw, 33vw"
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
 
                       {/* Top Overlay Badge */}
@@ -809,14 +817,17 @@ export default function FindPropertyPage() {
                     </div>
                   </div>
 
-                  {/* Card Action Footer */}
-                  <div className="p-5 pt-0">
+                  {/* Card Action Footer - Reveals smoothly on hover */}
+                  <div className="p-5 pt-0 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
                     <button
-                      onClick={() => setSelectedProperty(p)}
-                      className="w-full py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setViewingPropertyDetail(p);
+                      }}
+                      className="w-full py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
                     >
-                      <PhoneCall className="w-3.5 h-3.5" />
-                      <span>Contact Owner Direct</span>
+                      <Eye className="w-4 h-4" />
+                      <span>View Details</span>
                     </button>
                   </div>
                 </div>
@@ -989,6 +1000,175 @@ export default function FindPropertyPage() {
                 </button>
               </form>
             )}
+
+          </div>
+        </div>
+      )}
+
+      {/* Property Details View Modal */}
+      {viewingPropertyDetail && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 font-sans overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-3xl w-full overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col my-auto">
+            
+            {/* Sticky Modal Top Bar */}
+            <div className="p-4 sm:p-5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 sticky top-0 z-20">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#FF6B00]/10 border border-[#FF6B00]/30 text-[#FF6B00] text-[10px] font-extrabold uppercase tracking-wider">
+                  {viewingPropertyDetail.type}
+                </span>
+                <span className="text-xs font-extrabold text-slate-900 truncate max-w-xs sm:max-w-md">
+                  {viewingPropertyDetail.title}
+                </span>
+              </div>
+              <button
+                onClick={() => setViewingPropertyDetail(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              
+              {/* Hero Image & Price Overlay */}
+              <div className="relative h-64 sm:h-80 w-full bg-slate-100 rounded-2xl overflow-hidden shadow-inner group">
+                <Image
+                  src={viewingPropertyDetail.image}
+                  alt={viewingPropertyDetail.title}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                />
+                <div className="absolute top-4 left-4 flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-xs font-extrabold text-white uppercase tracking-wider">
+                    {viewingPropertyDetail.bhk}
+                  </span>
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/90 backdrop-blur-md text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Zero Brokerage
+                  </span>
+                </div>
+                <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-md px-4 py-2 rounded-2xl shadow-lg border border-slate-200">
+                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monthly Rent</div>
+                  <div className="text-xl font-black text-slate-900">{viewingPropertyDetail.price} <span className="text-xs font-normal text-slate-500">/ mo</span></div>
+                </div>
+              </div>
+
+              {/* Title & Rating Header */}
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
+                    {viewingPropertyDetail.title}
+                  </h2>
+                  <div className="flex items-center gap-1.5 font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-xl border border-amber-200 shrink-0 w-fit">
+                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                    <span className="text-xs">{viewingPropertyDetail.rating} ({viewingPropertyDetail.reviewsCount} Verified Reviews)</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                  <MapPin className="w-4 h-4 text-[#FF6B00]" />
+                  <span>{viewingPropertyDetail.location}, {viewingPropertyDetail.city}</span>
+                </div>
+              </div>
+
+              {/* Pricing Breakdown Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                <div className="space-y-0.5">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Monthly Rent</div>
+                  <div className="text-sm font-extrabold text-slate-900">{viewingPropertyDetail.price}</div>
+                </div>
+                <div className="space-y-0.5">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Security Deposit</div>
+                  <div className="text-sm font-extrabold text-emerald-600">₹2,000 (Refundable)</div>
+                </div>
+                <div className="space-y-0.5 col-span-2 sm:col-span-1">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Brokerage Fee</div>
+                  <div className="text-sm font-extrabold text-purple-600">₹0 (Zero Brokerage)</div>
+                </div>
+              </div>
+
+              {/* Key Property Specs */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">Property Overview Specs</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1">
+                    <div className="text-slate-400 font-bold flex items-center gap-1">
+                      <Bed className="w-3.5 h-3.5" />
+                      Configuration
+                    </div>
+                    <div className="font-extrabold text-slate-900">{viewingPropertyDetail.bhk}</div>
+                  </div>
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1">
+                    <div className="text-slate-400 font-bold flex items-center gap-1">
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      Built-Up Area
+                    </div>
+                    <div className="font-extrabold text-slate-900">{viewingPropertyDetail.size}</div>
+                  </div>
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1">
+                    <div className="text-slate-400 font-bold flex items-center gap-1">
+                      <Building2 className="w-3.5 h-3.5" />
+                      Property Type
+                    </div>
+                    <div className="font-extrabold text-slate-900">{viewingPropertyDetail.type}</div>
+                  </div>
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1">
+                    <div className="text-slate-400 font-bold flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5" />
+                      Available From
+                    </div>
+                    <div className="font-extrabold text-emerald-600">Immediate Move-In</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Amenities Checklist */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">Amenities & Facilities</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {viewingPropertyDetail.tags.map((tag, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-800">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>{tag}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-800">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>24/7 Security CCTV</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-800">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>High-Speed Wifi</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Owner Profile & Direct Action Box */}
+              <div className="p-5 bg-gradient-to-br from-[#0B132B] to-[#1E293B] text-white rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+                <div className="space-y-1 text-center sm:text-left">
+                  <div className="flex items-center justify-center sm:justify-start gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span className="text-[10px] font-extrabold text-emerald-400 uppercase tracking-wider">Direct Verified Owner</span>
+                  </div>
+                  <div className="text-base font-extrabold text-white">{viewingPropertyDetail.ownerName}</div>
+                  <div className="text-xs text-slate-300">Fast Response Rate (99% within 15 mins)</div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const target = viewingPropertyDetail;
+                    setViewingPropertyDetail(null);
+                    setSelectedProperty(target);
+                  }}
+                  className="px-6 py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs rounded-xl shadow-md uppercase tracking-wider flex items-center gap-2 shrink-0 cursor-pointer transition-all"
+                >
+                  <PhoneCall className="w-4 h-4" />
+                  <span>Contact Owner Direct</span>
+                </button>
+              </div>
+
+            </div>
 
           </div>
         </div>
