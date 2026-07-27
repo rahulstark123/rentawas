@@ -87,6 +87,7 @@ export default function DashboardLayout({
   const [showListingModal, setShowListingModal] = useState(false);
   const [listingSubTab, setListingSubTab] = useState<"inquiries" | "myListings" | "addNew">("inquiries");
   const [showAddPropertyWizard, setShowAddPropertyWizard] = useState(false);
+  const [editingListingItem, setEditingListingItem] = useState<any | null>(null);
 
   // Landlord Listings (Fetched dynamically from /api/listings)
   const [myListings, setMyListings] = useState<any[]>([]);
@@ -1010,6 +1011,7 @@ export default function DashboardLayout({
                                           type="button"
                                           onClick={() => {
                                             setActiveMenuListingId(null);
+                                            setEditingListingItem(item);
                                             setShowAddPropertyWizard(true);
                                             toast(`Editing listing ${item.title}`, "info");
                                           }}
@@ -1240,10 +1242,15 @@ export default function DashboardLayout({
       {/* Multi-Step Property Listing Wizard Modal */}
       <ListPropertyModal
         isOpen={showAddPropertyWizard}
-        onClose={() => setShowAddPropertyWizard(false)}
+        editingListing={editingListingItem}
+        onClose={() => {
+          setShowAddPropertyWizard(false);
+          setEditingListingItem(null);
+        }}
         onSuccess={() => {
           fetchPublishedListings();
           setListingSubTab("myListings");
+          setEditingListingItem(null);
         }}
       />
 

@@ -52,6 +52,7 @@ interface ListPropertyModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (newListing: any) => void;
+  editingListing?: any;
 }
 
 const AMENITIES_LIST = [
@@ -94,6 +95,7 @@ export default function ListPropertyModal({
   isOpen,
   onClose,
   onSuccess,
+  editingListing,
 }: ListPropertyModalProps) {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
@@ -339,6 +341,63 @@ export default function ListPropertyModal({
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [isLive, setIsLive] = useState(true);
 
+  // Pre-populate fields when editing an existing listing
+  useEffect(() => {
+    if (isOpen && editingListing) {
+      setTitle(editingListing.title || "");
+      setDescription(editingListing.description || "");
+      setPropertyType(editingListing.propertyType || "Flat / Apartment");
+      setRent(editingListing.rent !== undefined && editingListing.rent !== null ? String(editingListing.rent).replace(/[^0-9.]/g, "") : "");
+      setDeposit(editingListing.deposit !== undefined && editingListing.deposit !== null ? String(editingListing.deposit).replace(/[^0-9.]/g, "") : "");
+      setTenantTypes(
+        Array.isArray(editingListing.tenantTypes) && editingListing.tenantTypes.length > 0
+          ? editingListing.tenantTypes
+          : ["Any / Open to All"]
+      );
+      setAvailableFrom(editingListing.availableFrom || "Immediately (Ready to Move)");
+      setMaintenance(editingListing.maintenance || "Included in Monthly Rent");
+      setCustomMaintenance(editingListing.customMaintenance || "");
+      setPincode(editingListing.pincode || "");
+      setStateName(editingListing.stateName || "");
+      setCity(editingListing.city || "");
+      setLocality(editingListing.locality || editingListing.location || "");
+      setFullAddress(editingListing.fullAddress || "");
+      setSelectedAmenities(Array.isArray(editingListing.amenities) ? editingListing.amenities : []);
+      const mainImg = editingListing.mainImage || editingListing.image || editingListing.coverImage || "";
+      setMainImage(mainImg);
+      setImageUrl(mainImg);
+      setCoverImage(editingListing.coverImage || "");
+      setGalleryImages(Array.isArray(editingListing.galleryImages) ? editingListing.galleryImages : []);
+      setContactPersonName(editingListing.contactPersonName || "");
+      setContactNumber(editingListing.contactNumber || editingListing.ownerPhone || "");
+      setIsLive(editingListing.isLive !== false);
+    } else if (isOpen && !editingListing) {
+      setCurrentStep(1);
+      setTitle("");
+      setDescription("");
+      setPropertyType("Flat / Apartment");
+      setRent("");
+      setDeposit("");
+      setTenantTypes(["Any / Open to All"]);
+      setAvailableFrom("Immediately (Ready to Move)");
+      setMaintenance("Included in Monthly Rent");
+      setCustomMaintenance("");
+      setPincode("");
+      setStateName("");
+      setCity("");
+      setLocality("");
+      setFullAddress("");
+      setSelectedAmenities(["wifi", "parking", "security"]);
+      setMainImage("");
+      setImageUrl("");
+      setCoverImage("");
+      setGalleryImages([]);
+      setContactPersonName("");
+      setContactNumber("");
+      setIsLive(true);
+    }
+  }, [isOpen, editingListing]);
+
   if (!isOpen) return null;
 
   const toggleAmenity = (id: string) => {
@@ -371,8 +430,9 @@ export default function ListPropertyModal({
   };
 
   const handlePublish = async () => {
-    const fullPhone = contactNumber.trim() ? `${selectedCountry.dialCode} ${contactNumber.trim()}` : "";
-    const payload = {
+    const isEditMode = Boolean(editingListing && editingListing.id);
+    const payload: any = {
+      ...(isEditMode ? { id: editingListing.id } : {}),
       title,
       description,
       propertyType,
@@ -403,7 +463,7 @@ export default function ListPropertyModal({
 
     try {
       const res = await fetch("/api/listings", {
-        method: "POST",
+        method: isEditMode ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -412,19 +472,21 @@ export default function ListPropertyModal({
       if (data.success) {
         onSuccess(data.data || payload);
         toast(
-          isLive
+          isEditMode
+            ? "Property listing updated successfully!"
+            : isLive
             ? "Property published live to RentAwas Marketplace!"
             : "Property listing saved as draft in database!",
           "success"
         );
       } else {
         onSuccess(payload);
-        toast(data.error || "Property listing created!", "success");
+        toast(data.error || (isEditMode ? "Property listing updated!" : "Property listing created!"), "success");
       }
     } catch (err) {
       console.warn("Listing API error:", err);
       onSuccess(payload);
-      toast("Property listing created successfully!", "success");
+      toast(isEditMode ? "Property listing updated!" : "Property listing created successfully!", "success");
     }
 
     onClose();

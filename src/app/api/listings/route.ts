@@ -212,9 +212,32 @@ export async function PATCH(request: Request) {
       updateData.isLive = isLive;
       updateData.status = isLive ? "Active" : "Draft";
     }
-    if (status) {
-      updateData.status = status;
-    }
+    if (status) updateData.status = status;
+    if (body.title) updateData.title = body.title;
+    if (body.description !== undefined) updateData.description = body.description;
+    if (body.propertyType) updateData.propertyType = body.propertyType;
+    if (body.rent !== undefined) updateData.rent = typeof body.rent === "number" ? body.rent : parseFloat(String(body.rent).replace(/[^0-9.]/g, "")) || 0;
+    if (body.deposit !== undefined) updateData.deposit = body.deposit ? (typeof body.deposit === "number" ? body.deposit : parseFloat(String(body.deposit).replace(/[^0-9.]/g, ""))) : null;
+    if (Array.isArray(body.tenantTypes)) updateData.tenantTypes = body.tenantTypes;
+    if (body.availableFrom) updateData.availableFrom = body.availableFrom;
+    if (body.maintenance) updateData.maintenance = body.maintenance;
+    if (body.customMaintenance !== undefined) updateData.customMaintenance = body.customMaintenance;
+    if (body.pincode) updateData.pincode = body.pincode;
+    if (body.stateName) updateData.stateName = body.stateName;
+    if (body.city) updateData.city = body.city;
+    if (body.locality) updateData.locality = body.locality;
+    if (body.fullAddress) updateData.fullAddress = body.fullAddress;
+    if (body.pinnedLat !== undefined) updateData.pinnedLat = body.pinnedLat ? parseFloat(String(body.pinnedLat)) : null;
+    if (body.pinnedLng !== undefined) updateData.pinnedLng = body.pinnedLng ? parseFloat(String(body.pinnedLng)) : null;
+    if (Array.isArray(body.amenities)) updateData.amenities = body.amenities;
+    if (body.mainImage) updateData.mainImage = body.mainImage;
+    if (body.coverImage) updateData.coverImage = body.coverImage;
+    if (Array.isArray(body.galleryImages)) updateData.galleryImages = body.galleryImages;
+    if (body.contactPersonName) updateData.contactPersonName = body.contactPersonName;
+    if (body.contactNumber) updateData.contactNumber = body.contactNumber;
+    if (body.countryDialCode) updateData.countryDialCode = body.countryDialCode;
+    if (body.countryCode) updateData.countryCode = body.countryCode;
+    if (typeof body.whatsappEnabled === "boolean") updateData.whatsappEnabled = body.whatsappEnabled;
 
     const updated = await prisma.propertyListing.update({
       where: { id },
@@ -223,7 +246,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Listing status updated to ${updated.status}`,
+      message: `Property listing updated successfully`,
       data: updated,
     });
   } catch (error: any) {
