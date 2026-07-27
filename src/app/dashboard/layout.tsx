@@ -448,51 +448,6 @@ export default function DashboardLayout({
             </Link>
           </div>
 
-          {/* Property Selector Switcher */}
-          {!isCollapsed ? (
-            <div className="p-4 relative">
-              <button
-                onClick={() => setShowPropertyMenu(!showPropertyMenu)}
-                className="w-full bg-[#141A26] hover:bg-[#1A2234] border border-slate-800 rounded-xl p-3 flex items-center justify-between text-left transition-all cursor-pointer group"
-              >
-                <div className="truncate">
-                  <div className="text-[10px] uppercase tracking-wider font-bold text-orange-400 flex items-center gap-1">
-                    <Building2 className="w-3 h-3" />
-                    Active Portfolio
-                  </div>
-                  <div className="text-xs font-bold text-white truncate mt-0.5">{activeProperty}</div>
-                </div>
-                <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors shrink-0" />
-              </button>
-
-              {/* Property Menu Overlay */}
-              {showPropertyMenu && (
-                <div className="absolute top-full left-4 right-4 mt-1 bg-[#141A26] border border-slate-700 rounded-xl shadow-2xl p-1.5 z-50 space-y-1">
-                  {properties.map((prop, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setActiveProperty(prop);
-                        setShowPropertyMenu(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                        activeProperty === prop ? "bg-[#FF6B00] text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                      }`}
-                    >
-                      {prop}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="p-3 flex justify-center">
-              <div className="w-10 h-10 rounded-xl bg-[#141A26] border border-slate-800 flex items-center justify-center text-orange-400" title={activeProperty}>
-                <Building2 className="w-5 h-5" />
-              </div>
-            </div>
-          )}
-
           {/* Mode Header Label */}
           {!isCollapsed && (
             <div className="px-4 pt-2 pb-1.5 text-[10px] font-black uppercase tracking-wider flex items-center justify-between">
