@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   FileText, 
   Download, 
@@ -19,6 +19,7 @@ import {
   X,
   Printer
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export interface TenantDoc {
   id: string;
@@ -29,6 +30,7 @@ export interface TenantDoc {
   size: string;
   status: "Verified" | "Active" | "Issued";
   description: string;
+  fileUrl?: string;
 }
 
 export const INITIAL_DOCUMENTS: TenantDoc[] = [
@@ -62,56 +64,6 @@ export const INITIAL_DOCUMENTS: TenantDoc[] = [
     status: "Verified",
     description: "Verified Passport & State Driver's License copy on file with building management.",
   },
-  {
-    id: "DOC-104",
-    title: "Pet Liability Rider & Vaccine Certificate",
-    category: "Lease & Addendums",
-    icon: PawPrint,
-    date: "July 22, 2025",
-    size: "650 KB",
-    status: "Verified",
-    description: "Approved domestic pet addendum rider with current rabies vaccination records.",
-  },
-  {
-    id: "DOC-105",
-    title: "Resident Vehicle & Parking Pass Permit (#P-302)",
-    category: "Vehicle & Passes",
-    icon: Car,
-    date: "August 01, 2025",
-    size: "310 KB",
-    status: "Active",
-    description: "Covered basement garage parking stall #302 authorization permit.",
-  },
-  {
-    id: "DOC-106",
-    title: "Move-In Physical Condition Inspection Report",
-    category: "Lease & Addendums",
-    icon: FileCheck2,
-    date: "August 01, 2025",
-    size: "2.1 MB",
-    status: "Verified",
-    description: "Room-by-room inventory checklist signed during unit key handover.",
-  },
-  {
-    id: "DOC-107",
-    title: "Annual Rent Paid Tax Certificate (Form 1099/80GG)",
-    category: "Receipts & Tax",
-    icon: Receipt,
-    date: "January 15, 2026",
-    size: "510 KB",
-    status: "Issued",
-    description: "Official annual rent payment tax deduction statement for tax filing.",
-  },
-  {
-    id: "DOC-108",
-    title: "Housing Society / HOA Move-In Clearance NOC",
-    category: "ID & Verification",
-    icon: ShieldCheck,
-    date: "July 28, 2025",
-    size: "380 KB",
-    status: "Verified",
-    description: "No Objection Certificate issued by The Regent Housing Association.",
-  },
 ];
 
 export default function TenantDocumentsPage() {
@@ -124,6 +76,37 @@ export default function TenantDocumentsPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadCategory, setUploadCategory] = useState<TenantDoc["category"]>("ID & Verification");
+
+  useEffect(() => {
+    async function loadTenantDocs() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
+        const res = await fetch(`/api/tenant/me${emailParam}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && Array.isArray(json.data.documents) && json.data.documents.length > 0) {
+            const dbDocs: TenantDoc[] = json.data.documents.map((d: any, idx: number) => ({
+              id: d.id || `DOC-DB-${idx + 1}`,
+              title: d.title || d.fileName || "Uploaded Tenant Document",
+              category: d.docType === "Lease Agreement" ? "Lease & Addendums" : "ID & Verification",
+              icon: d.docType === "Lease Agreement" ? FileText : UserCheck,
+              date: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : "Uploaded",
+              size: d.fileSize || "1.2 MB",
+              status: "Verified",
+              description: `Uploaded document file: ${d.fileName || "tenant_doc.pdf"}. Verified in DB.`,
+              fileUrl: d.fileUrl,
+            }));
+            setDocuments([...dbDocs, ...INITIAL_DOCUMENTS]);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching tenant docs:", err);
+      }
+    }
+    loadTenantDocs();
+  }, []);
+
 
   const categories = ["All", "Lease & Addendums", "Receipts & Tax", "ID & Verification", "Vehicle & Passes"];
 

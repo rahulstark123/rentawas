@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
   CreditCard, 
@@ -20,14 +20,46 @@ import {
   Sparkles,
   Plus
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function TenantDashboardPage() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [tenant, setTenant] = useState<any>({
+    name: "Resident",
+    propertyName: "The Regent",
+    unitNumber: "Unit 302",
+    monthlyRent: 3200,
+    leaseStart: "2025-08-01",
+    leaseEnd: "2026-07-31",
+    documents: [],
+    maintenances: [],
+  });
+
+  useEffect(() => {
+    async function fetchTenantData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
+        const res = await fetch(`/api/tenant/me${emailParam}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data) {
+            setTenant(json.data);
+          }
+        }
+      } catch (err) {
+        console.error("Dashboard tenant fetch error:", err);
+      }
+    }
+    fetchTenantData();
+  }, []);
 
   const handlePayRent = () => {
     setPaymentSuccess(true);
     setTimeout(() => setPaymentSuccess(false), 4000);
   };
+
+  const rentVal = tenant.monthlyRent || 3200;
 
   return (
     <div className="space-y-8">
@@ -35,10 +67,10 @@ export default function TenantDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Welcome back, Eleanor!
+            Welcome back, {tenant.name}!
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Resident Dashboard for <span className="font-bold text-slate-800">The Regent — Unit 302</span>.
+            Resident Dashboard for <span className="font-bold text-slate-800">{tenant.propertyName} — {tenant.unitNumber}</span>.
           </p>
         </div>
 
@@ -59,17 +91,17 @@ export default function TenantDashboardPage() {
             <div className="flex items-center justify-between">
               <span className="px-3 py-1 rounded-full bg-amber-400/20 border border-amber-400/30 text-amber-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5" />
-                <span>Rent Due in 4 Days</span>
+                <span>Rent Due Soon</span>
               </span>
 
-              <span className="text-xs font-bold text-slate-300">July 2026 Billing</span>
+              <span className="text-xs font-bold text-slate-300">Monthly Billing</span>
             </div>
 
             <div>
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Amount Due</div>
-              <div className="text-3xl sm:text-4xl font-black text-white mt-1">$3,200.00</div>
+              <div className="text-3xl sm:text-4xl font-black text-white mt-1">${rentVal.toLocaleString()}.00</div>
               <div className="text-xs text-slate-300 mt-1 flex items-center gap-2">
-                <span>Includes Base Rent & Covered Parking</span>
+                <span>Includes Base Rent &amp; Assigned Premises</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                 <span className="text-emerald-400 font-bold">Auto-Debit Enabled</span>
               </div>
@@ -82,7 +114,7 @@ export default function TenantDashboardPage() {
               className="px-6 py-3 bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.99] text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer"
             >
               <CreditCard className="w-4 h-4" />
-              <span>Pay Rent Now ($3,200)</span>
+              <span>Pay Rent Now (${rentVal.toLocaleString()})</span>
             </button>
 
             <Link
@@ -96,7 +128,7 @@ export default function TenantDashboardPage() {
           {paymentSuccess && (
             <div className="absolute bottom-4 left-6 right-6 bg-emerald-500 text-white text-xs font-bold p-3 rounded-xl shadow-lg flex items-center gap-2 justify-center z-20">
               <CheckCircle2 className="w-4 h-4" />
-              <span>Rent payment of $3,200.00 processed successfully! Instant receipt issued.</span>
+              <span>Rent payment of ${rentVal.toLocaleString()}.00 processed successfully! Instant receipt issued.</span>
             </div>
           )}
         </div>
@@ -117,21 +149,21 @@ export default function TenantDashboardPage() {
             <div className="space-y-3 mt-4 text-xs">
               <div>
                 <span className="text-[10px] text-slate-400 font-bold uppercase block">Demised Premises</span>
-                <span className="font-bold text-slate-900">The Regent — Unit #302</span>
+                <span className="font-bold text-slate-900">{tenant.propertyName} — {tenant.unitNumber}</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <span className="text-[10px] text-slate-400 font-bold uppercase block">Start Date</span>
-                  <span className="font-bold text-slate-800">Aug 01, 2025</span>
+                  <span className="font-bold text-slate-800">{tenant.leaseStart || "2025-08-01"}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 font-bold uppercase block">End Date</span>
-                  <span className="font-bold text-slate-800">Jul 31, 2026</span>
+                  <span className="font-bold text-slate-800">{tenant.leaseEnd || "2026-07-31"}</span>
                 </div>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Landlord / Property Manager</span>
-                <span className="font-bold text-slate-900">Alexander Wright (Grand Regency LLC)</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Resident Email</span>
+                <span className="font-bold text-slate-900">{tenant.email}</span>
               </div>
             </div>
           </div>
@@ -141,7 +173,7 @@ export default function TenantDashboardPage() {
               href="/tenant/documents"
               className="text-xs font-bold text-purple-700 hover:underline uppercase tracking-wider"
             >
-              View All My Documents (8 Files)
+              View All My Documents ({Array.isArray(tenant.documents) ? tenant.documents.length : 8} Files)
             </Link>
           </div>
         </div>

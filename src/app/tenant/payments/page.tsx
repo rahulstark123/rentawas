@@ -1,17 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CreditCard, Download, CheckCircle2, ShieldCheck, DollarSign, Clock, ArrowUpRight } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function TenantPaymentsPage() {
   const [selectedMethod, setSelectedMethod] = useState("ach");
   const [paid, setPaid] = useState(false);
+  const [tenant, setTenant] = useState<any>({
+    name: "Resident",
+    monthlyRent: 3200,
+    unitNumber: "Unit 302",
+    propertyName: "The Regent",
+    bills: [],
+  });
 
-  const history = [
-    { id: "REC-901", period: "June 2026", amount: "$3,200.00", paidOn: "2026-06-25", status: "Paid", method: "Auto-Debit (ACH)" },
-    { id: "REC-902", period: "May 2026", amount: "$3,200.00", paidOn: "2026-05-24", status: "Paid", method: "UPI Gateway" },
-    { id: "REC-903", period: "April 2026", amount: "$3,200.00", paidOn: "2026-04-26", status: "Paid", method: "Credit Card" },
-    { id: "REC-904", period: "March 2026", amount: "$3,200.00", paidOn: "2026-03-25", status: "Paid", method: "Auto-Debit (ACH)" },
+  useEffect(() => {
+    async function loadTenantData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
+        const res = await fetch(`/api/tenant/me${emailParam}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data) {
+            setTenant(json.data);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading tenant payments data:", err);
+      }
+    }
+    loadTenantData();
+  }, []);
+
+  const rentVal = tenant.monthlyRent || 3200;
+
+  const history = tenant.bills && tenant.bills.length > 0 ? tenant.bills.map((b: any, idx: number) => ({
+    id: b.billNumber || `REC-90${idx + 1}`,
+    period: b.billingPeriod || "Current Month",
+    amount: `$${(b.amount || rentVal).toLocaleString()}.00`,
+    paidOn: b.dueDate ? new Date(b.dueDate).toISOString().split("T")[0] : "2026-06-25",
+    status: b.paymentStatus || "Paid",
+    method: "Auto-Debit (ACH)"
+  })) : [
+    { id: "REC-901", period: "June 2026", amount: `$${rentVal.toLocaleString()}.00`, paidOn: "2026-06-25", status: "Paid", method: "Auto-Debit (ACH)" },
+    { id: "REC-902", period: "May 2026", amount: `$${rentVal.toLocaleString()}.00`, paidOn: "2026-05-24", status: "Paid", method: "UPI Gateway" },
+    { id: "REC-903", period: "April 2026", amount: `$${rentVal.toLocaleString()}.00`, paidOn: "2026-04-26", status: "Paid", method: "Credit Card" },
   ];
 
   const handlePay = () => {
@@ -27,7 +62,7 @@ export default function TenantPaymentsPage() {
           Pay Rent & Payment Receipts
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Pay monthly rent securely via Auto-Debit, UPI, ACH, or Credit Card and download instant tax receipts.
+          Pay monthly rent for <span className="font-bold text-slate-800">{tenant.propertyName} — {tenant.unitNumber}</span> securely via Auto-Debit, UPI, ACH, or Credit Card and download instant tax receipts.
         </p>
       </div>
 
@@ -36,22 +71,22 @@ export default function TenantPaymentsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div>
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Current Outstanding Balance</span>
-            <div className="text-3xl font-black text-slate-900 mt-1">$3,200.00</div>
-            <div className="text-xs text-slate-500 mt-0.5">July 2026 Rent • Due on July 31, 2026</div>
+            <div className="text-3xl font-black text-slate-900 mt-1">${rentVal.toLocaleString()}.00</div>
+            <div className="text-xs text-slate-500 mt-0.5">Assigned Rent for {tenant.propertyName} — {tenant.unitNumber}</div>
           </div>
 
           <button
             onClick={handlePay}
             className="px-6 py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
           >
-            Submit Payment ($3,200.00)
+            Submit Payment (${rentVal.toLocaleString()}.00)
           </button>
         </div>
 
         {paid && (
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>Payment of $3,200.00 submitted successfully! Receipt REC-900 has been sent to your email.</span>
+            <span>Payment of ${rentVal.toLocaleString()}.00 submitted successfully! Receipt REC-900 has been sent to your email.</span>
           </div>
         )}
 
@@ -99,7 +134,7 @@ export default function TenantPaymentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
-              {history.map((h) => (
+              {history.map((h: any) => (
                 <tr key={h.id} className="hover:bg-slate-50 transition-colors">
                   <td className="py-3 px-2 font-mono font-bold text-slate-700">{h.id}</td>
                   <td className="py-3 px-2 font-bold text-slate-900">{h.period}</td>

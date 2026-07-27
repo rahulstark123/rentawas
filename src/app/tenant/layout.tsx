@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -20,6 +20,7 @@ import {
   Zap,
   Building
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function TenantLayout({
   children,
@@ -30,16 +31,73 @@ export default function TenantLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  const [tenantProfile, setTenantProfile] = useState<{
+    name: string;
+    email: string;
+    unitNumber: string;
+    propertyName: string;
+    propertyAddress: string;
+    monthlyRent: number;
+    initials: string;
+    maintenancesCount: number;
+    documentsCount: number;
+  }>({
+    name: "Resident",
+    email: "tenant@rentawas.com",
+    unitNumber: "Unit 302",
+    propertyName: "The Regent",
+    propertyAddress: "1420 5th Ave, Seattle WA",
+    monthlyRent: 3200,
+    initials: "RS",
+    maintenancesCount: 1,
+    documentsCount: 8,
+  });
+
+  useEffect(() => {
+    async function loadTenantData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
+        const res = await fetch(`/api/tenant/me${emailParam}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data) {
+            const d = json.data;
+            const nameParts = d.name.trim().split(" ");
+            const init = nameParts.length >= 2 
+              ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+              : d.name.substring(0, 2).toUpperCase();
+
+            setTenantProfile({
+              name: d.name,
+              email: d.email,
+              unitNumber: d.unitNumber,
+              propertyName: d.propertyName,
+              propertyAddress: d.propertyAddress,
+              monthlyRent: d.monthlyRent || 3200,
+              initials: init || "TN",
+              maintenancesCount: Array.isArray(d.maintenances) && d.maintenances.length > 0 ? d.maintenances.length : 1,
+              documentsCount: Array.isArray(d.documents) && d.documents.length > 0 ? d.documents.length : 8,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error loading tenant layout profile:", err);
+      }
+    }
+    loadTenantData();
+  }, []);
+
   const navItems = [
     { name: "My Resident Overview", href: "/tenant/dashboard", icon: LayoutDashboard },
     { name: "Pay Rent & Receipts", href: "/tenant/payments", icon: CreditCard, badge: "DUE SOON" },
-    { name: "Maintenance Requests", href: "/tenant/maintenance", icon: Wrench, count: 1 },
-    { name: "My Documents", href: "/tenant/documents", icon: FileText, count: 8 },
+    { name: "Maintenance Requests", href: "/tenant/maintenance", icon: Wrench, count: tenantProfile.maintenancesCount },
+    { name: "My Documents", href: "/tenant/documents", icon: FileText, count: tenantProfile.documentsCount },
     { name: "Building Notices", href: "/tenant/notices", icon: Megaphone, count: 2 },
   ];
 
   const notifications = [
-    { id: 1, title: "Rent Due Reminder", desc: "July rent ($3,200) is due in 4 days. Auto-debit scheduled.", time: "2h ago", icon: CreditCard, color: "text-amber-500 bg-amber-50" },
+    { id: 1, title: "Rent Due Reminder", desc: `Rent ($${tenantProfile.monthlyRent.toLocaleString()}) is due soon. Auto-debit scheduled.`, time: "2h ago", icon: CreditCard, color: "text-amber-500 bg-amber-50" },
     { id: 2, title: "Plumber Vendor Dispatched", desc: "Ticket #402 update: Vendor arriving today between 2-4 PM.", time: "5h ago", icon: Wrench, color: "text-purple-500 bg-purple-50" },
   ];
 
@@ -106,8 +164,8 @@ export default function TenantLayout({
                 <Building className="w-3 h-3" />
                 Current Residence
               </div>
-              <div className="text-xs font-extrabold text-white">The Regent — Unit 302</div>
-              <div className="text-[11px] text-slate-400">1420 5th Ave, Seattle WA</div>
+              <div className="text-xs font-extrabold text-white">{tenantProfile.propertyName} — {tenantProfile.unitNumber}</div>
+              <div className="text-[11px] text-slate-400 truncate">{tenantProfile.propertyAddress}</div>
             </div>
           </div>
 
@@ -152,11 +210,11 @@ export default function TenantLayout({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 text-white font-bold text-xs flex items-center justify-center shadow-xs">
-                EV
+                {tenantProfile.initials}
               </div>
               <div className="truncate">
-                <div className="text-xs font-bold text-white truncate">Eleanor Vance</div>
-                <div className="text-[10px] text-slate-400 truncate">Tenant • Resident</div>
+                <div className="text-xs font-bold text-white truncate">{tenantProfile.name}</div>
+                <div className="text-[10px] text-slate-400 truncate">{tenantProfile.email}</div>
               </div>
             </div>
             <Link href="/login" title="Log Out" className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
@@ -183,7 +241,7 @@ export default function TenantLayout({
               href="/tenant/payments"
               className="px-3.5 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl transition-all shadow-xs uppercase tracking-wider"
             >
-              Pay Rent ($3,200)
+              Pay Rent (${(tenantProfile.monthlyRent || 3200).toLocaleString()})
             </Link>
 
             {/* Notifications */}

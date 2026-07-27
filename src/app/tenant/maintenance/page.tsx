@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Wrench, Plus, CheckCircle2, AlertCircle, Clock, Send, Upload } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function TenantMaintenancePage() {
-  const [tickets, setTickets] = useState([
+  const [tenant, setTenant] = useState<any>(null);
+  const [tickets, setTickets] = useState<any[]>([
     { id: "TCK-402", category: "Plumbing", issue: "Kitchen sink faucet leak", urgency: "High", status: "Vendor Dispatched", date: "Today, 08:30 AM", notes: "Vendor QuickPlumb Co. scheduled to arrive 2-4 PM." },
     { id: "TCK-380", category: "Appliance", issue: "Dishwasher door latch replacement", urgency: "Low", status: "Resolved", date: "2 weeks ago", notes: "Resolved on July 10 by Building Maintenance." },
   ]);
@@ -14,27 +16,85 @@ export default function TenantMaintenancePage() {
   const [category, setCategory] = useState("Plumbing");
   const [urgency, setUrgency] = useState("Medium");
   const [desc, setDesc] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const fetchTenantProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
+      const res = await fetch(`/api/tenant/me${emailParam}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data) {
+          setTenant(json.data);
+          if (Array.isArray(json.data.maintenances) && json.data.maintenances.length > 0) {
+            setTickets(
+              json.data.maintenances.map((m: any, idx: number) => ({
+                id: m.ticketNumber || `TCK-40${idx + 1}`,
+                category: m.category || "General Maintenance",
+                issue: m.title || "Unit Maintenance",
+                urgency: m.priority || "Medium",
+                status: m.status || "In Progress",
+                date: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : "Recently",
+                notes: m.description || "Ticket under review by Property Manager.",
+              }))
+            );
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error loading tenant maintenance tickets:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchTenantProfile();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!issueTitle) return;
 
-    setTickets([
-      {
-        id: `TCK-${Math.floor(400 + Math.random() * 100)}`,
-        category,
-        issue: issueTitle,
-        urgency,
-        status: "New Ticket Submitted",
-        date: "Just now",
-        notes: "Ticket received. Property Manager review in progress.",
-      },
-      ...tickets,
-    ]);
+    setIsSubmitting(true);
+    try {
+      if (tenant && tenant.id !== "demo-tenant-id") {
+        await fetch("/api/maintenance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: issueTitle,
+            category,
+            priority: urgency,
+            description: desc,
+            tenantId: tenant.id,
+            unitId: tenant.unitId || undefined,
+            propertyId: tenant.propertyId || undefined,
+            workspaceId: tenant.workspaceId || undefined,
+          }),
+        });
+      }
 
-    setIssueTitle("");
-    setDesc("");
-    setShowModal(false);
+      setTickets((prev) => [
+        {
+          id: `TCK-${Math.floor(400 + Math.random() * 100)}`,
+          category,
+          issue: issueTitle,
+          urgency,
+          status: "New Ticket Submitted",
+          date: "Just now",
+          notes: desc || "Ticket received. Property Manager review in progress.",
+        },
+        ...prev,
+      ]);
+
+      setIssueTitle("");
+      setDesc("");
+      setShowModal(false);
+    } catch (err) {
+      console.error("Submit ticket error:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
