@@ -229,20 +229,10 @@ export default function ListPropertyModal({
     "parking",
     "security",
   ]);
-  const [imageUrl, setImageUrl] = useState(
-    "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80"
-  );
-  const [mainImage, setMainImage] = useState<string>(
-    "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80"
-  );
-  const [coverImage, setCoverImage] = useState<string>(
-    "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80"
-  );
-  const [galleryImages, setGalleryImages] = useState<string[]>([
-    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
-  ]);
+  const [imageUrl, setImageUrl] = useState("");
+  const [mainImage, setMainImage] = useState<string>("");
+  const [coverImage, setCoverImage] = useState<string>("");
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
 
   // Client-Side Canvas Image Compression (Converts to WebP, reduces file size by up to 80-90%)
   const compressImageFile = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
@@ -847,17 +837,33 @@ export default function ListPropertyModal({
                       </div>
 
                       <div className="relative h-28 w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 group">
-                        <Image src={mainImage} alt="Main Property Image" fill className="object-cover" />
-                        <label className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 cursor-pointer">
-                          <Upload className="w-5 h-5 text-white" />
-                          <span className="text-[10px] font-extrabold text-white uppercase">Upload Main File</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleFileUpload(e, "main")}
-                            className="hidden"
-                          />
-                        </label>
+                        {mainImage ? (
+                          <>
+                            <Image src={mainImage} alt="Main Property Image" fill className="object-cover" />
+                            <label className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 cursor-pointer">
+                              <Upload className="w-5 h-5 text-white" />
+                              <span className="text-[10px] font-extrabold text-white uppercase">Change Main File</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleFileUpload(e, "main")}
+                                className="hidden"
+                              />
+                            </label>
+                          </>
+                        ) : (
+                          <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-2 border-2 border-dashed border-slate-700 hover:border-[#FF6B00] transition-colors">
+                            <ImagePlus className="w-6 h-6 text-[#FF6B00] mb-1" />
+                            <span className="text-[10px] font-extrabold text-slate-300 uppercase">Upload Main Image</span>
+                            <span className="text-[8px] text-slate-500">No image uploaded</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleFileUpload(e, "main")}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
                       </div>
 
                       <div className="relative">
@@ -885,17 +891,33 @@ export default function ListPropertyModal({
                       </div>
 
                       <div className="relative h-28 w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 group">
-                        <Image src={coverImage} alt="Cover Banner Image" fill className="object-cover" />
-                        <label className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 cursor-pointer">
-                          <Upload className="w-5 h-5 text-white" />
-                          <span className="text-[10px] font-extrabold text-white uppercase">Upload Cover File</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleFileUpload(e, "cover")}
-                            className="hidden"
-                          />
-                        </label>
+                        {coverImage ? (
+                          <>
+                            <Image src={coverImage} alt="Cover Banner Image" fill className="object-cover" />
+                            <label className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 cursor-pointer">
+                              <Upload className="w-5 h-5 text-white" />
+                              <span className="text-[10px] font-extrabold text-white uppercase">Change Cover File</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleFileUpload(e, "cover")}
+                                className="hidden"
+                              />
+                            </label>
+                          </>
+                        ) : (
+                          <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-2 border-2 border-dashed border-slate-700 hover:border-indigo-500 transition-colors">
+                            <ImagePlus className="w-6 h-6 text-indigo-400 mb-1" />
+                            <span className="text-[10px] font-extrabold text-slate-300 uppercase">Upload Cover Banner</span>
+                            <span className="text-[8px] text-slate-500">No image uploaded</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleFileUpload(e, "cover")}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
                       </div>
 
                       <div className="relative">
@@ -1005,13 +1027,17 @@ export default function ListPropertyModal({
                   </div>
                   
                   <div className="flex gap-3 items-center">
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-200 shrink-0">
-                      <Image
-                        src={imageUrl}
-                        alt="Property preview"
-                        fill
-                        className="object-cover"
-                      />
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center border border-slate-300">
+                      {mainImage || imageUrl ? (
+                        <Image
+                          src={mainImage || imageUrl}
+                          alt="Property preview"
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <Building2 className="w-7 h-7 text-slate-400" />
+                      )}
                     </div>
                     <div>
                       <div className="font-extrabold text-slate-900 text-sm">{title || "Property Title"}</div>
