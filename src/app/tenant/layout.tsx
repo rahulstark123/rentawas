@@ -93,9 +93,9 @@ export default function TenantLayout({
   const navItems = [
     { name: "My Resident Overview", href: "/tenant/dashboard", icon: LayoutDashboard },
     { name: "Pay Rent & Receipts", href: "/tenant/payments", icon: CreditCard, badge: "DUE SOON" },
-    { name: "Maintenance Requests", href: "/tenant/maintenance", icon: Wrench, count: tenantProfile.maintenancesCount },
-    { name: "My Documents", href: "/tenant/documents", icon: FileText, count: tenantProfile.documentsCount },
-    { name: "Building Notices", href: "/tenant/notices", icon: Megaphone, count: 2 },
+    { name: "Maintenance Requests", href: "/tenant/maintenance", icon: Wrench },
+    { name: "My Documents", href: "/tenant/documents", icon: FileText },
+    { name: "Building Notices", href: "/tenant/notices", icon: Megaphone },
   ];
 
   const notifications = [
@@ -194,11 +194,6 @@ export default function TenantLayout({
                   {item.badge && (
                     <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500/20 text-amber-300 uppercase tracking-widest border border-amber-500/30">
                       {item.badge}
-                    </span>
-                  )}
-                  {item.count && (
-                    <span className="w-5 h-5 rounded-full bg-purple-500/30 border border-purple-400/40 text-purple-200 text-[10px] font-bold flex items-center justify-center">
-                      {item.count}
                     </span>
                   )}
                 </Link>
