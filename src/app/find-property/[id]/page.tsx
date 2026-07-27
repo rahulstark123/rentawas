@@ -810,16 +810,17 @@ export default function PropertyDetailPage() {
           <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl relative">
             <div className="bg-[#0B132B] p-5 text-white relative">
               <button
+                type="button"
                 onClick={() => { setIsContactModalOpen(false); setLeadSubmitted(false); }}
-                className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer z-10"
               >
                 <X className="w-4 h-4" />
               </button>
 
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider block mb-1">
+              <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider mb-2">
                 Zero Brokerage Direct Lead
               </span>
-              <h3 className="text-lg font-bold text-white line-clamp-1">{property.title}</h3>
+              <h3 className="text-lg font-bold text-white line-clamp-1 pr-8">{property.title}</h3>
               <p className="text-xs text-slate-300">{property.ownerName} • {property.price}/mo</p>
             </div>
 
