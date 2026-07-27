@@ -134,10 +134,11 @@ export default function PricingAndFAQ() {
               <p className="text-xs text-slate-500 font-medium mb-6">
                 Best for Individual Landlords
               </p>
-              <div className="flex items-baseline gap-1 mb-6">
+              <div className="flex items-baseline gap-1">
                 <span className="text-4xl sm:text-5xl font-extrabold text-slate-900">₹499</span>
                 <span className="text-xs font-semibold text-slate-500 uppercase">/month</span>
               </div>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5 mb-6">+18% GST</p>
               <ul className="space-y-3 mb-8 text-xs sm:text-sm text-slate-600 font-medium">
                 <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -205,10 +206,11 @@ export default function PricingAndFAQ() {
               <p className="text-xs text-slate-500 font-medium mb-6">
                 Best for PG Owners & Apartment Owners
               </p>
-              <div className="flex items-baseline gap-1 mb-6">
+              <div className="flex items-baseline gap-1">
                 <span className="text-4xl sm:text-5xl font-extrabold text-slate-900">₹999</span>
                 <span className="text-xs font-semibold text-slate-500 uppercase">/month</span>
               </div>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5 mb-6">+18% GST</p>
               <ul className="space-y-3 mb-8 text-xs sm:text-sm text-slate-600 font-medium">
                 <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -280,10 +282,11 @@ export default function PricingAndFAQ() {
               <p className="text-xs text-slate-500 font-medium mb-6">
                 Best for Property Managers & Rental Companies
               </p>
-              <div className="flex items-baseline gap-1 mb-6">
+              <div className="flex items-baseline gap-1">
                 <span className="text-4xl sm:text-5xl font-extrabold text-slate-900">₹1,999</span>
                 <span className="text-xs font-semibold text-slate-500 uppercase">/month</span>
               </div>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5 mb-6">+18% GST</p>
               <ul className="space-y-3 mb-8 text-xs sm:text-sm text-slate-600 font-medium">
                 <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />

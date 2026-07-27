@@ -29,7 +29,7 @@ export default function Home() {
       <EarlyAccessBanner onOpenEarlyAccess={handleOpenEarlyAccess} />
       
       <WhyRentAwas />
-      <FeaturesBento />
+      <FeaturesBento onOpenEarlyAccess={handleOpenEarlyAccess} />
       <OperationsAndAICommand />
       <ResidentAppSection />
       

@@ -15,15 +15,29 @@ import {
   Bell
 } from "lucide-react";
 import ComingSoonModal from "@/components/ui/ComingSoonModal";
+import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
 
-export default function HeroSection() {
+interface HeroSectionProps {
+  onOpenEarlyAccess?: () => void;
+}
+
+export default function HeroSection({ onOpenEarlyAccess }: HeroSectionProps = {}) {
   const [activeTab, setActiveTab] = useState<"preview" | "interactive">("preview");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("Feature Coming Soon!");
+  const [isEarlyAccessModalOpen, setIsEarlyAccessModalOpen] = useState(false);
 
   const openComingSoon = (title = "Feature Coming Soon!") => {
     setModalTitle(title);
     setIsModalOpen(true);
+  };
+
+  const handleOpenEarlyAccess = () => {
+    if (onOpenEarlyAccess) {
+      onOpenEarlyAccess();
+    } else {
+      setIsEarlyAccessModalOpen(true);
+    }
   };
 
   return (
@@ -38,7 +52,8 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FF6B00]/20 border border-[#FF6B00]/40 text-[#FF6B00] text-xs font-extrabold uppercase tracking-wider mb-5 shadow-xs"
+          onClick={handleOpenEarlyAccess}
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FF6B00]/20 border border-[#FF6B00]/40 text-[#FF6B00] text-xs font-extrabold uppercase tracking-wider mb-5 shadow-xs cursor-pointer hover:bg-[#FF6B00]/30 transition-all"
         >
           <Building2 className="w-4 h-4 text-[#FF6B00]" />
           <span>100% Free Property Listing • Zero Broker Fees</span>
@@ -76,7 +91,8 @@ export default function HeroSection() {
           className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-3xl mx-auto"
         >
           <button
-            onClick={() => openComingSoon("List Property For Free")}
+            type="button"
+            onClick={handleOpenEarlyAccess}
             className="w-full sm:w-auto text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all px-5 py-3.5 rounded-xl shadow-md shadow-orange-500/20 text-center cursor-pointer uppercase tracking-wider flex items-center justify-center gap-2 whitespace-nowrap"
           >
             <Building2 className="w-4 h-4 shrink-0" />
@@ -279,6 +295,12 @@ export default function HeroSection() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={modalTitle}
+      />
+
+      {/* Early Access Lead Capture Modal */}
+      <EarlyAccessModal
+        isOpen={isEarlyAccessModalOpen}
+        onClose={() => setIsEarlyAccessModalOpen(false)}
       />
     </section>
   );

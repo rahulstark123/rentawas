@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { Menu, X, MessageSquareHeart, Sparkles } from "lucide-react";
 import ComingSoonModal from "@/components/ui/ComingSoonModal";
 import FeedbackModal from "@/components/ui/FeedbackModal";
+import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
 
 interface NavbarProps {
   onOpenEarlyAccess?: () => void;
@@ -20,6 +21,7 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("Log In Portal Coming Soon!");
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isInternalEarlyAccessOpen, setIsInternalEarlyAccessOpen] = useState(false);
 
   const isFindProperty = pathname === "/find-property";
   const isHome = pathname === "/";
@@ -31,6 +33,15 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleOpenEarlyAccess = () => {
+    setMobileMenuOpen(false);
+    if (onOpenEarlyAccess) {
+      onOpenEarlyAccess();
+    } else {
+      setIsInternalEarlyAccessOpen(true);
+    }
+  };
 
   const triggerModal = (title: string) => {
     setModalTitle(title);
@@ -129,19 +140,21 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
 
           {/* Right: Actions */}
           <div className="hidden md:flex items-center gap-3 font-sans">
-            {/* Log In Link */}
-            <Link
-              href="/login"
-              className={`text-xs font-bold transition-all px-3.5 py-2 rounded-xl uppercase tracking-wider ${
+            {/* Log In Button - Triggers Early Access Modal */}
+            <button
+              type="button"
+              onClick={handleOpenEarlyAccess}
+              className={`text-xs font-bold transition-all px-3.5 py-2 rounded-xl uppercase tracking-wider cursor-pointer ${
                 isDark
                   ? "text-slate-200 hover:text-white hover:bg-white/10 border border-slate-700/80"
                   : "text-slate-700 hover:text-slate-950 hover:bg-slate-100 border border-slate-200"
               }`}
             >
               Log In
-            </Link>
+            </button>
             {/* Feedback Button */}
             <button
+              type="button"
               onClick={openFeedback}
               className={`flex items-center gap-1.5 text-xs font-bold active:scale-[0.97] transition-all px-3.5 py-2 rounded-xl cursor-pointer uppercase tracking-wider ${
                 isDark
@@ -154,11 +167,8 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
             </button>
             {/* Early Access Button */}
             <button
-              onClick={() => {
-                if (onOpenEarlyAccess) onOpenEarlyAccess();
-                else triggerModal("Early Access Lead");
-                setMobileMenuOpen(false);
-              }}
+              type="button"
+              onClick={handleOpenEarlyAccess}
               className="text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all px-4 py-2 rounded-xl shadow-md shadow-orange-500/20 cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -168,6 +178,7 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
 
           {/* Mobile Hamburger Button */}
           <button
+            type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className={`p-2 rounded-lg transition-colors cursor-pointer md:hidden ${
               isDark ? "text-white hover:bg-slate-800" : "text-slate-800 hover:bg-slate-100"
@@ -211,14 +222,15 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
               </Link>
             </nav>
             <div className="pt-3 border-t border-slate-800 flex flex-col gap-2.5">
-              <Link
-                href="/login"
-                onClick={() => setMobileMenuOpen(false)}
+              <button
+                type="button"
+                onClick={handleOpenEarlyAccess}
                 className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-slate-200 border border-slate-700 py-2.5 rounded-xl cursor-pointer uppercase tracking-wider hover:bg-white/10 transition-all text-center"
               >
                 Log In
-              </Link>
+              </button>
               <button
+                type="button"
                 onClick={openFeedback}
                 className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-slate-200 border border-slate-700 py-2.5 rounded-xl cursor-pointer uppercase tracking-wider hover:bg-white/10 transition-all"
               >
@@ -226,11 +238,8 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
                 Feedback
               </button>
               <button
-                onClick={() => {
-                  if (onOpenEarlyAccess) onOpenEarlyAccess();
-                  else triggerModal("Early Access Lead");
-                  setMobileMenuOpen(false);
-                }}
+                type="button"
+                onClick={handleOpenEarlyAccess}
                 className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-white bg-[#FF6B00] py-2.5 rounded-xl shadow-md cursor-pointer uppercase tracking-wider"
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -252,6 +261,12 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
       <FeedbackModal
         isOpen={isFeedbackOpen}
         onClose={() => setIsFeedbackOpen(false)}
+      />
+
+      {/* Fallback Early Access Modal */}
+      <EarlyAccessModal
+        isOpen={isInternalEarlyAccessOpen}
+        onClose={() => setIsInternalEarlyAccessOpen(false)}
       />
     </>
   );

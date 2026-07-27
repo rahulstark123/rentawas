@@ -11,10 +11,24 @@ import {
   IconTenantHealth, 
   IconAutopilotRent 
 } from "@/components/ui/CustomIcons";
+import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
 
-export default function FeaturesBento() {
+interface FeaturesBentoProps {
+  onOpenEarlyAccess?: () => void;
+}
+
+export default function FeaturesBento({ onOpenEarlyAccess }: FeaturesBentoProps = {}) {
   const [typedText, setTypedText] = useState("");
+  const [isInternalEarlyAccessOpen, setIsInternalEarlyAccessOpen] = useState(false);
   const fullText = "Generating compliant terms for Seattle, WA...";
+
+  const handleOpenEarlyAccess = () => {
+    if (onOpenEarlyAccess) {
+      onOpenEarlyAccess();
+    } else {
+      setIsInternalEarlyAccessOpen(true);
+    }
+  };
 
   useEffect(() => {
     let index = 0;
@@ -187,11 +201,16 @@ export default function FeaturesBento() {
             className="md:col-span-6 bg-white rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 group"
           >
             <div className="max-w-sm">
-              <Link href="/login" aria-label="Rent Payments Login" className="inline-block cursor-pointer group/icon">
+              <button
+                type="button"
+                onClick={handleOpenEarlyAccess}
+                aria-label="Rent Payments Early Access"
+                className="inline-block cursor-pointer group/icon border-none bg-transparent p-0 text-left"
+              >
                 <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-105 group-hover/icon:bg-emerald-100/80 transition-all">
                   <IconAutopilotRent className="w-5 h-5" />
                 </div>
-              </Link>
+              </button>
               <h3 className="text-xl font-bold text-slate-900 mb-2">
                 Rent Payments & Collections
               </h3>
@@ -218,6 +237,11 @@ export default function FeaturesBento() {
           </motion.div>
         </motion.div>
       </div>
+
+      <EarlyAccessModal
+        isOpen={isInternalEarlyAccessOpen}
+        onClose={() => setIsInternalEarlyAccessOpen(false)}
+      />
     </section>
   );
 }
