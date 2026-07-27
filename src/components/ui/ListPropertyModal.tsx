@@ -74,6 +74,7 @@ export default function ListPropertyModal({
   const [isTenantDropdownOpen, setIsTenantDropdownOpen] = useState(false);
   const [availableFrom, setAvailableFrom] = useState("Immediately (Ready to Move)");
   const [maintenance, setMaintenance] = useState("Included in Monthly Rent");
+  const [customMaintenance, setCustomMaintenance] = useState("");
 
   const toggleTenantCategory = (cat: string) => {
     if (cat === "Any / Open to All") {
@@ -452,7 +453,24 @@ export default function ListPropertyModal({
                       <option value="₹5,000 / Month">₹5,000 / Month</option>
                       <option value="As Per Society Bill (Actuals)">As Per Society Bill (Actuals)</option>
                       <option value="Extra (Billed Annually)">Extra (Billed Annually)</option>
+                      <option value="Other / Custom Amount">Other / Custom Amount</option>
                     </select>
+
+                    {maintenance === "Other / Custom Amount" && (
+                      <div className="mt-2.5 animate-in fade-in zoom-in-95 duration-150">
+                        <label className="block text-[11px] font-extrabold text-[#FF6B00] uppercase tracking-wider mb-1">
+                          Specify Custom Amount (₹ / Month) *
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={customMaintenance}
+                          onChange={(e) => setCustomMaintenance(e.target.value)}
+                          placeholder="e.g. 1800"
+                          className="w-full px-3.5 py-2.5 bg-white border border-[#FF6B00]/50 rounded-xl text-xs font-extrabold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] shadow-2xs"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
