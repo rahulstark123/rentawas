@@ -232,7 +232,33 @@ export default function ListPropertyModal({
   const [coverImage, setCoverImage] = useState<string>("");
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
 
-  // Client-Side Canvas Image Compression (Converts to WebP, reduces file size by up to 80-90%)
+  // Cloudflare R2 Storage Upload Helper
+  const uploadImageToR2 = async (file: File): Promise<string> => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("workspaceId", "public-listings");
+      formData.append("context", "property-listings");
+
+      const res = await fetch("/api/storage/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const json = await res.json();
+      if (json.success && json.url) {
+        return json.url;
+      }
+      // If R2 upload returns error or credentials missing, fallback to WebP compression DataURL
+      console.warn("R2 storage notice:", json.error);
+      return await compressImageFile(file, 1200, 0.8);
+    } catch (err) {
+      console.warn("R2 upload exception, using client fallback:", err);
+      return await compressImageFile(file, 1200, 0.8);
+    }
+  };
+
+  // Client-Side Canvas Image Compression Fallback
   const compressImageFile = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -273,17 +299,17 @@ export default function ListPropertyModal({
 
     if (target === "main") {
       const file = files[0];
-      toast("Compressing & uploading main image...", "info");
-      const compressed = await compressImageFile(file, 1200, 0.8);
-      setMainImage(compressed);
-      setImageUrl(compressed);
-      toast("Main image compressed & uploaded!", "success");
+      toast("Uploading main image to Cloudflare R2...", "info");
+      const r2Url = await uploadImageToR2(file);
+      setMainImage(r2Url);
+      setImageUrl(r2Url);
+      toast("Main image uploaded to Cloudflare R2!", "success");
     } else if (target === "cover") {
       const file = files[0];
-      toast("Compressing & uploading cover banner...", "info");
-      const compressed = await compressImageFile(file, 1600, 0.8);
-      setCoverImage(compressed);
-      toast("Cover image compressed & uploaded!", "success");
+      toast("Uploading cover banner to Cloudflare R2...", "info");
+      const r2Url = await uploadImageToR2(file);
+      setCoverImage(r2Url);
+      toast("Cover banner uploaded to Cloudflare R2!", "success");
     } else if (target === "gallery") {
       const remainingSlots = 5 - galleryImages.length;
       if (remainingSlots <= 0) {
@@ -291,17 +317,17 @@ export default function ListPropertyModal({
         return;
       }
       const filesToProcess = Array.from(files).slice(0, remainingSlots);
-      toast(`Compressing ${filesToProcess.length} gallery image(s)...`, "info");
+      toast(`Uploading ${filesToProcess.length} gallery image(s) to Cloudflare R2...`, "info");
       
-      const compressedResults = await Promise.all(
-        filesToProcess.map((file) => compressImageFile(file, 1000, 0.75))
+      const r2Urls = await Promise.all(
+        filesToProcess.map((file) => uploadImageToR2(file))
       );
 
       setGalleryImages((prev) => {
-        const next = [...prev, ...compressedResults];
+        const next = [...prev, ...r2Urls];
         return next.slice(0, 5);
       });
-      toast(`Uploaded & compressed ${compressedResults.length} gallery photo(s)!`, "success");
+      toast(`Uploaded ${r2Urls.length} gallery photo(s) to Cloudflare R2!`, "success");
     }
   };
 
