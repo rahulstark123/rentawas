@@ -125,17 +125,14 @@ export default function ListPropertyModal({
     }
   };
 
-  const [pincode, setPincode] = useState("560038");
-  const [stateName, setStateName] = useState("Karnataka");
-  const [city, setCity] = useState("Bengaluru");
+  const [pincode, setPincode] = useState("");
+  const [stateName, setStateName] = useState("");
+  const [city, setCity] = useState("");
   const [locality, setLocality] = useState("");
   const [fullAddress, setFullAddress] = useState("");
   const [isSearchingPincode, setIsSearchingPincode] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
-  const [pinnedCoords, setPinnedCoords] = useState<{ lat: number; lng: number } | null>({
-    lat: 12.9716,
-    lng: 77.5946,
-  });
+  const [pinnedCoords, setPinnedCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Debounced Pincode/Zip Worldwide Lookup (1.5s delay to prevent API spam)
   useEffect(() => {
@@ -376,8 +373,15 @@ export default function ListPropertyModal({
     // Reset
     setCurrentStep(1);
     setTitle("");
+    setDescription("");
     setRent("");
+    setDeposit("");
+    setPincode("");
+    setStateName("");
+    setCity("");
     setLocality("");
+    setFullAddress("");
+    setPinnedCoords(null);
     setContactPersonName("");
     setContactNumber("");
   };
