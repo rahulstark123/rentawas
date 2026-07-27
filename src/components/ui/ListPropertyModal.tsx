@@ -919,7 +919,7 @@ export default function ListPropertyModal({
                       <div className="relative h-28 w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 group">
                         {mainImage ? (
                           <>
-                            <Image src={mainImage} alt="Main Property Image" fill className="object-cover" />
+                            <Image src={mainImage} alt="Main Property Image" fill unoptimized className="object-cover" />
                             <label className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 cursor-pointer">
                               <Upload className="w-5 h-5 text-white" />
                               <span className="text-[10px] font-extrabold text-white uppercase">Change Main File</span>
@@ -973,7 +973,7 @@ export default function ListPropertyModal({
                       <div className="relative h-28 w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 group">
                         {coverImage ? (
                           <>
-                            <Image src={coverImage} alt="Cover Banner Image" fill className="object-cover" />
+                            <Image src={coverImage} alt="Cover Banner Image" fill unoptimized className="object-cover" />
                             <label className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 cursor-pointer">
                               <Upload className="w-5 h-5 text-white" />
                               <span className="text-[10px] font-extrabold text-white uppercase">Change Cover File</span>
@@ -1052,7 +1052,7 @@ export default function ListPropertyModal({
                           >
                             {imgUrl ? (
                               <>
-                                <Image src={imgUrl} alt={`Slot ${slotIdx + 1}`} fill className="object-cover" />
+                                <Image src={imgUrl} alt={`Slot ${slotIdx + 1}`} fill unoptimized className="object-cover" />
                                 <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                   <button
                                     type="button"
