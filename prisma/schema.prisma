@@ -67,6 +67,14 @@ model Workspace {
   stripeEnvMode         String?   @default("test")
   stripeConnected       Boolean   @default(false)
 
+  // PayPal Payment Gateway Config
+  paypalClientId        String?
+  paypalClientSecret    String?
+  paypalMerchantEmail   String?
+  paypalWebhookId       String?
+  paypalEnvMode         String?   @default("test")
+  paypalConnected       Boolean   @default(false)
+
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 

@@ -89,6 +89,10 @@ export default function WorkspaceSettingsPage() {
       setShowStripeModal(true);
       return;
     }
+    if (id === "paypal") {
+      setShowPaypalModal(true);
+      return;
+    }
     const isCurrentlyConnected = !!connectedMap[id];
     setConnectedMap((prev) => ({ ...prev, [id]: !isCurrentlyConnected }));
     toast(
@@ -97,6 +101,74 @@ export default function WorkspaceSettingsPage() {
         : `Integration disconnected: ${name}`,
       !isCurrentlyConnected ? "success" : "info"
     );
+  };
+
+  // PayPal Integration Modal & Credentials State
+  const [showPaypalModal, setShowPaypalModal] = useState(false);
+  const [paypalEnvMode, setPaypalEnvMode] = useState<"live" | "test">("live");
+  const [paypalClientId, setPaypalClientId] = useState("");
+  const [paypalClientSecret, setPaypalClientSecret] = useState("");
+  const [paypalMerchantEmail, setPaypalMerchantEmail] = useState("");
+  const [paypalWebhookId, setPaypalWebhookId] = useState("");
+  const [showPaypalSecret, setShowPaypalSecret] = useState(false);
+  const [savingPaypal, setSavingPaypal] = useState(false);
+
+  const handleSavePaypal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paypalClientId.trim() || !paypalClientSecret.trim()) {
+      toast("Client ID and Client Secret are required for PayPal configuration!", "error");
+      return;
+    }
+
+    try {
+      setSavingPaypal(true);
+      const res = await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wid: 1,
+          paypalClientId,
+          paypalClientSecret,
+          paypalMerchantEmail,
+          paypalWebhookId,
+          paypalEnvMode,
+          paypalConnected: true,
+        }),
+      });
+
+      if (res.ok) {
+        setConnectedMap((prev) => ({ ...prev, paypal: true }));
+        setShowPaypalModal(false);
+        toast("PayPal Client API credentials saved successfully! International wallet payment gateway activated.", "success");
+      } else {
+        toast("Failed to save PayPal configuration.", "error");
+      }
+    } catch (err) {
+      toast("Error saving PayPal settings.", "error");
+    } finally {
+      setSavingPaypal(false);
+    }
+  };
+
+  const handleDisconnectPaypal = async () => {
+    try {
+      setSavingPaypal(true);
+      await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wid: 1,
+          paypalConnected: false,
+        }),
+      });
+      setConnectedMap((prev) => ({ ...prev, paypal: false }));
+      setShowPaypalModal(false);
+      toast("PayPal integration disconnected.", "info");
+    } catch (err) {
+      toast("Error disconnecting PayPal.", "error");
+    } finally {
+      setSavingPaypal(false);
+    }
   };
 
   // Stripe Integration Modal & Credentials State
@@ -254,6 +326,15 @@ export default function WorkspaceSettingsPage() {
           if (json.data.stripeEnvMode) setStripeEnvMode(json.data.stripeEnvMode as any);
           if (json.data.stripeConnected !== undefined) {
             setConnectedMap((prev) => ({ ...prev, stripe: json.data.stripeConnected }));
+          }
+
+          if (json.data.paypalClientId) setPaypalClientId(json.data.paypalClientId);
+          if (json.data.paypalClientSecret) setPaypalClientSecret(json.data.paypalClientSecret);
+          if (json.data.paypalMerchantEmail) setPaypalMerchantEmail(json.data.paypalMerchantEmail);
+          if (json.data.paypalWebhookId) setPaypalWebhookId(json.data.paypalWebhookId);
+          if (json.data.paypalEnvMode) setPaypalEnvMode(json.data.paypalEnvMode as any);
+          if (json.data.paypalConnected !== undefined) {
+            setConnectedMap((prev) => ({ ...prev, paypal: json.data.paypalConnected }));
           }
         }
       }
@@ -1468,6 +1549,229 @@ export default function WorkspaceSettingsPage() {
                       <>
                         <ShieldCheck className="w-4 h-4" />
                         <span>Save &amp; Connect Stripe</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PayPal Integration Modal */}
+      {showPaypalModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar font-sans">
+            
+            {/* Top Close Button */}
+            <button
+              type="button"
+              onClick={() => setShowPaypalModal(false)}
+              className="absolute right-5 top-5 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Modal Header */}
+            <div className="flex items-start gap-4 border-b border-slate-100 pb-5">
+              <div className="w-14 h-14 rounded-2xl border border-slate-200 bg-white p-2 flex items-center justify-center shrink-0 shadow-xs">
+                <Image
+                  src="/assests/paypal icon.svg"
+                  alt="PayPal"
+                  width={48}
+                  height={48}
+                  className="object-contain"
+                />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">PayPal &amp; Venmo Commerce API Setup</h3>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-sky-100 text-sky-800 uppercase">
+                    GLOBAL WALLETS
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Enter your PayPal REST API Client ID, Client Secret, and Merchant Email to process international tenant payments and Venmo transfers.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSavePaypal} className="space-y-5 text-xs">
+              
+              {/* Environment Radio Selector */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-2">
+                  API Environment Mode
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPaypalEnvMode("live")}
+                    className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                      paypalEnvMode === "live"
+                        ? "bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 text-emerald-900 font-extrabold"
+                        : "bg-slate-50 border-slate-200 text-slate-700 font-bold hover:bg-slate-100"
+                    }`}
+                  >
+                    <div>
+                      <div className="text-xs">Live Production</div>
+                      <div className="text-[10px] text-slate-500 font-mono">api-3t.paypal.com</div>
+                    </div>
+                    {paypalEnvMode === "live" && <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaypalEnvMode("test")}
+                    className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                      paypalEnvMode === "test"
+                        ? "bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/20 text-amber-900 font-extrabold"
+                        : "bg-slate-50 border-slate-200 text-slate-700 font-bold hover:bg-slate-100"
+                    }`}
+                  >
+                    <div>
+                      <div className="text-xs">Sandbox Mode</div>
+                      <div className="text-[10px] text-slate-500 font-mono">api-m.sandbox.paypal.com</div>
+                    </div>
+                    {paypalEnvMode === "test" && <Check className="w-4 h-4 text-amber-600 stroke-[3]" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Client ID Field */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                  <span>PayPal REST Client ID *</span>
+                  <span className="text-[10px] text-slate-400 lowercase">Found in PayPal Developer &gt; Apps</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={paypalClientId}
+                  onChange={(e) => setPaypalClientId(e.target.value)}
+                  placeholder="e.g. A21AA...or Sandbox Client ID"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-600"
+                />
+              </div>
+
+              {/* Client Secret Field */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                  <span>PayPal Client Secret *</span>
+                  <span className="text-[10px] text-slate-400 lowercase">Private authentication key</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPaypalSecret ? "text" : "password"}
+                    required
+                    value={paypalClientSecret}
+                    onChange={(e) => setPaypalClientSecret(e.target.value)}
+                    placeholder="••••••••••••••••••••••••"
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPaypalSecret(!showPaypalSecret)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showPaypalSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Merchant Business Email Field */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                  <span>PayPal Merchant Account Email (Optional)</span>
+                  <span className="text-[10px] text-slate-400 lowercase">For payout routing</span>
+                </label>
+                <input
+                  type="email"
+                  value={paypalMerchantEmail}
+                  onChange={(e) => setPaypalMerchantEmail(e.target.value)}
+                  placeholder="e.g. billing@grandregency.com"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-600"
+                />
+              </div>
+
+              {/* Webhook ID Field */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                  <span>PayPal Webhook ID (Optional)</span>
+                  <span className="text-[10px] text-slate-400 lowercase">17-character Webhook ID</span>
+                </label>
+                <input
+                  type="text"
+                  value={paypalWebhookId}
+                  onChange={(e) => setPaypalWebhookId(e.target.value)}
+                  placeholder="e.g. 8AB1234567890CDEF"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-600"
+                />
+              </div>
+
+              {/* Webhook Setup Instructions Note Box */}
+              <div className="p-4 bg-sky-50/80 border border-sky-200 rounded-2xl space-y-2 text-sky-950">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-xs uppercase tracking-wider text-sky-900 flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-sky-600" />
+                    <span>PayPal Webhook Setup Guide</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText("https://rentawas.com/api/webhooks/paypal");
+                      toast("PayPal Webhook URL copied to clipboard!", "success");
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-white text-sky-700 hover:text-sky-900 font-extrabold text-[10px] rounded-lg border border-sky-200 shadow-2xs cursor-pointer"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>Copy URL</span>
+                  </button>
+                </div>
+
+                <div className="font-mono text-[10px] text-sky-800 bg-white/80 px-2.5 py-1.5 rounded-xl border border-sky-200/90 flex items-center justify-between">
+                  <span>https://rentawas.com/api/webhooks/paypal</span>
+                </div>
+
+                <div className="text-[11px] space-y-1 pt-1 text-slate-700 font-medium">
+                  <p className="font-bold text-slate-900 text-[11px]">How to configure in PayPal:</p>
+                  <ol className="list-decimal list-inside space-y-0.5 text-[10px] text-slate-600">
+                    <li>Copy <code className="bg-sky-100 text-sky-900 px-1 py-0.5 rounded font-mono">https://rentawas.com/api/webhooks/paypal</code></li>
+                    <li>Open <strong>PayPal Developer Portal &gt; My Apps &amp; Credentials &gt; Webhooks &gt; Add Webhook</strong></li>
+                    <li>Paste the URL and select events: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">PAYMENT.CAPTURE.COMPLETED</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">CHECKOUT.ORDER.APPROVED</code>, and <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">PAYMENT.CAPTURE.DENIED</code></li>
+                  </ol>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                {connectedMap.paypal ? (
+                  <button
+                    type="button"
+                    onClick={handleDisconnectPaypal}
+                    disabled={savingPaypal}
+                    className="px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl cursor-pointer transition-colors"
+                  >
+                    Disconnect Integration
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={savingPaypal}
+                    className="px-5 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-xs uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2"
+                  >
+                    {savingPaypal ? (
+                      <span>Saving &amp; Verifying...</span>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Save &amp; Connect PayPal</span>
                       </>
                     )}
                   </button>

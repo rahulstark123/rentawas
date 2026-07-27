@@ -53,6 +53,12 @@ export async function GET(request: Request) {
         stripeConnectAccountId: workspace?.stripeConnectAccountId || "",
         stripeEnvMode: workspace?.stripeEnvMode || "test",
         stripeConnected: workspace?.stripeConnected ?? false,
+        paypalClientId: workspace?.paypalClientId || "",
+        paypalClientSecret: workspace?.paypalClientSecret || "",
+        paypalMerchantEmail: workspace?.paypalMerchantEmail || "",
+        paypalWebhookId: workspace?.paypalWebhookId || "",
+        paypalEnvMode: workspace?.paypalEnvMode || "test",
+        paypalConnected: workspace?.paypalConnected ?? false,
       },
     });
   } catch (error: any) {
@@ -63,7 +69,7 @@ export async function GET(request: Request) {
   }
 }
 
-// PATCH /api/workspace - Update workspace details (e.g. active subscription plan, Razorpay & Stripe keys)
+// PATCH /api/workspace - Update workspace details (e.g. active subscription plan, Razorpay, Stripe & PayPal keys)
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
@@ -84,7 +90,13 @@ export async function PATCH(request: Request) {
       stripeWebhookSecret,
       stripeConnectAccountId,
       stripeEnvMode,
-      stripeConnected
+      stripeConnected,
+      paypalClientId,
+      paypalClientSecret,
+      paypalMerchantEmail,
+      paypalWebhookId,
+      paypalEnvMode,
+      paypalConnected
     } = body;
 
     const workspaceIdNum = wid ? parseInt(String(wid), 10) : 1;
@@ -108,6 +120,12 @@ export async function PATCH(request: Request) {
         ...(stripeConnectAccountId !== undefined ? { stripeConnectAccountId } : {}),
         ...(stripeEnvMode !== undefined ? { stripeEnvMode } : {}),
         ...(stripeConnected !== undefined ? { stripeConnected } : {}),
+        ...(paypalClientId !== undefined ? { paypalClientId } : {}),
+        ...(paypalClientSecret !== undefined ? { paypalClientSecret } : {}),
+        ...(paypalMerchantEmail !== undefined ? { paypalMerchantEmail } : {}),
+        ...(paypalWebhookId !== undefined ? { paypalWebhookId } : {}),
+        ...(paypalEnvMode !== undefined ? { paypalEnvMode } : {}),
+        ...(paypalConnected !== undefined ? { paypalConnected } : {}),
       },
     });
 
