@@ -430,6 +430,7 @@ model SupportTicket {
   message       String
   contactEmail  String?
   contactPhone  String?
+  attachments   String[]  @default([])
 
   workspaceId   Int?
   workspace     Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)

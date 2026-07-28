@@ -22,7 +22,9 @@ import {
   UserCheck,
   Trash2,
   RefreshCw,
-  Check
+  Check,
+  Paperclip,
+  Image as ImageIcon
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
@@ -37,8 +39,17 @@ export interface SupportTicketRecord {
   message: string;
   contactEmail?: string;
   contactPhone?: string;
+  attachments?: string[];
   workspaceId?: number;
   createdAt: string;
+}
+
+export interface AttachmentItem {
+  id: string;
+  name: string;
+  size: string;
+  url: string;
+  type: string;
 }
 
 export default function LandlordSupportPage() {
@@ -57,6 +68,8 @@ export default function LandlordSupportPage() {
     ALL_COUNTRIES.find((c) => c.code === "IN") || ALL_COUNTRIES[0]
   );
   const [contactPhone, setContactPhone] = useState("");
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
@@ -83,6 +96,131 @@ export default function LandlordSupportPage() {
     fetchTickets();
   }, []);
 
+  // Attachment File Upload & WebP Image Compression
+  const compressImageFile = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = document.createElement("img");
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedDataUrl = canvas.toDataURL("image/webp", quality);
+            resolve(compressedDataUrl);
+          } else {
+            resolve(event.target?.result as string);
+          }
+        };
+        img.onerror = () => resolve(event.target?.result as string);
+      };
+    });
+  };
+
+  const uploadAttachmentToStorage = async (file: File): Promise<string> => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "support-tickets");
+
+      const res = await fetch("/api/storage/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const json = await res.json();
+      if (json.success && json.url) {
+        return json.url;
+      }
+      if (file.type.startsWith("image/")) {
+        return await compressImageFile(file, 1200, 0.8);
+      }
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+    } catch (err) {
+      if (file.type.startsWith("image/")) {
+        return await compressImageFile(file, 1200, 0.8);
+      }
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const MAX_FILES = 3;
+    const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
+
+    if (attachments.length >= MAX_FILES) {
+      toast(`Maximum ${MAX_FILES} attachments allowed per ticket!`, "error");
+      return;
+    }
+
+    const fileList = Array.from(files);
+    const remainingSlots = MAX_FILES - attachments.length;
+    const selectedFiles = fileList.slice(0, remainingSlots);
+
+    if (fileList.length > remainingSlots) {
+      toast(`Only ${remainingSlots} more attachment(s) could be added (max ${MAX_FILES} total).`, "info");
+    }
+
+    setIsUploadingAttachment(true);
+    const newAttachments: AttachmentItem[] = [];
+
+    for (const file of selectedFiles) {
+      // 2MB Validation Check
+      if (file.size > MAX_SIZE_BYTES) {
+        toast(`File "${file.name}" exceeds maximum 2MB size limit (${(file.size / (1024 * 1024)).toFixed(1)}MB)!`, "error");
+        continue;
+      }
+
+      toast(`Compressing & uploading "${file.name}"...`, "info");
+      const uploadedUrl = await uploadAttachmentToStorage(file);
+      
+      newAttachments.push({
+        id: `ATT-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        name: file.name,
+        size: `${(file.size / 1024).toFixed(1)} KB`,
+        url: uploadedUrl,
+        type: file.type,
+      });
+    }
+
+    if (newAttachments.length > 0) {
+      setAttachments((prev) => [...prev, ...newAttachments]);
+      toast(`Successfully attached ${newAttachments.length} file(s)!`, "success");
+    }
+    setIsUploadingAttachment(false);
+    e.target.value = "";
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((item) => item.id !== id));
+    toast("Attachment removed", "info");
+  };
+
   // 2. Create Ticket (POST)
   const handleTicketSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +240,7 @@ export default function LandlordSupportPage() {
           message: desc.trim(),
           contactEmail: contactEmail.trim() || null,
           contactPhone: fullPhone,
+          attachments: attachments.map((a) => a.url),
           wid: 1,
         }),
       });
@@ -113,6 +252,7 @@ export default function LandlordSupportPage() {
         setDesc("");
         setContactEmail("");
         setContactPhone("");
+        setAttachments([]);
         setShowModal(false);
         fetchTickets();
       } else {
@@ -299,11 +439,31 @@ export default function LandlordSupportPage() {
                 <div>
                   <h4 className="text-sm font-bold text-slate-900">{t.subject}</h4>
                   <p className="text-xs text-slate-600 mt-1 leading-relaxed">{t.message}</p>
+
+                  {Array.isArray(t.attachments) && t.attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {t.attachments.map((attUrl, idx) => (
+                        <a
+                          key={idx}
+                          href={attUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 hover:text-[#FF6B00] hover:border-[#FF6B00] transition-colors"
+                        >
+                          <Paperclip className="w-3 h-3 text-[#FF6B00]" />
+                          <span>Attachment #{idx + 1}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2 border-t border-slate-200/80 text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2">
                   <span>Created: {new Date(t.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-                  {t.contactEmail && <span>Contact: <strong className="text-slate-800">{t.contactEmail}</strong></span>}
+                  <div className="flex items-center gap-3">
+                    {t.contactPhone && <span>Phone: <strong className="text-slate-800">{t.contactPhone}</strong></span>}
+                    {t.contactEmail && <span>Email: <strong className="text-slate-800">{t.contactEmail}</strong></span>}
+                  </div>
                 </div>
               </div>
             ))}
@@ -365,62 +525,70 @@ export default function LandlordSupportPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Category</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  >
-                    <option value="Rent Payments & Collection">Rent Payments & Collection</option>
-                    <option value="Property & Unit Management">Property & Unit Management</option>
-                    <option value="Tenant Management & Onboarding">Tenant Management & Onboarding</option>
-                    <option value="AI Document Generation">AI Document Generation</option>
-                    <option value="Maintenance Requests">Maintenance Requests</option>
-                    <option value="Property Expenses">Property Expenses</option>
-                    <option value="Account & Subscription Billing">Account & Subscription Billing</option>
-                    <option value="Technical & UI Issues">Technical & UI Issues</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full pl-3 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 appearance-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    >
+                      <option value="Rent Payments & Collection">Rent Payments & Collection</option>
+                      <option value="Property & Unit Management">Property & Unit Management</option>
+                      <option value="Tenant Management & Onboarding">Tenant Management & Onboarding</option>
+                      <option value="AI Document Generation">AI Document Generation</option>
+                      <option value="Maintenance Requests">Maintenance Requests</option>
+                      <option value="Property Expenses">Property Expenses</option>
+                      <option value="Account & Subscription Billing">Account & Subscription Billing</option>
+                      <option value="Technical & UI Issues">Technical & UI Issues</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Priority SLA</label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  >
-                    <option value="Low">Low (General Query)</option>
-                    <option value="Medium">Medium (Account/Feature)</option>
-                    <option value="High">High Priority</option>
-                    <option value="Urgent">Urgent Issue</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value)}
+                      className="w-full pl-3 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 appearance-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    >
+                      <option value="Low">Low (General Query)</option>
+                      <option value="Medium">Medium (Account/Feature)</option>
+                      <option value="High">High Priority</option>
+                      <option value="Urgent">Urgent Issue</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Contact Email</label>
-                  <input
-                    type="email"
-                    value={contactEmail}
-                    onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="support@anshapps.com"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Contact Phone</label>
-                  <CountryPhoneInput
-                    value={contactPhone}
-                    onChange={setContactPhone}
-                    selectedCountry={selectedCountry}
-                    onCountryChange={setSelectedCountry}
-                  />
-                </div>
+              {/* Contact Email Row */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Contact Email</label>
+                <input
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  placeholder="support@anshapps.com"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
               </div>
 
+              {/* Contact Phone Row (Separate New Row) */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">Contact Phone</label>
+                <CountryPhoneInput
+                  value={contactPhone}
+                  onChange={setContactPhone}
+                  selectedCountry={selectedCountry}
+                  onCountryChange={setSelectedCountry}
+                />
+              </div>
+
+              {/* Detailed Message Row */}
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1">Detailed Message</label>
                 <textarea
@@ -429,8 +597,69 @@ export default function LandlordSupportPage() {
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
                   placeholder="Explain what happened or what assistance you need..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 />
+              </div>
+
+              {/* Attachment Upload Section (Max 3 files, Max 2MB each, WebP compression) */}
+              <div className="space-y-2 pt-1 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-slate-700 uppercase">
+                    Attachments <span className="text-slate-400 font-normal text-[10px] lowercase">(max 3 files, max 2MB each)</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {attachments.length} / 3 Attached
+                  </span>
+                </div>
+
+                {/* Upload Button */}
+                {attachments.length < 3 && (
+                  <label className={`w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-[#FF6B00] bg-slate-50 hover:bg-orange-50/50 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-slate-700 hover:text-[#FF6B00] transition-all cursor-pointer ${
+                    isUploadingAttachment ? "opacity-50 pointer-events-none" : ""
+                  }`}>
+                    <Paperclip className="w-4 h-4" />
+                    <span>{isUploadingAttachment ? "Compressing & Uploading..." : "+ Attach Document or Image"}</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx,.txt"
+                      onChange={handleAttachmentUpload}
+                      disabled={isUploadingAttachment || attachments.length >= 3}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+
+                {/* Attached File List Pills */}
+                {attachments.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    {attachments.map((att) => (
+                      <div
+                        key={att.id}
+                        className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium"
+                      >
+                        <div className="flex items-center gap-2 truncate pr-2">
+                          {att.type.startsWith("image/") ? (
+                            <ImageIcon className="w-4 h-4 text-purple-600 shrink-0" />
+                          ) : (
+                            <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                          )}
+                          <span className="font-semibold text-slate-800 truncate">{att.name}</span>
+                          <span className="text-[10px] font-mono text-slate-400 shrink-0">({att.size})</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(att.id)}
+                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                          title="Remove attachment"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

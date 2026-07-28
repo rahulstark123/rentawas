@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { subject, category, priority, message, contactEmail, contactPhone, wid } = body;
+    const { subject, category, priority, message, contactEmail, contactPhone, attachments, wid } = body;
 
     if (!subject || !message) {
       return NextResponse.json(
@@ -51,6 +51,7 @@ export async function POST(request: Request) {
         message,
         contactEmail: contactEmail || null,
         contactPhone: contactPhone || null,
+        attachments: Array.isArray(attachments) ? attachments : [],
         workspaceId: workspaceIdNum,
       },
     });
