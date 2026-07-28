@@ -41,20 +41,40 @@ export async function POST(request: Request) {
     const randomSeq = Math.floor(100 + Math.random() * 900);
     const ticketNumber = `TKT-2026-${randomSeq}`;
 
-    const newTicket = await prisma.supportTicket.create({
-      data: {
-        ticketNumber,
-        subject,
-        category: category || "General Inquiry",
-        priority: priority || "Medium",
-        status: "Open",
-        message,
-        contactEmail: contactEmail || null,
-        contactPhone: contactPhone || null,
-        attachments: Array.isArray(attachments) ? attachments : [],
-        workspaceId: workspaceIdNum,
-      },
-    });
+    let newTicket;
+    try {
+      newTicket = await prisma.supportTicket.create({
+        data: {
+          ticketNumber,
+          subject,
+          category: category || "General Inquiry",
+          priority: priority || "Medium",
+          status: "Open",
+          message,
+          contactEmail: contactEmail || null,
+          contactPhone: contactPhone || null,
+          attachments: Array.isArray(attachments) ? attachments : [],
+          workspaceId: workspaceIdNum,
+        },
+      });
+    } catch (createErr: any) {
+      console.warn("Notice: Retrying support ticket creation fallback:", createErr?.message);
+      newTicket = await prisma.supportTicket.create({
+        data: {
+          ticketNumber,
+          subject,
+          category: category || "General Inquiry",
+          priority: priority || "Medium",
+          status: "Open",
+          message: Array.isArray(attachments) && attachments.length > 0 
+            ? `${message}\n\nAttachments:\n${attachments.join("\n")}` 
+            : message,
+          contactEmail: contactEmail || null,
+          contactPhone: contactPhone || null,
+          workspaceId: workspaceIdNum,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
