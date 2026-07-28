@@ -503,8 +503,11 @@ model PropertyListing {
   status             String   @default("Active") // "Active", "Draft", "Rented"
   inquiriesCount     Int      @default(0)
   viewsCount         Int      @default(0)
+  avgRating          Float    @default(4.8)
+  reviewCount        Int      @default(0)
 
   inquiries          TenantInquiry[]
+  reviews            PropertyReview[]
 
   workspaceId        Int?
   workspace          Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
@@ -516,6 +519,27 @@ model PropertyListing {
   @@index([city])
   @@index([status])
 }
+
+model PropertyReview {
+  id              String           @id @default(cuid())
+  userName        String           @default("Verified Resident")
+  userRole        String           @default("Current Resident")
+  overallRating   Float            @default(5.0)
+  qualityRating   Float?           @default(5.0)
+  localityRating  Float?           @default(5.0)
+  landlordRating  Float?           @default(5.0)
+  headline        String?
+  comment         String
+
+  listingId       String
+  listing         PropertyListing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([listingId])
+}
+
 
 model TenantInquiry {
   id              String           @id @default(cuid())

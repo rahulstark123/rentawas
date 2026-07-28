@@ -291,34 +291,74 @@ export default function PropertyDetailPage() {
     }
   };
 
-  const handleReviewSubmit = (e: React.FormEvent) => {
+  const fetchPropertyReviews = async (targetId: string) => {
+    try {
+      const res = await fetch(`/api/reviews?listingId=${encodeURIComponent(targetId)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const fetchedList: ReviewItem[] = json.data.map((r: any) => ({
+            id: r.id,
+            author: r.userName || "Verified Resident",
+            status: r.userRole || "Current Resident",
+            date: new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+            overallRating: r.overallRating || 5,
+            conditionRating: r.qualityRating || 5,
+            localityRating: r.localityRating || 5,
+            landlordRating: r.landlordRating || 5,
+            headline: r.headline || "Verified Resident Review",
+            comment: r.comment,
+            tags: ["Zero Brokerage", "Verified Resident"],
+          }));
+          setReviewsList(fetchedList);
+          if (json.stats?.avgRating) {
+            setProperty((prev: any) => (prev ? { ...prev, rating: json.stats.avgRating, reviewsCount: json.stats.totalReviews } : prev));
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch reviews:", err);
+    }
+  };
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewerName.trim() || !reviewComment.trim()) {
       toast("Please enter your name and review feedback.", "error");
       return;
     }
 
-    const newReview: ReviewItem = {
-      id: `REV-${Date.now()}`,
-      author: reviewerName.trim(),
-      status: residentStatus,
-      date: "Just now",
-      overallRating,
-      conditionRating,
-      localityRating,
-      landlordRating,
-      headline: reviewHeadline.trim() || "Verified Resident Review",
-      comment: reviewComment.trim(),
-      tags: selectedReviewTags,
-    };
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: propertyId,
+          userName: reviewerName.trim(),
+          userRole: residentStatus,
+          overallRating,
+          qualityRating: conditionRating,
+          localityRating,
+          landlordRating,
+          headline: reviewHeadline.trim(),
+          comment: reviewComment.trim(),
+        }),
+      });
 
-    setReviewsList([newReview, ...reviewsList]);
-    setIsReviewModalOpen(false);
-    toast("Thank you! Your resident review has been published.", "success");
-
-    setReviewerName("");
-    setReviewHeadline("");
-    setReviewComment("");
+      const json = await res.json();
+      if (res.ok && json.success) {
+        toast("Thank you! Your review has been saved to PostgreSQL & average property rating updated!", "success");
+        setIsReviewModalOpen(false);
+        setReviewerName("");
+        setReviewHeadline("");
+        setReviewComment("");
+        if (propertyId) fetchPropertyReviews(propertyId as string);
+      } else {
+        toast(json.error || "Failed to submit review", "error");
+      }
+    } catch (err) {
+      toast("Error submitting review", "error");
+    }
   };
 
   const defaultGalleryFallbacks = [
@@ -402,8 +442,8 @@ export default function PropertyDetailPage() {
           type: item.propertyType || "Apartment",
           bhk: item.propertyType || "Apartment",
           size: item.deposit ? `Deposit: ₹${item.deposit.toLocaleString("en-IN")}` : item.availableFrom || "Ready to Move",
-          rating: 4.9,
-          reviewsCount: 14,
+          rating: item.avgRating || 4.9,
+          reviewsCount: item.reviewCount || 14,
           image: uploadedPhotos[0] || mergedImages[0],
           images: mergedImages,
           mainImage: item.mainImage || uploadedPhotos[0] || mergedImages[0],
@@ -416,6 +456,7 @@ export default function PropertyDetailPage() {
           badge: "Verified Owner • Zero Fee",
         });
         setIsLoading(false);
+        fetchPropertyReviews(item.id);
         return;
       }
 
