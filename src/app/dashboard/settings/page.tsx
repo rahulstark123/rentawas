@@ -732,10 +732,10 @@ export default function WorkspaceSettingsPage() {
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Tax Identification Number (EIN / GSTIN / SSN)
+                  Pincode / Postal Code
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {taxId}
+                  {pincode}
                 </div>
               </div>
 
@@ -745,6 +745,15 @@ export default function WorkspaceSettingsPage() {
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
                   {registeredAddress}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Tax Identification Number (EIN / GSTIN / SSN)
+                </label>
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {taxId}
                 </div>
               </div>
             </div>
@@ -2102,14 +2111,36 @@ export default function WorkspaceSettingsPage() {
                     </div>
                   </div>
 
+                  {/* Pincode & Registered Address Next to Each Other */}
                   <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Tax Identification Number</label>
-                    <input
-                      type="text"
-                      value={tempTaxId}
-                      onChange={(e) => setTempTaxId(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                    />
+                    <label className="block font-bold text-slate-700 uppercase mb-1 flex items-center justify-between">
+                      <span>Pincode / Postal Code</span>
+                      {isFetchingPincode && <span className="text-[10px] text-[#FF6B00] font-bold animate-pulse">Fetching address...</span>}
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. 122001, 98101"
+                        value={tempPincode}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setTempPincode(val);
+                          if (val.trim().length === 6 || val.trim().length === 5) {
+                            handleFetchAddressByPincode(val);
+                          }
+                        }}
+                        className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleFetchAddressByPincode(tempPincode)}
+                        disabled={isFetchingPincode || !tempPincode.trim()}
+                        className="px-3 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs disabled:opacity-50 cursor-pointer transition-all flex items-center gap-1 shrink-0"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>Fetch Address</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div>
@@ -2118,6 +2149,17 @@ export default function WorkspaceSettingsPage() {
                       type="text"
                       value={tempRegisteredAddress}
                       onChange={(e) => setTempRegisteredAddress(e.target.value)}
+                      placeholder="Auto-filled from pincode or enter address"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Tax Identification Number</label>
+                    <input
+                      type="text"
+                      value={tempTaxId}
+                      onChange={(e) => setTempTaxId(e.target.value)}
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
@@ -2202,36 +2244,7 @@ export default function WorkspaceSettingsPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1 flex items-center justify-between">
-                      <span>Pincode / Postal Code</span>
-                      {isFetchingPincode && <span className="text-[10px] text-[#FF6B00] font-bold animate-pulse">Fetching address...</span>}
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="e.g. 122001, 98101"
-                        value={tempPincode}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setTempPincode(val);
-                          if (val.trim().length === 6 || val.trim().length === 5) {
-                            handleFetchAddressByPincode(val);
-                          }
-                        }}
-                        className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleFetchAddressByPincode(tempPincode)}
-                        disabled={isFetchingPincode || !tempPincode.trim()}
-                        className="px-3 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs disabled:opacity-50 cursor-pointer transition-all flex items-center gap-1 shrink-0"
-                      >
-                        <Search className="w-3.5 h-3.5" />
-                        <span>Fetch Address</span>
-                      </button>
-                    </div>
-                  </div>
+
 
                   <div>
                     <label className="block font-bold text-slate-700 uppercase mb-1">Operating Timezone</label>
