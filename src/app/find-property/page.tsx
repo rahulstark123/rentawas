@@ -178,8 +178,8 @@ export default function FindPropertyPage() {
           type: item.propertyType || "Apartment",
           bhk: item.propertyType || "Apartment",
           size: item.deposit ? `Deposit: ₹${item.deposit.toLocaleString("en-IN")}` : item.availableFrom || "Ready to Move",
-          rating: 4.9,
-          reviewsCount: 14,
+          rating: item.avgRating ? Number(item.avgRating).toFixed(1) : 4.8,
+          reviewsCount: item.reviewCount !== undefined ? item.reviewCount : 0,
           image: item.mainImage || item.image || item.coverImage || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80",
           tags: Array.isArray(item.amenities) && item.amenities.length > 0 
             ? item.amenities.slice(0, 3).map(formatAmenityTag) 
