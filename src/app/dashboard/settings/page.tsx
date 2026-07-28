@@ -38,6 +38,64 @@ import {
   Mail
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
+
+export const ALL_CURRENCIES = [
+  { code: "USD", symbol: "$", name: "USD ($) — United States Dollar" },
+  { code: "INR", symbol: "₹", name: "INR (₹) — Indian Rupee" },
+  { code: "EUR", symbol: "€", name: "EUR (€) — Eurozone Euro" },
+  { code: "GBP", symbol: "£", name: "GBP (£) — British Pound" },
+  { code: "AED", symbol: "AED", name: "AED (AED) — UAE Dirham" },
+  { code: "CAD", symbol: "$", name: "CAD ($) — Canadian Dollar" },
+  { code: "AUD", symbol: "$", name: "AUD ($) — Australian Dollar" },
+  { code: "JPY", symbol: "¥", name: "JPY (¥) — Japanese Yen" },
+  { code: "CHF", symbol: "CHF", name: "CHF (CHF) — Swiss Franc" },
+  { code: "SGD", symbol: "$", name: "SGD ($) — Singapore Dollar" },
+  { code: "HKD", symbol: "$", name: "HKD ($) — Hong Kong Dollar" },
+  { code: "NZD", symbol: "$", name: "NZD ($) — New Zealand Dollar" },
+  { code: "SAR", symbol: "SAR", name: "SAR (SAR) — Saudi Riyal" },
+  { code: "QAR", symbol: "QAR", name: "QAR (QAR) — Qatari Riyal" },
+  { code: "KWD", symbol: "KWD", name: "KWD (KWD) — Kuwaiti Dinar" },
+  { code: "BHD", symbol: "BHD", name: "BHD (BHD) — Bahraini Dinar" },
+  { code: "OMR", symbol: "OMR", name: "OMR (OMR) — Omani Rial" },
+  { code: "CNY", symbol: "¥", name: "CNY (¥) — Chinese Yuan" },
+  { code: "KRW", symbol: "₩", name: "KRW (₩) — South Korean Won" },
+  { code: "MYR", symbol: "RM", name: "MYR (RM) — Malaysian Ringgit" },
+  { code: "THB", symbol: "฿", name: "THB (฿) — Thai Baht" },
+  { code: "IDR", symbol: "Rp", name: "IDR (Rp) — Indonesian Rupiah" },
+  { code: "PHP", symbol: "₱", name: "PHP (₱) — Philippine Peso" },
+  { code: "VND", symbol: "₫", name: "VND (₫) — Vietnamese Dong" },
+  { code: "BDT", symbol: "৳", name: "BDT (৳) — Bangladeshi Taka" },
+  { code: "PKR", symbol: "₨", name: "PKR (₨) — Pakistani Rupee" },
+  { code: "LKR", symbol: "Rs", name: "LKR (Rs) — Sri Lankan Rupee" },
+  { code: "NPR", symbol: "Rs", name: "NPR (Rs) — Nepalese Rupee" },
+  { code: "ZAR", symbol: "R", name: "ZAR (R) — South African Rand" },
+  { code: "NGN", symbol: "₦", name: "NGN (₦) — Nigerian Naira" },
+  { code: "KES", symbol: "KSh", name: "KES (KSh) — Kenyan Shilling" },
+  { code: "EGP", symbol: "EGP", name: "EGP (EGP) — Egyptian Pound" },
+  { code: "MXN", symbol: "$", name: "MXN ($) — Mexican Peso" },
+  { code: "BRL", symbol: "R$", name: "BRL (R$) — Brazilian Real" },
+  { code: "ARS", symbol: "$", name: "ARS ($) — Argentine Peso" },
+  { code: "CLP", symbol: "$", name: "CLP ($) — Chilean Peso" },
+  { code: "COP", symbol: "$", name: "COP ($) — Colombian Peso" },
+  { code: "PEN", symbol: "S/", name: "PEN (S/) — Peruvian Sol" },
+  { code: "RUB", symbol: "₽", name: "RUB (₽) — Russian Ruble" },
+  { code: "TRY", symbol: "₺", name: "TRY (₺) — Turkish Lira" },
+  { code: "PLN", symbol: "zł", name: "PLN (zł) — Polish Zloty" },
+  { code: "SEK", symbol: "kr", name: "SEK (kr) — Swedish Krona" },
+  { code: "NOK", symbol: "kr", name: "NOK (kr) — Norwegian Krone" },
+  { code: "DKK", symbol: "kr", name: "DKK (kr) — Danish Krone" },
+  { code: "HUF", symbol: "Ft", name: "HUF (Ft) — Hungarian Forint" },
+  { code: "CZK", symbol: "Kč", name: "CZK (Kč) — Czech Koruna" },
+  { code: "ILS", symbol: "₪", name: "ILS (₪) — Israeli New Shekel" },
+  { code: "JOD", symbol: "JOD", name: "JOD (JOD) — Jordanian Dinar" },
+  { code: "LBP", symbol: "LBP", name: "LBP (LBP) — Lebanese Pound" },
+  { code: "IQD", symbol: "IQD", name: "IQD (IQD) — Iraqi Dinar" },
+  { code: "TWD", symbol: "NT$", name: "TWD (NT$) — New Taiwan Dollar" },
+  { code: "MAD", symbol: "MAD", name: "MAD (MAD) — Moroccan Dirham" },
+  { code: "GHS", symbol: "GH₵", name: "GHS (GH₵) — Ghanaian Cedi" },
+  { code: "MUR", symbol: "Rs", name: "MUR (Rs) — Mauritian Rupee" },
+];
 
 export default function WorkspaceSettingsPage() {
   const { toast } = useToast();
@@ -74,6 +132,10 @@ export default function WorkspaceSettingsPage() {
   const [tempTimezone, setTempTimezone] = useState(timezone);
   const [tempFiscalYearStart, setTempFiscalYearStart] = useState(fiscalYearStart);
 
+  const [selectedPhoneCountry, setSelectedPhoneCountry] = useState<Country>(
+    ALL_COUNTRIES.find((c) => c.code === "US") || ALL_COUNTRIES[0]
+  );
+
   const openEditModal = () => {
     setTempOrgName(orgName);
     setTempCompanyType(companyType);
@@ -82,7 +144,15 @@ export default function WorkspaceSettingsPage() {
     setTempLandlordName(landlordName);
     setTempLandlordRole(landlordRole);
     setTempCompanyEmail(companyEmail);
-    setTempCompanyPhone(companyPhone);
+    
+    let rawDigits = companyPhone;
+    const matchedCountry = ALL_COUNTRIES.find((c) => companyPhone.trim().startsWith(c.dialCode));
+    if (matchedCountry) {
+      setSelectedPhoneCountry(matchedCountry);
+      rawDigits = companyPhone.replace(matchedCountry.dialCode, "").trim();
+    }
+    setTempCompanyPhone(rawDigits);
+
     setTempCurrency(currency);
     setTempJurisdiction(jurisdiction);
     setTempTimezone(timezone);
@@ -99,7 +169,12 @@ export default function WorkspaceSettingsPage() {
     setLandlordName(tempLandlordName);
     setLandlordRole(tempLandlordRole);
     setCompanyEmail(tempCompanyEmail);
-    setCompanyPhone(tempCompanyPhone);
+    
+    const formattedPhone = tempCompanyPhone.trim() 
+      ? `${selectedPhoneCountry.dialCode} ${tempCompanyPhone.trim()}`
+      : companyPhone;
+    setCompanyPhone(formattedPhone);
+
     setCurrency(tempCurrency);
     setJurisdiction(tempJurisdiction);
     setTimezone(tempTimezone);
@@ -1954,11 +2029,18 @@ export default function WorkspaceSettingsPage() {
                         onChange={(e) => setTempCompanyType(e.target.value)}
                         className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                       >
+                        <option value="Individual Landlord / Homeowner (Individual)">Individual Landlord / Homeowner (Individual)</option>
+                        <option value="Sole Proprietorship / Single Owner Business">Sole Proprietorship / Single Owner Business</option>
                         <option value="LLC (Limited Liability Company)">LLC (Limited Liability Company)</option>
-                        <option value="Sole Proprietorship / Individual Landlord">Sole Proprietorship / Individual Landlord</option>
+                        <option value="LLP (Limited Liability Partnership)">LLP (Limited Liability Partnership)</option>
+                        <option value="Partnership Firm / General Partnership">Partnership Firm / General Partnership</option>
                         <option value="Private Limited Corporation (Pvt Ltd / Inc)">Private Limited Corporation (Pvt Ltd / Inc)</option>
-                        <option value="Real Estate Investment Trust (REIT)">Real Estate Investment Trust (REIT)</option>
-                        <option value="Partnership Firm">Partnership Firm</option>
+                        <option value="Public Limited Corporation (Ltd / PLC / Corp)">Public Limited Corporation (Ltd / PLC / Corp)</option>
+                        <option value="REIT (Real Estate Investment Trust)">REIT (Real Estate Investment Trust)</option>
+                        <option value="Property Management Agency (PMA / Brokerage)">Property Management Agency (PMA / Brokerage)</option>
+                        <option value="Co-Living & PG / Student Housing Operator">Co-Living & PG / Student Housing Operator</option>
+                        <option value="HUF (Hindu Undivided Family / Family Trust)">HUF (Hindu Undivided Family / Family Trust)</option>
+                        <option value="Non-Profit / Trust / Cooperative Housing Society">Non-Profit / Trust / Cooperative Housing Society</option>
                       </select>
                       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
@@ -2028,11 +2110,11 @@ export default function WorkspaceSettingsPage() {
 
                   <div>
                     <label className="block font-bold text-slate-700 uppercase mb-1">Contact Phone Number</label>
-                    <input
-                      type="text"
+                    <CountryPhoneInput
                       value={tempCompanyPhone}
-                      onChange={(e) => setTempCompanyPhone(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      onChange={(val) => setTempCompanyPhone(val)}
+                      selectedCountry={selectedPhoneCountry}
+                      onCountryChange={(country) => setSelectedPhoneCountry(country)}
                     />
                   </div>
                 </div>
@@ -2054,12 +2136,11 @@ export default function WorkspaceSettingsPage() {
                         onChange={(e) => setTempCurrency(e.target.value)}
                         className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                       >
-                        <option value="USD ($)">USD ($) — United States Dollar</option>
-                        <option value="INR (₹)">INR (₹) — Indian Rupee</option>
-                        <option value="GBP (£)">GBP (£) — British Pound</option>
-                        <option value="EUR (€)">EUR (€) — Eurozone Euro</option>
-                        <option value="AED (AED)">AED (AED) — UAE Dirham</option>
-                        <option value="AUD ($)">AUD ($) — Australian Dollar</option>
+                        {ALL_CURRENCIES.map((c) => (
+                          <option key={c.code} value={c.name}>
+                            {c.name}
+                          </option>
+                        ))}
                       </select>
                       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
