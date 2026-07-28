@@ -135,7 +135,8 @@ export default function LandlordSupportPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("folder", "support-tickets");
+      formData.append("workspaceId", "support-tickets");
+      formData.append("context", "misc");
 
       const res = await fetch("/api/storage/upload", {
         method: "POST",
