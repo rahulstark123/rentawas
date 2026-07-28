@@ -701,14 +701,6 @@ export default function WorkspaceSettingsPage() {
                 <Building2 className="w-5 h-5 text-[#FF6B00]" />
                 <span>Company Legal Identity & Registration</span>
               </h3>
-              <button
-                type="button"
-                onClick={openEditModal}
-                className="text-xs font-bold text-[#FF6B00] hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Edit</span>
-              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
@@ -766,14 +758,6 @@ export default function WorkspaceSettingsPage() {
                 <Users className="w-5 h-5 text-blue-600" />
                 <span>Primary Landlord & Representative Contact</span>
               </h3>
-              <button
-                type="button"
-                onClick={openEditModal}
-                className="text-xs font-bold text-[#FF6B00] hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Edit</span>
-              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
@@ -822,14 +806,6 @@ export default function WorkspaceSettingsPage() {
                 <DollarSign className="w-5 h-5 text-emerald-600" />
                 <span>Regional Preferences & Fiscal Calendar</span>
               </h3>
-              <button
-                type="button"
-                onClick={openEditModal}
-                className="text-xs font-bold text-[#FF6B00] hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Edit</span>
-              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
