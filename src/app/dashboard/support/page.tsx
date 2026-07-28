@@ -283,19 +283,28 @@ export default function LandlordSupportPage() {
     }
   };
 
+  const [ticketToDelete, setTicketToDelete] = useState<{ id: string; ticketNumber: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // 4. Delete Ticket (DELETE)
-  const handleDeleteTicket = async (id: string, tktNum: string) => {
-    if (!confirm(`Are you sure you want to delete ticket #${tktNum}?`)) return;
+  const confirmDeleteTicket = async () => {
+    if (!ticketToDelete) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`/api/support/tickets?id=${id}`, {
+      const res = await fetch(`/api/support/tickets?id=${ticketToDelete.id}`, {
         method: "DELETE",
       });
       if (res.ok) {
-        toast(`Ticket #${tktNum} deleted from database`, "success");
+        toast(`Ticket #${ticketToDelete.ticketNumber} deleted successfully!`, "success");
+        setTicketToDelete(null);
         fetchTickets();
+      } else {
+        toast("Could not delete ticket", "error");
       }
     } catch (err) {
       toast("Could not delete ticket", "error");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -427,9 +436,10 @@ export default function LandlordSupportPage() {
                     </button>
 
                     <button
-                      onClick={() => handleDeleteTicket(t.id, t.ticketNumber)}
+                      type="button"
+                      onClick={() => setTicketToDelete({ id: t.id, ticketNumber: t.ticketNumber })}
                       className="p-1.5 text-xs text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer border border-slate-200"
-                      title="Delete Ticket"
+                      title="Delete Support Ticket"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -680,6 +690,45 @@ export default function LandlordSupportPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialogue Modal */}
+      {ticketToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 font-sans animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl relative text-center">
+            
+            <div className="w-14 h-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto border border-red-200 shadow-xs">
+              <AlertCircle className="w-7 h-7" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-black text-slate-900">Delete Support Ticket?</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Are you sure you want to permanently delete <strong>Ticket #{ticketToDelete.ticketNumber}</strong> from PostgreSQL database? This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setTicketToDelete(null)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-all uppercase tracking-wider cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={confirmDeleteTicket}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 active:scale-[0.99] text-white font-extrabold text-xs rounded-xl shadow-lg shadow-red-500/20 transition-all flex items-center justify-center gap-1.5 uppercase tracking-wider cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{isDeleting ? "Deleting..." : "Yes, Delete"}</span>
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
     </div>
