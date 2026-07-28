@@ -110,6 +110,7 @@ export default function WorkspaceSettingsPage() {
   const [landlordRole, setLandlordRole] = useState("Managing Director & Asset Owner");
   const [currency, setCurrency] = useState("USD ($)");
   const [jurisdiction, setJurisdiction] = useState("Seattle, WA (USA)");
+  const [pincode, setPincode] = useState("98101");
   const [companyEmail, setCompanyEmail] = useState("support@regencymanagement.com");
   const [companyPhone, setCompanyPhone] = useState("+1 (555) 019-2834");
   const [customSubdomain, setCustomSubdomain] = useState("regency.rentawas.com");
@@ -129,12 +130,65 @@ export default function WorkspaceSettingsPage() {
   const [tempCompanyPhone, setTempCompanyPhone] = useState(companyPhone);
   const [tempCurrency, setTempCurrency] = useState(currency);
   const [tempJurisdiction, setTempJurisdiction] = useState(jurisdiction);
+  const [tempPincode, setTempPincode] = useState(pincode);
+  const [isFetchingPincode, setIsFetchingPincode] = useState(false);
   const [tempTimezone, setTempTimezone] = useState(timezone);
   const [tempFiscalYearStart, setTempFiscalYearStart] = useState(fiscalYearStart);
 
   const [selectedPhoneCountry, setSelectedPhoneCountry] = useState<Country>(
     ALL_COUNTRIES.find((c) => c.code === "US") || ALL_COUNTRIES[0]
   );
+
+  const handleFetchAddressByPincode = async (code: string) => {
+    const cleanCode = code.replace(/\s+/g, "").trim();
+    if (!cleanCode || cleanCode.length < 5) return;
+
+    setIsFetchingPincode(true);
+    try {
+      // 1. Try India Post API if 6 digits
+      if (/^\d{6}$/.test(cleanCode)) {
+        const res = await fetch(`https://api.postalpincode.in/pincode/${cleanCode}`);
+        const data = await res.json();
+        if (data && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
+          const po = data[0].PostOffice[0];
+          const fetchedAddr = `${po.Name}, ${po.Block || po.Division || ""}, ${po.District}, ${po.State} - ${cleanCode}`;
+          setTempRegisteredAddress(fetchedAddr);
+          toast(`Fetched address for Pincode ${cleanCode}: ${po.District}, ${po.State}`, "success");
+          setIsFetchingPincode(false);
+          return;
+        }
+      }
+
+      // 2. Try Zippopotam US / Global API for 5 digits
+      if (/^\d{5}$/.test(cleanCode)) {
+        const res = await fetch(`https://api.zippopotam.us/us/${cleanCode}`);
+        if (res.ok) {
+          const data = await res.json();
+          const place = data.places[0];
+          const fetchedAddr = `${place["place name"]}, ${place["state abbreviation"]}, USA - ${cleanCode}`;
+          setTempRegisteredAddress(fetchedAddr);
+          toast(`Fetched address for Postal Code ${cleanCode}: ${place["place name"]}, ${place["state abbreviation"]}`, "success");
+          setIsFetchingPincode(false);
+          return;
+        }
+      }
+
+      // 3. Fallback: OpenStreetMap Nominatim API
+      const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(cleanCode)}&format=json&addressdetails=1`);
+      const geoData = await geoRes.json();
+      if (geoData && geoData.length > 0) {
+        const place = geoData[0];
+        setTempRegisteredAddress(place.display_name);
+        toast(`Address detected for Postal Code ${cleanCode}`, "success");
+      } else {
+        toast("Pincode detected. Please verify full registered address.", "info");
+      }
+    } catch (err) {
+      console.error("Pincode fetch error:", err);
+    } finally {
+      setIsFetchingPincode(false);
+    }
+  };
 
   const openEditModal = () => {
     setTempOrgName(orgName);
@@ -155,6 +209,7 @@ export default function WorkspaceSettingsPage() {
 
     setTempCurrency(currency);
     setTempJurisdiction(jurisdiction);
+    setTempPincode(pincode);
     setTempTimezone(timezone);
     setTempFiscalYearStart(fiscalYearStart);
     setShowEditModal(true);
@@ -177,6 +232,7 @@ export default function WorkspaceSettingsPage() {
 
     setCurrency(tempCurrency);
     setJurisdiction(tempJurisdiction);
+    setPincode(tempPincode);
     setTimezone(tempTimezone);
     setFiscalYearStart(tempFiscalYearStart);
     setShowEditModal(false);
@@ -779,10 +835,10 @@ export default function WorkspaceSettingsPage() {
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Primary Municipal Jurisdiction
+                  Pincode / Postal Code
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {jurisdiction}
+                  {pincode}
                 </div>
               </div>
 
@@ -2147,13 +2203,34 @@ export default function WorkspaceSettingsPage() {
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Municipal Jurisdiction</label>
-                    <input
-                      type="text"
-                      value={tempJurisdiction}
-                      onChange={(e) => setTempJurisdiction(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                    />
+                    <label className="block font-bold text-slate-700 uppercase mb-1 flex items-center justify-between">
+                      <span>Pincode / Postal Code</span>
+                      {isFetchingPincode && <span className="text-[10px] text-[#FF6B00] font-bold animate-pulse">Fetching address...</span>}
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. 122001, 98101"
+                        value={tempPincode}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setTempPincode(val);
+                          if (val.trim().length === 6 || val.trim().length === 5) {
+                            handleFetchAddressByPincode(val);
+                          }
+                        }}
+                        className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleFetchAddressByPincode(tempPincode)}
+                        disabled={isFetchingPincode || !tempPincode.trim()}
+                        className="px-3 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs disabled:opacity-50 cursor-pointer transition-all flex items-center gap-1 shrink-0"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>Fetch Address</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div>
