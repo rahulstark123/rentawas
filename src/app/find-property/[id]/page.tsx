@@ -260,6 +260,8 @@ export default function PropertyDetailPage() {
   ]);
 
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isAllReviewsModalOpen, setIsAllReviewsModalOpen] = useState(false);
+  const [allReviewsFilter, setAllReviewsFilter] = useState("All");
   const [reviewerName, setReviewerName] = useState("");
   const [residentStatus, setResidentStatus] = useState("Current Resident");
   const [overallRating, setOverallRating] = useState(5);
@@ -998,6 +1000,18 @@ export default function PropertyDetailPage() {
                 <Share2 className="w-4 h-4 text-slate-500" />
                 <span>{copiedLink ? "Link Copied!" : "Share Property"}</span>
               </button>
+
+              {/* See All Reviews Section */}
+              <div className="pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAllReviewsModalOpen(true)}
+                  className="w-full py-3.5 bg-amber-50 hover:bg-amber-100/90 border border-amber-200/90 text-amber-900 font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer shadow-2xs"
+                >
+                  <Star className="w-4 h-4 fill-amber-400 text-amber-400 shrink-0" />
+                  <span>See All Reviews ({reviewsList.length})</span>
+                </button>
+              </div>
             </div>
 
           </div>
@@ -1382,6 +1396,156 @@ export default function PropertyDetailPage() {
                 Submit Resident Review
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* See All Reviews Modal */}
+      {isAllReviewsModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 font-sans animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="bg-[#0B132B] p-5 text-white relative shrink-0 flex items-center justify-between">
+              <div>
+                <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-extrabold uppercase tracking-wider mb-1">
+                  Verified Resident Reviews
+                </span>
+                <h3 className="text-lg font-bold text-white line-clamp-1">Ratings & Reviews ({reviewsList.length})</h3>
+                <p className="text-xs text-slate-300">{property.title} • {property.location}</p>
+              </div>
+
+              <div className="flex items-center gap-2 mr-8">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAllReviewsModalOpen(false);
+                    setIsReviewModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1 uppercase tracking-wider cursor-pointer"
+                >
+                  <Star className="w-3.5 h-3.5 fill-white text-white" />
+                  <span>Write Review</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsAllReviewsModalOpen(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer z-10"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              
+              {/* Category Scores Overview */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 bg-amber-50/60 border border-amber-200/70 rounded-2xl space-y-1 text-center sm:text-left">
+                  <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Overall Rating</div>
+                  <div className="text-lg font-black text-slate-900 flex items-center justify-center sm:justify-start gap-1">
+                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                    <span>4.9 / 5</span>
+                  </div>
+                </div>
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1 text-center sm:text-left">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Property Quality</div>
+                  <div className="text-lg font-black text-slate-900">4.8 / 5</div>
+                </div>
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1 text-center sm:text-left">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Locality & Safety</div>
+                  <div className="text-lg font-black text-slate-900">5.0 / 5</div>
+                </div>
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1 text-center sm:text-left">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Landlord Service</div>
+                  <div className="text-lg font-black text-slate-900">4.9 / 5</div>
+                </div>
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider mr-1">Filter:</span>
+                {["All", "Current Resident", "Verified Past Tenant"].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setAllReviewsFilter(tab)}
+                    className={`px-3 py-1 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                      allReviewsFilter === tab
+                        ? "bg-slate-900 text-white shadow-xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              {/* Reviews List */}
+              <div className="space-y-4">
+                {reviewsList
+                  .filter((r) => allReviewsFilter === "All" || r.status === allReviewsFilter)
+                  .map((rev) => (
+                    <div key={rev.id} className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-xl bg-[#0B132B] text-white font-extrabold text-xs flex items-center justify-center">
+                            {rev.author.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                              <span>{rev.author}</span>
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase">
+                                {rev.status}
+                              </span>
+                            </div>
+                            <div className="text-[10px] font-semibold text-slate-400">{rev.date}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-amber-100/80 text-amber-900 px-2.5 py-1 rounded-xl text-xs font-black">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          <span>{rev.overallRating}.0</span>
+                        </div>
+                      </div>
+
+                      <h4 className="text-xs font-extrabold text-slate-900 leading-snug">{rev.headline}</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed font-medium">{rev.comment}</p>
+
+                      {/* Review Tag Badges */}
+                      {rev.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {rev.tags.map((t, idx) => (
+                            <span key={idx} className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-600">
+                              ✓ {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                {reviewsList.filter((r) => allReviewsFilter === "All" || r.status === allReviewsFilter).length === 0 && (
+                  <div className="py-8 text-center text-slate-400 text-xs font-semibold">
+                    No reviews found for filter "{allReviewsFilter}".
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500">Showing {reviewsList.length} resident reviews</span>
+              <button
+                onClick={() => setIsAllReviewsModalOpen(false)}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-extrabold rounded-xl transition-all uppercase tracking-wider cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
           </div>
         </div>
       )}
