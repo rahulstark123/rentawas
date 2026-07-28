@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,12 +16,13 @@ import {
   User, 
   AlertCircle,
   Zap,
-  FileCheck
+  FileCheck,
+  Heart
 } from "lucide-react";
 import { IconAutopilotRent } from "@/components/ui/CustomIcons";
 import { supabase } from "@/lib/supabase";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const roleParam = searchParams.get("role");
@@ -31,7 +32,6 @@ export default function LoginPage() {
   const [emailInput, setEmailInput] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -53,18 +53,15 @@ export default function LoginPage() {
       });
 
       if (error) {
-        // Fallback for demo testing / unregistered emails: allow instant entry into dashboard
-        console.warn("Supabase auth notice:", error.message);
-        router.push(getTargetRedirect());
+        setErrorMessage(error.message || "Invalid login credentials. Please check your email and password.");
         setIsLoading(false);
         return;
       }
 
       // Successful login — check user metadata for role
       router.push(getTargetRedirect());
-    } catch (err: unknown) {
-      // Fallback redirect on error
-      router.push(getTargetRedirect());
+    } catch (err: any) {
+      setErrorMessage(err?.message || "An unexpected error occurred. Please try again.");
       setIsLoading(false);
     }
   };
@@ -194,12 +191,13 @@ export default function LoginPage() {
             </div>
 
             {/* Bottom Footer Quote */}
-            <div className="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
+            <div className="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-slate-300">
               <span className="flex items-center gap-1.5 font-medium">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                Systems Operational
+                <span>Made with</span>
+                <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 animate-pulse" />
+                <span>by <strong className="text-white font-bold">ANSH Apps</strong></span>
               </span>
-              <span>v2.4.0</span>
+              <span className="text-slate-400 text-[11px]">v2.4.0</span>
             </div>
           </div>
 
@@ -322,19 +320,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Options */}
-              <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#FF6B00] focus:ring-[#FF6B00] border-slate-300 accent-[#FF6B00]"
-                  />
-                  <span className="text-xs font-medium text-slate-600">Keep me logged in</span>
-                </label>
-              </div>
-
               {/* Submit Button */}
               <button
                 type="submit"
@@ -383,17 +368,6 @@ export default function LoginPage() {
                 <span>Continue with Google</span>
               </button>
 
-              {/* 1-Click Instant Demo Login Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  router.push(getTargetRedirect());
-                }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-md uppercase tracking-wider"
-              >
-                <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
-                <span>⚡ Instant Demo Access (Skip Login)</span>
-              </button>
             </div>
 
             {/* Footer Sign Up Link */}
@@ -410,8 +384,20 @@ export default function LoginPage() {
 
       {/* Page Footer */}
       <footer className="py-4 text-center text-xs text-slate-400 z-10">
-        &copy; {new Date().getFullYear()} RentAwas Ecosystem Inc. All rights reserved. • Protected by reCAPTCHA Enterprise.
+        &copy; {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.
       </footer>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <span className="inline-block w-8 h-8 border-2 border-slate-200 border-t-[#FF6B00] rounded-full animate-spin" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

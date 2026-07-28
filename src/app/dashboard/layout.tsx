@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
+  Lock,
   Receipt,
   Megaphone,
   PanelLeftClose,
@@ -54,6 +55,7 @@ import { IconAutopilotRent } from "@/components/ui/CustomIcons";
 import { useToast } from "@/components/ui/Toast";
 import GlobalSearchModal from "@/components/ui/GlobalSearchModal";
 import ListPropertyModal from "@/components/ui/ListPropertyModal";
+import PaywallModal from "@/components/ui/PaywallModal";
 
 export default function DashboardLayout({
   children,
@@ -76,12 +78,50 @@ export default function DashboardLayout({
 
   // Dynamic user profile & workspace active plan
   const [activePlan, setActivePlan] = useState("Pro Plan");
+  const [hasPaidSubscription, setHasPaidSubscription] = useState(false);
   const [userProfile, setUserProfile] = useState({
     name: "Alexander Wright",
     email: "alexander.wright@rentawas.com",
     role: "Portfolio Owner",
     initials: "AW",
   });
+
+  // 7-Day Free Trial & Paywall Modal State
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number>(7);
+  const [isTrialActive, setIsTrialActive] = useState<boolean>(true);
+  const [showPaywallModal, setShowPaywallModal] = useState<boolean>(false);
+  const [paywallFeatureName, setPaywallFeatureName] = useState<string>("Add New Item");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      let storedStart = localStorage.getItem("rentawas_trial_start_date");
+      if (!storedStart) {
+        storedStart = new Date().toISOString();
+        localStorage.setItem("rentawas_trial_start_date", storedStart);
+      }
+      const startTime = new Date(storedStart).getTime();
+      const elapsedMs = Date.now() - startTime;
+      const elapsedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
+      const remainingDays = Math.max(0, 7 - elapsedDays);
+      setTrialDaysLeft(remainingDays);
+      setIsTrialActive(remainingDays > 0);
+    }
+  }, []);
+
+  const checkCanAddAction = (featureName: string = "Add New Item"): boolean => {
+    if (isTrialActive || hasPaidSubscription) {
+      return true; // 100% unlocked during 7-day trial or with paid subscription!
+    }
+    setPaywallFeatureName(featureName);
+    setShowPaywallModal(true);
+    return false;
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any).checkCanAddAction = checkCanAddAction;
+    }
+  }, [isTrialActive, hasPaidSubscription]);
 
   // View Mode Switcher: Manage View (Operations) vs Listing View  // Mode Switcher & Listing State
   const [dashboardViewMode, setDashboardViewMode] = useState<"manage" | "listing">("manage");
@@ -221,7 +261,13 @@ export default function DashboardLayout({
           const json = await res.json();
           if (json.data && json.data.plan) {
             const pKey = json.data.plan;
-            setActivePlan(pKey === "enterprise" ? "Enterprise Plan" : pKey === "pro" ? "Pro Plan" : "Starter Plan");
+            if (pKey === "pro" || pKey === "enterprise" || pKey === "starter") {
+              setActivePlan(pKey === "enterprise" ? "Enterprise Plan" : pKey === "pro" ? "Pro Plan" : "Starter Plan");
+              setHasPaidSubscription(true);
+            } else {
+              setActivePlan("Free Listing Plan");
+              setHasPaidSubscription(false);
+            }
           }
         }
       } catch (err) {
@@ -670,15 +716,38 @@ export default function DashboardLayout({
               </button>
             </div>
 
-            {/* Active Plan Badge after View Mode Switcher */}
-            <Link
-              href="/dashboard/billing"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200/80 text-[#FF6B00] transition-all cursor-pointer group shrink-0"
-              title="View Subscription Plan Details"
-            >
-              <Zap className="w-3.5 h-3.5 fill-[#FF6B00] text-[#FF6B00] group-hover:scale-110 transition-transform" />
-              <span className="text-xs font-black uppercase tracking-wider">{activePlan}</span>
-            </Link>
+            {/* Active Plan or 7-Day Free Trial Badge */}
+            {isTrialActive ? (
+              <Link
+                href="/dashboard/billing"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200/80 text-amber-800 transition-all cursor-pointer group shrink-0"
+                title="7-Day Free Trial Active - All Features Unlocked"
+              >
+                <Sparkles className="w-3.5 h-3.5 fill-amber-500 text-amber-500 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-black uppercase tracking-wider">
+                  {trialDaysLeft > 0 ? `${trialDaysLeft} Days Trial` : "Free Trial"}
+                </span>
+              </Link>
+            ) : hasPaidSubscription ? (
+              <Link
+                href="/dashboard/billing"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200/80 text-[#FF6B00] transition-all cursor-pointer group shrink-0"
+                title="View Subscription Plan Details"
+              >
+                <Zap className="w-3.5 h-3.5 fill-[#FF6B00] text-[#FF6B00] group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-black uppercase tracking-wider">{activePlan}</span>
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => checkCanAddAction("Add Operations")}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200/80 text-red-600 transition-all cursor-pointer group shrink-0"
+                title="Trial Expired — Upgrade to Pro Plan"
+              >
+                <Lock className="w-3.5 h-3.5 text-red-600 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-black uppercase tracking-wider">Trial Expired</span>
+              </button>
+            )}
 
             {/* Profile Menu Trigger & Dropdown */}
             <div className="relative" ref={showProfileMenu ? profileMenuRef : null}>
@@ -1005,17 +1074,16 @@ export default function DashboardLayout({
                                       {/* 3-Dot Dropdown Menu */}
                                       {isMenuOpen && (
                                         <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 z-30 space-y-1 animate-in fade-in duration-150 font-sans">
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setActiveMenuListingId(null);
-                                              setPreviewListingItem(item);
-                                            }}
-                                            className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors flex items-center gap-2 cursor-pointer"
+                                          <a
+                                            href={`/find-property/${item.id}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={() => setActiveMenuListingId(null)}
+                                            className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors flex items-center gap-2 cursor-pointer block"
                                           >
                                             <Eye className="w-3.5 h-3.5 text-blue-600" />
                                             <span>Preview Listing</span>
-                                          </button>
+                                          </a>
 
                                           <button
                                             type="button"
@@ -1067,7 +1135,14 @@ export default function DashboardLayout({
                                     </div>
                                   )}
                                   <div className="flex-1 min-w-0">
-                                    <h4 className="font-extrabold text-slate-900 text-sm truncate">{item.title}</h4>
+                                     <a
+                                       href={`/find-property/${item.id}`}
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       className="font-extrabold text-slate-900 text-sm truncate hover:text-[#FF6B00] transition-colors block"
+                                     >
+                                       {item.title}
+                                     </a>
                                     <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
                                       {locationText} • {item.propertyType || item.bhk || "Property"}
                                     </p>
@@ -1443,6 +1518,15 @@ export default function DashboardLayout({
           </div>
         </div>
       )}
+
+      {/* Paywall Upgrade Modal */}
+      <PaywallModal
+        isOpen={showPaywallModal}
+        onClose={() => setShowPaywallModal(false)}
+        featureName={paywallFeatureName}
+        isTrialExpired={!isTrialActive}
+        daysLeftInTrial={trialDaysLeft}
+      />
 
       {/* Logout Animation Overlay */}
       <LogoutAnimation isLoggingOut={isLoggingOut} userRole="landlord" />

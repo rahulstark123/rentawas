@@ -1093,7 +1093,12 @@ export default function WorkspaceSettingsPage() {
             </h3>
 
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => {
+                if (typeof window !== "undefined" && (window as any).checkCanAddAction) {
+                  if (!(window as any).checkCanAddAction("Invite Workspace Team Member")) return;
+                }
+                setShowAddModal(true);
+              }}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-xs transition-all uppercase tracking-wider cursor-pointer"
             >
               <Plus className="w-4 h-4" />

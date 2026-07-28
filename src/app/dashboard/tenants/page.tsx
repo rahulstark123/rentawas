@@ -341,6 +341,9 @@ export default function TenantsPage() {
 
   // Open modal for NEW tenant (NO pre-filled fields!)
   const handleOpenAddModal = () => {
+    if (typeof window !== "undefined" && (window as any).checkCanAddAction) {
+      if (!(window as any).checkCanAddAction("Add New Tenant Resident")) return;
+    }
     setEditingTenantId(null);
     setName("");
     setEmail("");

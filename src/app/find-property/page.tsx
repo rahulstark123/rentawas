@@ -7,19 +7,19 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
-import { 
-  Search, 
-  MapPin, 
-  Building2, 
-  SlidersHorizontal, 
-  Bed, 
-  Bath, 
-  Maximize2, 
-  ShieldCheck, 
-  Star, 
-  PhoneCall, 
-  Calendar, 
-  CheckCircle2, 
+import {
+  Search,
+  MapPin,
+  Building2,
+  SlidersHorizontal,
+  Bed,
+  Bath,
+  Maximize2,
+  ShieldCheck,
+  Star,
+  PhoneCall,
+  Calendar,
+  CheckCircle2,
   Sparkles,
   X,
   User,
@@ -94,7 +94,7 @@ export default function FindPropertyPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
-  
+
   // Filter States
   const [searchLocation, setSearchLocation] = useState("");
   const [selectedType, setSelectedType] = useState("All");
@@ -181,8 +181,8 @@ export default function FindPropertyPage() {
           rating: item.avgRating ? Number(item.avgRating).toFixed(1) : 4.8,
           reviewsCount: item.reviewCount !== undefined ? item.reviewCount : 0,
           image: item.mainImage || item.image || item.coverImage || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80",
-          tags: Array.isArray(item.amenities) && item.amenities.length > 0 
-            ? item.amenities.slice(0, 3).map(formatAmenityTag) 
+          tags: Array.isArray(item.amenities) && item.amenities.length > 0
+            ? item.amenities.slice(0, 3).map(formatAmenityTag)
             : ["Zero Fee", "Direct Owner", "Verified"],
           ownerName: item.contactPersonName ? `${item.contactPersonName} (Owner)` : "Property Landlord",
           ownerPhone: item.contactNumber || item.ownerPhone || "+91 Contact via RentAwas",
@@ -580,12 +580,51 @@ export default function FindPropertyPage() {
 
           {/* Airbnb/NoBroker-style Floating Search Bar */}
           <form onSubmit={handleSearchSubmit} className="max-w-4xl mx-auto bg-white rounded-2xl md:rounded-3xl p-3 sm:p-4 shadow-2xl border border-slate-200 text-slate-900 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center text-left">
-            
+
             {/* Search Location Input */}
             <div className="sm:col-span-4 relative border-b sm:border-b-0 sm:border-r border-slate-200 pb-2 sm:pb-0 sm:pr-3">
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
-                Location / City
-              </label>
+              <div className="flex items-center justify-between mb-0.5">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                  Location / City
+                </label>
+                
+                {/* Eye Icon Info Tooltip / Popover */}
+                <div className="relative group">
+                  <button
+                    type="button"
+                    className="p-0.5 text-slate-400 hover:text-[#FF6B00] transition-colors cursor-pointer flex items-center gap-0.5"
+                    title="View searchable location filters"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Tooltip / Popover Bubble */}
+                  <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-60 bg-[#0B132B] text-white rounded-2xl p-3.5 shadow-2xl border border-slate-700 z-50 text-[11px] font-sans hidden group-hover:block animate-in fade-in duration-150">
+                    <div className="font-extrabold text-amber-400 text-xs mb-2 flex items-center gap-1.5 border-b border-slate-800 pb-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Search Supported Parameters:</span>
+                    </div>
+                    <ul className="space-y-1.5 text-slate-300 font-medium">
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00] shrink-0" />
+                        <span><strong>Location / Locality</strong> (e.g. Indiranagar)</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00] shrink-0" />
+                        <span><strong>City Name</strong> (e.g. Gurgaon, Mumbai)</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00] shrink-0" />
+                        <span><strong>State Name</strong> (e.g. Karnataka)</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00] shrink-0" />
+                        <span><strong>Pincode / Postal Code</strong> (e.g. 560038)</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
               <div className="relative flex items-center">
                 <MapPin className="w-4 h-4 text-[#FF6B00] shrink-0 mr-1.5" />
                 <input
@@ -701,7 +740,7 @@ export default function FindPropertyPage() {
 
       {/* Main Property Listings Grid */}
       <section className="py-12 md:py-16 max-w-7xl mx-auto px-6 sm:px-8 space-y-6 flex-1 w-full">
-        
+
         {/* Results Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -747,7 +786,7 @@ export default function FindPropertyPage() {
                 Properties Coming Soon
               </h3>
               <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
-                We are onboarding top verified landlords & property owners daily in this region. Be the first to get notified when new verified homes drop!
+                We are onboarding landlords & property owners daily in this region. Be the first to get notified when new verified homes drop!
               </p>
             </div>
             <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
@@ -762,12 +801,6 @@ export default function FindPropertyPage() {
                 className="px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-md transition-all uppercase tracking-wider cursor-pointer"
               >
                 Reset Search Filters
-              </button>
-              <button
-                onClick={() => setIsEarlyAccessOpen(true)}
-                className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 shadow-xs transition-all uppercase tracking-wider cursor-pointer"
-              >
-                Get Property Alerts
               </button>
             </div>
           </div>
@@ -894,11 +927,10 @@ export default function FindPropertyPage() {
                         setCurrentPage(pageNum);
                         window.scrollTo({ top: 400, behavior: "smooth" });
                       }}
-                      className={`w-9 h-9 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                        currentPage === pageNum
+                      className={`w-9 h-9 rounded-xl text-xs font-black transition-all cursor-pointer ${currentPage === pageNum
                           ? "bg-[#FF6B00] text-white shadow-md"
                           : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
-                      }`}
+                        }`}
                     >
                       {pageNum}
                     </button>
@@ -935,7 +967,7 @@ export default function FindPropertyPage() {
       {selectedProperty && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
           <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden text-slate-900 font-sans">
-            
+
             {/* Header */}
             <div className="bg-[#0B132B] p-5 text-white relative">
               <button
@@ -1042,7 +1074,7 @@ export default function FindPropertyPage() {
       {viewingPropertyDetail && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 font-sans overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-3xl w-full overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col my-auto">
-            
+
             {/* Sticky Modal Top Bar */}
             <div className="p-4 sm:p-5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 sticky top-0 z-20">
               <div className="flex items-center gap-2">
@@ -1063,7 +1095,7 @@ export default function FindPropertyPage() {
 
             {/* Scrollable Content */}
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
-              
+
               {/* Hero Image & Price Overlay */}
               <div className="relative h-64 sm:h-80 w-full bg-slate-100 rounded-2xl overflow-hidden shadow-inner group">
                 <Image
@@ -1211,7 +1243,7 @@ export default function FindPropertyPage() {
       {isLoginModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 font-sans animate-in fade-in duration-200">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
-            
+
             {/* Close Button */}
             <button
               onClick={() => setIsLoginModalOpen(false)}
@@ -1246,18 +1278,16 @@ export default function FindPropertyPage() {
               <button
                 type="button"
                 onClick={() => setAuthModalMode("login")}
-                className={`py-2 rounded-lg transition-all cursor-pointer ${
-                  authModalMode === "login" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
-                }`}
+                className={`py-2 rounded-lg transition-all cursor-pointer ${authModalMode === "login" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
+                  }`}
               >
                 Sign In
               </button>
               <button
                 type="button"
                 onClick={() => setAuthModalMode("signup")}
-                className={`py-2 rounded-lg transition-all cursor-pointer ${
-                  authModalMode === "signup" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
-                }`}
+                className={`py-2 rounded-lg transition-all cursor-pointer ${authModalMode === "signup" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
+                  }`}
               >
                 Create Account
               </button>

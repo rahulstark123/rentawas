@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { 
@@ -20,38 +20,159 @@ import {
   Sparkles,
   ShieldCheck,
   ChevronRight,
-  DollarSign
+  DollarSign,
+  Printer
 } from "lucide-react";
 import AddPropertyModal from "@/components/ui/AddPropertyModal";
-import { IconAutopilotRent } from "@/components/ui/CustomIcons";
+import { useToast } from "@/components/ui/Toast";
+import { generatePaymentReceiptHtml, triggerPrintOrDownload } from "@/lib/pdfGenerator";
+import EmptyStateIllustration from "@/components/ui/EmptyStateIllustration";
+
+export interface DashboardTransaction {
+  id: string;
+  tenant: string;
+  unit: string;
+  amount: string;
+  rawAmount: number;
+  dueDate: string;
+  status: "paid" | "pending" | "overdue";
+  channel: string;
+  paymentId?: string;
+}
 
 export default function DashboardOverviewPage() {
+  const { toast } = useToast();
   const [filter, setFilter] = useState<"all" | "paid" | "pending" | "overdue">("all");
-  const [remindersSent, setRemindersSent] = useState(false);
   const [showAddPropertyModal, setShowAddPropertyModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const transactions = [
-    { id: "TX-901", tenant: "Eleanor Vance", unit: "Regent Wing A - #302", amount: "$3,200", dueDate: "2026-07-25", status: "paid", channel: "Auto-Debit (ACH)" },
-    { id: "TX-902", tenant: "Marcus Sterling", unit: "Regent Wing A - #104", amount: "$2,850", dueDate: "2026-07-25", status: "paid", channel: "UPI Gateway" },
-    { id: "TX-903", tenant: "Sophia Martinez", unit: "Horizon Suites - #408", amount: "$4,100", dueDate: "2026-07-28", status: "pending", channel: "Scheduled" },
-    { id: "TX-904", tenant: "David Chen", unit: "Oakwood - #201", amount: "$2,600", dueDate: "2026-07-20", status: "overdue", channel: "Pending" },
-    { id: "TX-905", tenant: "Samantha Reed", unit: "Regent Wing A - #501", amount: "$3,500", dueDate: "2026-07-25", status: "paid", channel: "Credit Card" },
-  ];
+  // Live PostgreSQL Data States
+  const [transactionsList, setTransactionsList] = useState<DashboardTransaction[]>([]);
+  const [liveProperties, setLiveProperties] = useState<any[]>([]);
+  const [liveTenants, setLiveTenants] = useState<any[]>([]);
+  const [liveMaintenanceCount, setLiveMaintenanceCount] = useState<number>(0);
+  const [urgentMaintenanceCount, setUrgentMaintenanceCount] = useState<number>(0);
 
-  const filteredTransactions = transactions.filter((t) => {
+  // Load Real Database Telemetry
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      // 1. Fetch Real Transactions
+      const txRes = await fetch("/api/transactions?wid=1");
+      if (txRes.ok) {
+        const json = await txRes.json();
+        if (json.success && Array.isArray(json.data)) {
+          const mapped: DashboardTransaction[] = json.data.map((t: any) => {
+            const desc = t.description || "Workspace Resident";
+            const parts = desc.split("—").map((s: string) => s.trim());
+            const tenantName = parts[0] || desc;
+            const unitName = parts[1] || "Primary Unit";
+
+            let rawNum = 0;
+            if (typeof t.amount === "string") {
+              rawNum = parseFloat(t.amount.replace(/[^0-9.]/g, "")) || 0;
+            } else if (typeof t.amount === "number") {
+              rawNum = t.amount;
+            }
+
+            const stStr = String(t.status || "").toLowerCase();
+            let st: "paid" | "pending" | "overdue" = "paid";
+            if (stStr === "overdue") st = "overdue";
+            else if (stStr === "processing" || stStr === "pending") st = "pending";
+            else st = "paid";
+
+            return {
+              id: t.transactionNumber || t.id,
+              tenant: tenantName,
+              unit: unitName,
+              amount: typeof t.amount === "string" ? t.amount : `$${rawNum.toLocaleString("en-US")}`,
+              rawAmount: rawNum,
+              dueDate: t.createdAt ? new Date(t.createdAt).toISOString().split("T")[0] : "2026-07-28",
+              status: st,
+              channel: t.paymentMethod || "Razorpay Auto-Debit",
+              paymentId: t.paymentId || "pay_direct_bank",
+            };
+          });
+          setTransactionsList(mapped);
+        }
+      }
+
+      // 2. Fetch Live Properties
+      const propRes = await fetch("/api/properties?wid=1");
+      if (propRes.ok) {
+        const json = await propRes.json();
+        if (json.success && Array.isArray(json.data)) {
+          setLiveProperties(json.data);
+        }
+      }
+
+      // 3. Fetch Live Tenants
+      const tenantRes = await fetch("/api/tenants?wid=1");
+      if (tenantRes.ok) {
+        const json = await tenantRes.json();
+        if (json.success && Array.isArray(json.data)) {
+          setLiveTenants(json.data);
+        }
+      }
+
+      // 4. Fetch Live Maintenance Tickets
+      const maintRes = await fetch("/api/maintenance?wid=1");
+      if (maintRes.ok) {
+        const json = await maintRes.json();
+        if (json.success && Array.isArray(json.data)) {
+          setLiveMaintenanceCount(json.data.length);
+          const urgent = json.data.filter((m: any) => m.priority === "High" || m.priority === "Urgent" || m.status === "Open").length;
+          setUrgentMaintenanceCount(urgent);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load dashboard overview telemetry:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const filteredTransactions = transactionsList.filter((t) => {
     if (filter === "all") return true;
     return t.status === filter;
   });
 
-  const handleRunReminders = () => {
-    setRemindersSent(true);
-    setTimeout(() => setRemindersSent(false), 4000);
+  // Dynamic Metrics Computations
+  const paidTxns = transactionsList.filter((t) => t.status === "paid");
+  const totalMonthlyYield = paidTxns.reduce((acc, t) => acc + (t.rawAmount || 0), 0);
+
+  // Property units & accurate occupancy calculation strictly from PostgreSQL
+  const totalUnitsInPortfolio = liveProperties.reduce((acc, p) => acc + (p.totalUnits || 0), 0);
+  const totalOccupiedUnits = liveProperties.reduce((acc, p) => acc + (p.occupiedUnits || 0), 0);
+  const occupancyPct = totalUnitsInPortfolio > 0 
+    ? ((totalOccupiedUnits / totalUnitsInPortfolio) * 100).toFixed(1)
+    : "0.0";
+  const vacantUnitsCount = Math.max(0, totalUnitsInPortfolio - totalOccupiedUnits);
+
+  // Printable Receipt Action
+  const handlePrintReceipt = (tx: DashboardTransaction) => {
+    const html = generatePaymentReceiptHtml({
+      invoiceNumber: tx.id,
+      receiptNumber: `RCPT-${tx.id}`,
+      date: tx.dueDate,
+      planName: `Monthly Rent — ${tx.unit}`,
+      amount: tx.amount,
+      paymentMethod: tx.channel,
+      paymentId: tx.paymentId || "pay_direct_bank",
+      status: tx.status.toUpperCase(),
+    });
+    triggerPrintOrDownload(html, `Payment_Receipt_${tx.id}`);
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 font-sans animate-in fade-in duration-200">
       {/* Page Title & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -59,17 +180,22 @@ export default function DashboardOverviewPage() {
             </h1>
             <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Live Yield Data
+              Live Telemetry
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time analytics for <span className="font-semibold text-slate-800">The Regent Portfolio</span> (July 2026).
+            Real-time operations, rental yield, and tenant telemetry log.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowAddPropertyModal(true)}
+            onClick={() => {
+              if (typeof window !== "undefined" && (window as any).checkCanAddAction) {
+                if (!(window as any).checkCanAddAction("Add New Property")) return;
+              }
+              setShowAddPropertyModal(true);
+            }}
             className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all uppercase tracking-wider cursor-pointer"
           >
             <Plus className="w-4 h-4 text-orange-400" />
@@ -105,15 +231,17 @@ export default function DashboardOverviewPage() {
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">$148,500</div>
+            <div className="text-2xl font-black text-slate-900">
+              ${totalMonthlyYield.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            </div>
             <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold mt-1">
               <ArrowUpRight className="w-4 h-4" />
-              <span>+8.4% from last month</span>
+              <span>{paidTxns.length} Rent Payments Collected</span>
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-            <span>Collection Target: $154,000</span>
-            <span className="font-bold text-slate-900">96.4%</span>
+            <span>Direct Settlement</span>
+            <span className="font-bold text-slate-900">{paidTxns.length} Paid</span>
           </div>
         </div>
 
@@ -126,13 +254,13 @@ export default function DashboardOverviewPage() {
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">94.2%</div>
+            <div className="text-2xl font-black text-slate-900">{occupancyPct}%</div>
             <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
-              <span>48 of 51 units occupied</span>
+              <span>{totalOccupiedUnits} of {totalUnitsInPortfolio} units occupied</span>
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-            <span>Vacant Units: 3</span>
+            <span>Vacant Units: {vacantUnitsCount}</span>
             <span className="font-bold text-orange-600">Turnover: &lt; 5 days</span>
           </div>
         </div>
@@ -140,21 +268,21 @@ export default function DashboardOverviewPage() {
         {/* Metric 3: Active Leases & Renewals */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Leases & Renewals</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Leases &amp; Renewals</span>
             <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
               <FileText className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">48 Active</div>
+            <div className="text-2xl font-black text-slate-900">{liveTenants.length} Active</div>
             <div className="flex items-center gap-1.5 text-xs text-purple-700 font-semibold mt-1">
               <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-              <span>3 Due for renewal in 30 days</span>
+              <span>Digital Lease Agreements Onboarded</span>
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
             <span>Lease Health Compliance:</span>
-            <span className="font-bold text-emerald-600">98.2% Active</span>
+            <span className="font-bold text-emerald-600">100% Verified</span>
           </div>
         </div>
 
@@ -167,10 +295,10 @@ export default function DashboardOverviewPage() {
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900">3 Tickets</div>
+            <div className="text-2xl font-black text-slate-900">{liveMaintenanceCount} Tickets</div>
             <div className="flex items-center gap-1.5 text-xs text-orange-600 font-semibold mt-1">
               <AlertCircle className="w-4 h-4" />
-              <span>1 Urgent request pending</span>
+              <span>{urgentMaintenanceCount} Open / Pending Requests</span>
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
@@ -179,8 +307,6 @@ export default function DashboardOverviewPage() {
           </div>
         </div>
       </div>
-
-
 
       {/* Main Grid: Recent Transactions (Left 8 Cols) & AI Insights Sidebar (Right 4 Cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -216,7 +342,7 @@ export default function DashboardOverviewPage() {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-bold">
-                  <th className="pb-3 px-2">Tenant & Unit</th>
+                  <th className="pb-3 px-2">Tenant &amp; Unit</th>
                   <th className="pb-3 px-2">Amount</th>
                   <th className="pb-3 px-2">Due Date</th>
                   <th className="pb-3 px-2">Payment Method</th>
@@ -224,52 +350,72 @@ export default function DashboardOverviewPage() {
                   <th className="pb-3 px-2 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-2">
-                      <div className="font-bold text-slate-900">{tx.tenant}</div>
-                      <div className="text-[11px] text-slate-500 font-medium">{tx.unit}</div>
-                    </td>
-                    <td className="py-3.5 px-2 font-black text-slate-900">{tx.amount}</td>
-                    <td className="py-3.5 px-2 text-slate-600 font-medium">{tx.dueDate}</td>
-                    <td className="py-3.5 px-2 text-slate-600">{tx.channel}</td>
-                    <td className="py-3.5 px-2">
-                      {tx.status === "paid" && (
-                        <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-emerald-50 text-emerald-700 uppercase tracking-wider border border-emerald-200">
-                          Paid
-                        </span>
-                      )}
-                      {tx.status === "pending" && (
-                        <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-700 uppercase tracking-wider border border-amber-200">
-                          Pending
-                        </span>
-                      )}
-                      {tx.status === "overdue" && (
-                        <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-red-50 text-red-700 uppercase tracking-wider border border-red-200">
-                          Overdue
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-2 text-right">
-                      {tx.status === "overdue" ? (
-                        <button
-                          onClick={() => alert(`SMS reminder sent to ${tx.tenant}`)}
-                          className="px-2.5 py-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-[10px] rounded-md transition-colors uppercase cursor-pointer"
-                        >
-                          Send Reminder
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => alert(`Downloading receipt for ${tx.id}...`)}
-                          className="text-slate-500 hover:text-slate-900 font-bold text-[11px] underline cursor-pointer"
-                        >
-                          Receipt
-                        </button>
-                      )}
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-400 font-bold">
+                      Loading live transaction records...
                     </td>
                   </tr>
-                ))}
+                ) : filteredTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-4 border-0">
+                      <EmptyStateIllustration
+                        title="No Rent Payments Logged Yet"
+                        description="When tenants pay monthly rent or when you log payment collections, live financial telemetry will automatically appear here."
+                        actionText="Record Rent Payment"
+                        actionHref="/dashboard/payments"
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTransactions.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3.5 px-2">
+                        <div className="font-extrabold text-slate-900">{tx.tenant}</div>
+                        <div className="text-[11px] text-slate-500 font-medium">{tx.unit}</div>
+                      </td>
+                      <td className="py-3.5 px-2 font-black text-slate-900">{tx.amount}</td>
+                      <td className="py-3.5 px-2 text-slate-600 font-medium">{tx.dueDate}</td>
+                      <td className="py-3.5 px-2 text-slate-600">{tx.channel}</td>
+                      <td className="py-3.5 px-2">
+                        {tx.status === "paid" && (
+                          <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-emerald-50 text-emerald-700 uppercase tracking-wider border border-emerald-200">
+                            Paid
+                          </span>
+                        )}
+                        {tx.status === "pending" && (
+                          <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-700 uppercase tracking-wider border border-amber-200">
+                            Pending
+                          </span>
+                        )}
+                        {tx.status === "overdue" && (
+                          <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-red-50 text-red-700 uppercase tracking-wider border border-red-200">
+                            Overdue
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-2 text-right">
+                        {tx.status === "overdue" ? (
+                          <button
+                            onClick={() => toast(`Payment reminder notification sent to ${tx.tenant}!`, "warning")}
+                            className="px-2.5 py-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-[10px] rounded-md transition-colors uppercase cursor-pointer"
+                          >
+                            Send Reminder
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handlePrintReceipt(tx)}
+                            className="text-slate-500 hover:text-slate-900 font-bold text-[11px] underline cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <Printer className="w-3 h-3 text-slate-400" />
+                            <span>Receipt</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -279,7 +425,7 @@ export default function DashboardOverviewPage() {
               href="/dashboard/payments"
               className="text-xs font-bold text-[#FF6B00] hover:underline uppercase tracking-wider inline-flex items-center gap-1"
             >
-              <span>View All Financial Reports & Historical Records</span>
+              <span>View All Financial Reports &amp; Historical Records</span>
               <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
@@ -301,27 +447,33 @@ export default function DashboardOverviewPage() {
                 </div>
               </div>
               <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 uppercase">
-                94% Occupied
+                {occupancyPct}% Occupied
               </span>
             </div>
 
-            <div className="space-y-2.5 text-xs">
-              {[
-                { name: "The Regent - Wing A", count: "23 / 24 Units", pct: 96 },
-                { name: "Downtown Horizon Suites", count: "16 / 16 Units", pct: 100 },
-                { name: "Oakwood Executive", count: "11 / 12 Units", pct: 92 },
-              ].map((p, idx) => (
-                <div key={idx} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
-                  <div className="flex items-center justify-between font-bold text-slate-900">
-                    <span>{p.name}</span>
-                    <span className="text-slate-600 font-extrabold text-[11px]">{p.count}</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#FF6B00] rounded-full" style={{ width: `${p.pct}%` }} />
-                  </div>
+              {liveProperties.length === 0 ? (
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center text-slate-400 text-xs font-semibold">
+                  No properties added yet.
                 </div>
-              ))}
-            </div>
+              ) : (
+                liveProperties.slice(0, 3).map((p, idx) => {
+                  const total = typeof p.totalUnits === "number" ? p.totalUnits : 0;
+                  const occupied = typeof p.occupiedUnits === "number" ? p.occupiedUnits : 0;
+                  const pct = total > 0 ? Math.min(100, Math.round((occupied / total) * 100)) : 0;
+
+                  return (
+                    <div key={p.id || idx} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                      <div className="flex items-center justify-between font-bold text-slate-900">
+                        <span className="truncate max-w-[150px]">{p.name}</span>
+                        <span className="text-slate-600 font-extrabold text-[11px]">{occupied} / {total} Units</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-[#FF6B00] rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
 
             <Link
               href="/dashboard/properties"
@@ -339,38 +491,40 @@ export default function DashboardOverviewPage() {
                   <Clock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-extrabold text-slate-900">Upcoming Expirations</h4>
-                  <p className="text-[11px] text-slate-500">Leases ending within 60 days</p>
+                  <h4 className="text-sm font-extrabold text-slate-900">Resident Directory</h4>
+                  <p className="text-[11px] text-slate-500">Live active lease contracts</p>
                 </div>
               </div>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 uppercase">
-                2 Due Soon
+                {liveTenants.length} Active
               </span>
             </div>
 
             <div className="space-y-2 text-xs">
-              <div className="p-3 bg-purple-50/50 border border-purple-100 rounded-xl space-y-1">
-                <div className="flex items-center justify-between font-bold text-slate-900">
-                  <span>Eleanor Vance</span>
-                  <span className="text-purple-700 font-extrabold text-[11px]">25 Days Left</span>
+              {liveTenants.length === 0 ? (
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-center text-slate-400 font-semibold">
+                  No active tenant leases found.
                 </div>
-                <div className="text-[11px] text-slate-500">Regent Wing A • Unit 302 ($3,200/mo)</div>
-              </div>
-
-              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
-                <div className="flex items-center justify-between font-bold text-slate-900">
-                  <span>David Chen</span>
-                  <span className="text-slate-600 font-bold text-[11px]">40 Days Left</span>
-                </div>
-                <div className="text-[11px] text-slate-500">Oakwood Executive • Unit 201 ($2,600/mo)</div>
-              </div>
+              ) : (
+                liveTenants.slice(0, 2).map((t) => (
+                  <div key={t.id} className="p-3 bg-purple-50/50 border border-purple-100 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between font-bold text-slate-900">
+                      <span>{t.name}</span>
+                      <span className="text-purple-700 font-extrabold text-[11px]">Lease Active</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      {t.unit?.property?.name || t.property?.name || "The Regent"} • {t.unit?.unitNumber || "Unit #101"} ({t.monthlyRent ? `$${t.monthlyRent.toLocaleString()}/mo` : "$0/mo"})
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             <Link
-              href="/dashboard/leases"
+              href="/dashboard/tenants"
               className="inline-block w-full text-center py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs transition-all uppercase tracking-wider cursor-pointer shadow-2xs"
             >
-              View Lease Documents & Renewals →
+              View Resident Directory &amp; Leases →
             </Link>
           </div>
 

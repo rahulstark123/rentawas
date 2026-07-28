@@ -8,6 +8,15 @@ export async function GET(request: Request) {
     const widParam = searchParams.get("wid");
     const wid = widParam ? parseInt(widParam, 10) : 1;
 
+    // Purge legacy seeded dummy records if any exist
+    await prisma.transaction.deleteMany({
+      where: {
+        transactionNumber: {
+          in: ["PAY-801", "PAY-802", "PAY-803", "PAY-804", "PAY-805"],
+        },
+      },
+    });
+
     const transactions = await prisma.transaction.findMany({
       where: {
         OR: [{ workspaceId: wid }, { workspaceId: null }],
@@ -28,28 +37,30 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { transactionNumber, paymentId, orderId, type, amount, status, paymentMethod, description, wid } = body;
+    const { transactionNumber, paymentId, orderId, type, amount, status, paymentMethod, description, tenantName, propertyUnit, wid } = body;
 
     const workspaceIdNum = wid ? parseInt(String(wid), 10) : 1;
-    const randomSeq = Math.floor(100 + Math.random() * 900);
+    const randomSeq = Math.floor(800 + Math.random() * 199);
+    const generatedTxnNumber = transactionNumber || `PAY-${randomSeq}`;
+    const formattedDesc = description || (tenantName ? `${tenantName} — ${propertyUnit || "Rental Unit"}` : "Monthly Rent Payment");
 
     const newTxn = await prisma.transaction.create({
       data: {
-        transactionNumber: transactionNumber || `TXN-2026-${randomSeq}`,
+        transactionNumber: generatedTxnNumber,
         paymentId: paymentId || `pay_${Math.random().toString(36).substring(2, 10)}`,
         orderId: orderId || null,
-        type: type || "Subscription Payment",
+        type: type || "Rent Collection",
         amount: amount || "$0.00",
-        status: status || "Success",
-        paymentMethod: paymentMethod || "Razorpay",
-        description: description || null,
+        status: status || "Completed",
+        paymentMethod: paymentMethod || "Razorpay Auto-Debit",
+        description: formattedDesc,
         workspaceId: workspaceIdNum,
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: `Transaction ${newTxn.transactionNumber} created successfully!`,
+      message: `Transaction ${newTxn.transactionNumber} recorded successfully!`,
       data: newTxn,
     });
   } catch (error: any) {

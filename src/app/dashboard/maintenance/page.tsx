@@ -351,7 +351,12 @@ export default function MaintenancePage() {
         </div>
 
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => {
+            if (typeof window !== "undefined" && (window as any).checkCanAddAction) {
+              if (!(window as any).checkCanAddAction("Report Maintenance Issue")) return;
+            }
+            setShowCreateModal(true);
+          }}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />

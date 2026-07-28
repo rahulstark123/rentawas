@@ -32,7 +32,7 @@ model Workspace {
   name           String     // Workspace / Company Name
   currency       String     @default("USD ($)")
   portfolioScale String?
-  plan           String     @default("starter") // "starter", "pro", "enterprise"
+  plan           String     @default("trial") // "trial", "pro", "enterprise"
   
   ownerId        String
   owner          Profile    @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)

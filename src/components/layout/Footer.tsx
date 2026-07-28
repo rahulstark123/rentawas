@@ -105,7 +105,7 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4 font-sans">
-          <p>© {new Date().getFullYear()} RentAwas Inc. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.</p>
           <p className="flex items-center gap-1.5 font-medium">
             <span>Engineered for high-performance operations.</span>
             <span className="text-slate-600">•</span>

@@ -559,6 +559,9 @@ export default function PropertyFloorPlanPage() {
 
           <button
             onClick={() => {
+              if (typeof window !== "undefined" && (window as any).checkCanAddAction) {
+                if (!(window as any).checkCanAddAction("Add New Property Unit")) return;
+              }
               setUnitFloorTarget(selectedFloor);
               setNewUnitNo("");
               setNewRent("");

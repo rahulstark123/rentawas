@@ -8,6 +8,12 @@ export async function GET(request: Request) {
     const widParam = searchParams.get("wid");
     const wid = widParam ? parseInt(widParam, 10) : 1;
 
+    // Update any legacy "starter" plan records to "trial"
+    await prisma.workspace.updateMany({
+      where: { plan: "starter" },
+      data: { plan: "trial" },
+    });
+
     let workspace = await prisma.workspace.findUnique({
       where: { wid },
       include: {
@@ -35,7 +41,7 @@ export async function GET(request: Request) {
       data: {
         wid: workspace?.wid || wid,
         name: workspace?.name || "My Property Portfolio Workspace",
-        plan: workspace?.plan || "starter",
+        plan: workspace?.plan || "trial",
         currency: workspace?.currency || "USD ($)",
         portfolioScale: workspace?.portfolioScale || "1-5",
         ownerName: workspace?.owner?.fullName || "Alexander Wright",

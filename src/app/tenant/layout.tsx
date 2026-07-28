@@ -258,41 +258,6 @@ export default function TenantLayout({
               Pay Rent (${(tenantProfile.monthlyRent || 3200).toLocaleString()})
             </Link>
 
-            {/* Notifications */}
-            <div className="relative">
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-purple-600 ring-2 ring-white" />
-              </button>
-
-              {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden">
-                  <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
-                    <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">Resident Notifications</span>
-                  </div>
-                  <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto custom-scrollbar">
-                    {notifications.map((n) => {
-                      const NIcon = n.icon;
-                      return (
-                        <div key={n.id} className="p-3 hover:bg-slate-50 transition-colors flex gap-3 items-start">
-                          <div className={`p-2 rounded-lg shrink-0 ${n.color}`}>
-                            <NIcon className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <div className="text-xs font-bold text-slate-900">{n.title}</div>
-                            <div className="text-[11px] text-slate-600 mt-0.5 leading-snug">{n.desc}</div>
-                            <div className="text-[10px] text-slate-400 mt-1 font-medium">{n.time}</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </header>
 

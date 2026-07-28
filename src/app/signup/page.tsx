@@ -79,7 +79,9 @@ export default function SignupPage() {
       });
 
       if (authError) {
-        console.warn("Supabase Auth notice:", authError.message);
+        alert(`Sign up failed: ${authError.message}`);
+        setIsLoading(false);
+        return;
       }
 
       // 2. Generate Prisma Profile & Workspace with auto-incrementing integer wid (1, 2, 3...)
@@ -102,13 +104,8 @@ export default function SignupPage() {
         router.push("/onboarding");
       }
     } catch (err: any) {
-      console.error("Signup processing:", err);
+      alert(err?.message || "An error occurred during account creation. Please try again.");
       setIsLoading(false);
-      if (role === "tenant") {
-        router.push("/tenant/dashboard");
-      } else {
-        router.push("/onboarding");
-      }
     }
   };
 
@@ -583,7 +580,7 @@ export default function SignupPage() {
 
       {/* Page Footer */}
       <footer className="py-4 text-center text-xs text-slate-400 z-10">
-        &copy; {new Date().getFullYear()} RentAwas Ecosystem Inc. All rights reserved. • ISO 27001 Security Compliant.
+        &copy; {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.
       </footer>
     </div>
   );
