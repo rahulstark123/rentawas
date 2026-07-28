@@ -774,19 +774,19 @@ export default function WorkspaceSettingsPage() {
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
-                  Registered Headquarters Address
-                </label>
-                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {registeredAddress}
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Tax Identification Number (EIN / GSTIN / SSN)
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
                   {taxId}
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Registered Headquarters Address
+                </label>
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {registeredAddress}
                 </div>
               </div>
             </div>
@@ -2161,22 +2161,23 @@ export default function WorkspaceSettingsPage() {
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Registered Address</label>
-                    <input
-                      type="text"
-                      value={tempRegisteredAddress}
-                      onChange={(e) => setTempRegisteredAddress(e.target.value)}
-                      placeholder="Auto-filled from pincode or enter address"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                    />
-                  </div>
-
-                  <div>
                     <label className="block font-bold text-slate-700 uppercase mb-1">Tax Identification Number</label>
                     <input
                       type="text"
                       value={tempTaxId}
                       onChange={(e) => setTempTaxId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+
+                  {/* Registered Headquarters Address - Full Width Row */}
+                  <div className="sm:col-span-2">
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Registered Headquarters Address</label>
+                    <input
+                      type="text"
+                      value={tempRegisteredAddress}
+                      onChange={(e) => setTempRegisteredAddress(e.target.value)}
+                      placeholder="Auto-filled from pincode or enter address"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
