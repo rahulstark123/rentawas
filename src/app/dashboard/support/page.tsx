@@ -72,7 +72,20 @@ export default function LandlordSupportPage() {
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [userName, setUserName] = useState("Landlord");
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("rentawas_user") || localStorage.getItem("supabase_user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.fullName || parsed?.name) {
+          setUserName(parsed.fullName || parsed.name);
+        }
+      }
+    } catch (e) {}
+  }, []);
 
   // 1. Fetch tickets from PostgreSQL API wid-wise
   const fetchTickets = async () => {
@@ -354,15 +367,27 @@ export default function LandlordSupportPage() {
 
       {/* Support Channels Ribbon */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-purple-50 text-purple-600 shrink-0">
-            <MessageSquare className="w-5 h-5" />
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+              <MessageSquare className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">WhatsApp Support Desk</span>
+              <span className="font-extrabold text-slate-900 text-sm block">+91 96257 27372</span>
+              <span className="text-[11px] text-emerald-600 font-bold">Instant Agent Chat</span>
+            </div>
           </div>
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">WhatsApp Support Desk</span>
-            <span className="font-extrabold text-slate-900 text-sm block">+91 96257 27372</span>
-            <span className="text-[11px] text-purple-600 font-bold">Instant Agent Chat</span>
-          </div>
+
+          <a
+            href={`https://wa.me/919625727372?text=${encodeURIComponent(`Hi, I am ${userName}. I need support regarding RentAwas.`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer shrink-0"
+          >
+            <MessageSquare className="w-4 h-4 fill-white text-white" />
+            <span>Chat</span>
+          </a>
         </div>
 
         <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center gap-3">

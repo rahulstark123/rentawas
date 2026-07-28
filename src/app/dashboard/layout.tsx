@@ -305,6 +305,7 @@ export default function DashboardLayout({
     { id: "expenses", name: "Property Expenses", href: "/dashboard/expenses", icon: Receipt },
     { id: "settings", name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
     { id: "billing", name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },
+    { id: "support", name: "Help & Support", href: "/dashboard/support", icon: HelpCircle },
   ];
 
   const listingNavItems = [
@@ -313,6 +314,7 @@ export default function DashboardLayout({
     { id: "publicSite", name: "Public Marketplace", href: "/find-property", external: true, icon: Search },
     { id: "settings", name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
     { id: "billing", name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },
+    { id: "support", name: "Help & Support", href: "/dashboard/support", icon: HelpCircle },
   ];
 
   const properties = [
