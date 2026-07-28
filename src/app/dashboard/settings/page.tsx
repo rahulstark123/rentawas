@@ -97,6 +97,47 @@ export const ALL_CURRENCIES = [
   { code: "MUR", symbol: "Rs", name: "MUR (Rs) — Mauritian Rupee" },
 ];
 
+export const ALL_TIMEZONES = [
+  { code: "UTC-12:00", name: "(UTC-12:00) International Date Line West" },
+  { code: "UTC-11:00", name: "(UTC-11:00) Midway Island, Samoa" },
+  { code: "UTC-10:00", name: "(UTC-10:00) Hawaii-Aleutian Standard Time" },
+  { code: "UTC-09:30", name: "(UTC-09:30) Marquesas Islands" },
+  { code: "UTC-09:00", name: "(UTC-09:00) Alaska Standard Time" },
+  { code: "UTC-08:00", name: "(UTC-08:00) Pacific Time (US & Canada)" },
+  { code: "UTC-07:00", name: "(UTC-07:00) Mountain Time (US & Canada)" },
+  { code: "UTC-06:00", name: "(UTC-06:00) Central Time (US & Canada), Mexico City" },
+  { code: "UTC-05:00", name: "(UTC-05:00) Eastern Time (US & Canada), Bogota, Lima" },
+  { code: "UTC-04:00", name: "(UTC-04:00) Atlantic Time (Canada), Caracas, Santiago" },
+  { code: "UTC-03:30", name: "(UTC-03:30) Newfoundland Standard Time" },
+  { code: "UTC-03:00", name: "(UTC-03:00) Brasilia, Buenos Aires, Montevideo" },
+  { code: "UTC-02:00", name: "(UTC-02:00) Mid-Atlantic, South Georgia" },
+  { code: "UTC-01:00", name: "(UTC-01:00) Azores, Cape Verde Islands" },
+  { code: "UTC+00:00", name: "(UTC+00:00) Greenwich Mean Time (London, Dublin, Lisbon, Casablanca)" },
+  { code: "UTC+01:00", name: "(UTC+01:00) Central European Time (Paris, Berlin, Rome, Madrid, Amsterdam)" },
+  { code: "UTC+02:00", name: "(UTC+02:00) Eastern European Time (Athens, Cairo, Helsinki, Johannesburg)" },
+  { code: "UTC+03:00", name: "(UTC+03:00) Moscow, Riyadh, Kuwait, Nairobi, Istanbul" },
+  { code: "UTC+03:30", name: "(UTC+03:30) Tehran Standard Time" },
+  { code: "UTC+04:00", name: "(UTC+04:00) Gulf Standard Time (Dubai, Abu Dhabi, Muscat, Baku)" },
+  { code: "UTC+04:30", name: "(UTC+04:30) Kabul Standard Time" },
+  { code: "UTC+05:00", name: "(UTC+05:00) Pakistan Standard Time (Karachi, Tashkent, Yekaterinburg)" },
+  { code: "UTC+05:30", name: "(UTC+05:30) Indian Standard Time (New Delhi, Mumbai, Bengaluru, Kolkata)" },
+  { code: "UTC+05:45", name: "(UTC+05:45) Nepal Time (Kathmandu)" },
+  { code: "UTC+06:00", name: "(UTC+06:00) Bangladesh Standard Time (Dhaka, Almaty, Astana)" },
+  { code: "UTC+06:30", name: "(UTC+06:30) Myanmar Time (Yangon, Cocos Islands)" },
+  { code: "UTC+07:00", name: "(UTC+07:00) Indochina Time (Bangkok, Jakarta, Hanoi, Phnom Penh)" },
+  { code: "UTC+08:00", name: "(UTC+08:00) China Standard Time (Beijing, Singapore, Hong Kong, Perth, Taipei)" },
+  { code: "UTC+08:45", name: "(UTC+08:45) Eucla Australia Standard Time" },
+  { code: "UTC+09:00", name: "(UTC+09:00) Japan Standard Time (Tokyo, Seoul, Osaka, Pyongyang)" },
+  { code: "UTC+09:30", name: "(UTC+09:30) Australian Central Standard Time (Darwin, Adelaide)" },
+  { code: "UTC+10:00", name: "(UTC+10:00) Australian Eastern Standard Time (Sydney, Melbourne, Brisbane)" },
+  { code: "UTC+10:30", name: "(UTC+10:30) Lord Howe Island" },
+  { code: "UTC+11:00", name: "(UTC+11:00) Solomon Islands, New Caledonia, Vladivostok" },
+  { code: "UTC+12:00", name: "(UTC+12:00) New Zealand Standard Time (Auckland, Fiji, Kamchatka)" },
+  { code: "UTC+12:45", name: "(UTC+12:45) Chatham Islands" },
+  { code: "UTC+13:00", name: "(UTC+13:00) Tonga, Tokelau, Phoenix Islands" },
+  { code: "UTC+14:00", name: "(UTC+14:00) Line Islands (Kiribati)" },
+];
+
 export default function WorkspaceSettingsPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"general" | "integrations" | "team" | "delete_account">("general");
@@ -2230,11 +2271,11 @@ export default function WorkspaceSettingsPage() {
                         onChange={(e) => setTempTimezone(e.target.value)}
                         className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                       >
-                        <option value="(UTC-08:00) Pacific Time (US & Canada)">(UTC-08:00) Pacific Time (US & Canada)</option>
-                        <option value="(UTC+05:30) Indian Standard Time (IST)">(UTC+05:30) Indian Standard Time (IST)</option>
-                        <option value="(UTC+00:00) London (GMT / BST)">(UTC+00:00) London (GMT / BST)</option>
-                        <option value="(UTC+04:00) Dubai (GST)">(UTC+04:00) Dubai (GST)</option>
-                        <option value="(UTC-05:00) Eastern Time (US & Canada)">(UTC-05:00) Eastern Time (US & Canada)</option>
+                        {ALL_TIMEZONES.map((tz) => (
+                          <option key={tz.code} value={tz.name}>
+                            {tz.name}
+                          </option>
+                        ))}
                       </select>
                       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
