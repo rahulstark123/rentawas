@@ -1089,18 +1089,34 @@ export default function DashboardLayout({
 
                             {/* Controls Footer */}
                             <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
-                              {/* Live Toggle Switch */}
-                              <label className="flex items-center gap-2 cursor-pointer select-none">
-                                <input
-                                  type="checkbox"
-                                  checked={isCurrentlyLive}
-                                  onChange={() => toggleListingLiveStatus(item.id, isCurrentlyLive)}
-                                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 accent-emerald-600"
-                                />
-                                <span className="text-[11px] font-bold text-slate-700">
+                              {/* Live vs Draft Sliding Toggle Switch */}
+                              <button
+                                type="button"
+                                onClick={() => toggleListingLiveStatus(item.id, isCurrentlyLive)}
+                                className="flex items-center gap-2.5 cursor-pointer select-none border-none bg-transparent group"
+                                title={`Click to switch status to ${isCurrentlyLive ? "Draft" : "Live"}`}
+                              >
+                                {/* Sliding Track Pill */}
+                                <div
+                                  className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out relative p-0.5 shadow-inner ${
+                                    isCurrentlyLive ? "bg-emerald-500" : "bg-slate-300"
+                                  }`}
+                                >
+                                  {/* Sliding White Circle Knob */}
+                                  <div
+                                    className={`w-5 h-5 bg-white rounded-full shadow-xs transform transition-transform duration-200 ease-in-out ${
+                                      isCurrentlyLive ? "translate-x-5" : "translate-x-0"
+                                    }`}
+                                  />
+                                </div>
+
+                                {/* Status Label */}
+                                <span className={`text-xs font-extrabold transition-colors ${
+                                  isCurrentlyLive ? "text-emerald-700" : "text-slate-500"
+                                }`}>
                                   {isCurrentlyLive ? "Live" : "Draft"}
                                 </span>
-                              </label>
+                              </button>
 
                               <div className="flex items-center gap-2">
                                 <button
