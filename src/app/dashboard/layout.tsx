@@ -462,12 +462,9 @@ export default function DashboardLayout({
 
           {/* Mode Header Label */}
           {!isCollapsed && (
-            <div className="px-4 pt-2 pb-1.5 text-[10px] font-black uppercase tracking-wider flex items-center justify-between">
+            <div className="px-4 pt-3 pb-1 text-[10px] font-black uppercase tracking-wider">
               <span className={dashboardViewMode === "listing" ? "text-[#FF6B00]" : "text-slate-400"}>
                 {dashboardViewMode === "listing" ? "🔥 Marketplace Hub" : "🏢 Rental Operations"}
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[8px] bg-white/10 text-slate-300">
-                {dashboardViewMode === "listing" ? "LISTING VIEW" : "MANAGE VIEW"}
               </span>
             </div>
           )}
