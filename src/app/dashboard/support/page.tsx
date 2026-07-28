@@ -14,6 +14,7 @@ import {
   Upload, 
   ChevronDown, 
   ChevronRight, 
+  ChevronLeft,
   ShieldCheck, 
   Zap, 
   Send,
@@ -74,6 +75,16 @@ export default function LandlordSupportPage() {
 
   const [userName, setUserName] = useState("Landlord");
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+
+  // Pagination State (Max 5 tickets per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const TICKETS_PER_PAGE = 5;
+
+  const totalPages = Math.ceil(tickets.length / TICKETS_PER_PAGE) || 1;
+  const paginatedTickets = tickets.slice(
+    (currentPage - 1) * TICKETS_PER_PAGE,
+    currentPage * TICKETS_PER_PAGE
+  );
 
   useEffect(() => {
     try {
@@ -424,7 +435,7 @@ export default function LandlordSupportPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {tickets.map((t) => (
+            {paginatedTickets.map((t) => (
               <div
                 key={t.id}
                 className="p-5 bg-slate-50/80 border border-slate-200/90 rounded-2xl space-y-3 hover:bg-slate-100/60 transition-colors"
@@ -495,6 +506,53 @@ export default function LandlordSupportPage() {
                 </div>
               </div>
             ))}
+
+            {/* Pagination Controls Bar */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                <span className="text-xs text-slate-500 font-medium">
+                  Showing <strong className="text-slate-900">{(currentPage - 1) * TICKETS_PER_PAGE + 1}</strong> to{" "}
+                  <strong className="text-slate-900">{Math.min(currentPage * TICKETS_PER_PAGE, tickets.length)}</strong> of{" "}
+                  <strong className="text-slate-900">{tickets.length}</strong> tickets
+                </span>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-all disabled:opacity-40 disabled:pointer-events-none cursor-pointer flex items-center gap-1"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Prev</span>
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          currentPage === pageNum
+                            ? "bg-[#FF6B00] text-white shadow-xs"
+                            : "bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-all disabled:opacity-40 disabled:pointer-events-none cursor-pointer flex items-center gap-1"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
