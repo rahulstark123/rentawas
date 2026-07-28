@@ -32,13 +32,16 @@ import {
   EyeOff,
   Copy,
   X,
-  Lock
+  Lock,
+  Edit3,
+  UserX,
+  Mail
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
 export default function WorkspaceSettingsPage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"general" | "integrations" | "team">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "integrations" | "team" | "delete_account">("general");
 
   // General Settings State
   const [orgName, setOrgName] = useState("Grand Regency Management LLC");
@@ -55,6 +58,55 @@ export default function WorkspaceSettingsPage() {
   const [tagline, setTagline] = useState("Premier Residential & Executive Asset Management");
   const [timezone, setTimezone] = useState("(UTC-08:00) Pacific Time (US & Canada)");
   const [fiscalYearStart, setFiscalYearStart] = useState("January (Standard Calendar Year)");
+
+  // Edit Settings Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [tempOrgName, setTempOrgName] = useState(orgName);
+  const [tempCompanyType, setTempCompanyType] = useState(companyType);
+  const [tempTaxId, setTempTaxId] = useState(taxId);
+  const [tempRegisteredAddress, setTempRegisteredAddress] = useState(registeredAddress);
+  const [tempLandlordName, setTempLandlordName] = useState(landlordName);
+  const [tempLandlordRole, setTempLandlordRole] = useState(landlordRole);
+  const [tempCompanyEmail, setTempCompanyEmail] = useState(companyEmail);
+  const [tempCompanyPhone, setTempCompanyPhone] = useState(companyPhone);
+  const [tempCurrency, setTempCurrency] = useState(currency);
+  const [tempJurisdiction, setTempJurisdiction] = useState(jurisdiction);
+  const [tempTimezone, setTempTimezone] = useState(timezone);
+  const [tempFiscalYearStart, setTempFiscalYearStart] = useState(fiscalYearStart);
+
+  const openEditModal = () => {
+    setTempOrgName(orgName);
+    setTempCompanyType(companyType);
+    setTempTaxId(taxId);
+    setTempRegisteredAddress(registeredAddress);
+    setTempLandlordName(landlordName);
+    setTempLandlordRole(landlordRole);
+    setTempCompanyEmail(companyEmail);
+    setTempCompanyPhone(companyPhone);
+    setTempCurrency(currency);
+    setTempJurisdiction(jurisdiction);
+    setTempTimezone(timezone);
+    setTempFiscalYearStart(fiscalYearStart);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    setOrgName(tempOrgName);
+    setCompanyType(tempCompanyType);
+    setTaxId(tempTaxId);
+    setRegisteredAddress(tempRegisteredAddress);
+    setLandlordName(tempLandlordName);
+    setLandlordRole(tempLandlordRole);
+    setCompanyEmail(tempCompanyEmail);
+    setCompanyPhone(tempCompanyPhone);
+    setCurrency(tempCurrency);
+    setJurisdiction(tempJurisdiction);
+    setTimezone(tempTimezone);
+    setFiscalYearStart(tempFiscalYearStart);
+    setShowEditModal(false);
+    toast("Workspace settings updated successfully!", "success");
+  };
 
   // Payout Settings State
   const [bankName, setBankName] = useState("JPMorgan Chase Bank");
@@ -460,6 +512,14 @@ export default function WorkspaceSettingsPage() {
             Configure organization profile, bank payout accounts, and team access.
           </p>
         </div>
+
+        <button
+          onClick={openEditModal}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer shrink-0"
+        >
+          <Edit3 className="w-4 h-4" />
+          <span>Edit Workspace Settings</span>
+        </button>
       </div>
 
       {/* Settings Navigation Tabs */}
@@ -468,6 +528,7 @@ export default function WorkspaceSettingsPage() {
           { id: "general", label: "Organization & Profile", icon: Building2 },
           { id: "integrations", label: "Integrations", icon: Blocks, badge: "3 SUPPORTED" },
           { id: "team", label: "Team Members", icon: Users, count: team.length },
+          { id: "delete_account", label: "Delete Account", icon: UserX },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -502,45 +563,39 @@ export default function WorkspaceSettingsPage() {
       {activeTab === "general" && (
         <div className="space-y-6">
           
-          {/* Card 1: Company Legal Identity & Tax Registration */}
+          {/* Card 1: Company Legal Identity & Tax Registration (Read-Only) */}
           <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
-            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-[#FF6B00]" />
-              <span>Company Legal Identity & Registration</span>
-            </h3>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-[#FF6B00]" />
+                <span>Company Legal Identity & Registration</span>
+              </h3>
+              <button
+                type="button"
+                onClick={openEditModal}
+                className="text-xs font-bold text-[#FF6B00] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Organization / Company Name
                 </label>
-                <input
-                  type="text"
-                  value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {orgName}
+                </div>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Entity / Business Type
                 </label>
-                <div className="relative">
-                  <select
-                    value={companyType}
-                    onChange={(e) => setCompanyType(e.target.value)}
-                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="LLC (Limited Liability Company)">LLC (Limited Liability Company)</option>
-                    <option value="Sole Proprietorship / Individual Landlord">Sole Proprietorship / Individual Landlord</option>
-                    <option value="Private Limited Corporation (Pvt Ltd / Inc)">Private Limited Corporation (Pvt Ltd / Inc)</option>
-                    <option value="Real Estate Investment Trust (REIT)">Real Estate Investment Trust (REIT)</option>
-                    <option value="Partnership Firm">Partnership Firm</option>
-                  </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                    <ChevronDown className="w-4 h-4" />
-                  </div>
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {companyType}
                 </div>
               </div>
 
@@ -548,114 +603,102 @@ export default function WorkspaceSettingsPage() {
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Tax Identification Number (EIN / GSTIN / SSN)
                 </label>
-                <input
-                  type="text"
-                  value={taxId}
-                  onChange={(e) => setTaxId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {taxId}
+                </div>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Registered Headquarters Address
                 </label>
-                <input
-                  type="text"
-                  value={registeredAddress}
-                  onChange={(e) => setRegisteredAddress(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {registeredAddress}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Card 2: Primary Landlord / Asset Manager Profile */}
+          {/* Card 2: Primary Landlord & Representative Contact (Read-Only) */}
           <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
-            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <Users className="w-5 h-5 text-blue-600" />
-              <span>Primary Landlord & Representative Contact</span>
-            </h3>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                <span>Primary Landlord & Representative Contact</span>
+              </h3>
+              <button
+                type="button"
+                onClick={openEditModal}
+                className="text-xs font-bold text-[#FF6B00] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Primary Contact Full Name
                 </label>
-                <input
-                  type="text"
-                  value={landlordName}
-                  onChange={(e) => setLandlordName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {landlordName}
+                </div>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Official Title / Role
                 </label>
-                <input
-                  type="text"
-                  value={landlordRole}
-                  onChange={(e) => setLandlordRole(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {landlordRole}
+                </div>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Official Notification Email
                 </label>
-                <input
-                  type="email"
-                  value={companyEmail}
-                  onChange={(e) => setCompanyEmail(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {companyEmail}
+                </div>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Direct Contact Phone Number
                 </label>
-                <input
-                  type="text"
-                  value={companyPhone}
-                  onChange={(e) => setCompanyPhone(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {companyPhone}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Card 3: Regional Preferences & Fiscal Calendar */}
+          {/* Card 3: Regional Preferences & Fiscal Calendar (Read-Only) */}
           <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
-            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-emerald-600" />
-              <span>Regional Preferences & Fiscal Calendar</span>
-            </h3>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-emerald-600" />
+                <span>Regional Preferences & Fiscal Calendar</span>
+              </h3>
+              <button
+                type="button"
+                onClick={openEditModal}
+                className="text-xs font-bold text-[#FF6B00] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Default Operating Currency
                 </label>
-                <div className="relative">
-                  <select
-                    value={currency}
-                    onChange={(e) => setCurrency(e.target.value)}
-                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="USD ($)">USD ($) — United States Dollar</option>
-                    <option value="INR (₹)">INR (₹) — Indian Rupee</option>
-                    <option value="GBP (£)">GBP (£) — British Pound</option>
-                    <option value="EUR (€)">EUR (€) — Eurozone Euro</option>
-                    <option value="AED (AED)">AED (AED) — UAE Dirham</option>
-                    <option value="AUD ($)">AUD ($) — Australian Dollar</option>
-                  </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                    <ChevronDown className="w-4 h-4" />
-                  </div>
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {currency}
                 </div>
               </div>
 
@@ -663,33 +706,17 @@ export default function WorkspaceSettingsPage() {
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Primary Municipal Jurisdiction
                 </label>
-                <input
-                  type="text"
-                  value={jurisdiction}
-                  onChange={(e) => setJurisdiction(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {jurisdiction}
+                </div>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Workspace Operating Timezone
                 </label>
-                <div className="relative">
-                  <select
-                    value={timezone}
-                    onChange={(e) => setTimezone(e.target.value)}
-                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="(UTC-08:00) Pacific Time (US & Canada)">(UTC-08:00) Pacific Time (US & Canada)</option>
-                    <option value="(UTC+05:30) Indian Standard Time (IST)">(UTC+05:30) Indian Standard Time (IST)</option>
-                    <option value="(UTC+00:00) London (GMT / BST)">(UTC+00:00) London (GMT / BST)</option>
-                    <option value="(UTC+04:00) Dubai (GST)">(UTC+04:00) Dubai (GST)</option>
-                    <option value="(UTC-05:00) Eastern Time (US & Canada)">(UTC-05:00) Eastern Time (US & Canada)</option>
-                  </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                    <ChevronDown className="w-4 h-4" />
-                  </div>
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {timezone}
                 </div>
               </div>
 
@@ -697,20 +724,8 @@ export default function WorkspaceSettingsPage() {
                 <label className="block font-bold text-slate-700 uppercase mb-1.5">
                   Fiscal Year Start Month
                 </label>
-                <div className="relative">
-                  <select
-                    value={fiscalYearStart}
-                    onChange={(e) => setFiscalYearStart(e.target.value)}
-                    className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="January (Standard Calendar Year)">January (Standard Calendar Year)</option>
-                    <option value="April (India / UK Fiscal Year)">April (India / UK Fiscal Year)</option>
-                    <option value="July (Q3 Fiscal Start)">July (Q3 Fiscal Start)</option>
-                    <option value="October (Q4 Fiscal Start)">October (Q4 Fiscal Start)</option>
-                  </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                    <ChevronDown className="w-4 h-4" />
-                  </div>
+                <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
+                  {fiscalYearStart}
                 </div>
               </div>
             </div>
@@ -990,6 +1005,108 @@ export default function WorkspaceSettingsPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4: Delete Account */}
+      {activeTab === "delete_account" && (
+        <div className="space-y-6 font-sans">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-teal-600 block mb-1">
+              ACCOUNT SETTINGS
+            </span>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+              Delete Account
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
+              Request permanent deletion of your RentAwas account and associated data.
+            </p>
+          </div>
+
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-10 shadow-2xs space-y-8 max-w-4xl">
+            {/* Card Danger Header */}
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-6">
+              <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                <UserX className="w-5 h-5" />
+              </div>
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                DELETE YOUR RENTAWAS ACCOUNT
+              </h3>
+            </div>
+
+            {/* Instruction Body */}
+            <div className="space-y-4 text-xs font-medium text-slate-600 leading-relaxed">
+              <p>
+                If you would like to delete your RentAwas account and associated data, please send an email from your registered email address to:
+              </p>
+
+              <div className="pt-1">
+                <a
+                  href="mailto:support@anshapps.com?subject=Account%20Deletion%20Request"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold border border-teal-200 transition-all text-xs cursor-pointer shadow-2xs group"
+                >
+                  <Mail className="w-4 h-4 text-teal-600 group-hover:scale-110 transition-transform" />
+                  <span>support@anshapps.com</span>
+                </a>
+              </div>
+
+              <div className="space-y-1 pt-2">
+                <p className="font-bold text-slate-900">
+                  Subject: <span className="font-semibold text-slate-700">Account Deletion Request</span>
+                </p>
+                <p className="text-slate-500 text-[11px]">
+                  Our team will verify your request and process account deletion within 7 business days.
+                </p>
+              </div>
+            </div>
+
+            <hr className="border-slate-100 my-6" />
+
+            {/* List Upon Successful Deletion */}
+            <div className="space-y-3">
+              <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-wider">
+                UPON SUCCESSFUL DELETION:
+              </h4>
+
+              <ul className="space-y-2.5 text-xs text-slate-600 font-medium pl-1">
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                  <span>Your account will be permanently deleted.</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                  <span>Your profile information will be removed.</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                  <span>Your authentication credentials will be deleted.</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                  <span>Any active subscription will be cancelled and revoked.</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                  <span>Any personal data associated with your account will be removed from our systems.</span>
+                </li>
+              </ul>
+            </div>
+
+            <hr className="border-slate-100 my-6" />
+
+            {/* Footer Notice */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[11px] text-slate-500 font-medium pt-2">
+              <p>
+                If you have any questions regarding account deletion, please contact us at{" "}
+                <a href="mailto:support@anshapps.com" className="font-bold text-teal-600 hover:underline">
+                  support@anshapps.com
+                </a>.
+              </p>
+              <span className="uppercase text-[10px] font-bold text-slate-400 tracking-wider">
+                LAST UPDATED: JUNE 2026
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -1779,6 +1896,239 @@ export default function WorkspaceSettingsPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Edit Workspace Settings Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto font-sans">
+          <form
+            onSubmit={handleSaveEditModal}
+            className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl my-8 relative animate-in fade-in zoom-in-95 duration-200"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-orange-50 text-[#FF6B00] rounded-xl border border-orange-100">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Edit Workspace Settings</h3>
+                  <p className="text-xs text-slate-500">Update company legal profile, landlord contact details, and regional preferences.</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl cursor-pointer transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-1 text-xs custom-scrollbar">
+              {/* Section 1: Company Legal Identity */}
+              <div className="space-y-4 pt-1">
+                <h4 className="font-bold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4 text-[#FF6B00]" />
+                  <span>Company Legal Identity</span>
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Company Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={tempOrgName}
+                      onChange={(e) => setTempOrgName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Entity / Business Type</label>
+                    <div className="relative">
+                      <select
+                        value={tempCompanyType}
+                        onChange={(e) => setTempCompanyType(e.target.value)}
+                        className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                      >
+                        <option value="LLC (Limited Liability Company)">LLC (Limited Liability Company)</option>
+                        <option value="Sole Proprietorship / Individual Landlord">Sole Proprietorship / Individual Landlord</option>
+                        <option value="Private Limited Corporation (Pvt Ltd / Inc)">Private Limited Corporation (Pvt Ltd / Inc)</option>
+                        <option value="Real Estate Investment Trust (REIT)">Real Estate Investment Trust (REIT)</option>
+                        <option value="Partnership Firm">Partnership Firm</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Tax Identification Number</label>
+                    <input
+                      type="text"
+                      value={tempTaxId}
+                      onChange={(e) => setTempTaxId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Registered Address</label>
+                    <input
+                      type="text"
+                      value={tempRegisteredAddress}
+                      onChange={(e) => setTempRegisteredAddress(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Contact Details */}
+              <div className="space-y-4 pt-3 border-t border-slate-100">
+                <h4 className="font-bold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <span>Landlord Representative Contact</span>
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Primary Contact Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={tempLandlordName}
+                      onChange={(e) => setTempLandlordName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Official Title / Role</label>
+                    <input
+                      type="text"
+                      value={tempLandlordRole}
+                      onChange={(e) => setTempLandlordRole(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Notification Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={tempCompanyEmail}
+                      onChange={(e) => setTempCompanyEmail(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Contact Phone Number</label>
+                    <input
+                      type="text"
+                      value={tempCompanyPhone}
+                      onChange={(e) => setTempCompanyPhone(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Currency & Regional Preferences */}
+              <div className="space-y-4 pt-3 border-t border-slate-100">
+                <h4 className="font-bold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <DollarSign className="w-4 h-4 text-emerald-600" />
+                  <span>Regional Preferences</span>
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Operating Currency</label>
+                    <div className="relative">
+                      <select
+                        value={tempCurrency}
+                        onChange={(e) => setTempCurrency(e.target.value)}
+                        className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                      >
+                        <option value="USD ($)">USD ($) — United States Dollar</option>
+                        <option value="INR (₹)">INR (₹) — Indian Rupee</option>
+                        <option value="GBP (£)">GBP (£) — British Pound</option>
+                        <option value="EUR (€)">EUR (€) — Eurozone Euro</option>
+                        <option value="AED (AED)">AED (AED) — UAE Dirham</option>
+                        <option value="AUD ($)">AUD ($) — Australian Dollar</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Municipal Jurisdiction</label>
+                    <input
+                      type="text"
+                      value={tempJurisdiction}
+                      onChange={(e) => setTempJurisdiction(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Operating Timezone</label>
+                    <div className="relative">
+                      <select
+                        value={tempTimezone}
+                        onChange={(e) => setTempTimezone(e.target.value)}
+                        className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                      >
+                        <option value="(UTC-08:00) Pacific Time (US & Canada)">(UTC-08:00) Pacific Time (US & Canada)</option>
+                        <option value="(UTC+05:30) Indian Standard Time (IST)">(UTC+05:30) Indian Standard Time (IST)</option>
+                        <option value="(UTC+00:00) London (GMT / BST)">(UTC+00:00) London (GMT / BST)</option>
+                        <option value="(UTC+04:00) Dubai (GST)">(UTC+04:00) Dubai (GST)</option>
+                        <option value="(UTC-05:00) Eastern Time (US & Canada)">(UTC-05:00) Eastern Time (US & Canada)</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Fiscal Year Start</label>
+                    <div className="relative">
+                      <select
+                        value={tempFiscalYearStart}
+                        onChange={(e) => setTempFiscalYearStart(e.target.value)}
+                        className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                      >
+                        <option value="January (Standard Calendar Year)">January (Standard Calendar Year)</option>
+                        <option value="April (India / UK Fiscal Year)">April (India / UK Fiscal Year)</option>
+                        <option value="July (Q3 Fiscal Start)">July (Q3 Fiscal Start)</option>
+                        <option value="October (Q4 Fiscal Start)">October (Q4 Fiscal Start)</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2.5 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-md uppercase tracking-wider cursor-pointer transition-all"
+              >
+                Save Settings
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
