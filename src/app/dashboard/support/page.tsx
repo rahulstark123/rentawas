@@ -429,14 +429,6 @@ export default function LandlordSupportPage() {
                     </span>
 
                     <button
-                      onClick={() => handleStatusUpdate(t.id, t.status)}
-                      className="p-1.5 text-xs text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer border border-slate-200"
-                      title={t.status === "Resolved" ? "Re-open ticket" : "Mark as Resolved"}
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
-
-                    <button
                       type="button"
                       onClick={() => setTicketToDelete({ id: t.id, ticketNumber: t.ticketNumber })}
                       className="p-1.5 text-xs text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer border border-slate-200"
