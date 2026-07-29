@@ -106,11 +106,12 @@ export const ALL_COUNTRIES: Country[] = [
   { code: "US", name: "United States", dialCode: "+1", flag: "🇺🇸", minDigits: 10, maxDigits: 10, placeholder: "(555) 000-0000" },
 ];
 
-interface Props {
+export interface Props {
   value: string;
   onChange: (value: string) => void;
   selectedCountry: Country;
   onCountryChange: (country: Country) => void;
+  darkTheme?: boolean;
 }
 
 export default function CountryPhoneInput({
@@ -118,6 +119,7 @@ export default function CountryPhoneInput({
   onChange,
   selectedCountry,
   onCountryChange,
+  darkTheme = false,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -202,11 +204,15 @@ export default function CountryPhoneInput({
             ref={triggerRef}
             type="button"
             onClick={handleToggle}
-            className="h-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-1.5 text-xs font-bold text-slate-800 transition-all cursor-pointer shadow-2xs"
+            className={`h-full border rounded-xl px-3 py-2.5 flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+              darkTheme
+                ? "bg-slate-950 hover:bg-slate-900 border-slate-800 text-white"
+                : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800"
+            }`}
           >
             <span className="text-base leading-none">{selectedCountry.flag}</span>
             <span>{selectedCountry.dialCode}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </button>
         </div>
 
@@ -221,12 +227,18 @@ export default function CountryPhoneInput({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={selectedCountry.placeholder}
-            className={`w-full pl-10 pr-9 py-2.5 bg-slate-50 border rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 transition-all ${
-              isValid
-                ? "border-emerald-400 focus:ring-emerald-400/20 focus:border-emerald-500"
+            className={`w-full pl-10 pr-9 py-2.5 border rounded-xl text-xs font-semibold transition-all focus:outline-none ${
+              darkTheme
+                ? isValid
+                  ? "bg-slate-950 border-emerald-500 text-white"
+                  : isShort || isLong
+                  ? "bg-slate-950 border-amber-500 text-white"
+                  : "bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-[#FF6B00]"
+                : isValid
+                ? "bg-slate-50 border-emerald-400 focus:ring-emerald-400/20 focus:border-emerald-500 text-slate-900"
                 : isShort || isLong
-                ? "border-amber-400 focus:ring-amber-400/20 focus:border-amber-500"
-                : "border-slate-200 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00]"
+                ? "bg-slate-50 border-amber-400 focus:ring-amber-400/20 focus:border-amber-500 text-slate-900"
+                : "bg-slate-50 border-slate-200 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00] text-slate-900"
             }`}
           />
 
@@ -263,10 +275,14 @@ export default function CountryPhoneInput({
         <div
           id="country-phone-input-portal-menu"
           style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
-          className="fixed w-72 sm:w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[999999] overflow-hidden flex flex-col max-h-72 font-sans animate-in fade-in duration-100"
+          className={`fixed w-72 sm:w-80 border rounded-2xl shadow-2xl z-[999999] overflow-hidden flex flex-col max-h-72 font-sans animate-in fade-in duration-100 ${
+            darkTheme
+              ? "bg-slate-900 border-slate-800 text-white"
+              : "bg-white border-slate-200 text-slate-900"
+          }`}
         >
           {/* Search Box Header */}
-          <div className="p-2.5 border-b border-slate-100 bg-slate-50/80">
+          <div className={`p-2.5 border-b ${darkTheme ? "border-slate-800 bg-slate-950" : "border-slate-100 bg-slate-50/80"}`}>
             <div className="relative">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -274,14 +290,16 @@ export default function CountryPhoneInput({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search from 200+ countries or codes..."
-                className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[#FF6B00]"
+                className={`w-full pl-8 pr-3 py-1.5 border rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[#FF6B00] ${
+                  darkTheme ? "bg-slate-900 border-slate-700 text-white placeholder-slate-500" : "bg-white border-slate-200 text-slate-900"
+                }`}
                 autoFocus
               />
             </div>
           </div>
 
           {/* Country Items List */}
-          <div className="overflow-y-auto flex-1 p-1 divide-y divide-slate-50">
+          <div className={`overflow-y-auto flex-1 p-1 ${darkTheme ? "divide-y divide-slate-800/60" : "divide-y divide-slate-50"}`}>
             {filteredCountries.length > 0 ? (
               filteredCountries.map((country) => (
                 <button
@@ -294,7 +312,11 @@ export default function CountryPhoneInput({
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer ${
                     selectedCountry.code === country.code
-                      ? "bg-orange-50 font-bold text-[#FF6B00]"
+                      ? darkTheme
+                        ? "bg-orange-950/60 text-[#FF6B00] font-bold border border-orange-500/30"
+                        : "bg-orange-50 font-bold text-[#FF6B00]"
+                      : darkTheme
+                      ? "hover:bg-slate-800 text-slate-200 font-medium"
                       : "hover:bg-slate-50 text-slate-700 font-medium"
                   }`}
                 >
@@ -302,7 +324,7 @@ export default function CountryPhoneInput({
                     <span className="text-base">{country.flag}</span>
                     <span className="truncate">{country.name}</span>
                   </span>
-                  <span className="text-slate-400 font-semibold ml-2 shrink-0 font-mono">
+                  <span className="text-[#FF6B00] font-semibold ml-2 shrink-0 font-mono">
                     {country.dialCode}
                   </span>
                 </button>

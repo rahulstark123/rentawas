@@ -13,7 +13,8 @@ import {
   Building2,
   TrendingUp,
   Search,
-  MessageSquareHeart
+  MessageSquareHeart,
+  Handshake
 } from "lucide-react";
 import { 
   IconCloudStorage, 
@@ -456,6 +457,44 @@ export default function PricingAndFAQ() {
             >
               <MessageSquareHeart className="w-4 h-4" />
               <span>Share Your Feedback</span>
+            </button>
+          </div>
+        </motion.div>
+
+        {/* RentAwas Partner Program Section Right Below FAQ */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+          className="max-w-3xl mx-auto mt-8 bg-gradient-to-r from-orange-950 via-slate-900 to-orange-950 rounded-2xl md:rounded-3xl p-8 sm:p-10 text-center text-white shadow-xl border border-orange-500/20 relative overflow-hidden group"
+        >
+          {/* Subtle Ambient Background Glow */}
+          <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#FF6B00]/20 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-amber-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div className="relative z-10 flex flex-col items-center">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/20 border border-orange-500/30 text-[#FF6B00] flex items-center justify-center mb-4 shadow-md group-hover:scale-105 transition-transform">
+              <Handshake className="w-6 h-6" />
+            </div>
+
+            <h3 
+              className="text-2xl sm:text-3xl font-bold text-white mb-2 tracking-tight"
+              style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
+            >
+              Want to Become a RentAwas Partner?
+            </h3>
+
+            <p className="text-slate-300 font-normal text-xs sm:text-sm max-w-lg mb-6 leading-relaxed">
+              Expand your real estate agency, channel partner firm, or property technology network. Join the RentAwas Partner Program for referral commissions, co-branded solutions, and priority enrollment.
+            </p>
+
+            <button
+              onClick={() => triggerModal("RentAwas Partner Program Enrollment")}
+              className="px-6 py-3 bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2"
+            >
+              <Handshake className="w-4 h-4" />
+              <span>Partner Program</span>
             </button>
           </div>
         </motion.div>

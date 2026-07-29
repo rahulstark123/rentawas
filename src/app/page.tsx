@@ -10,6 +10,7 @@ import OperationsAndAICommand from "@/components/landing/OperationsAndAICommand"
 import ResidentAppSection from "@/components/landing/ResidentAppSection";
 import WallOfLove from "@/components/landing/WallOfLove";
 import PricingAndFAQ from "@/components/landing/PricingAndFAQ";
+import RentAwasExpertsSection from "@/components/landing/RentAwasExpertsSection";
 import Footer from "@/components/layout/Footer";
 import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
 
@@ -37,6 +38,10 @@ export default function Home() {
       <WallOfLove />
       
       <PricingAndFAQ />
+
+      {/* RentAwas Experts & Service Partners Section */}
+      <RentAwasExpertsSection />
+
       <Footer />
 
       {/* Early Access Lead Capture Modal */}

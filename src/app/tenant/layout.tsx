@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import LogoutAnimation from "@/components/LogoutAnimation";
+import BuildingPhaseBanner from "@/components/ui/BuildingPhaseBanner";
 
 export default function TenantLayout({
   children,
@@ -240,26 +241,30 @@ export default function TenantLayout({
 
       {/* Right Main Content Column - Far-right scrollbar */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar">
-        {/* Top Header */}
-        <header className="bg-white border-b border-slate-200/80 shrink-0 sticky top-0 z-30 px-6 py-3.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-700">Resident Portal</span>
-            <span className="text-slate-300">•</span>
-            <span className="text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
-              Lease Active
-            </span>
-          </div>
+        {/* Sticky Top Header & Notice Banner Container */}
+        <div className="sticky top-0 z-30 bg-white border-b border-slate-200/80 shrink-0">
+          <header className="px-6 py-3.5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700">Resident Portal</span>
+              <span className="text-slate-300">•</span>
+              <span className="text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
+                Lease Active
+              </span>
+            </div>
 
-          <div className="flex items-center gap-3">
-            <Link
-              href="/tenant/payments"
-              className="px-3.5 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl transition-all shadow-xs uppercase tracking-wider"
-            >
-              Pay Rent (${(tenantProfile.monthlyRent || 3200).toLocaleString()})
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/tenant/payments"
+                className="px-3.5 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl transition-all shadow-xs uppercase tracking-wider"
+              >
+                Pay Rent (${(tenantProfile.monthlyRent || 3200).toLocaleString()})
+              </Link>
+            </div>
+          </header>
 
-          </div>
-        </header>
+          {/* Building Phase Notice Banner Locked Below Top Header */}
+          <BuildingPhaseBanner />
+        </div>
 
         {/* Scrollable Resident Main Pane */}
         <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto space-y-8">

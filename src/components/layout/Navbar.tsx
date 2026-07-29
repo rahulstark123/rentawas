@@ -8,6 +8,7 @@ import { Menu, X, MessageSquareHeart, Sparkles, User } from "lucide-react";
 import ComingSoonModal from "@/components/ui/ComingSoonModal";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
+import BuildingPhaseBanner from "@/components/ui/BuildingPhaseBanner";
 import { supabase } from "@/lib/supabase";
 
 interface NavbarProps {
@@ -72,8 +73,9 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
 
   return (
     <>
-      <header
-        className={`fixed top-0 left-0 right-0 z-50 h-16 transition-all duration-300 ${
+      <div className="fixed top-0 left-0 right-0 z-50 flex flex-col">
+        <header
+          className={`w-full h-16 transition-all duration-300 ${
           scrolled
             ? "bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs text-slate-900"
             : variant === "dark"
@@ -288,7 +290,11 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
             </div>
           </div>
         )}
-      </header>
+        </header>
+        
+        {/* Building Phase Notice Banner Locked Directly Below Navbar */}
+        <BuildingPhaseBanner />
+      </div>
 
       {/* Modal Trigger Component */}
       <ComingSoonModal

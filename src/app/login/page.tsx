@@ -20,6 +20,7 @@ import {
   Heart
 } from "lucide-react";
 import { IconAutopilotRent } from "@/components/ui/CustomIcons";
+import BuildingPhaseBanner from "@/components/ui/BuildingPhaseBanner";
 import { supabase } from "@/lib/supabase";
 
 function LoginForm() {
@@ -142,6 +143,9 @@ function LoginForm() {
           <span>Back to Home</span>
         </Link>
       </header>
+
+      {/* Building Phase Notice Banner Below Top Header */}
+      <BuildingPhaseBanner />
 
       {/* Main Container */}
       <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 z-10">

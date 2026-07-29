@@ -56,6 +56,7 @@ import { useToast } from "@/components/ui/Toast";
 import GlobalSearchModal from "@/components/ui/GlobalSearchModal";
 import ListPropertyModal from "@/components/ui/ListPropertyModal";
 import PaywallModal from "@/components/ui/PaywallModal";
+import BuildingPhaseBanner from "@/components/ui/BuildingPhaseBanner";
 
 export default function DashboardLayout({
   children,
@@ -646,7 +647,8 @@ export default function DashboardLayout({
       {/* Right Main Content Column */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar">
         {/* Fixed Top Desktop Header Bar */}
-        <header className="bg-white border-b border-slate-200/80 shrink-0 sticky top-0 z-30 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+        <div className="sticky top-0 z-30 bg-white border-b border-slate-200/80">
+          <header className="px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
           
           {/* Desktop Sidebar Toggle Switch */}
           <button
@@ -816,7 +818,11 @@ export default function DashboardLayout({
             )}
           </div>
           </div>
-        </header>
+          </header>
+          
+          {/* Building Phase Notice Banner Locked Below Top Header */}
+          <BuildingPhaseBanner />
+        </div>
 
         {/* Page Main Content Area */}
         <main className="p-4 sm:p-6 md:p-8 flex-1">

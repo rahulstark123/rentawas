@@ -35,7 +35,9 @@ import {
   Lock,
   Edit3,
   UserX,
-  Mail
+  Mail,
+  QrCode,
+  Upload
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
@@ -175,6 +177,46 @@ export default function WorkspaceSettingsPage() {
   const [isFetchingPincode, setIsFetchingPincode] = useState(false);
   const [tempTimezone, setTempTimezone] = useState(timezone);
   const [tempFiscalYearStart, setTempFiscalYearStart] = useState(fiscalYearStart);
+
+  // Client-side Canvas Image Compression for QR Code Uploads
+  const compressQrImage = (file: File, callback: (compressedDataUrl: string) => void) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 800; // max 800px width/height for crisp QR scan
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL("image/jpeg", 0.85);
+          callback(compressed);
+        } else {
+          callback(e.target?.result as string);
+        }
+      };
+      img.onerror = () => {
+        callback(e.target?.result as string);
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const [selectedPhoneCountry, setSelectedPhoneCountry] = useState<Country>(
     ALL_COUNTRIES.find((c) => c.code === "US") || ALL_COUNTRIES[0]
@@ -317,6 +359,18 @@ export default function WorkspaceSettingsPage() {
       setShowPaypalModal(true);
       return;
     }
+    if (id === "gpay") {
+      setShowGpayModal(true);
+      return;
+    }
+    if (id === "phonepe") {
+      setShowPhonepeModal(true);
+      return;
+    }
+    if (id === "paytm") {
+      setShowPaytmModal(true);
+      return;
+    }
     const isCurrentlyConnected = !!connectedMap[id];
     setConnectedMap((prev) => ({ ...prev, [id]: !isCurrentlyConnected }));
     toast(
@@ -325,6 +379,177 @@ export default function WorkspaceSettingsPage() {
         : `Integration disconnected: ${name}`,
       !isCurrentlyConnected ? "success" : "info"
     );
+  };
+
+  // Google Pay Modal & Handlers
+  const [showGpayModal, setShowGpayModal] = useState(false);
+  const [savingGpay, setSavingGpay] = useState(false);
+
+  const handleSaveGpay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!gpayUpiId.trim() && !gpayPhoneNumber.trim() && !gpayQrCodeUrl) {
+      toast("Please enter GPay UPI ID, Phone Number, or upload a QR Code image!", "error");
+      return;
+    }
+    try {
+      setSavingGpay(true);
+      const res = await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wid: 1,
+          gpayUpiId: gpayUpiId.trim(),
+          gpayPhoneNumber: gpayPhoneNumber.trim(),
+          gpayQrCodeUrl,
+          gpayConnected: true,
+        }),
+      });
+      if (res.ok) {
+        setGpayConnected(true);
+        setConnectedMap((prev) => ({ ...prev, gpay: true }));
+        setShowGpayModal(false);
+        toast("Google Pay (GPay) Direct UPI saved and activated successfully!", "success");
+      } else {
+        toast("Failed to save GPay configuration.", "error");
+      }
+    } catch {
+      toast("Error saving GPay settings.", "error");
+    } finally {
+      setSavingGpay(false);
+    }
+  };
+
+  const handleDisconnectGpay = async () => {
+    try {
+      setSavingGpay(true);
+      await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wid: 1, gpayConnected: false }),
+      });
+      setGpayConnected(false);
+      setConnectedMap((prev) => ({ ...prev, gpay: false }));
+      setShowGpayModal(false);
+      toast("Google Pay integration disconnected.", "info");
+    } catch {
+      toast("Error disconnecting Google Pay.", "error");
+    } finally {
+      setSavingGpay(false);
+    }
+  };
+
+  // PhonePe Modal & Handlers
+  const [showPhonepeModal, setShowPhonepeModal] = useState(false);
+  const [savingPhonepe, setSavingPhonepe] = useState(false);
+
+  const handleSavePhonepe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phonepeUpiId.trim() && !phonepePhoneNumber.trim() && !phonepeQrCodeUrl) {
+      toast("Please enter PhonePe UPI ID, Phone Number, or upload a QR Code image!", "error");
+      return;
+    }
+    try {
+      setSavingPhonepe(true);
+      const res = await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wid: 1,
+          phonepeUpiId: phonepeUpiId.trim(),
+          phonepePhoneNumber: phonepePhoneNumber.trim(),
+          phonepeQrCodeUrl,
+          phonepeConnected: true,
+        }),
+      });
+      if (res.ok) {
+        setPhonepeConnected(true);
+        setConnectedMap((prev) => ({ ...prev, phonepe: true }));
+        setShowPhonepeModal(false);
+        toast("PhonePe Business & UPI saved and activated successfully!", "success");
+      } else {
+        toast("Failed to save PhonePe configuration.", "error");
+      }
+    } catch {
+      toast("Error saving PhonePe settings.", "error");
+    } finally {
+      setSavingPhonepe(false);
+    }
+  };
+
+  const handleDisconnectPhonepe = async () => {
+    try {
+      setSavingPhonepe(true);
+      await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wid: 1, phonepeConnected: false }),
+      });
+      setPhonepeConnected(false);
+      setConnectedMap((prev) => ({ ...prev, phonepe: false }));
+      setShowPhonepeModal(false);
+      toast("PhonePe integration disconnected.", "info");
+    } catch {
+      toast("Error disconnecting PhonePe.", "error");
+    } finally {
+      setSavingPhonepe(false);
+    }
+  };
+
+  // Paytm Modal & Handlers
+  const [showPaytmModal, setShowPaytmModal] = useState(false);
+  const [savingPaytm, setSavingPaytm] = useState(false);
+
+  const handleSavePaytm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paytmUpiId.trim() && !paytmPhoneNumber.trim() && !paytmQrCodeUrl) {
+      toast("Please enter Paytm UPI ID, Phone Number, or upload a QR Code image!", "error");
+      return;
+    }
+    try {
+      setSavingPaytm(true);
+      const res = await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wid: 1,
+          paytmUpiId: paytmUpiId.trim(),
+          paytmPhoneNumber: paytmPhoneNumber.trim(),
+          paytmQrCodeUrl,
+          paytmConnected: true,
+        }),
+      });
+      if (res.ok) {
+        setPaytmConnected(true);
+        setConnectedMap((prev) => ({ ...prev, paytm: true }));
+        setShowPaytmModal(false);
+        toast("Paytm Wallet & UPI saved and activated successfully!", "success");
+      } else {
+        toast("Failed to save Paytm configuration.", "error");
+      }
+    } catch {
+      toast("Error saving Paytm settings.", "error");
+    } finally {
+      setSavingPaytm(false);
+    }
+  };
+
+  const handleDisconnectPaytm = async () => {
+    try {
+      setSavingPaytm(true);
+      await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wid: 1, paytmConnected: false }),
+      });
+      setPaytmConnected(false);
+      setConnectedMap((prev) => ({ ...prev, paytm: false }));
+      setShowPaytmModal(false);
+      toast("Paytm integration disconnected.", "info");
+    } catch {
+      toast("Error disconnecting Paytm.", "error");
+    } finally {
+      setSavingPaytm(false);
+    }
   };
 
   // PayPal Integration Modal & Credentials State
@@ -560,10 +785,119 @@ export default function WorkspaceSettingsPage() {
           if (json.data.paypalConnected !== undefined) {
             setConnectedMap((prev) => ({ ...prev, paypal: json.data.paypalConnected }));
           }
+
+          if (json.data.upiId) setUpiId(json.data.upiId);
+          if (json.data.upiPhoneNumber) setUpiPhoneNumber(json.data.upiPhoneNumber);
+          if (json.data.upiAccountName) setUpiAccountName(json.data.upiAccountName);
+          if (json.data.upiQrCodeUrl) setUpiQrCodeUrl(json.data.upiQrCodeUrl);
+          if (json.data.upiAppsSupported) setUpiAppsSupported(json.data.upiAppsSupported);
+          if (json.data.upiConnected !== undefined) {
+            setUpiConnected(json.data.upiConnected);
+            setConnectedMap((prev) => ({ ...prev, upi_qr: json.data.upiConnected }));
+          }
+
+          if (json.data.gpayUpiId) setGpayUpiId(json.data.gpayUpiId);
+          if (json.data.gpayPhoneNumber) setGpayPhoneNumber(json.data.gpayPhoneNumber);
+          if (json.data.gpayQrCodeUrl) setGpayQrCodeUrl(json.data.gpayQrCodeUrl);
+          if (json.data.gpayConnected !== undefined) {
+            setGpayConnected(json.data.gpayConnected);
+            setConnectedMap((prev) => ({ ...prev, gpay: json.data.gpayConnected }));
+          }
+
+          if (json.data.phonepeUpiId) setPhonepeUpiId(json.data.phonepeUpiId);
+          if (json.data.phonepePhoneNumber) setPhonepePhoneNumber(json.data.phonepePhoneNumber);
+          if (json.data.phonepeQrCodeUrl) setPhonepeQrCodeUrl(json.data.phonepeQrCodeUrl);
+          if (json.data.phonepeConnected !== undefined) {
+            setPhonepeConnected(json.data.phonepeConnected);
+            setConnectedMap((prev) => ({ ...prev, phonepe: json.data.phonepeConnected }));
+          }
+
+          if (json.data.paytmUpiId) setPaytmUpiId(json.data.paytmUpiId);
+          if (json.data.paytmPhoneNumber) setPaytmPhoneNumber(json.data.paytmPhoneNumber);
+          if (json.data.paytmQrCodeUrl) setPaytmQrCodeUrl(json.data.paytmQrCodeUrl);
+          if (json.data.paytmConnected !== undefined) {
+            setPaytmConnected(json.data.paytmConnected);
+            setConnectedMap((prev) => ({ ...prev, paytm: json.data.paytmConnected }));
+          }
         }
       }
     } catch (err) {
       console.warn("Could not load workspace settings:", err);
+    }
+  };
+
+  // Google Pay State & Handlers
+  const [gpayUpiId, setGpayUpiId] = useState("");
+  const [gpayPhoneNumber, setGpayPhoneNumber] = useState("");
+  const [gpayQrCodeUrl, setGpayQrCodeUrl] = useState("");
+  const [gpayConnected, setGpayConnected] = useState(false);
+
+  // PhonePe State & Handlers
+  const [phonepeUpiId, setPhonepeUpiId] = useState("");
+  const [phonepePhoneNumber, setPhonepePhoneNumber] = useState("");
+  const [phonepeQrCodeUrl, setPhonepeQrCodeUrl] = useState("");
+  const [phonepeConnected, setPhonepeConnected] = useState(false);
+
+  // Paytm State & Handlers
+  const [paytmUpiId, setPaytmUpiId] = useState("");
+  const [paytmPhoneNumber, setPaytmPhoneNumber] = useState("");
+  const [paytmQrCodeUrl, setPaytmQrCodeUrl] = useState("");
+  const [paytmConnected, setPaytmConnected] = useState(false);
+
+  // Manual Direct UPI & QR Code State & Handlers
+  const [upiId, setUpiId] = useState("");
+  const [upiPhoneNumber, setUpiPhoneNumber] = useState("");
+  const [upiAccountName, setUpiAccountName] = useState("");
+  const [upiQrCodeUrl, setUpiQrCodeUrl] = useState("");
+  const [upiAppsSupported, setUpiAppsSupported] = useState("Google Pay, PhonePe, Paytm, BHIM UPI");
+  const [upiConnected, setUpiConnected] = useState(false);
+  const [savingUpi, setSavingUpi] = useState(false);
+
+  const handleSaveUpiSettings = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setSavingUpi(true);
+    try {
+      const res = await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wid: 1,
+          upiId: upiId.trim(),
+          upiPhoneNumber: upiPhoneNumber.trim(),
+          upiAccountName: upiAccountName.trim(),
+          upiQrCodeUrl,
+          upiAppsSupported,
+          upiConnected: true,
+        }),
+      });
+      if (res.ok) {
+        setUpiConnected(true);
+        setConnectedMap((prev) => ({ ...prev, upi_qr: true }));
+        toast("Direct UPI & QR Code payment gateway saved successfully!", "success");
+      } else {
+        toast("Failed to save UPI settings.", "error");
+      }
+    } catch {
+      toast("Failed to save UPI settings.", "error");
+    } finally {
+      setSavingUpi(false);
+    }
+  };
+
+  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast("QR Code image must be less than 5MB.", "error");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        const base64 = uploadEvent.target?.result as string;
+        setUpiQrCodeUrl(base64);
+        toast("QR Code image attached successfully!", "success");
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -960,11 +1294,11 @@ export default function WorkspaceSettingsPage() {
               },
               {
                 id: "razorpay",
-                name: "Razorpay & UPI Instant Settlement",
+                name: "Razorpay & Merchant Gateway",
                 category: "Payment Gateway",
                 logo: "/assests/razorpay icon.jpeg",
-                description: "Instant UPI QR Code scan (PhonePe, GPay, Paytm) & NetBanking settlements for Indian & SE Asian properties.",
-                meta: "0% Fee on UPI • Instant VPA Settlement",
+                description: "Merchant gateway processing for credit cards, debit cards, and automated NetBanking settlements.",
+                meta: "Card & NetBanking Merchant Gateway",
                 popular: true,
               },
               {
@@ -974,6 +1308,33 @@ export default function WorkspaceSettingsPage() {
                 logo: "/assests/paypal icon.svg",
                 description: "Accept international card payments, PayPal wallets, and Venmo transfers from global & expat residents.",
                 meta: "Venmo QR Code • International Cards & Wallets",
+                popular: false,
+              },
+              {
+                id: "gpay",
+                name: "Google Pay (GPay) Direct UPI",
+                category: "Direct UPI Channel",
+                logo: "/assests/google-pay-logo.png",
+                description: "Direct UPI transfers & QR code scanning via Google Pay. Upload GPay QR code & registered mobile number for zero-fee rent collection.",
+                meta: "0% Gateway Fee • GPay Scanner & Mobile Number",
+                popular: true,
+              },
+              {
+                id: "phonepe",
+                name: "PhonePe Business & UPI",
+                category: "Direct UPI Channel",
+                logo: "/assests/phonepay logo.png",
+                description: "Accept instant rent payments directly through PhonePe QR Code & PhonePe VPA without merchant gateway processing fees.",
+                meta: "0% Gateway Fee • PhonePe Scanner QR • Tier 2/3 Preferred",
+                popular: true,
+              },
+              {
+                id: "paytm",
+                name: "Paytm Wallet & UPI QR",
+                category: "Direct UPI Channel",
+                logo: "/assests/paytm logo.png",
+                description: "Direct Paytm UPI & Paytm Wallet QR Code collection for local landlords, PG hosts, and Tier 2/3 city property owners.",
+                meta: "0% Gateway Fee • Paytm Wallet QR & UPI VPA",
                 popular: false,
               },
             ]
@@ -996,7 +1357,7 @@ export default function WorkspaceSettingsPage() {
                       {/* Top Bar: Logo, Name & Toggle */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-2xl border border-slate-200 bg-white p-1.5 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden">
+                          <div className="w-12 h-12 rounded-2xl border border-slate-200 bg-white p-1 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden">
                             <Image
                               src={item.logo}
                               alt={item.name}
@@ -1060,13 +1421,7 @@ export default function WorkspaceSettingsPage() {
 
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!isConnected) {
-                            toggleIntegration(item.id, item.name);
-                          } else {
-                            toast(`Opening ${item.name} API & Webhook Configuration...`, "info");
-                          }
-                        }}
+                        onClick={() => toggleIntegration(item.id, item.name)}
                         className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                           isConnected
                             ? "bg-slate-100 hover:bg-slate-200 text-slate-800"
@@ -2055,6 +2410,429 @@ export default function WorkspaceSettingsPage() {
                     )}
                   </button>
                 </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Google Pay (GPay) Configuration Modal */}
+      {showGpayModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto font-sans">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl my-8 relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#f8fafc] border border-slate-200 p-1 flex items-center justify-center shrink-0">
+                  <Image src="/assests/google-pay-logo.png" alt="Google Pay" width={32} height={32} className="object-contain" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                    <span>Google Pay (GPay) Direct UPI</span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-teal-100 text-teal-800 uppercase">
+                      0% FEE
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Enter your Google Pay UPI ID, mobile number, and upload scanner QR Code image.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowGpayModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveGpay} className="space-y-5 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Google Pay UPI VPA ID *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={gpayUpiId}
+                  onChange={(e) => setGpayUpiId(e.target.value)}
+                  placeholder="e.g. 9876543210@okicici, owner@okaxis"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  GPay Registered Mobile Number
+                </label>
+                <input
+                  type="text"
+                  value={gpayPhoneNumber}
+                  onChange={(e) => setGpayPhoneNumber(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600"
+                />
+              </div>
+
+              {/* QR Code Upload */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <QrCode className="w-4 h-4 text-teal-600" />
+                    <span>Upload GPay QR Code Scanner Image</span>
+                  </span>
+
+                  <label className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-xl text-[11px] font-bold text-slate-800 transition-all cursor-pointer flex items-center gap-1 shadow-2xs">
+                    <Upload className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Select Image</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          compressQrImage(file, (dataUrl) => {
+                            setGpayQrCodeUrl(dataUrl);
+                            toast("GPay QR Code compressed & attached!", "success");
+                          });
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {gpayQrCodeUrl ? (
+                  <div className="flex items-center gap-3 pt-1">
+                    <div className="w-20 h-20 bg-white border-2 border-teal-500/40 rounded-xl p-1 overflow-hidden shrink-0">
+                      <img src={gpayQrCodeUrl} alt="GPay QR Code" className="w-full h-full object-contain" />
+                    </div>
+                    <div className="text-[11px] text-slate-600">
+                      <span className="font-bold text-emerald-600 block">QR Code Uploaded</span>
+                      <button
+                        type="button"
+                        onClick={() => setGpayQrCodeUrl("")}
+                        className="text-rose-600 hover:underline font-bold mt-1 block cursor-pointer"
+                      >
+                        Remove QR Code
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-400">No GPay QR code image attached yet.</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                {connectedMap.gpay ? (
+                  <button
+                    type="button"
+                    onClick={handleDisconnectGpay}
+                    disabled={savingGpay}
+                    className="px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl cursor-pointer"
+                  >
+                    Disconnect
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <button
+                  type="submit"
+                  disabled={savingGpay}
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2"
+                >
+                  {savingGpay ? (
+                    <span>Saving...</span>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Save GPay Connection</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PhonePe Business Configuration Modal */}
+      {showPhonepeModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto font-sans">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl my-8 relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#f8fafc] border border-slate-200 p-1 flex items-center justify-center shrink-0">
+                  <Image src="/assests/phonepay logo.png" alt="PhonePe" width={32} height={32} className="object-contain" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                    <span>PhonePe Business &amp; UPI</span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-indigo-100 text-indigo-800 uppercase">
+                      TIER 2/3 PREFERRED
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Enter PhonePe UPI ID, registered mobile number, and scanner QR Code image.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowPhonepeModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePhonepe} className="space-y-5 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  PhonePe UPI VPA ID *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={phonepeUpiId}
+                  onChange={(e) => setPhonepeUpiId(e.target.value)}
+                  placeholder="e.g. 9876543210@ybl, owner@ybl"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  PhonePe Registered Mobile Number
+                </label>
+                <input
+                  type="text"
+                  value={phonepePhoneNumber}
+                  onChange={(e) => setPhonepePhoneNumber(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+
+              {/* QR Code Upload */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <QrCode className="w-4 h-4 text-indigo-600" />
+                    <span>Upload PhonePe QR Code Scanner Image</span>
+                  </span>
+
+                  <label className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-xl text-[11px] font-bold text-slate-800 transition-all cursor-pointer flex items-center gap-1 shadow-2xs">
+                    <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Select Image</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          compressQrImage(file, (dataUrl) => {
+                            setPhonepeQrCodeUrl(dataUrl);
+                            toast("PhonePe QR Code compressed & attached!", "success");
+                          });
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {phonepeQrCodeUrl ? (
+                  <div className="flex items-center gap-3 pt-1">
+                    <div className="w-20 h-20 bg-white border-2 border-indigo-500/40 rounded-xl p-1 overflow-hidden shrink-0">
+                      <img src={phonepeQrCodeUrl} alt="PhonePe QR Code" className="w-full h-full object-contain" />
+                    </div>
+                    <div className="text-[11px] text-slate-600">
+                      <span className="font-bold text-emerald-600 block">QR Code Uploaded</span>
+                      <button
+                        type="button"
+                        onClick={() => setPhonepeQrCodeUrl("")}
+                        className="text-rose-600 hover:underline font-bold mt-1 block cursor-pointer"
+                      >
+                        Remove QR Code
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-400">No PhonePe QR code image attached yet.</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                {connectedMap.phonepe ? (
+                  <button
+                    type="button"
+                    onClick={handleDisconnectPhonepe}
+                    disabled={savingPhonepe}
+                    className="px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl cursor-pointer"
+                  >
+                    Disconnect
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <button
+                  type="submit"
+                  disabled={savingPhonepe}
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2"
+                >
+                  {savingPhonepe ? (
+                    <span>Saving...</span>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Save PhonePe Connection</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Paytm Wallet & UPI Configuration Modal */}
+      {showPaytmModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto font-sans">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl my-8 relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#f8fafc] border border-slate-200 p-1 flex items-center justify-center shrink-0">
+                  <Image src="/assests/paytm logo.png" alt="Paytm" width={32} height={32} className="object-contain" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                    <span>Paytm Wallet &amp; UPI QR</span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-sky-100 text-sky-800 uppercase">
+                      0% FEE
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Enter Paytm UPI VPA ID, Paytm mobile number, and scanner QR Code image.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowPaytmModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePaytm} className="space-y-5 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Paytm UPI VPA ID *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={paytmUpiId}
+                  onChange={(e) => setPaytmUpiId(e.target.value)}
+                  placeholder="e.g. 9876543210@paytm, owner@paytm"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5">
+                  Paytm Registered Mobile Number
+                </label>
+                <input
+                  type="text"
+                  value={paytmPhoneNumber}
+                  onChange={(e) => setPaytmPhoneNumber(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-600"
+                />
+              </div>
+
+              {/* QR Code Upload */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <QrCode className="w-4 h-4 text-sky-600" />
+                    <span>Upload Paytm QR Code Scanner Image</span>
+                  </span>
+
+                  <label className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-xl text-[11px] font-bold text-slate-800 transition-all cursor-pointer flex items-center gap-1 shadow-2xs">
+                    <Upload className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Select Image</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          compressQrImage(file, (dataUrl) => {
+                            setPaytmQrCodeUrl(dataUrl);
+                            toast("Paytm QR Code compressed & attached!", "success");
+                          });
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {paytmQrCodeUrl ? (
+                  <div className="flex items-center gap-3 pt-1">
+                    <div className="w-20 h-20 bg-white border-2 border-sky-500/40 rounded-xl p-1 overflow-hidden shrink-0">
+                      <img src={paytmQrCodeUrl} alt="Paytm QR Code" className="w-full h-full object-contain" />
+                    </div>
+                    <div className="text-[11px] text-slate-600">
+                      <span className="font-bold text-emerald-600 block">QR Code Uploaded</span>
+                      <button
+                        type="button"
+                        onClick={() => setPaytmQrCodeUrl("")}
+                        className="text-rose-600 hover:underline font-bold mt-1 block cursor-pointer"
+                      >
+                        Remove QR Code
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-400">No Paytm QR code image attached yet.</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                {connectedMap.paytm ? (
+                  <button
+                    type="button"
+                    onClick={handleDisconnectPaytm}
+                    disabled={savingPaytm}
+                    className="px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl cursor-pointer"
+                  >
+                    Disconnect
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <button
+                  type="submit"
+                  disabled={savingPaytm}
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2"
+                >
+                  {savingPaytm ? (
+                    <span>Saving...</span>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Save Paytm Connection</span>
+                    </>
+                  )}
+                </button>
               </div>
             </form>
           </div>

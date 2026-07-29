@@ -32,6 +32,11 @@ model Workspace {
   name           String     // Workspace / Company Name
   currency       String     @default("USD ($)")
   portfolioScale String?
+  businessType   String?    @default("Landlord / Individual Owner")
+  operatingCity  String?
+  portfolioFocus String?    @default("Residential Apartments")
+  dueDay         Int?       @default(1)
+  isOnboarded    Boolean    @default(false)
   plan           String     @default("trial") // "trial", "pro", "enterprise"
   
   ownerId        String
@@ -76,6 +81,32 @@ model Workspace {
   paypalWebhookId       String?
   paypalEnvMode         String?   @default("test")
   paypalConnected       Boolean   @default(false)
+
+  // Direct UPI & QR Code Config (Generic Fallback)
+  upiId                 String?
+  upiPhoneNumber        String?
+  upiQrCodeUrl          String?
+  upiAccountName        String?
+  upiAppsSupported      String?   @default("Google Pay, PhonePe, Paytm, BHIM UPI")
+  upiConnected          Boolean   @default(false)
+
+  // Google Pay (GPay) Direct Config
+  gpayUpiId             String?
+  gpayPhoneNumber       String?
+  gpayQrCodeUrl         String?
+  gpayConnected         Boolean   @default(false)
+
+  // PhonePe Direct Config
+  phonepeUpiId          String?
+  phonepePhoneNumber    String?
+  phonepeQrCodeUrl      String?
+  phonepeConnected      Boolean   @default(false)
+
+  // Paytm Direct Config
+  paytmUpiId            String?
+  paytmPhoneNumber      String?
+  paytmQrCodeUrl        String?
+  paytmConnected        Boolean   @default(false)
 
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
