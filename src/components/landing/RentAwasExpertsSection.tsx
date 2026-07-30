@@ -226,7 +226,7 @@ export default function RentAwasExpertsSection() {
   };
 
   return (
-    <section className="py-16 sm:py-20 bg-slate-950 text-white relative overflow-hidden font-sans border-t border-slate-800/80">
+    <section id="services" className="py-16 sm:py-20 bg-slate-950 text-white relative overflow-hidden font-sans border-t border-slate-800/80">
       {/* Ambient Glow Effects */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full pointer-events-none overflow-hidden">
         <div className="absolute -top-32 left-1/4 w-96 h-96 bg-[#FF6B00]/15 rounded-full blur-3xl" />

@@ -92,7 +92,6 @@ export default function PricingAndFAQ() {
   return (
     <section id="pricing" className="py-20 md:py-28 bg-[#F8FAFC]">
       <div className="max-w-7xl mx-auto px-6 sm:px-8">
-        {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -100,16 +99,25 @@ export default function PricingAndFAQ() {
           transition={{ duration: 0.5 }}
           className="text-center max-w-3xl mx-auto mb-16 md:mb-20"
         >
+          {/* Category Badge Pill */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-orange-100 border border-orange-200 text-[#FF6B00] text-xs font-black uppercase tracking-wider mb-3.5 shadow-2xs">
+            <Building2 className="w-4 h-4" />
+            <span>RentAwas Property Management Tool</span>
+          </div>
+
           {/* Cormorant Garamond Heading */}
           <h2 
             className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#0B132B] tracking-tight"
             style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
           >
-            Simple Pricing for Every Property Portfolio
+            Simple Pricing for Property Management Tool
           </h2>
           {/* Inter Description */}
           <p className="text-slate-600 font-normal text-base sm:text-lg mt-4 leading-relaxed font-sans">
-            Choose the perfect plan for your rental business. Start with a 14-day free trial. No credit card required.
+            Choose the perfect software plan for your property management tool.
+            <span className="font-bold text-slate-800 block mt-1">
+              ✨ Property Listing is <span className="text-emerald-600 font-extrabold">100% FREE</span> for all landlords! Start with a 14-day free trial — no credit card required.
+            </span>
           </p>
         </motion.div>
 

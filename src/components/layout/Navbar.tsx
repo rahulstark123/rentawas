@@ -27,6 +27,7 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
   const [userSession, setUserSession] = useState<any>(null);
 
   const isFindProperty = pathname === "/find-property";
+  const isServices = pathname === "/services";
   const isHome = pathname === "/";
 
   useEffect(() => {
@@ -137,12 +138,28 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
               Find Property
             </Link>
             <Link
-              href="/#solutions"
+              href="/services"
               className={`text-xs font-bold transition-colors uppercase tracking-wider ${
-                isDark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-950"
+                isServices
+                  ? "text-[#FF6B00] font-extrabold"
+                  : isDark
+                  ? "text-slate-300 hover:text-white"
+                  : "text-slate-700 hover:text-slate-950"
               }`}
             >
-              Solutions
+              Services
+            </Link>
+            <Link
+              href="/vision"
+              className={`text-xs font-bold transition-colors uppercase tracking-wider ${
+                pathname === "/vision"
+                  ? "text-[#FF6B00] font-extrabold"
+                  : isDark
+                  ? "text-slate-300 hover:text-white"
+                  : "text-slate-700 hover:text-slate-950"
+              }`}
+            >
+              Vision
             </Link>
             <Link
               href="/#pricing"
@@ -170,17 +187,7 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
               Feedback
             </button>
 
-            {/* Early Access Button */}
-            <button
-              type="button"
-              onClick={handleOpenEarlyAccess}
-              className="text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all px-4 py-2 rounded-xl shadow-md shadow-orange-500/20 cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Early Access</span>
-            </button>
-
-            {/* Log In or Profile Icon - Positions after Early Access */}
+            {/* Log In or Profile Icon */}
             {userSession ? (
               <Link
                 href={userSession.user?.user_metadata?.role === "tenant" ? "/tenant/dashboard" : "/dashboard"}
@@ -233,16 +240,23 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
               <Link
                 href="/find-property"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-bold text-[#FF6B00] uppercase tracking-wider"
+                className={`text-sm font-bold uppercase tracking-wider ${isFindProperty ? "text-[#FF6B00]" : "text-slate-200"}`}
               >
                 Find Property
               </Link>
               <Link
-                href="/#solutions"
+                href="/services"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-bold text-slate-200 uppercase tracking-wider"
+                className={`text-sm font-bold uppercase tracking-wider ${isServices ? "text-[#FF6B00]" : "text-slate-200"}`}
               >
-                Solutions
+                Services
+              </Link>
+              <Link
+                href="/vision"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`text-sm font-bold uppercase tracking-wider ${pathname === "/vision" ? "text-[#FF6B00]" : "text-slate-200"}`}
+              >
+                Vision
               </Link>
               <Link
                 href="/#pricing"
@@ -260,14 +274,6 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
               >
                 <MessageSquareHeart size={14} />
                 Feedback
-              </button>
-              <button
-                type="button"
-                onClick={handleOpenEarlyAccess}
-                className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-white bg-[#FF6B00] py-2.5 rounded-xl shadow-md cursor-pointer uppercase tracking-wider"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Early Access</span>
               </button>
               {userSession ? (
                 <Link

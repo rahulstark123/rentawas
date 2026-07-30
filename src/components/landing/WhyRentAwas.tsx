@@ -87,7 +87,7 @@ export default function WhyRentAwas() {
   };
 
   return (
-    <section id="why-rentawas" className="py-20 md:py-28 bg-white border-t border-slate-100 relative overflow-hidden">
+    <section id="vision" className="py-20 md:py-28 bg-white border-t border-slate-100 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 sm:px-8">
         
         {/* Section Header */}

@@ -41,7 +41,7 @@ export default function HeroSection({ onOpenEarlyAccess }: HeroSectionProps = {}
   };
 
   return (
-    <section className="relative pt-28 md:pt-36 pb-20 md:pb-28 overflow-hidden bg-gradient-to-b from-[#0B132B] via-[#141E38] to-[#F8FAFC]">
+    <section id="platform" className="relative pt-28 md:pt-36 pb-20 md:pb-28 overflow-hidden bg-gradient-to-b from-[#0B132B] via-[#141E38] to-[#F8FAFC]">
       {/* Radial Glow Accents */}
       <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-[#FF6B00]/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute top-1/3 left-1/4 w-[500px] h-[500px] bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
