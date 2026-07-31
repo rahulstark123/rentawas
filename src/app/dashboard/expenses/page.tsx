@@ -5,7 +5,7 @@ import {
   Receipt, 
   Plus, 
   Building2, 
-  DollarSign, 
+  Coins, 
   Calendar, 
   Paperclip, 
   FileText, 
@@ -23,6 +23,7 @@ import {
   ArrowUpRight
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export interface PropertyExpenseItem {
   id: string;
@@ -43,6 +44,7 @@ export interface PropertyExpenseItem {
 
 export default function PropertyExpensesPage() {
   const { toast } = useToast();
+  const { formatCurrency } = useCurrency();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPropertyFilter, setSelectedPropertyFilter] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -337,11 +339,11 @@ export default function PropertyExpensesPage() {
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total YTD Portfolio Outlay</span>
             <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#FF6B00] flex items-center justify-center">
-              <DollarSign className="w-5 h-5" />
+              <Coins className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-black text-slate-900">${totalYtdExpenses.toLocaleString()}</div>
+            <div className="text-2xl font-black text-slate-900">{formatCurrency(totalYtdExpenses)}</div>
             <div className="text-xs text-slate-500 font-medium mt-0.5">
               {uniquePropertiesCount > 0 ? `Across ${uniquePropertiesCount} Building ${uniquePropertiesCount === 1 ? "Portfolio" : "Portfolios"}` : "No recorded outlay yet"}
             </div>
@@ -356,7 +358,7 @@ export default function PropertyExpensesPage() {
             </div>
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-black text-slate-900">${thisMonthExpenses.toLocaleString()}</div>
+            <div className="text-2xl font-black text-slate-900">{formatCurrency(thisMonthExpenses)}</div>
             <div className="text-xs text-emerald-600 font-bold mt-0.5 flex items-center gap-0.5">
               <span>Current Month Outlay</span>
             </div>
@@ -388,7 +390,7 @@ export default function PropertyExpensesPage() {
           <div className="mt-2">
             <div className="text-lg font-black text-slate-900 truncate">{topCategory}</div>
             <div className="text-xs text-slate-500 font-medium mt-0.5">
-              {topCategoryAmount > 0 ? `$${topCategoryAmount.toLocaleString()} total spent` : "Record your first expense"}
+              {topCategoryAmount > 0 ? `${formatCurrency(topCategoryAmount)} total spent` : "Record your first expense"}
             </div>
           </div>
         </div>
@@ -487,7 +489,7 @@ export default function PropertyExpensesPage() {
                   <td className="py-3.5 px-4 text-slate-600 font-medium whitespace-nowrap">{exp.date}</td>
 
                   <td className="py-3.5 px-4">
-                    <span className="font-black text-slate-900 text-sm block">{exp.amount}</span>
+                    <span className="font-black text-slate-900 text-sm block">{formatCurrency(exp.numericAmount)}</span>
                   </td>
 
                   <td className="py-3.5 px-4">

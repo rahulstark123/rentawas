@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
+import { CurrencyProvider } from "@/context/CurrencyContext";
 import JsonLd from "@/components/seo/JsonLd";
 
 const cormorant = Cormorant_Garamond({
@@ -129,7 +130,9 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning className="min-h-screen bg-[#F9FAFB] text-slate-950 font-sans selection:bg-orange-100 selection:text-orange-600">
         <ToastProvider>
-          {children}
+          <CurrencyProvider>
+            {children}
+          </CurrencyProvider>
         </ToastProvider>
       </body>
     </html>

@@ -355,7 +355,7 @@ export default function DashboardLayout({
     { id: "overview", name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { id: "properties", name: "Properties & Units", href: "/dashboard/properties", icon: Building2 },
     { id: "payments", name: "Rent Payments", href: "/dashboard/payments", icon: CreditCard },
-    { id: "leases", name: "AI Documents", href: "/dashboard/leases", icon: FileText, spark: true },
+    { id: "leases", name: "Documents", href: "/dashboard/leases", icon: FileText },
     { id: "tenants", name: "Tenants & Health", href: "/dashboard/tenants", icon: Users },
     { id: "maintenance", name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench },
     { id: "announcements", name: "Announcements", href: "/dashboard/announcements", icon: Megaphone },

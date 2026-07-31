@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { 
   Zap, 
-  DollarSign, 
+  Coins, 
   Download, 
   ArrowUpRight, 
   CheckCircle2, 
@@ -23,6 +23,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { useCurrency } from "@/context/CurrencyContext";
 import { generatePaymentReceiptHtml, triggerPrintOrDownload } from "@/lib/pdfGenerator";
 import EmptyStateIllustration from "@/components/ui/EmptyStateIllustration";
 
@@ -40,6 +41,7 @@ export interface TransactionRecord {
 
 export default function RentPaymentsPage() {
   const { toast } = useToast();
+  const { formatCurrency } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [transactionsList, setTransactionsList] = useState<TransactionRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -317,7 +319,7 @@ export default function RentPaymentsPage() {
         <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-shadow">
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Rent Collected This Month</div>
           <div className="text-2xl font-black text-slate-900 mt-2">
-            ${totalCollectedSum.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatCurrency(totalCollectedSum)}
           </div>
           <div className="text-xs text-emerald-600 font-semibold mt-1 flex items-center gap-1">
             <ArrowUpRight className="w-4 h-4" />
@@ -328,7 +330,7 @@ export default function RentPaymentsPage() {
         <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-shadow">
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pending &amp; Overdue Collections</div>
           <div className="text-2xl font-black text-amber-600 mt-2">
-            ${totalPendingSum.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatCurrency(totalPendingSum)}
           </div>
           <div className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1.5">
             <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
@@ -428,7 +430,9 @@ export default function RentPaymentsPage() {
                       <div className="font-extrabold text-slate-900">{t.tenant}</div>
                       <div className="text-[11px] text-slate-500 font-semibold">{t.property}</div>
                     </td>
-                    <td className="py-3.5 px-2 font-black text-slate-900">{t.amount}</td>
+                    <td className="py-3.5 px-2 font-black text-slate-900">
+                      {formatCurrency(t.rawAmount || 0)}
+                    </td>
                     <td className="py-3.5 px-2 text-slate-600">{t.date}</td>
                     <td className="py-3.5 px-2 text-slate-600 font-semibold">{t.method}</td>
                     <td className="py-3.5 px-2">

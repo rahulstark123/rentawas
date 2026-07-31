@@ -38,6 +38,46 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [properties, setProperties] = useState<any[]>([]);
+  const [tenants, setTenants] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch real database records when modal is opened
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchSearchData = async () => {
+      setLoading(true);
+      try {
+        const [propRes, tenantRes, maintRes] = await Promise.all([
+          fetch("/api/properties"),
+          fetch("/api/tenants"),
+          fetch("/api/maintenance"),
+        ]);
+
+        if (propRes.ok) {
+          const propJson = await propRes.json();
+          setProperties(propJson.data || []);
+        }
+        if (tenantRes.ok) {
+          const tenantJson = await tenantRes.json();
+          setTenants(tenantJson.data || []);
+        }
+        if (maintRes.ok) {
+          const maintJson = await maintRes.json();
+          setTickets(maintJson.data || []);
+        }
+      } catch (err) {
+        console.warn("Could not fetch global search data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSearchData();
+  }, [isOpen]);
+
   // Auto focus on input when opened
   useEffect(() => {
     if (isOpen) {
@@ -60,95 +100,9 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
 
   if (!isOpen) return null;
 
-  // Search Items Index
+  // Real Database Search Index
   const searchIndex: SearchResultItem[] = [
-    // Properties
-    {
-      id: "p1",
-      title: "The Regent - Wing A",
-      subtitle: "1420 5th Ave, Seattle, WA • 24 Units",
-      category: "Properties",
-      href: "/dashboard/properties/PROP-1",
-      icon: Building2,
-    },
-    {
-      id: "p2",
-      title: "Downtown Horizon Suites",
-      subtitle: "800 Bellevue Way NE, Bellevue, WA • 16 Units",
-      category: "Properties",
-      href: "/dashboard/properties/PROP-2",
-      icon: Building2,
-    },
-    {
-      id: "p3",
-      title: "Oakwood Executive Residency",
-      subtitle: "2100 Westlake Ave, Seattle, WA • 12 Units",
-      category: "Properties",
-      href: "/dashboard/properties/PROP-3",
-      icon: Building2,
-    },
-    {
-      id: "p4",
-      title: "Skyline Manor",
-      subtitle: "1100 Mercer St, Seattle, WA • 8 Units",
-      category: "Properties",
-      href: "/dashboard/properties/PROP-4",
-      icon: Building2,
-    },
-
-    // Tenants
-    {
-      id: "t1",
-      title: "Eleanor Vance",
-      subtitle: "Unit 302 • The Regent - Wing A ($3,200/mo)",
-      category: "Tenants",
-      href: "/dashboard/properties/PROP-1/unit/U-302",
-      icon: Users,
-    },
-    {
-      id: "t2",
-      title: "Marcus Sterling",
-      subtitle: "Unit 104 • The Regent - Wing A ($2,850/mo)",
-      category: "Tenants",
-      href: "/dashboard/properties/PROP-1/unit/U-104",
-      icon: Users,
-    },
-    {
-      id: "t3",
-      title: "Sophia Martinez",
-      subtitle: "Unit 408 • Horizon Suites ($4,100/mo)",
-      category: "Tenants",
-      href: "/dashboard/tenants",
-      icon: Users,
-    },
-    {
-      id: "t4",
-      title: "David Chen",
-      subtitle: "Unit 201 • Oakwood Residency ($2,600/mo)",
-      category: "Tenants",
-      href: "/dashboard/tenants",
-      icon: Users,
-    },
-
-    // Maintenance Tickets
-    {
-      id: "m1",
-      title: "TCK-401: Kitchen Sink Water Faucet Leakage",
-      subtitle: "Reported by Eleanor Vance (Unit 302) • High Priority",
-      category: "Maintenance",
-      href: "/dashboard/maintenance",
-      icon: Wrench,
-    },
-    {
-      id: "m2",
-      title: "TCK-402: Smart Door Lock Battery Check",
-      subtitle: "Reported by Marcus Sterling (Unit 104) • In Progress",
-      category: "Maintenance",
-      href: "/dashboard/maintenance",
-      icon: Wrench,
-    },
-
-    // Quick Actions
+    // 1. Quick Actions
     {
       id: "qa1",
       title: "Add New Property",
@@ -167,8 +121,8 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
     },
     {
       id: "qa3",
-      title: "Generate AI Lease Agreement",
-      subtitle: "Draft legally binding lease documents with AI",
+      title: "Template Documents Architect",
+      subtitle: "Draft legally binding lease agreements & notices",
       category: "Quick Actions",
       href: "/dashboard/leases",
       icon: FileText,
@@ -181,6 +135,36 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
       href: "/dashboard/analytics",
       icon: TrendingUp,
     },
+
+    // 2. Real Database Properties
+    ...properties.map((p) => ({
+      id: `prop-${p.id}`,
+      title: p.name,
+      subtitle: `${p.address || "Property"} • ${p.totalUnits || p.units?.length || 0} Units`,
+      category: "Properties" as const,
+      href: `/dashboard/properties/${p.id}`,
+      icon: Building2,
+    })),
+
+    // 3. Real Database Tenants
+    ...tenants.map((t) => ({
+      id: `tenant-${t.id}`,
+      title: t.name,
+      subtitle: `Tenant • ${t.email || t.phone || "Active Resident"}`,
+      category: "Tenants" as const,
+      href: `/dashboard/tenants`,
+      icon: Users,
+    })),
+
+    // 4. Real Database Maintenance Tickets
+    ...tickets.map((m) => ({
+      id: `maint-${m.id}`,
+      title: `${m.ticketCode || "TCK"}: ${m.title || m.issue || "Maintenance Ticket"}`,
+      subtitle: `Status: ${m.status || "Pending"} • Priority: ${m.priority || "Normal"}`,
+      category: "Maintenance" as const,
+      href: `/dashboard/maintenance`,
+      icon: Wrench,
+    })),
   ];
 
   const filteredResults = searchIndex.filter((item) => {

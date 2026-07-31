@@ -49,6 +49,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { useCurrency } from "@/context/CurrencyContext";
 import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
 
 // Interface for unit item
@@ -58,6 +59,7 @@ export interface UnitItem {
   sqft: string;
   rooms: string;
   rent: string;
+  rawRent?: number;
   status: "Occupied" | "Vacant";
   tenant: {
     name: string;
@@ -132,6 +134,7 @@ export default function PropertyFloorPlanPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { formatCurrency, currencySymbol } = useCurrency();
 
   const propId = (params?.id as string) || "PROP-1";
   const propertyMock = PROPERTIES_DB[propId] || PROPERTIES_DB["PROP-1"];
@@ -146,6 +149,7 @@ export default function PropertyFloorPlanPage() {
     units: propertyMock.units,
     occupied: propertyMock.occupied,
     monthlyYield: propertyMock.monthlyYield,
+    rawMonthlyYield: 0,
     status: propertyMock.status,
     tag: propertyMock.tag,
   });
@@ -182,6 +186,7 @@ export default function PropertyFloorPlanPage() {
             floors: apiProp.floors || 1,
             units: totalUnitsCount,
             occupied: occupiedCount,
+            rawMonthlyYield: totalYield,
             monthlyYield: `$${totalYield.toLocaleString()}`,
             status: `${occPercent}% Occupied`,
             tag: apiProp.category || "Property",
@@ -203,6 +208,7 @@ export default function PropertyFloorPlanPage() {
                 type: u.type || "Standard Suite",
                 sqft: u.sqft || "850 sq ft",
                 rooms: u.rooms || "2 Bedrooms • 2 Baths • Living • Kitchen",
+                rawRent: u.rent || 0,
                 rent: `$${(u.rent || 0).toLocaleString()}/mo`,
                 status: u.isOccupied ? "Occupied" : "Vacant",
                 tenant: primaryTenant ? {
@@ -592,7 +598,7 @@ export default function PropertyFloorPlanPage() {
         </div>
         <div>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Monthly Gross Yield</span>
-          <span className="text-xl font-black text-slate-900">{propertyData.monthlyYield}</span>
+          <span className="text-xl font-black text-slate-900">{formatCurrency(propertyData.rawMonthlyYield || 0)}</span>
         </div>
       </div>
 
@@ -813,7 +819,7 @@ export default function PropertyFloorPlanPage() {
                         Monthly Rent
                       </span>
                       <span className="font-extrabold text-slate-900 text-sm">
-                        {u.rent && u.rent !== "$/mo" ? u.rent : "$0/mo"}
+                        {formatCurrency(u.rawRent !== undefined ? u.rawRent : (parseFloat(String(u.rent || "").replace(/[^0-9.]/g, "")) || 0))}/mo
                       </span>
                     </div>
 
@@ -1354,10 +1360,10 @@ export default function PropertyFloorPlanPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent ($)</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent ({currencySymbol})</label>
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-extrabold text-xs pointer-events-none">
-                      $
+                      {currencySymbol}
                     </div>
                     <input
                       type="number"
@@ -1515,10 +1521,10 @@ export default function PropertyFloorPlanPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent ($)</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent ({currencySymbol})</label>
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-extrabold text-xs pointer-events-none">
-                      $
+                      {currencySymbol}
                     </div>
                     <input
                       type="number"

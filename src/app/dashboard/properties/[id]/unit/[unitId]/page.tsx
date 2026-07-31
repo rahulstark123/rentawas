@@ -26,7 +26,7 @@ import {
   Layers,
   Sparkles,
   UserCheck,
-  DollarSign,
+  Coins,
   UserPlus,
   Edit3,
   Trash2,
@@ -46,6 +46,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { useCurrency } from "@/context/CurrencyContext";
 import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
 import { uploadFile, validateFile } from "@/lib/upload";
 
@@ -82,6 +83,7 @@ export default function RoomTelemetryFullPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { formatCurrency, currencySymbol } = useCurrency();
 
   const propId = (params?.id as string) || "PROP-1";
   const rawUnitId = (params?.unitId as string) || "Unit 301";
@@ -675,12 +677,12 @@ export default function RoomTelemetryFullPage() {
         </div>
         <div>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Combined Room Rent</span>
-          <span className="text-base font-black text-[#FF6B00]">${totalRoomRent.toLocaleString()}/mo</span>
+          <span className="text-base font-black text-[#FF6B00]">{formatCurrency(totalRoomRent)}/mo</span>
         </div>
         <div>
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Est. Annual Revenue</span>
           <span className="text-base font-black text-emerald-600">
-            {occupants.length > 0 ? `$${(totalRoomRent * 12).toLocaleString()}/yr` : "$0/yr"}
+            {occupants.length > 0 ? `${formatCurrency(totalRoomRent * 12)}/yr` : `${currencySymbol}0/yr`}
           </span>
         </div>
         <div>
@@ -740,12 +742,12 @@ export default function RoomTelemetryFullPage() {
                 <TrendingUp className="w-4 h-4 text-emerald-500" />
               </div>
               <div className="text-2xl font-black text-slate-900">
-                ${totalRoomRent.toLocaleString()}<span className="text-xs font-bold text-slate-400">/mo</span>
+                {formatCurrency(totalRoomRent)}<span className="text-xs font-bold text-slate-400">/mo</span>
               </div>
               <div className={`text-[11px] font-bold flex items-center gap-1 ${
                 occupants.length > 0 ? "text-emerald-600" : "text-slate-500"
               }`}>
-                <span>{occupants.length > 0 ? "▲ +12.5% vs property average" : "Vacant unit • $0/mo yield"}</span>
+                <span>{occupants.length > 0 ? `▲ +12.5% vs property average` : `Vacant unit • ${currencySymbol}0/mo yield`}</span>
               </div>
             </div>
 
@@ -755,7 +757,7 @@ export default function RoomTelemetryFullPage() {
                 <Users className="w-4 h-4 text-blue-500" />
               </div>
               <div className="text-2xl font-black text-slate-900">
-                ${(occupants.length ? Math.round(totalRoomRent / occupants.length) : 0).toLocaleString()}
+                {formatCurrency(occupants.length ? Math.round(totalRoomRent / occupants.length) : 0)}
               </div>
               <div className="text-[11px] text-slate-500 font-medium">
                 Across {occupants.length} active resident slots
@@ -765,10 +767,10 @@ export default function RoomTelemetryFullPage() {
             <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-2">
               <div className="flex items-center justify-between text-slate-500">
                 <span className="font-bold uppercase text-[10px] tracking-wider">Est. Annual Gross Revenue</span>
-                <DollarSign className="w-4 h-4 text-[#FF6B00]" />
+                <Coins className="w-4 h-4 text-[#FF6B00]" />
               </div>
               <div className="text-2xl font-black text-[#FF6B00]">
-                {occupants.length > 0 ? `$${(totalRoomRent * 12).toLocaleString()}` : "$0"}
+                {occupants.length > 0 ? formatCurrency(totalRoomRent * 12) : `${currencySymbol}0`}
               </div>
               <div className="text-[11px] text-slate-500 font-medium">Based on active occupant rents</div>
             </div>
@@ -798,7 +800,7 @@ export default function RoomTelemetryFullPage() {
                   <p className="text-xs text-slate-500 mt-0.5">Individual rent contribution for {unitId}</p>
                 </div>
                 <span className="px-3 py-1 bg-orange-50 text-[#FF6B00] font-black rounded-full text-xs">
-                  ${totalRoomRent.toLocaleString()}/mo
+                  {formatCurrency(totalRoomRent)}/mo
                 </span>
               </div>
 
@@ -817,7 +819,7 @@ export default function RoomTelemetryFullPage() {
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-bold text-slate-900">{occ.name} ({occ.bedSlot})</span>
                           <span className="font-extrabold text-[#FF6B00]">
-                            ${occ.individualRent.toLocaleString()}/mo ({percentage}%)
+                            {formatCurrency(occ.individualRent)}/mo ({percentage}%)
                           </span>
                         </div>
                         <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
@@ -860,7 +862,7 @@ export default function RoomTelemetryFullPage() {
                       <span className="w-16 font-bold text-slate-600 shrink-0">{month}</span>
                       <div className="flex-1 flex items-center gap-1.5">
                         <div className="h-4 bg-[#FF6B00] rounded text-[10px] font-extrabold text-white flex items-center justify-end px-2" style={{ width: "100%" }}>
-                          ${totalRoomRent.toLocaleString()}
+                          {formatCurrency(totalRoomRent)}
                         </div>
                       </div>
                     </div>
@@ -879,7 +881,7 @@ export default function RoomTelemetryFullPage() {
             </div>
             <p className="text-xs text-slate-300 leading-relaxed font-medium">
               {occupants.length > 0
-                ? `${unitId} is generating $${totalRoomRent.toLocaleString()}/mo with active residents. Maintenance costs remain low, making this unit a strong performer.`
+                ? `${unitId} is generating ${formatCurrency(totalRoomRent)}/mo with active residents. Maintenance costs remain low, making this unit a strong performer.`
                 : `${unitId} is currently vacant and ready for new resident onboarding. Assign a tenant to start tracking monthly revenue and maintenance outlays.`}
             </p>
           </div>
@@ -934,7 +936,7 @@ export default function RoomTelemetryFullPage() {
                   <div className="text-right">
                     <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider text-[10px]">User Rent</span>
                     <span className="text-lg font-black text-emerald-400 bg-emerald-500/20 px-3 py-1 rounded-xl border border-emerald-500/30 inline-block mt-0.5">
-                      ${occ.individualRent.toLocaleString()}/mo
+                      {formatCurrency(occ.individualRent)}/mo
                     </span>
                   </div>
                 </div>
@@ -1015,18 +1017,18 @@ export default function RoomTelemetryFullPage() {
           <div className="p-5 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-orange-500/10 border border-orange-200 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-[#FF6B00] text-white rounded-2xl shadow-md">
-                <DollarSign className="w-6 h-6" />
+                <Coins className="w-6 h-6" />
               </div>
               <div>
                 <h4 className="text-sm font-extrabold text-slate-900">Total Combined Room Revenue Calculation</h4>
                 <p className="text-xs text-slate-600 mt-0.5">
-                  {occupants.map((o) => `${o.name.split(" ")[0]} ($${o.individualRent.toLocaleString()})`).join(" + ")} = <strong>${totalRoomRent.toLocaleString()}/mo Total</strong>
+                  {occupants.map((o) => `${o.name.split(" ")[0]} (${formatCurrency(o.individualRent)})`).join(" + ")} = <strong>{formatCurrency(totalRoomRent)}/mo Total</strong>
                 </p>
               </div>
             </div>
 
             <span className="text-xl font-black text-slate-900 bg-white px-5 py-2 rounded-2xl border border-orange-200 shadow-2xs">
-              ${totalRoomRent.toLocaleString()} / mo
+              {formatCurrency(totalRoomRent)} / mo
             </span>
           </div>
 
@@ -1187,7 +1189,7 @@ export default function RoomTelemetryFullPage() {
           <div className="p-5 bg-white border border-slate-200/90 rounded-2xl flex items-center justify-between shadow-2xs">
             <span className="font-bold text-slate-900 text-sm">Total Historical Yield from {unitId}</span>
             <span className="font-black text-emerald-600 text-lg">
-              {roomHistory.length > 0 ? "$42,800 Gross Generated" : "$0 Gross Generated"}
+              {roomHistory.length > 0 ? `${formatCurrency(42800)} Gross Generated` : `${currencySymbol}0 Gross Generated`}
             </span>
           </div>
 
@@ -1418,7 +1420,7 @@ export default function RoomTelemetryFullPage() {
                       : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
-                  <span>🏢 All Occupants Combined (${totalRoomRent.toLocaleString()}/mo)</span>
+                  <span>🏢 All Occupants Combined ({formatCurrency(totalRoomRent)}/mo)</span>
                 </button>
 
                 {occupants.map((occ) => {
@@ -1438,7 +1440,7 @@ export default function RoomTelemetryFullPage() {
                       }`}>
                         {occ.name.charAt(0)}
                       </div>
-                      <span>{occ.name} (${occ.individualRent.toLocaleString()}/mo)</span>
+                      <span>{occ.name} ({formatCurrency(occ.individualRent)}/mo)</span>
                     </button>
                   );
                 })}
@@ -1457,15 +1459,15 @@ export default function RoomTelemetryFullPage() {
                   </span>
                   <span className="text-xs text-emerald-700 font-medium">
                     {isAll
-                      ? `Monthly Revenue: $${totalRoomRent.toLocaleString()}/mo across ${occupants.length} residents`
-                      : `Monthly Individual Rent: $${(currentBillOccupant?.individualRent || 0).toLocaleString()}/mo (${currentBillOccupant?.bedSlot})`}
+                      ? `Monthly Revenue: ${formatCurrency(totalRoomRent)}/mo across ${occupants.length} residents`
+                      : `Monthly Individual Rent: ${formatCurrency(currentBillOccupant?.individualRent || 0)}/mo (${currentBillOccupant?.bedSlot})`}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <span className="font-black text-sm bg-emerald-100 px-3.5 py-1 rounded-xl text-emerald-900">
-                  $0.00 Outstanding
+                  {currencySymbol}0.00 Outstanding
                 </span>
                 
                 <button
@@ -1498,7 +1500,7 @@ export default function RoomTelemetryFullPage() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2.5">
                         <span className="font-extrabold text-slate-900 text-sm">{b.invoiceNumber || b.inv} — {b.title}</span>
-                        <span className="font-black text-[#FF6B00] text-base">${Number(b.amount).toLocaleString()}</span>
+                        <span className="font-black text-[#FF6B00] text-base">{formatCurrency(Number(b.amount) || 0)}</span>
                       </div>
                       <div className="text-xs text-slate-500 flex items-center gap-3 font-medium">
                         <span>Paid Date: {b.paidDate || b.date || "Pending"}</span>
@@ -1619,11 +1621,11 @@ export default function RoomTelemetryFullPage() {
 
                   <div>
                     <label className="block font-bold text-[#FF6B00] uppercase mb-1">
-                      Individual Monthly Rent ({workspaceCurrency}) *
+                      Individual Monthly Rent ({currencySymbol}) *
                     </label>
                     <div className="relative">
                       <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-700 font-extrabold text-sm pointer-events-none">
-                        {workspaceCurrency}
+                        {currencySymbol}
                       </div>
                       <input
                         type="number"
@@ -2285,7 +2287,7 @@ export default function RoomTelemetryFullPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Amount ($ / ₹)</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Amount ({currencySymbol})</label>
                   <input
                     type="number"
                     required

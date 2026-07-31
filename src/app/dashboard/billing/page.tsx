@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { useCurrency } from "@/context/CurrencyContext";
 import { 
   generateTaxInvoiceHtml, 
   generatePaymentReceiptHtml, 
@@ -51,6 +52,8 @@ const PLANS: Record<string, PlanDetails> = {
     priceAnnualInr: 449,
     unitsLimit: "Up to 15 Units",
     features: [
+      "100% Free Property Listing & Marketplace Leads",
+      "Free Access to RentAwas Expert Service (Coming Soon)",
       "Up to 3 Properties",
       "Up to 15 Rental Units",
       "Tenant Management Directory",
@@ -69,6 +72,8 @@ const PLANS: Record<string, PlanDetails> = {
     priceAnnualInr: 999,
     unitsLimit: "Up to 75 Units",
     features: [
+      "100% Free Property Listing & Marketplace Leads",
+      "Free Access to RentAwas Expert Service (Coming Soon)",
       "Up to 75 Rental Units",
       "Floor-by-Floor & Unit-by-Unit Grid Matrix",
       "Dedicated Property Yield Analytics",
@@ -85,9 +90,11 @@ const PLANS: Record<string, PlanDetails> = {
     priceMonthlyUsd: 39,
     priceAnnualUsd: 31,
     priceMonthlyInr: 3249,
-    priceAnnualInr: 2599,
+    priceAnnualInr: 2499,
     unitsLimit: "Unlimited Units",
     features: [
+      "100% Free Property Listing & Marketplace Leads",
+      "Free Access to RentAwas Expert Service (Coming Soon)",
       "Unlimited Property Units & Portfolios",
       "Everything in Pro Plan",
       "Tenant Resident Portal Access",
@@ -101,8 +108,19 @@ const PLANS: Record<string, PlanDetails> = {
 
 export default function LandlordBillingPage() {
   const { toast } = useToast();
+  const { setCurrency: setGlobalCurrency, currencySymbol, currencyCode } = useCurrency();
   const [isAnnual, setIsAnnual] = useState(true);
   const [activePlanId, setActivePlanId] = useState<"starter" | "pro" | "enterprise">("pro");
+  const [isIndia, setIsIndia] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      const isIndianLoc = tz.includes("Kolkata") || tz.includes("Calcutta") || tz.includes("Asia/Kolkata") || navigator.language === "en-IN" || currencyCode === "INR" || currencySymbol === "₹";
+      setIsIndia(isIndianLoc);
+    }
+  }, [currencyCode, currencySymbol]);
+
   // Confirmation Purchase Preview Modal State
   const [showPurchasePreviewModal, setShowPurchasePreviewModal] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<PlanDetails | null>(null);
@@ -132,6 +150,9 @@ export default function LandlordBillingPage() {
         const json = await res.json();
         if (json.data) {
           setWorkspaceData(json.data);
+          if (json.data.currency) {
+            setGlobalCurrency(json.data.currency);
+          }
           if (json.data.plan && PLANS[json.data.plan]) {
             setActivePlanId(json.data.plan as any);
           }
@@ -357,9 +378,9 @@ export default function LandlordBillingPage() {
               <Zap className="w-6 h-6 text-[#FF6B00] fill-[#FF6B00]" />
             </h2>
             <p className="text-xs text-slate-300 font-medium">
-              {isAnnual
-                ? `$${PLANS[activePlanId].priceAnnualUsd}.00 / Month (Billed Annually)`
-                : `$${PLANS[activePlanId].priceMonthlyUsd}.00 / Month`}
+              {isIndia || currencyCode === "INR" || currencySymbol === "₹"
+                ? `₹${isAnnual ? PLANS[activePlanId].priceAnnualInr : PLANS[activePlanId].priceMonthlyInr}.00 / Month ${isAnnual ? "(Billed Annually)" : ""}`
+                : `$${isAnnual ? PLANS[activePlanId].priceAnnualUsd : PLANS[activePlanId].priceMonthlyUsd}.00 / Month ${isAnnual ? "(Billed Annually)" : ""}`}
             </p>
           </div>
         </div>
@@ -446,12 +467,15 @@ export default function LandlordBillingPage() {
 
             <div className="flex items-baseline gap-1">
               <span className="text-3xl font-black text-slate-900">
-                {isAnnual ? `$${PLANS.starter.priceAnnualUsd}` : `$${PLANS.starter.priceMonthlyUsd}`}
+                {isIndia || currencyCode === "INR" || currencySymbol === "₹"
+                  ? `₹${isAnnual ? PLANS.starter.priceAnnualInr : PLANS.starter.priceMonthlyInr}`
+                  : `$${isAnnual ? PLANS.starter.priceAnnualUsd : PLANS.starter.priceMonthlyUsd}`}
               </span>
               <span className="text-xs text-slate-500 font-bold">
                 / month {isAnnual ? "(billed annually)" : ""}
               </span>
             </div>
+            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">+18% GST</p>
 
             <div className="space-y-2.5 pt-3 border-t border-slate-100 text-xs">
               {PLANS.starter.features.map((feat, idx) => (
@@ -474,7 +498,7 @@ export default function LandlordBillingPage() {
               className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 font-extrabold text-xs rounded-xl transition-all cursor-pointer uppercase tracking-wider flex items-center justify-center gap-2"
             >
               <Building2 className="w-4 h-4 text-slate-600" />
-              <span>Subscribe to Starter ($7)</span>
+              <span>Subscribe to Starter ({isIndia || currencyCode === "INR" || currencySymbol === "₹" ? `₹${isAnnual ? PLANS.starter.priceAnnualInr : PLANS.starter.priceMonthlyInr}` : `$${isAnnual ? PLANS.starter.priceAnnualUsd : PLANS.starter.priceMonthlyUsd}`})</span>
             </button>
           )}
         </div>
@@ -502,12 +526,15 @@ export default function LandlordBillingPage() {
 
             <div className="flex items-baseline gap-1">
               <span className="text-3xl font-black text-white">
-                {isAnnual ? `$${PLANS.pro.priceAnnualUsd}` : `$${PLANS.pro.priceMonthlyUsd}`}
+                {isIndia || currencyCode === "INR" || currencySymbol === "₹"
+                  ? `₹${isAnnual ? PLANS.pro.priceAnnualInr : PLANS.pro.priceMonthlyInr}`
+                  : `$${isAnnual ? PLANS.pro.priceAnnualUsd : PLANS.pro.priceMonthlyUsd}`}
               </span>
               <span className="text-xs text-slate-300 font-bold">
                 / month {isAnnual ? "(billed annually)" : ""}
               </span>
             </div>
+            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">+18% GST</p>
 
             <div className="space-y-2.5 pt-3 border-t border-slate-800 text-xs">
               {PLANS.pro.features.map((feat, idx) => (
@@ -554,12 +581,15 @@ export default function LandlordBillingPage() {
 
             <div className="flex items-baseline gap-1">
               <span className="text-3xl font-black text-slate-900">
-                {isAnnual ? `$${PLANS.enterprise.priceAnnualUsd}` : `$${PLANS.enterprise.priceMonthlyUsd}`}
+                {isIndia || currencyCode === "INR" || currencySymbol === "₹"
+                  ? `₹${isAnnual ? PLANS.enterprise.priceAnnualInr : PLANS.enterprise.priceMonthlyInr}`
+                  : `$${isAnnual ? PLANS.enterprise.priceAnnualUsd : PLANS.enterprise.priceMonthlyUsd}`}
               </span>
               <span className="text-xs text-slate-500 font-bold">
                 / month {isAnnual ? "(billed annually)" : ""}
               </span>
             </div>
+            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">+18% GST</p>
 
             <div className="space-y-2.5 pt-3 border-t border-slate-100 text-xs">
               {PLANS.enterprise.features.map((feat, idx) => (

@@ -7,7 +7,7 @@ import {
   Building2, 
   ArrowLeft, 
   TrendingUp, 
-  DollarSign, 
+  Coins, 
   Users, 
   UserCheck, 
   Calendar, 
@@ -148,7 +148,7 @@ export default function PropertyDedicatedAnalyticsPage() {
         <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-2">
           <div className="flex items-center justify-between text-slate-500">
             <span className="font-bold uppercase text-[10px] tracking-wider">Net Operating Margin</span>
-            <DollarSign className="w-4 h-4 text-purple-500" />
+            <Coins className="w-4 h-4 text-purple-500" />
           </div>
           <div className="text-2xl font-black text-purple-600">94.8%</div>
           <div className="text-[11px] text-slate-500 font-medium">Low maintenance overhead ($1,870 YTD)</div>

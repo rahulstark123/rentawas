@@ -25,6 +25,7 @@ import {
 import AddPropertyModal, { PropertyData } from "@/components/ui/AddPropertyModal";
 import FloorPlanDrawer from "@/components/ui/FloorPlanDrawer";
 import { useToast } from "@/components/ui/Toast";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export interface PropertyItem {
   id: string;
@@ -34,7 +35,9 @@ export interface PropertyItem {
   units: number;
   occupied: number;
   monthlyYield: string;
+  rawMonthlyYield?: number;
   ytdExpenses?: string;
+  rawYtdExpenses?: number;
   status: string;
   tag: string;
 }
@@ -42,6 +45,7 @@ export interface PropertyItem {
 export default function PropertiesPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { formatCurrency } = useCurrency();
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const menuContainerRef = useRef<HTMLDivElement>(null);
@@ -92,18 +96,26 @@ export default function PropertiesPage() {
       const res = await fetch("/api/properties?wid=1");
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
-        const mapped: PropertyItem[] = json.data.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          address: item.address,
-          floors: item.floors || 1,
-          units: item.totalUnits || 0,
-          occupied: item.occupiedUnits || 0,
-          monthlyYield: item.monthlyYield || "$0",
-          ytdExpenses: "$0",
-          status: item.status || "0% Occupied",
-          tag: item.tag || item.category || "Property",
-        }));
+        const mapped: PropertyItem[] = json.data.map((item: any) => {
+          const rawYield = item.rawMonthlyYield !== undefined 
+            ? item.rawMonthlyYield 
+            : (parseFloat(String(item.monthlyYield || "").replace(/[^0-9.]/g, "")) || 0);
+
+          return {
+            id: item.id,
+            name: item.name,
+            address: item.address,
+            floors: item.floors || 1,
+            units: item.totalUnits || 0,
+            occupied: item.occupiedUnits || 0,
+            rawMonthlyYield: rawYield,
+            monthlyYield: item.monthlyYield || "$0",
+            rawYtdExpenses: item.rawYtdExpenses || 0,
+            ytdExpenses: "$0",
+            status: item.status || "0% Occupied",
+            tag: item.tag || item.category || "Property",
+          };
+        });
         setPropertyList(mapped);
       }
     } catch (err) {
@@ -414,13 +426,13 @@ export default function PropertiesPage() {
 
                 <div>
                   <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Monthly Yield</span>
-                  <span className="text-xs font-black text-slate-900">{prop.monthlyYield}</span>
+                  <span className="text-xs font-black text-slate-900">{formatCurrency(prop.rawMonthlyYield || 0)}</span>
                 </div>
 
                 <div>
                   <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">YTD Expenses</span>
                   <Link href="/dashboard/expenses" className="text-xs font-black text-[#FF6B00] hover:underline block">
-                    {prop.ytdExpenses || "$0"}
+                    {formatCurrency(prop.rawYtdExpenses || 0)}
                   </Link>
                 </div>
               </div>

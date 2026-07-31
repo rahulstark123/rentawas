@@ -638,7 +638,7 @@ export default function FindPropertyPage() {
             </div>
 
             {/* Property Type Dropdown */}
-            <div className="sm:col-span-3 border-b sm:border-b-0 sm:border-r border-slate-200 pb-2 sm:pb-0 sm:pr-3">
+            <div className="sm:col-span-5 border-b sm:border-b-0 sm:border-r border-slate-200 pb-2 sm:pb-0 sm:pr-3">
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
                 Property Type
               </label>
@@ -647,33 +647,46 @@ export default function FindPropertyPage() {
                 onChange={(e) => { setSelectedType(e.target.value); setCurrentPage(1); }}
                 className="w-full text-xs font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
               >
-                <option value="All">All Types</option>
-                <option value="Apartment">Apartment / Flat</option>
-                <option value="PG / Co-Living">PG / Co-Living Bed</option>
-                <option value="Studio">Studio Flat</option>
-              </select>
-            </div>
+                <option value="All">All Property Types</option>
 
-            {/* BHK Filter */}
-            <div className="sm:col-span-2 border-b sm:border-b-0 sm:border-r border-slate-200 pb-2 sm:pb-0 sm:pr-3">
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
-                BHK / Room
-              </label>
-              <select
-                value={selectedBhk}
-                onChange={(e) => { setSelectedBhk(e.target.value); setCurrentPage(1); }}
-                className="w-full text-xs font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
-              >
-                <option value="All">Any BHK</option>
-                <option value="1 BHK">1 BHK</option>
-                <option value="2 BHK">2 BHK</option>
-                <option value="3 BHK">3 BHK</option>
-                <option value="Single Bed">PG Bed</option>
+                <optgroup label="🏢 Residential Apartments & Condos">
+                  <option value="Flat / Apartment">Flat / Apartment (1BHK, 2BHK, 3BHK...)</option>
+                  <option value="Condominium (Condo)">Condominium (Condo)</option>
+                  <option value="Studio Apartment / 1 RK">Studio Apartment / 1 RK</option>
+                  <option value="Penthouse & Terrace Unit">Penthouse &amp; Terrace Unit</option>
+                  <option value="Loft & Duplex Suite">Loft &amp; Duplex Suite</option>
+                  <option value="Executive Serviced Apartment">Executive Serviced Apartment</option>
+                </optgroup>
+
+                <optgroup label="🏡 Houses & Independent Villas">
+                  <option value="House / Villa">Independent House / Villa</option>
+                  <option value="Builder Floor (Individual Floor)">Builder Floor (Individual Floor)</option>
+                  <option value="Townhouse / Row House">Townhouse / Row House</option>
+                  <option value="Bungalow / Gated Villa">Bungalow / Gated Villa</option>
+                  <option value="Farmhouse / Estate">Farmhouse / Estate</option>
+                </optgroup>
+
+                <optgroup label="🎓 Hostels, PG & Student Housing">
+                  <option value="Independent Private Boys Hostel">Independent Private Boys Hostel</option>
+                  <option value="Independent Private Girls Hostel">Independent Private Girls Hostel</option>
+                  <option value="College & University Student Hostel">College &amp; University Student Hostel</option>
+                  <option value="School / Boarding School Hostel">School / Boarding School Hostel</option>
+                  <option value="PG / Paying Guest (Boys/Girls/Co-Ed)">PG / Paying Guest (Boys, Girls, Co-Ed)</option>
+                  <option value="Working Professionals Hostel / Co-Living">Working Professionals Hostel / Co-Living</option>
+                  <option value="Co-Living Shared Suite / Pod">Co-Living Shared Suite / Pod</option>
+                </optgroup>
+
+                <optgroup label="🏢 Commercial & Business Spaces">
+                  <option value="Commercial Office Space">Commercial Office Space</option>
+                  <option value="Retail Shop / Showroom">Retail Shop / Showroom</option>
+                  <option value="Co-Working Space">Co-Working Space / Desk</option>
+                  <option value="Warehouse / Storage Bay">Warehouse / Storage Bay</option>
+                </optgroup>
               </select>
             </div>
 
             {/* Budget Range Filter */}
-            <div className="sm:col-span-3 flex items-center gap-2">
+            <div className="sm:col-span-3 flex items-center gap-4">
               <div className="flex-1">
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
                   Monthly Rent
@@ -716,16 +729,28 @@ export default function FindPropertyPage() {
               🔥 Show All ({totalCount})
             </button>
             <button
-              onClick={() => { setSelectedType("Apartment"); setCurrentPage(1); }}
+              onClick={() => { setSelectedType("Flat / Apartment"); setCurrentPage(1); }}
               className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors cursor-pointer"
             >
               🏢 Family Apartments
             </button>
             <button
-              onClick={() => { setSelectedType("PG / Co-Living"); setCurrentPage(1); }}
+              onClick={() => { setSelectedType("House / Villa"); setCurrentPage(1); }}
               className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors cursor-pointer"
             >
-              🛏️ PG & Co-Living Beds
+              🏡 Houses &amp; Villas
+            </button>
+            <button
+              onClick={() => { setSelectedType("PG / Paying Guest (Boys/Girls/Co-Ed)"); setCurrentPage(1); }}
+              className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors cursor-pointer"
+            >
+              🎓 Hostels &amp; PG Beds
+            </button>
+            <button
+              onClick={() => { setSelectedType("Commercial Office Space"); setCurrentPage(1); }}
+              className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors cursor-pointer"
+            >
+              💼 Commercial Offices
             </button>
             <button
               onClick={() => { setSelectedPrice("under15k"); setCurrentPage(1); }}

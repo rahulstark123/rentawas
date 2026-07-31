@@ -37,9 +37,11 @@ import {
   UserX,
   Mail,
   QrCode,
-  Upload
+  Upload,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { useCurrency } from "@/context/CurrencyContext";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 
 export const ALL_CURRENCIES = [
@@ -142,6 +144,7 @@ export const ALL_TIMEZONES = [
 
 export default function WorkspaceSettingsPage() {
   const { toast } = useToast();
+  const { setCurrency: setGlobalCurrency } = useCurrency();
   const [activeTab, setActiveTab] = useState<"general" | "integrations" | "team" | "delete_account">("general");
 
   // General Settings State
@@ -298,28 +301,89 @@ export default function WorkspaceSettingsPage() {
     setShowEditModal(true);
   };
 
-  const handleSaveEditModal = (e: React.FormEvent) => {
+  // Fetch live workspace settings on component mount
+  useEffect(() => {
+    async function loadWorkspaceSettings() {
+      try {
+        const res = await fetch("/api/workspace?wid=1");
+        const json = await res.json();
+        if (json.success && json.data) {
+          const d = json.data;
+          if (d.name) setOrgName(d.name);
+          if (d.companyType) setCompanyType(d.companyType);
+          if (d.taxId) setTaxId(d.taxId);
+          if (d.registeredAddress) setRegisteredAddress(d.registeredAddress);
+          if (d.landlordName) setLandlordName(d.landlordName);
+          if (d.landlordRole) setLandlordRole(d.landlordRole);
+          if (d.companyEmail) setCompanyEmail(d.companyEmail);
+          if (d.companyPhone) setCompanyPhone(d.companyPhone);
+          if (d.currency) setCurrency(d.currency);
+          if (d.jurisdiction) setJurisdiction(d.jurisdiction);
+          if (d.pincode) setPincode(d.pincode);
+          if (d.timezone) setTimezone(d.timezone);
+          if (d.fiscalYearStart) setFiscalYearStart(d.fiscalYearStart);
+          if (d.customSubdomain) setCustomSubdomain(d.customSubdomain);
+          if (d.tagline) setTagline(d.tagline);
+        }
+      } catch (err) {
+        console.error("Failed to load workspace settings from API:", err);
+      }
+    }
+    loadWorkspaceSettings();
+  }, []);
+
+  const handleSaveEditModal = async (e: React.FormEvent) => {
     e.preventDefault();
-    setOrgName(tempOrgName);
-    setCompanyType(tempCompanyType);
-    setTaxId(tempTaxId);
-    setRegisteredAddress(tempRegisteredAddress);
-    setLandlordName(tempLandlordName);
-    setLandlordRole(tempLandlordRole);
-    setCompanyEmail(tempCompanyEmail);
-    
+
     const formattedPhone = tempCompanyPhone.trim() 
       ? `${selectedPhoneCountry.dialCode} ${tempCompanyPhone.trim()}`
       : companyPhone;
-    setCompanyPhone(formattedPhone);
 
-    setCurrency(tempCurrency);
-    setJurisdiction(tempJurisdiction);
-    setPincode(tempPincode);
-    setTimezone(tempTimezone);
-    setFiscalYearStart(tempFiscalYearStart);
-    setShowEditModal(false);
-    toast("Workspace settings updated successfully!", "success");
+    try {
+      const res = await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wid: 1,
+          name: tempOrgName,
+          companyType: tempCompanyType,
+          taxId: tempTaxId,
+          registeredAddress: tempRegisteredAddress,
+          landlordName: tempLandlordName,
+          landlordRole: tempLandlordRole,
+          companyEmail: tempCompanyEmail,
+          companyPhone: formattedPhone,
+          currency: tempCurrency,
+          jurisdiction: tempJurisdiction,
+          pincode: tempPincode,
+          timezone: tempTimezone,
+          fiscalYearStart: tempFiscalYearStart,
+        }),
+      });
+
+      if (res.ok) {
+        setOrgName(tempOrgName);
+        setCompanyType(tempCompanyType);
+        setTaxId(tempTaxId);
+        setRegisteredAddress(tempRegisteredAddress);
+        setLandlordName(tempLandlordName);
+        setLandlordRole(tempLandlordRole);
+        setCompanyEmail(tempCompanyEmail);
+        setCompanyPhone(formattedPhone);
+        setCurrency(tempCurrency);
+        setGlobalCurrency(tempCurrency);
+        setJurisdiction(tempJurisdiction);
+        setPincode(tempPincode);
+        setTimezone(tempTimezone);
+        setFiscalYearStart(tempFiscalYearStart);
+        setShowEditModal(false);
+        toast("Workspace settings saved to database successfully!", "success");
+      } else {
+        toast("Failed to save workspace settings to database.", "error");
+      }
+    } catch (err) {
+      toast("Error saving workspace settings.", "error");
+    }
   };
 
   // Payout Settings State
@@ -904,11 +968,15 @@ export default function WorkspaceSettingsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [memberName, setMemberName] = useState("");
   const [memberEmail, setMemberEmail] = useState("");
-  const [memberCountryCode, setMemberCountryCode] = useState("+1");
   const [memberPhone, setMemberPhone] = useState("");
+  const [selectedMemberPhoneCountry, setSelectedMemberPhoneCountry] = useState<Country>(
+    ALL_COUNTRIES.find((c) => c.code === "US") || ALL_COUNTRIES[0]
+  );
   const [memberRole, setMemberRole] = useState("Manager"); // "Owner", "Admin", "Manager", "Employee"
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showMemberPassword, setShowMemberPassword] = useState(false);
+  const [showMemberConfirmPassword, setShowMemberConfirmPassword] = useState(false);
 
   const fetchTeamMembers = async () => {
     try {
@@ -955,7 +1023,7 @@ export default function WorkspaceSettingsPage() {
         body: JSON.stringify({
           name: memberName,
           email: memberEmail,
-          countryCode: memberCountryCode,
+          countryCode: selectedMemberPhoneCountry.dialCode,
           phone: memberPhone,
           role: memberRole,
           password: password || undefined,
@@ -983,26 +1051,36 @@ export default function WorkspaceSettingsPage() {
     setShowAddModal(false);
   };
 
-  const handleDeleteMember = async (member: any) => {
-    if (member.role === "Owner") {
+  // Delete Team Member Confirmation Modal State
+  const [deletingTeamMember, setDeletingTeamMember] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
+  const [isDeletingTeamMember, setIsDeletingTeamMember] = useState(false);
+
+  const handleConfirmDeleteTeamMember = async () => {
+    if (!deletingTeamMember) return;
+    if (deletingTeamMember.role === "Owner") {
       toast("Cannot revoke access for Workspace Owner.", "error");
+      setDeletingTeamMember(null);
       return;
     }
 
+    setIsDeletingTeamMember(true);
     try {
-      const res = await fetch(`/api/workspace/team/${encodeURIComponent(member.id)}`, {
+      const res = await fetch(`/api/workspace/team/${encodeURIComponent(deletingTeamMember.id)}`, {
         method: "DELETE",
       });
       if (res.ok) {
-        toast(`Access revoked for "${member.name}".`, "info");
+        toast(`Access revoked for "${deletingTeamMember.name}".`, "info");
         fetchTeamMembers();
       } else {
-        setTeam((prev) => prev.filter((t) => t.id !== member.id));
-        toast(`Team member removed.`, "info");
+        setTeam((prev) => prev.filter((t) => t.id !== deletingTeamMember.id));
+        toast(`Team member "${deletingTeamMember.name}" removed.`, "info");
       }
     } catch {
-      setTeam((prev) => prev.filter((t) => t.id !== member.id));
+      setTeam((prev) => prev.filter((t) => t.id !== deletingTeamMember.id));
       toast(`Team member removed.`, "info");
+    } finally {
+      setIsDeletingTeamMember(false);
+      setDeletingTeamMember(null);
     }
   };
 
@@ -1032,7 +1110,7 @@ export default function WorkspaceSettingsPage() {
       <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl overflow-x-auto custom-scrollbar">
         {[
           { id: "general", label: "Organization & Profile", icon: Building2 },
-          { id: "integrations", label: "Integrations", icon: Blocks, badge: "3 SUPPORTED" },
+          { id: "integrations", label: "Integrations", icon: Blocks, badge: "6 SUPPORTED" },
           { id: "team", label: "Team Members", icon: Users, count: team.length },
           { id: "delete_account", label: "Delete Account", icon: UserX },
         ].map((tab) => {
@@ -1244,7 +1322,7 @@ export default function WorkspaceSettingsPage() {
               <div className="flex items-center gap-2 shrink-0">
                 <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>3 Payment Integrations Supported</span>
+                  <span>6 Integrations Supported</span>
                 </span>
               </div>
             </div>
@@ -1509,7 +1587,7 @@ export default function WorkspaceSettingsPage() {
                       <td className="py-3 px-2 text-right">
                         {m.role !== "Owner" && (
                           <button
-                            onClick={() => handleDeleteMember(m)}
+                            onClick={() => setDeletingTeamMember(m)}
                             className="p-1.5 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
                             title="Revoke Access"
                           >
@@ -1662,29 +1740,12 @@ export default function WorkspaceSettingsPage() {
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1">Phone Number</label>
-                <div className="flex gap-2">
-                  <select
-                    value={memberCountryCode}
-                    onChange={(e) => setMemberCountryCode(e.target.value)}
-                    className="px-2.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer shrink-0"
-                  >
-                    <option value="+1">🇺🇸 +1 (US/CA)</option>
-                    <option value="+91">🇮🇳 +91 (IN)</option>
-                    <option value="+44">🇬🇧 +44 (UK)</option>
-                    <option value="+61">🇦🇺 +61 (AU)</option>
-                    <option value="+971">🇦🇪 +971 (UAE)</option>
-                    <option value="+65">🇸🇬 +65 (SG)</option>
-                    <option value="+49">🇩🇪 +49 (DE)</option>
-                    <option value="+33">🇫🇷 +33 (FR)</option>
-                  </select>
-                  <input
-                    type="tel"
-                    value={memberPhone}
-                    onChange={(e) => setMemberPhone(e.target.value)}
-                    placeholder="(555) 000-0000"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
+                <CountryPhoneInput
+                  value={memberPhone}
+                  onChange={(val) => setMemberPhone(val)}
+                  selectedCountry={selectedMemberPhoneCountry}
+                  onCountryChange={(country) => setSelectedMemberPhoneCountry(country)}
+                />
               </div>
 
               <div>
@@ -1704,27 +1765,55 @@ export default function WorkspaceSettingsPage() {
                 </div>
               </div>
 
+              <div className="p-3 bg-purple-50 border border-purple-200/80 rounded-xl text-[11px] text-purple-900 font-medium space-y-1">
+                <div className="font-extrabold flex items-center gap-1.5 text-purple-700">
+                  <Lock className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Automatic Login Account Created</span>
+                </div>
+                <p className="text-slate-600 leading-relaxed">
+                  Adding this member automatically creates login credentials. They can sign in on the <strong className="text-slate-900">Login Page</strong> with their email &amp; password to manage this workspace.
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Password</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showMemberPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowMemberPassword(!showMemberPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showMemberPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Confirm Password</label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showMemberConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowMemberConfirmPassword(!showMemberConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showMemberConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3092,6 +3181,47 @@ export default function WorkspaceSettingsPage() {
           </form>
         </div>
       )}
+
+      {/* ------------------- DELETE TEAM MEMBER CONFIRMATION MODAL ------------------- */}
+      {deletingTeamMember && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-5 shadow-2xl relative">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-rose-50 text-rose-600 shrink-0">
+                <UserX className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 leading-tight">Revoke Team Access?</h3>
+                <p className="text-xs text-slate-500 mt-0.5">This will remove their workspace permissions.</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100 font-medium">
+              Are you sure you want to revoke access for <strong className="text-slate-900 font-extrabold">&ldquo;{deletingTeamMember.name}&rdquo;</strong> (<span className="text-slate-700 font-bold">{deletingTeamMember.email}</span>)? They will no longer be able to log in or manage this workspace.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeletingTeamMember(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingTeamMember}
+                onClick={handleConfirmDeleteTeamMember}
+                className="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+              >
+                {isDeletingTeamMember ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserX className="w-4 h-4" />}
+                <span>Revoke Access</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -43,6 +43,7 @@ export async function GET(request: Request) {
         totalUnits,
         occupiedUnits,
         occupancyRate: `${occupancyRate}%`,
+        rawMonthlyYield: totalMonthlyYield,
         monthlyYield: `$${totalMonthlyYield.toLocaleString()}`,
         status: `${occupancyRate}% Occupied`,
         tag: prop.category,

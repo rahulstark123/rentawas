@@ -9,6 +9,7 @@ import ComingSoonModal from "@/components/ui/ComingSoonModal";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
 import BuildingPhaseBanner from "@/components/ui/BuildingPhaseBanner";
+import LaunchCountdownWidget from "@/components/ui/LaunchCountdownWidget";
 import { supabase } from "@/lib/supabase";
 
 interface NavbarProps {
@@ -31,15 +32,31 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
   const isHome = pathname === "/";
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserSession(session);
-    });
+    if (!supabase?.auth) return;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserSession(session);
-    });
+    let subscription: any = null;
 
-    return () => subscription.unsubscribe();
+    try {
+      supabase.auth
+        .getSession()
+        .then((res) => {
+          if (res?.data?.session) {
+            setUserSession(res.data.session);
+          }
+        })
+        .catch(() => {});
+
+      const authRes = supabase.auth.onAuthStateChange((_event, session) => {
+        setUserSession(session);
+      });
+      subscription = authRes?.data?.subscription;
+    } catch (e) {
+      // Safe fallback for uninitialized supabase
+    }
+
+    return () => {
+      subscription?.unsubscribe?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -320,6 +337,9 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
         isOpen={isInternalEarlyAccessOpen}
         onClose={() => setIsInternalEarlyAccessOpen(false)}
       />
+
+      {/* Global Floating Launch Countdown Sticky Note Overlay */}
+      <LaunchCountdownWidget />
     </>
   );
 }

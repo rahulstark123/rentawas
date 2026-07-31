@@ -153,6 +153,10 @@ export default function PricingAndFAQ() {
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>100% Free Property Listing</span>
                 </li>
+                <li className="flex items-center gap-2.5 font-bold text-amber-700 bg-amber-50/80 px-2.5 py-1 rounded-lg border border-amber-200/60">
+                  <Check className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Free Access to RentAwas Expert Service (Coming Soon)</span>
+                </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span>Up to 3 Properties</span>
@@ -224,6 +228,10 @@ export default function PricingAndFAQ() {
                 <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>100% Free Property Listing</span>
+                </li>
+                <li className="flex items-center gap-2.5 font-bold text-amber-700 bg-amber-50/80 px-2.5 py-1 rounded-lg border border-amber-200/60">
+                  <Check className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Free Access to RentAwas Expert Service (Coming Soon)</span>
                 </li>
                 <li className="flex items-center gap-2.5 font-bold text-slate-900">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
@@ -300,6 +308,10 @@ export default function PricingAndFAQ() {
                 <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>100% Free Property Listing</span>
+                </li>
+                <li className="flex items-center gap-2.5 font-bold text-amber-700 bg-amber-50/80 px-2.5 py-1 rounded-lg border border-amber-200/60">
+                  <Check className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Free Access to RentAwas Expert Service (Coming Soon)</span>
                 </li>
                 <li className="flex items-center gap-2.5 font-extrabold text-[#FF6B00] bg-orange-50/80 px-2.5 py-1 rounded-lg border border-orange-200/60">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />

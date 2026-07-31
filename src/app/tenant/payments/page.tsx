@@ -29,8 +29,10 @@ import {
   ZoomIn
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export default function TenantPaymentsPage() {
+  const { formatCurrency, currencySymbol } = useCurrency();
   const [paid, setPaid] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -359,7 +361,7 @@ export default function TenantPaymentsPage() {
               Current Monthly Rent Due
             </span>
             <div className="text-3xl sm:text-4xl font-black text-slate-900">
-              ${rentVal.toLocaleString()}.00
+              {formatCurrency(rentVal)}
             </div>
             <div className="text-xs text-slate-500 flex items-center gap-1.5 pt-1">
               <Building2 className="w-3.5 h-3.5 text-[#FF6B00]" />

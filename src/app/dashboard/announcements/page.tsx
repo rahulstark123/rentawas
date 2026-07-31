@@ -502,30 +502,36 @@ export default function LandlordAnnouncementsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Category</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  >
-                    <option value="General Notice">General Notice</option>
-                    <option value="Maintenance Alert">Maintenance Alert</option>
-                    <option value="Policy Update">Policy Update</option>
-                    <option value="Community Event">Community Event</option>
-                    <option value="Emergency Alert">Emergency Alert</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full pl-3.5 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 appearance-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    >
+                      <option value="General Notice">General Notice</option>
+                      <option value="Maintenance Alert">Maintenance Alert</option>
+                      <option value="Policy Update">Policy Update</option>
+                      <option value="Community Event">Community Event</option>
+                      <option value="Emergency Alert">Emergency Alert</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Priority</label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  >
-                    <option value="Normal">Normal Priority</option>
-                    <option value="Important">Important Priority</option>
-                    <option value="Urgent">Urgent Priority</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value)}
+                      className="w-full pl-3.5 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 appearance-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    >
+                      <option value="Normal">Normal Priority</option>
+                      <option value="Important">Important Priority</option>
+                      <option value="Urgent">Urgent Priority</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 

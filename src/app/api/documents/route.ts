@@ -10,6 +10,8 @@ export async function GET(request: Request) {
     const unitId = searchParams.get("unitId");
     const tenantId = searchParams.get("tenantId");
     const profileId = searchParams.get("profileId");
+    const landlordOnly = searchParams.get("landlordOnly");
+    const isDocsParam = searchParams.get("isDocs");
 
     const whereClause: any = {};
     if (workspaceId) whereClause.workspaceId = Number(workspaceId);
@@ -17,6 +19,13 @@ export async function GET(request: Request) {
     if (unitId) whereClause.unitId = unitId;
     if (tenantId) whereClause.tenantId = tenantId;
     if (profileId) whereClause.profileId = profileId;
+
+    if (isDocsParam === "true" || landlordOnly === "true") {
+      whereClause.OR = [
+        { isDocs: true },
+        { docType: { notIn: ["Govt ID", "Tenant ID Proof", "Aadhaar Card", "Passport", "PAN Card", "ID Proof", "Profile Photo"] } },
+      ];
+    }
 
     const docs = await prisma.tenantDocument.findMany({
       where: whereClause,
@@ -60,6 +69,7 @@ export async function POST(request: Request) {
       workspaceId,
       profileId,
       floorNumber,
+      isDocs,
     } = body;
 
     if (!fileUrl || !title) {
@@ -74,6 +84,7 @@ export async function POST(request: Request) {
       fileSize: fileSize || null,
       mimeType: mimeType || null,
       floorNumber: floorNumber ? Number(floorNumber) : 1,
+      isDocs: typeof isDocs === "boolean" ? isDocs : true,
     };
 
     if (tenantId) docData.tenant = { connect: { id: tenantId } };
@@ -82,15 +93,30 @@ export async function POST(request: Request) {
     if (workspaceId) docData.workspace = { connect: { wid: Number(workspaceId) } };
     if (profileId) docData.profile = { connect: { id: profileId } };
 
-    const doc = await prisma.tenantDocument.create({
-      data: docData,
-      include: {
-        tenant: true,
-        unit: true,
-        property: true,
-        profile: true,
-      },
-    });
+    let doc;
+    try {
+      doc = await prisma.tenantDocument.create({
+        data: docData,
+        include: {
+          tenant: true,
+          unit: true,
+          property: true,
+          profile: true,
+        },
+      });
+    } catch (createErr: any) {
+      console.warn("Retrying document creation without isDocs field fallback...", createErr?.message);
+      delete docData.isDocs;
+      doc = await prisma.tenantDocument.create({
+        data: docData,
+        include: {
+          tenant: true,
+          unit: true,
+          property: true,
+          profile: true,
+        },
+      });
+    }
 
     return NextResponse.json(
       {

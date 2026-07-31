@@ -38,6 +38,67 @@ export interface UploadOptions {
   filename?: string;
   /** Progress callback (0-100) */
   onProgress?: (percent: number) => void;
+  /** Enable browser-side image compression before upload (defaults to true) */
+  compress?: boolean;
+}
+
+/**
+ * Compress image client-side via HTML5 canvas before uploading to server
+ */
+export async function compressImageClientSide(
+  file: File,
+  maxWidth = 1920,
+  quality = 0.82
+): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      img.src = e.target?.result as string;
+    };
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, ".webp"), {
+                type: "image/webp",
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file);
+            }
+          },
+          "image/webp",
+          quality
+        );
+      } else {
+        resolve(file);
+      }
+    };
+
+    img.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
 }
 
 export async function uploadFile(
@@ -45,10 +106,16 @@ export async function uploadFile(
   options: UploadOptions
 ): Promise<UploadResult> {
   try {
-    const { workspaceId, context, filename, onProgress } = options;
+    const { workspaceId, context, filename, onProgress, compress = true } = options;
+
+    // Compress images client-side before sending over network
+    let fileToUpload = file;
+    if (compress && file.type.startsWith("image/")) {
+      fileToUpload = await compressImageClientSide(file);
+    }
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", fileToUpload);
     formData.append("workspaceId", workspaceId);
     formData.append("context", context);
     if (filename) formData.append("filename", filename);

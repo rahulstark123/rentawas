@@ -41,6 +41,7 @@ import {
   Key
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { useCurrency } from "@/context/CurrencyContext";
 import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
 import { uploadFile, validateFile } from "@/lib/upload";
 
@@ -72,6 +73,7 @@ const ITEMS_PER_PAGE = 10;
 
 export default function TenantsPage() {
   const { toast } = useToast();
+  const { formatCurrency } = useCurrency();
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -760,7 +762,7 @@ export default function TenantsPage() {
                   <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs">
                     <div>
                       <span className="text-[10px] text-slate-400 font-bold uppercase block">Monthly Rent Rate</span>
-                      <span className="font-extrabold text-slate-900">${(t.monthlyRent || 0).toLocaleString()}/mo</span>
+                      <span className="font-extrabold text-slate-900">{formatCurrency(t.monthlyRent || 0)}/mo</span>
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 font-bold uppercase block">Lease Start Date</span>
@@ -849,7 +851,7 @@ export default function TenantsPage() {
                             <span>{t.healthScore} / 100</span>
                           </div>
                         </td>
-                        <td className="px-5 py-4 font-extrabold text-slate-900">${(t.monthlyRent || 0).toLocaleString()}/mo</td>
+                        <td className="px-5 py-4 font-extrabold text-slate-900">{formatCurrency(t.monthlyRent || 0)}/mo</td>
                         <td className="px-5 py-4 text-slate-600">{t.phone || "—"}</td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-1.5">

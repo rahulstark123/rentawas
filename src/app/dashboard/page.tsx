@@ -20,11 +20,12 @@ import {
   Sparkles,
   ShieldCheck,
   ChevronRight,
-  DollarSign,
+  Coins,
   Printer
 } from "lucide-react";
 import AddPropertyModal from "@/components/ui/AddPropertyModal";
 import { useToast } from "@/components/ui/Toast";
+import { useCurrency } from "@/context/CurrencyContext";
 import { generatePaymentReceiptHtml, triggerPrintOrDownload } from "@/lib/pdfGenerator";
 import EmptyStateIllustration from "@/components/ui/EmptyStateIllustration";
 
@@ -42,6 +43,7 @@ export interface DashboardTransaction {
 
 export default function DashboardOverviewPage() {
   const { toast } = useToast();
+  const { formatCurrency } = useCurrency();
   const [filter, setFilter] = useState<"all" | "paid" | "pending" | "overdue">("all");
   const [showAddPropertyModal, setShowAddPropertyModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -227,12 +229,12 @@ export default function DashboardOverviewPage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monthly Rent Yield</span>
             <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <DollarSign className="w-5 h-5" />
+              <Coins className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3">
             <div className="text-2xl font-black text-slate-900">
-              ${totalMonthlyYield.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              {formatCurrency(totalMonthlyYield)}
             </div>
             <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold mt-1">
               <ArrowUpRight className="w-4 h-4" />

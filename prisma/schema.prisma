@@ -38,6 +38,21 @@ model Workspace {
   dueDay         Int?       @default(1)
   isOnboarded    Boolean    @default(false)
   plan           String     @default("trial") // "trial", "pro", "enterprise"
+
+  // General Organization & Compliance Settings
+  companyType       String?   @default("LLC (Limited Liability Company)")
+  taxId             String?
+  registeredAddress String?
+  landlordName      String?
+  landlordRole      String?
+  companyEmail      String?
+  companyPhone      String?
+  jurisdiction      String?
+  pincode           String?
+  timezone          String?   @default("(UTC-08:00) Pacific Time (US & Canada)")
+  fiscalYearStart   String?   @default("January (Standard Calendar Year)")
+  customSubdomain   String?
+  tagline           String?
   
   ownerId        String
   owner          Profile    @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
@@ -335,6 +350,7 @@ model TenantDocument {
   fileSize      String?   // e.g. "1.2 MB"
   mimeType      String?   // e.g. "application/pdf"
   floorNumber   Int?
+  isDocs        Boolean   @default(false) // true if created/uploaded from Landlord Documents for sending to tenants
 
   profileId     String?
   profile       Profile?  @relation(fields: [profileId], references: [id], onDelete: SetNull)

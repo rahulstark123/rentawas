@@ -334,7 +334,7 @@ export default function ServicesPage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-            
+
             {/* Left Column: Headline, Proof, Badges & City Pills */}
             <div className="lg:col-span-5 space-y-6 text-left">
               {/* Main Headline */}
@@ -357,7 +357,7 @@ export default function ServicesPage() {
                   {/* Pre-Launch Status */}
                   <div className="px-3.5 py-2 rounded-xl bg-orange-500/10 border border-orange-500/30 text-[#FF6B00] text-xs font-extrabold flex items-center gap-1.5 uppercase tracking-wider">
                     <BadgeCheck className="w-4 h-4" />
-                    <span>Coming Soon — Pre-Launch</span>
+                    <span>Coming Soon</span>
                   </div>
                 </div>
 
@@ -386,11 +386,10 @@ export default function ServicesPage() {
                     <button
                       key={idx}
                       onClick={() => setSelectedCity(c)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
-                        selectedCity === c
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${selectedCity === c
                           ? "bg-[#FF6B00] text-white border-[#FF6B00] shadow-md"
                           : "bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700"
-                      }`}
+                        }`}
                     >
                       {c}
                     </button>
@@ -474,7 +473,7 @@ export default function ServicesPage() {
       {/* SECTION 3: 3 ROWS OF ALL HOME SERVICES CARDS */}
       <section className="py-16 bg-[#F8FAFC]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          
+
           <div className="flex items-center justify-between border-b border-slate-200 pb-4">
             <div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -506,7 +505,7 @@ export default function ServicesPage() {
                     className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-                  
+
                   {/* Rating */}
                   <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-slate-900/90 backdrop-blur-md text-[11px] font-extrabold text-amber-400 flex items-center gap-1">
                     ★ {service.rating} <span className="text-slate-300 text-[10px]">({service.reviews})</span>
@@ -566,7 +565,7 @@ export default function ServicesPage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-            
+
             {/* Left Column: Headline, Features, App Badges */}
             <div className="lg:col-span-6 space-y-8 text-left">
               <div className="space-y-4">
@@ -602,7 +601,7 @@ export default function ServicesPage() {
                 <span className="text-xs font-black uppercase tracking-widest text-slate-400 block">
                   Coming Soon To iOS &amp; Android:
                 </span>
-                
+
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     onClick={() => triggerComingSoon("RentAwas iOS App")}
@@ -610,7 +609,7 @@ export default function ServicesPage() {
                   >
                     <div className="w-7 h-7 flex items-center justify-center text-white">
                       <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.32c.64-.78 1.08-1.85.96-2.92-.93.04-2.06.62-2.73 1.4-.6.69-1.12 1.79-.98 2.84 1.04.08 2.11-.53 2.75-1.32z"/>
+                        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.32c.64-.78 1.08-1.85.96-2.92-.93.04-2.06.62-2.73 1.4-.6.69-1.12 1.79-.98 2.84 1.04.08 2.11-.53 2.75-1.32z" />
                       </svg>
                     </div>
                     <div className="text-left">
@@ -625,7 +624,7 @@ export default function ServicesPage() {
                   >
                     <div className="w-7 h-7 flex items-center justify-center text-emerald-400">
                       <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                        <path d="M3.609 1.814L13.792 12 3.61 22.186c-.187.186-.39.294-.61.324V1.49c.22.03.423.138.61.324zM15.207 13.414l2.67-2.67c.39-.39.39-1.02 0-1.414l-2.67-2.67-2.83 2.83 2.83 2.924zm-2.83-4.338L3.25 1.5l10.54 10.54-1.413-2.964zm0 5.848l1.414-2.924L3.25 22.5l9.127-7.576z"/>
+                        <path d="M3.609 1.814L13.792 12 3.61 22.186c-.187.186-.39.294-.61.324V1.49c.22.03.423.138.61.324zM15.207 13.414l2.67-2.67c.39-.39.39-1.02 0-1.414l-2.67-2.67-2.83 2.83 2.83 2.924zm-2.83-4.338L3.25 1.5l10.54 10.54-1.413-2.964zm0 5.848l1.414-2.924L3.25 22.5l9.127-7.576z" />
                       </svg>
                     </div>
                     <div className="text-left">
@@ -675,7 +674,7 @@ export default function ServicesPage() {
       {/* SECTION 5: HOW RENTAWAS EXPERTS WORKS */}
       <section className="py-16 bg-white border-t border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-          
+
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <span className="text-xs font-black text-[#FF6B00] uppercase tracking-widest">
               Simple &amp; Guaranteed
@@ -732,7 +731,7 @@ export default function ServicesPage() {
       {isNotifyModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-6 shadow-2xl relative text-white animate-in fade-in zoom-in-95 duration-200">
-            
+
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-[#FF6B00] flex items-center justify-center shrink-0">
