@@ -32,7 +32,8 @@ import {
   ChevronRight,
   WifiOff,
   RotateCcw,
-  AlertCircle
+  AlertCircle,
+  ExternalLink
 } from "lucide-react";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { useToast } from "@/components/ui/Toast";
@@ -87,6 +88,9 @@ interface PropertyItem {
   ownerName: string;
   ownerPhone: string;
   badge: string;
+  pinnedLat?: number | null;
+  pinnedLng?: number | null;
+  fullAddress?: string | null;
 }
 
 const DEFAULT_PROPERTIES: PropertyItem[] = [
@@ -95,6 +99,9 @@ const DEFAULT_PROPERTIES: PropertyItem[] = [
     title: "The Regent Luxury 2BHK Residence",
     location: "100 Feet Road, Indiranagar",
     city: "Bengaluru",
+    fullAddress: "100 Feet Road, Indiranagar, Bengaluru, Karnataka 560038",
+    pinnedLat: 12.9784,
+    pinnedLng: 77.6408,
     price: "₹28,500",
     type: "Apartment",
     bhk: "2 BHK",
@@ -119,6 +126,9 @@ const DEFAULT_PROPERTIES: PropertyItem[] = [
     title: "Horizon Heights Executive Studio",
     location: "Sector 3, HSR Layout",
     city: "Bengaluru",
+    fullAddress: "Sector 3, HSR Layout, Bengaluru, Karnataka 560102",
+    pinnedLat: 12.9116,
+    pinnedLng: 77.6389,
     price: "₹18,000",
     type: "Studio",
     bhk: "1 BHK",
@@ -142,6 +152,9 @@ const DEFAULT_PROPERTIES: PropertyItem[] = [
     title: "Royal Stays Premium PG & Co-Living",
     location: "Cyber City, Phase 2",
     city: "Gurgaon",
+    fullAddress: "Cyber City, Phase 2, Gurgaon, Haryana 122002",
+    pinnedLat: 28.4950,
+    pinnedLng: 77.0895,
     price: "₹12,500",
     type: "PG Bed",
     bhk: "1 Bed",
@@ -165,6 +178,9 @@ const DEFAULT_PROPERTIES: PropertyItem[] = [
     title: "Emerald Vista 3BHK Penthouse",
     location: "Banjara Hills, Road No. 12",
     city: "Hyderabad",
+    fullAddress: "Banjara Hills, Road No. 12, Hyderabad, Telangana 500034",
+    pinnedLat: 17.4156,
+    pinnedLng: 78.4347,
     price: "₹45,000",
     type: "Apartment",
     bhk: "3 BHK",
@@ -185,6 +201,66 @@ const DEFAULT_PROPERTIES: PropertyItem[] = [
   },
 ];
 
+const getLocalityCoordinates = (locationText?: string | null, cityText?: string | null) => {
+  const loc = (locationText || "").toLowerCase();
+  const c = (cityText || "").toLowerCase();
+
+  if (loc.includes("badshahpur") || loc.includes("gurgaon") || loc.includes("gurugram")) {
+    return { lat: 28.3975, lng: 77.0543 };
+  }
+  if (loc.includes("indiranagar") || c.includes("bengaluru") || c.includes("bangalore")) {
+    return { lat: 12.9784, lng: 77.6408 };
+  }
+  if (loc.includes("hsr")) {
+    return { lat: 12.9116, lng: 77.6389 };
+  }
+  if (loc.includes("cyber city")) {
+    return { lat: 28.4950, lng: 77.0895 };
+  }
+  if (loc.includes("banjara hills") || c.includes("hyderabad")) {
+    return { lat: 17.4156, lng: 78.4347 };
+  }
+  if (c.includes("mumbai")) {
+    return { lat: 19.0760, lng: 72.8777 };
+  }
+  if (c.includes("delhi")) {
+    return { lat: 28.6139, lng: 77.2090 };
+  }
+  if (c.includes("pune")) {
+    return { lat: 18.5204, lng: 73.8567 };
+  }
+  if (c.includes("noida")) {
+    return { lat: 28.5355, lng: 77.3910 };
+  }
+  return { lat: 28.4595, lng: 77.0266 };
+};
+
+const getPropertyCoordinates = (prop: PropertyItem) => {
+  if (prop.pinnedLat && prop.pinnedLng) {
+    return { lat: prop.pinnedLat, lng: prop.pinnedLng };
+  }
+  return getLocalityCoordinates(prop.fullAddress || prop.location, prop.city);
+};
+
+const getOpenStreetMapEmbedUrl = (prop: PropertyItem) => {
+  const { lat, lng } = getPropertyCoordinates(prop);
+  const bboxMinLng = lng - 0.008;
+  const bboxMinLat = lat - 0.006;
+  const bboxMaxLng = lng + 0.008;
+  const bboxMaxLat = lat + 0.006;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bboxMinLng}%2C${bboxMinLat}%2C${bboxMaxLng}%2C${bboxMaxLat}&layer=mapnik`;
+};
+
+const getGoogleMapsUrl = (prop: PropertyItem) => {
+  const { lat, lng } = getPropertyCoordinates(prop);
+  return `https://www.google.com/maps?q=${lat},${lng}`;
+};
+
+const getGoogleMapEmbedUrl = (prop: PropertyItem) => {
+  const { lat, lng } = getPropertyCoordinates(prop);
+  return `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
+};
+
 export default function PropertyDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -199,6 +275,7 @@ export default function PropertyDetailPage() {
 
   const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
 
   // Photo Lightbox Carousel State
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -454,6 +531,9 @@ export default function PropertyDetailPage() {
           ownerName: item.contactPersonName ? `${item.contactPersonName} (Owner)` : "Property Landlord",
           ownerPhone: item.contactNumber || item.ownerPhone || "+91 Contact via RentAwas",
           badge: "Verified Owner • Zero Fee",
+          pinnedLat: item.pinnedLat || null,
+          pinnedLng: item.pinnedLng || null,
+          fullAddress: item.fullAddress || [item.locality || item.location, item.city, item.stateName, item.pincode ? `- ${item.pincode}` : ""].filter(Boolean).join(", ") || null,
         });
         setIsLoading(false);
         fetchPropertyReviews(item.id);
@@ -783,9 +863,9 @@ export default function PropertyDetailPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 pt-3 border-t border-slate-100">
                 <MapPin className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                <span>{property.location}, {property.city}</span>
+                <span>{property.fullAddress || `${property.location}, ${property.city}`}</span>
               </div>
             </div>
 
@@ -908,6 +988,54 @@ export default function PropertyDetailPage() {
               </div>
             </div>
 
+            {/* Property Location & Pin Map Card */}
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-4 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[#FF6B00]" />
+                    Location & Exact Map Pin
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    {property.fullAddress || `${property.location}, ${property.city}`}
+                  </p>
+                </div>
+                <a
+                  href={getGoogleMapsUrl(property)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-extrabold rounded-xl shadow-md transition-all flex items-center gap-1.5 uppercase tracking-wider shrink-0 w-fit cursor-pointer"
+                >
+                  <Compass className="w-4 h-4" />
+                  <span>Open Exact Pin in Google Maps</span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-90" />
+                </a>
+              </div>
+
+              {/* Embedded Google Maps Live Location Frame */}
+              <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100 group">
+                <iframe
+                  title="Property Location Pin Map"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  src={getGoogleMapEmbedUrl(property)}
+                />
+                <a
+                  href={getGoogleMapsUrl(property)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute bottom-3 right-3 bg-slate-950/85 hover:bg-slate-950 text-white backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-lg border border-white/20 transition-all cursor-pointer"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Open in Google Maps App</span>
+                  <ExternalLink className="w-3 h-3 text-white/80" />
+                </a>
+              </div>
+            </div>
+
             {/* Resident Ratings & Reviews Section */}
             <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
@@ -1003,13 +1131,31 @@ export default function PropertyDetailPage() {
 
             {/* Contact Owner Direct Card */}
             <div className="bg-white border border-slate-200/90 rounded-3xl p-6 space-y-5 shadow-xl shadow-slate-200/50">
-              <div className="space-y-1">
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Property Rent</div>
-                <div className="text-3xl font-black text-slate-900">{property.price} <span className="text-xs font-semibold text-slate-500">/ mo</span></div>
-                <div className="text-xs font-semibold text-emerald-600 flex items-center gap-1 pt-0.5">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Verified Zero Brokerage Listing</span>
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Property Rent</div>
+                  <div className="text-3xl font-black text-slate-900">{property.price} <span className="text-xs font-semibold text-slate-500">/ mo</span></div>
+                  <div className="text-xs font-semibold text-emerald-600 flex items-center gap-1 pt-0.5">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Verified Zero Brokerage Listing</span>
+                  </div>
                 </div>
+
+                {/* Google Maps Exact Pin Location Option Button (Matches Top-Right Red Box in Prompt Screenshot) */}
+                <button
+                  type="button"
+                  onClick={() => setIsMapModalOpen(true)}
+                  title="Open exact pin location map on page"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-[#FF6B00]/10 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white border border-[#FF6B00]/30 hover:border-[#FF6B00] rounded-2xl text-xs font-extrabold shadow-xs transition-all hover:scale-105 shrink-0 group cursor-pointer"
+                >
+                  <MapPin className="w-4 h-4 text-[#FF6B00] group-hover:text-white transition-colors" />
+                  <div className="text-left leading-tight">
+                    <div className="text-[11px] font-black uppercase tracking-wider">Map Pin</div>
+                    <div className="text-[9px] opacity-80 font-semibold flex items-center gap-0.5">
+                      View Map
+                    </div>
+                  </div>
+                </button>
               </div>
 
               {/* Landlord Profile Box */}
@@ -1585,6 +1731,80 @@ export default function PropertyDetailPage() {
               >
                 Close
               </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* On-Page Interactive Map Modal */}
+      {isMapModalOpen && property && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 font-sans animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="bg-[#0B132B] p-5 text-white relative shrink-0 flex items-center justify-between">
+              <div>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider mb-1 w-fit">
+                  <MapPin className="w-3 h-3 text-emerald-400" />
+                  Exact Pin Location Map
+                </span>
+                <h3 className="text-lg font-bold text-white line-clamp-1">{property.title}</h3>
+                <p className="text-xs text-slate-300 flex items-center gap-2 mt-0.5">
+                  <span>{property.fullAddress || `${property.location}, ${property.city}`}</span>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 mr-8">
+                <a
+                  href={getGoogleMapsUrl(property)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <span>Open External App</span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                </a>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsMapModalOpen(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer z-10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body - Embedded Google Map */}
+            <div className="p-4 sm:p-6 flex-1 flex flex-col space-y-4">
+              <div className="relative w-full h-[450px] sm:h-[500px] rounded-2xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100">
+                <iframe
+                  title="On-Page Property Location Map"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  src={getGoogleMapEmbedUrl(property)}
+                />
+              </div>
+
+              {/* Map Footer Bar */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 text-xs font-semibold text-slate-600 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                  <span>Google Maps Pin View • Glued to Exact Map Location</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setIsMapModalOpen(false)}
+                    className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all uppercase tracking-wider cursor-pointer"
+                  >
+                    Close Map
+                  </button>
+                </div>
+              </div>
             </div>
 
           </div>

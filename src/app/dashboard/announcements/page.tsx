@@ -18,6 +18,11 @@ import {
   Check
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
+
+async function resolveActiveWid(): Promise<string> {
+  return (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+}
 
 interface PropertyOption {
   id: string;
@@ -75,34 +80,48 @@ export default function LandlordAnnouncementsPage() {
   const [showPropDropdown, setShowPropDropdown] = useState(false);
   const [showTenantDropdown, setShowTenantDropdown] = useState(false);
 
-  // Fetch announcements, properties, and tenants
+  // Fetch announcements, properties, and tenants for the active workspace only
   const fetchData = async () => {
     try {
       setLoading(true);
+      const activeWid = await resolveActiveWid();
+      if (!activeWid) {
+        setAnnouncements([]);
+        setProperties([]);
+        setTenants([]);
+        return;
+      }
 
       const [annRes, propRes, tenantRes] = await Promise.all([
-        fetch("/api/announcements"),
-        fetch("/api/properties"),
-        fetch("/api/tenants"),
+        fetch(`/api/announcements?workspaceId=${encodeURIComponent(activeWid)}`),
+        fetch(`/api/properties?wid=${encodeURIComponent(activeWid)}`),
+        fetch(`/api/tenants?workspaceId=${encodeURIComponent(activeWid)}`),
       ]);
 
       if (annRes.ok) {
         const annJson = await annRes.json();
         setAnnouncements(annJson.data || []);
+      } else {
+        setAnnouncements([]);
       }
 
       if (propRes.ok) {
         const propJson = await propRes.json();
         setProperties(propJson.data || []);
+      } else {
+        setProperties([]);
       }
 
       if (tenantRes.ok) {
         const tenantJson = await tenantRes.json();
         setTenants(tenantJson.data || []);
+      } else {
+        setTenants([]);
       }
     } catch (err) {
       console.error("Error fetching announcements data:", err);
       toast("Failed to load announcements data", "error");
+      setAnnouncements([]);
     } finally {
       setLoading(false);
     }
@@ -157,6 +176,12 @@ export default function LandlordAnnouncementsPage() {
     setIsSubmitting(true);
 
     try {
+      const activeWid = await resolveActiveWid();
+      if (!activeWid) {
+        toast("No active workspace found. Please refresh and try again.", "error");
+        return;
+      }
+
       const res = await fetch("/api/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -168,6 +193,7 @@ export default function LandlordAnnouncementsPage() {
           targetScope,
           targetProperties: targetScope === "SPECIFIC_PROPERTIES" ? selectedProperties : [],
           targetTenants: targetScope === "SPECIFIC_TENANTS" ? selectedTenants : [],
+          workspaceId: Number(activeWid),
           creatorName: "Landlord / Portfolio Admin",
         }),
       });
@@ -177,7 +203,8 @@ export default function LandlordAnnouncementsPage() {
         setShowModal(false);
         fetchData();
       } else {
-        toast("Failed to publish announcement", "error");
+        const errJson = await res.json().catch(() => null);
+        toast(errJson?.error || "Failed to publish announcement", "error");
       }
     } catch (err) {
       console.error("Create announcement error:", err);
@@ -191,9 +218,11 @@ export default function LandlordAnnouncementsPage() {
     if (!confirm("Are you sure you want to delete this announcement?")) return;
 
     try {
-      const res = await fetch(`/api/announcements/${encodeURIComponent(id)}`, {
-        method: "DELETE",
-      });
+      const activeWid = await resolveActiveWid();
+      const res = await fetch(
+        `/api/announcements/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(activeWid)}`,
+        { method: "DELETE" }
+      );
 
       if (res.ok) {
         toast("Announcement removed.", "warning");
@@ -210,11 +239,15 @@ export default function LandlordAnnouncementsPage() {
   const handleTogglePin = async (item: AnnouncementItem) => {
     try {
       const newPinState = !item.isPinned;
-      const res = await fetch(`/api/announcements/${encodeURIComponent(item.id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPinned: newPinState }),
-      });
+      const activeWid = await resolveActiveWid();
+      const res = await fetch(
+        `/api/announcements/${encodeURIComponent(item.id)}?workspaceId=${encodeURIComponent(activeWid)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isPinned: newPinState, workspaceId: Number(activeWid) || undefined }),
+        }
+      );
 
       if (res.ok) {
         toast(newPinState ? "Notice pinned to top!" : "Notice unpinned.", "info");

@@ -31,15 +31,19 @@ export async function GET(request: Request, { params }: Params) {
       );
     }
 
-    // Workspace scoping check if wid is provided
-    if (widParam) {
-      const wid = parseInt(widParam, 10);
-      if (!isNaN(wid) && property.workspaceId !== wid) {
-        return NextResponse.json(
-          { error: "Forbidden: Property does not belong to specified workspace ID." },
-          { status: 403 }
-        );
-      }
+    // Workspace scoping — wid is required so properties cannot leak across workspaces
+    if (!widParam) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
+    const wid = parseInt(widParam, 10);
+    if (isNaN(wid) || property.workspaceId !== wid) {
+      return NextResponse.json(
+        { error: "Forbidden: Property does not belong to specified workspace ID." },
+        { status: 403 }
+      );
     }
 
     // Group units by floor number
@@ -86,14 +90,18 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
-    if (wid) {
-      const workspaceId = parseInt(wid, 10);
-      if (!isNaN(workspaceId) && existingProperty.workspaceId !== workspaceId) {
-        return NextResponse.json(
-          { error: "Forbidden: Property does not belong to specified workspace ID." },
-          { status: 403 }
-        );
-      }
+    if (!wid) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
+    const workspaceId = parseInt(wid, 10);
+    if (isNaN(workspaceId) || existingProperty.workspaceId !== workspaceId) {
+      return NextResponse.json(
+        { error: "Forbidden: Property does not belong to specified workspace ID." },
+        { status: 403 }
+      );
     }
 
     const updatedProperty = await prisma.property.update({
@@ -143,14 +151,18 @@ export async function DELETE(request: Request, { params }: Params) {
       );
     }
 
-    if (widParam) {
-      const wid = parseInt(widParam, 10);
-      if (!isNaN(wid) && existingProperty.workspaceId !== wid) {
-        return NextResponse.json(
-          { error: "Forbidden: Property does not belong to specified workspace ID." },
-          { status: 403 }
-        );
-      }
+    if (!widParam) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
+    const wid = parseInt(widParam, 10);
+    if (isNaN(wid) || existingProperty.workspaceId !== wid) {
+      return NextResponse.json(
+        { error: "Forbidden: Property does not belong to specified workspace ID." },
+        { status: 403 }
+      );
     }
 
     await prisma.property.delete({

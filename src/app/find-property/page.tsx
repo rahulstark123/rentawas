@@ -459,7 +459,7 @@ export default function FindPropertyPage() {
               role: "tenant",
               phone: formattedPhone,
               trialStartedAt: new Date().toISOString(),
-              trialDays: 7,
+              trialDays: 14,
             },
           },
         });

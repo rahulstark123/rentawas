@@ -1,20 +1,49 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/maintenance - Fetch all maintenance tickets filtered by workspaceId, propertyId, unitId, or tenantId
+function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): number | null {
+  const raw =
+    searchParams.get("workspaceId") ||
+    searchParams.get("wid") ||
+    (bodyWid != null ? String(bodyWid) : null);
+  if (!raw) return null;
+  const n = parseInt(raw, 10);
+  return !isNaN(n) && n > 0 ? n : null;
+}
+
+function workspaceScope(workspaceId: number) {
+  return {
+    OR: [
+      { workspaceId },
+      { property: { workspaceId } },
+      { unit: { property: { workspaceId } } },
+      { tenant: { workspaceId } },
+    ],
+  };
+}
+
+// GET /api/maintenance?workspaceId=3 — tickets for this workspace only
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get("workspaceId");
+    const workspaceId = parseWorkspaceId(searchParams);
     const propertyId = searchParams.get("propertyId");
     const unitId = searchParams.get("unitId");
     const tenantId = searchParams.get("tenantId");
 
-    const whereClause: any = {};
-    if (workspaceId) whereClause.workspaceId = Number(workspaceId);
-    if (propertyId) whereClause.propertyId = propertyId;
-    if (unitId) whereClause.unitId = unitId;
-    if (tenantId) whereClause.tenantId = tenantId;
+    if (!workspaceId) {
+      return NextResponse.json(
+        { error: "Workspace ID (workspaceId / wid) is required." },
+        { status: 400 }
+      );
+    }
+
+    const whereClause: any = {
+      AND: [workspaceScope(workspaceId)],
+    };
+    if (propertyId) whereClause.AND.push({ propertyId });
+    if (unitId) whereClause.AND.push({ unitId });
+    if (tenantId) whereClause.AND.push({ tenantId });
 
     const tickets = await prisma.maintenance.findMany({
       where: whereClause,
@@ -40,7 +69,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/maintenance - Log new maintenance ticket
+// POST /api/maintenance - Log new maintenance ticket (scoped to workspace)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -52,15 +81,54 @@ export async function POST(request: Request) {
       tenantId,
       unitId,
       propertyId,
-      workspaceId,
+      workspaceId: bodyWorkspaceId,
+      wid,
       notes,
       cost,
       floorNumber,
       loggedBy,
     } = body;
 
+    const workspaceId = parseWorkspaceId(new URLSearchParams(), bodyWorkspaceId ?? wid);
+
+    if (!workspaceId) {
+      return NextResponse.json(
+        { error: "Workspace ID (workspaceId / wid) is required." },
+        { status: 400 }
+      );
+    }
+
     if (!issue || !issue.trim()) {
       return NextResponse.json({ error: "Maintenance issue description is required." }, { status: 400 });
+    }
+
+    // Prefer explicit property/unit workspace; fall back to body wid
+    let resolvedWid = workspaceId;
+    if (propertyId) {
+      const prop = await prisma.property.findUnique({
+        where: { id: propertyId },
+        select: { workspaceId: true },
+      });
+      if (!prop || prop.workspaceId !== workspaceId) {
+        return NextResponse.json(
+          { error: "Property not found in this workspace." },
+          { status: 403 }
+        );
+      }
+      resolvedWid = prop.workspaceId;
+    } else if (unitId) {
+      const unit = await prisma.unit.findUnique({
+        where: { id: unitId },
+        select: { workspaceId: true, property: { select: { workspaceId: true } } },
+      });
+      const unitWid = unit?.workspaceId ?? unit?.property?.workspaceId;
+      if (!unit || unitWid !== workspaceId) {
+        return NextResponse.json(
+          { error: "Unit not found in this workspace." },
+          { status: 403 }
+        );
+      }
+      resolvedWid = unitWid;
     }
 
     const randomNum = Math.floor(1000 + Math.random() * 9000);
@@ -68,8 +136,23 @@ export async function POST(request: Request) {
 
     let submitterName = loggedBy || "Admin / Management";
     if (tenantId) {
-      const t = await prisma.tenant.findUnique({ where: { id: tenantId } });
-      if (t) submitterName = `${t.name} (Tenant)`;
+      const t = await prisma.tenant.findFirst({
+        where: {
+          id: tenantId,
+          OR: [
+            { workspaceId: resolvedWid },
+            { property: { workspaceId: resolvedWid } },
+            { unit: { property: { workspaceId: resolvedWid } } },
+          ],
+        },
+      });
+      if (!t) {
+        return NextResponse.json(
+          { error: "Tenant not found in this workspace." },
+          { status: 403 }
+        );
+      }
+      submitterName = `${t.name} (Tenant)`;
     }
 
     const maintenanceData: any = {
@@ -82,12 +165,12 @@ export async function POST(request: Request) {
       notes: notes || null,
       loggedBy: submitterName,
       floorNumber: floorNumber ? Number(floorNumber) : 1,
+      workspace: { connect: { wid: resolvedWid } },
     };
 
     if (tenantId) maintenanceData.tenant = { connect: { id: tenantId } };
     if (unitId) maintenanceData.unit = { connect: { id: unitId } };
     if (propertyId) maintenanceData.property = { connect: { id: propertyId } };
-    if (workspaceId) maintenanceData.workspace = { connect: { wid: Number(workspaceId) } };
 
     const ticket = await prisma.maintenance.create({
       data: maintenanceData,

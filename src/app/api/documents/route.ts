@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/documents - Fetch tenant documents filtered by workspaceId, propertyId, unitId, tenantId, or profileId
+function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): number | null {
+  const raw =
+    searchParams.get("workspaceId") ||
+    searchParams.get("wid") ||
+    (bodyWid != null ? String(bodyWid) : null);
+  if (!raw) return null;
+  const n = parseInt(raw, 10);
+  return !isNaN(n) && n > 0 ? n : null;
+}
+
+// GET /api/documents?workspaceId=3&landlordOnly=true
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get("workspaceId");
+    const workspaceId = parseWorkspaceId(searchParams);
     const propertyId = searchParams.get("propertyId");
     const unitId = searchParams.get("unitId");
     const tenantId = searchParams.get("tenantId");
@@ -13,18 +23,51 @@ export async function GET(request: Request) {
     const landlordOnly = searchParams.get("landlordOnly");
     const isDocsParam = searchParams.get("isDocs");
 
-    const whereClause: any = {};
-    if (workspaceId) whereClause.workspaceId = Number(workspaceId);
-    if (propertyId) whereClause.propertyId = propertyId;
-    if (unitId) whereClause.unitId = unitId;
-    if (tenantId) whereClause.tenantId = tenantId;
-    if (profileId) whereClause.profileId = profileId;
+    if (!workspaceId) {
+      return NextResponse.json(
+        { error: "Workspace ID (workspaceId / wid) is required." },
+        { status: 400 }
+      );
+    }
+
+    // Scope by workspace: document.workspaceId OR linked property/tenant in this workspace
+    const whereClause: any = {
+      AND: [
+        {
+          OR: [
+            { workspaceId },
+            { property: { workspaceId } },
+            { tenant: { workspaceId } },
+            { unit: { property: { workspaceId } } },
+          ],
+        },
+      ],
+    };
+
+    if (propertyId) whereClause.AND.push({ propertyId });
+    if (unitId) whereClause.AND.push({ unitId });
+    if (tenantId) whereClause.AND.push({ tenantId });
+    if (profileId) whereClause.AND.push({ profileId });
 
     if (isDocsParam === "true" || landlordOnly === "true") {
-      whereClause.OR = [
-        { isDocs: true },
-        { docType: { notIn: ["Govt ID", "Tenant ID Proof", "Aadhaar Card", "Passport", "PAN Card", "ID Proof", "Profile Photo"] } },
-      ];
+      whereClause.AND.push({
+        OR: [
+          { isDocs: true },
+          {
+            docType: {
+              notIn: [
+                "Govt ID",
+                "Tenant ID Proof",
+                "Aadhaar Card",
+                "Passport",
+                "PAN Card",
+                "ID Proof",
+                "Profile Photo",
+              ],
+            },
+          },
+        ],
+      });
     }
 
     const docs = await prisma.tenantDocument.findMany({
@@ -38,10 +81,21 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
     });
 
+    // Extra safety: drop docs whose property/tenant clearly belongs to another workspace
+    const scoped = docs.filter((d) => {
+      if (d.workspaceId === workspaceId) return true;
+      if (d.property?.workspaceId === workspaceId) return true;
+      if (d.tenant?.workspaceId === workspaceId) return true;
+      // Allow workspace-scoped docs with no property/tenant yet (landlord vault uploads)
+      if (d.workspaceId == null && !d.propertyId && !d.tenantId) return false;
+      return false;
+    });
+
     return NextResponse.json({
       success: true,
-      count: docs.length,
-      data: docs,
+      workspaceId,
+      count: scoped.length,
+      data: scoped,
     });
   } catch (error: any) {
     console.error("GET /api/documents error:", error);
@@ -52,7 +106,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/documents - Create tenant document record with Cloudflare R2 fileUrl
+// POST /api/documents - Create document (requires workspaceId / wid)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -66,14 +120,59 @@ export async function POST(request: Request) {
       tenantId,
       unitId,
       propertyId,
-      workspaceId,
+      workspaceId: bodyWorkspaceId,
+      wid,
       profileId,
       floorNumber,
       isDocs,
     } = body;
 
+    const workspaceId = parseWorkspaceId(new URLSearchParams(), bodyWorkspaceId ?? wid);
+
+    if (!workspaceId) {
+      return NextResponse.json(
+        { error: "Workspace ID (workspaceId / wid) is required." },
+        { status: 400 }
+      );
+    }
+
     if (!fileUrl || !title) {
-      return NextResponse.json({ error: "Document title and R2 fileUrl are required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Document title and R2 fileUrl are required." },
+        { status: 400 }
+      );
+    }
+
+    // If property is provided, verify it belongs to this workspace
+    if (propertyId) {
+      const property = await prisma.property.findFirst({
+        where: { id: propertyId, workspaceId },
+      });
+      if (!property) {
+        return NextResponse.json(
+          { error: "Property not found in this workspace." },
+          { status: 403 }
+        );
+      }
+    }
+
+    if (tenantId) {
+      const tenant = await prisma.tenant.findFirst({
+        where: {
+          id: tenantId,
+          OR: [
+            { workspaceId },
+            { property: { workspaceId } },
+            { unit: { property: { workspaceId } } },
+          ],
+        },
+      });
+      if (!tenant) {
+        return NextResponse.json(
+          { error: "Tenant not found in this workspace." },
+          { status: 403 }
+        );
+      }
     }
 
     const docData: any = {
@@ -85,12 +184,12 @@ export async function POST(request: Request) {
       mimeType: mimeType || null,
       floorNumber: floorNumber ? Number(floorNumber) : 1,
       isDocs: typeof isDocs === "boolean" ? isDocs : true,
+      workspace: { connect: { wid: workspaceId } },
     };
 
     if (tenantId) docData.tenant = { connect: { id: tenantId } };
     if (unitId) docData.unit = { connect: { id: unitId } };
     if (propertyId) docData.property = { connect: { id: propertyId } };
-    if (workspaceId) docData.workspace = { connect: { wid: Number(workspaceId) } };
     if (profileId) docData.profile = { connect: { id: profileId } };
 
     let doc;
@@ -121,7 +220,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: `Tenant document "${doc.title}" saved to database!`,
+        message: `Document "${doc.title}" saved successfully!`,
         data: doc,
       },
       { status: 201 }

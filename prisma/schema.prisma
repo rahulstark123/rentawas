@@ -32,15 +32,16 @@ model Workspace {
   name           String     // Workspace / Company Name
   currency       String     @default("USD ($)")
   portfolioScale String?
-  businessType   String?    @default("Landlord / Individual Owner")
+  businessType   String?
   operatingCity  String?
-  portfolioFocus String?    @default("Residential Apartments")
+  portfolioFocus String?
   dueDay         Int?       @default(1)
   isOnboarded    Boolean    @default(false)
-  plan           String     @default("trial") // "trial", "pro", "enterprise"
+  plan           String     @default("trial") // "trial" | "free" | "starter" | "pro" | "pro_plus"
+  trialStartedAt DateTime   @default(now()) // 14-day free trial starts at account/workspace creation; then Free plan
 
-  // General Organization & Compliance Settings
-  companyType       String?   @default("LLC (Limited Liability Company)")
+  // General Organization & Compliance Settings — no seed defaults; stay empty until user fills them
+  companyType       String?
   taxId             String?
   registeredAddress String?
   landlordName      String?
@@ -49,8 +50,8 @@ model Workspace {
   companyPhone      String?
   jurisdiction      String?
   pincode           String?
-  timezone          String?   @default("(UTC-08:00) Pacific Time (US & Canada)")
-  fiscalYearStart   String?   @default("January (Standard Calendar Year)")
+  timezone          String?
+  fiscalYearStart   String?
   customSubdomain   String?
   tagline           String?
   
@@ -72,6 +73,7 @@ model Workspace {
   announcements  Announcement[]
   propertyListings PropertyListing[]
   tenantInquiries  TenantInquiry[]
+  chatRooms        ChatRoom[]
   
   // Razorpay Payment Gateway Config
   razorpayKeyId         String?
@@ -102,7 +104,7 @@ model Workspace {
   upiPhoneNumber        String?
   upiQrCodeUrl          String?
   upiAccountName        String?
-  upiAppsSupported      String?   @default("Google Pay, PhonePe, Paytm, BHIM UPI")
+  upiAppsSupported      String?
   upiConnected          Boolean   @default(false)
 
   // Google Pay (GPay) Direct Config
@@ -150,7 +152,7 @@ model Property {
   roomHistories RoomHistory[]
   documents     TenantDocument[]
   expenses      PropertyExpense[]
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime @default(now())
   updatedAt     DateTime  @updatedAt
 
   @@index([workspaceId])
@@ -192,6 +194,8 @@ model Tenant {
   healthScore     Int      @default(75)
   monthlyRent     Float    @default(0)
   securityDeposit Float?   @default(0)
+  rentBillingType String   @default("monthly") // kept for DB compat; app uses monthly rent only
+  rentDueDay      Int?     @default(1) // Day of month (1–28) when recurring rent invoices generate
   currentStatus   String   @default("Current") // "Current" | "Past" | "Exited" | "Evicted"
   bedSlot       String?
   govIdType     String?
@@ -216,6 +220,7 @@ model Tenant {
   maintenances  Maintenance[]
   roomHistories RoomHistory[]
   documents     TenantDocument[]
+  chatRooms     ChatRoom[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -478,6 +483,7 @@ model SupportTicket {
   contactEmail  String?
   contactPhone  String?
   attachments   String[]  @default([])
+  isTenant      Boolean   @default(false) // true = created by tenant portal; false = landlord dashboard
 
   workspaceId   Int?
   workspace     Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
@@ -486,6 +492,7 @@ model SupportTicket {
   updatedAt     DateTime  @updatedAt
 
   @@index([workspaceId])
+  @@index([isTenant])
 }
 
 model EarlyAccessLead {
@@ -610,3 +617,48 @@ model TenantInquiry {
   @@index([listingId])
   @@index([status])
 }
+
+model ChatRoom {
+  id           String        @id @default(cuid())
+  type         String        @default("dm") // "group" | "dm"
+  name         String
+  initials     String?
+  color        String?       @default("bg-purple-500")
+  property     String?
+  description  String?
+  lastMessage  String?
+  lastTime     String?
+  unreadCount  Int           @default(0)
+  membersJson  String?       // JSON string of member objects
+  
+  tenantId     String?       // Associated tenant ID if DM
+  tenant       Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  workspaceId  Int?
+  workspace    Workspace?    @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+
+  messages     ChatMessage[]
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([workspaceId])
+  @@index([tenantId])
+}
+
+model ChatMessage {
+  id            String   @id @default(cuid())
+  senderId      String
+  senderName    String
+  senderInitials String
+  text          String
+  isMe          Boolean  @default(false)
+
+  roomId        String
+  room          ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+
+  @@index([roomId])
+}
+

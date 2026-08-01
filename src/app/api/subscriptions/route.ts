@@ -1,30 +1,31 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/subscriptions - Fetch subscription & invoice history from PostgreSQL database
+function parseWid(raw: unknown): number | null {
+  if (raw == null || raw === "") return null;
+  const n = parseInt(String(raw), 10);
+  return !isNaN(n) && n > 0 ? n : null;
+}
+
+// GET /api/subscriptions?wid=3
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const widParam = searchParams.get("wid");
-    const wid = widParam ? parseInt(widParam, 10) : 1;
+    const wid = parseWid(searchParams.get("wid") || searchParams.get("workspaceId"));
 
-    // Purge legacy seeded dummy records if any exist
-    await prisma.subscription.deleteMany({
-      where: {
-        invoiceNumber: {
-          in: ["INV-2026-007", "INV-2026-006", "INV-2026-005"],
-        },
-      },
-    });
+    if (!wid) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
 
     const subscriptions = await prisma.subscription.findMany({
-      where: {
-        OR: [{ workspaceId: wid }, { workspaceId: null }],
-      },
+      where: { workspaceId: wid },
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ success: true, data: subscriptions });
+    return NextResponse.json({ success: true, workspaceId: wid, data: subscriptions });
   } catch (error: any) {
     return NextResponse.json(
       { error: "Failed to fetch subscription history", details: error?.message },
@@ -33,19 +34,25 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/subscriptions - Save new subscription and transaction after payment
+// POST /api/subscriptions - Save new subscription after payment (requires wid)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { planName, amount, billingTerm, paymentType, paymentMethod, paymentId, wid } = body;
+    const { planName, amount, billingTerm, paymentType, paymentMethod, paymentId, wid, workspaceId } = body;
 
-    const workspaceIdNum = wid ? parseInt(String(wid), 10) : 1;
+    const workspaceIdNum = parseWid(wid ?? workspaceId);
+    if (!workspaceIdNum) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
+
     const randomSeq = Math.floor(100 + Math.random() * 900);
     const invoiceNumber = `INV-2026-${randomSeq}`;
     const receiptNumber = `RCPT-2026-${randomSeq}`;
     const transactionNumber = `TXN-2026-${randomSeq}`;
 
-    // 1. Record Subscription
     const newSub = await prisma.subscription.create({
       data: {
         invoiceNumber,
@@ -61,7 +68,6 @@ export async function POST(request: Request) {
       },
     });
 
-    // 2. Record Transaction
     await prisma.transaction.create({
       data: {
         transactionNumber,
@@ -78,7 +84,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Subscription and Transaction #${transactionNumber} recorded successfully!`,
+      message: `Subscription and Transaction #${transactionNumber} recorded for Workspace #${workspaceIdNum}!`,
       data: newSub,
     });
   } catch (error: any) {

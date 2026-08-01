@@ -22,7 +22,10 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
+import { useRouter } from "next/navigation";
+
 export default function TenantDashboardPage() {
+  const router = useRouter();
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [tenant, setTenant] = useState<any>({
     name: "Resident",
@@ -55,8 +58,7 @@ export default function TenantDashboardPage() {
   }, []);
 
   const handlePayRent = () => {
-    setPaymentSuccess(true);
-    setTimeout(() => setPaymentSuccess(false), 4000);
+    router.push("/tenant/payments?openModal=true");
   };
 
   const rentVal = tenant.monthlyRent || 3200;
@@ -102,8 +104,6 @@ export default function TenantDashboardPage() {
               <div className="text-3xl sm:text-4xl font-black text-white mt-1">${rentVal.toLocaleString()}.00</div>
               <div className="text-xs text-slate-300 mt-1 flex items-center gap-2">
                 <span>Includes Base Rent &amp; Assigned Premises</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span className="text-emerald-400 font-bold">Auto-Debit Enabled</span>
               </div>
             </div>
           </div>

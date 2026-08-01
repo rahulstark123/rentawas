@@ -1,17 +1,34 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/workspace - Fetch workspace profile, active plan & live unit counts from PostgreSQL
+export const TRIAL_DURATION_DAYS = 14;
+
+function computeTrialDaysLeft(trialStartedAt: Date | null | undefined, createdAt?: Date | null): number {
+  const start = trialStartedAt || createdAt;
+  if (!start) return TRIAL_DURATION_DAYS;
+  const elapsedMs = Date.now() - new Date(start).getTime();
+  const elapsedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
+  return Math.max(0, TRIAL_DURATION_DAYS - elapsedDays);
+}
+
+// GET /api/workspace?wid=3 — workspace-scoped plan + 14-day trial status
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const widParam = searchParams.get("wid");
-    const wid = widParam ? parseInt(widParam, 10) : 1;
+    const widParam = searchParams.get("wid") || searchParams.get("workspaceId");
+    const wid = widParam ? parseInt(widParam, 10) : NaN;
 
-    // Update any legacy "starter" plan records to "trial"
+    if (!widParam || isNaN(wid) || wid <= 0) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
+
+    // Normalize legacy enterprise → pro_plus (this workspace only)
     await prisma.workspace.updateMany({
-      where: { plan: "starter" },
-      data: { plan: "trial" },
+      where: { wid, plan: "enterprise" },
+      data: { plan: "pro_plus" },
     });
 
     let workspace = await prisma.workspace.findUnique({
@@ -21,81 +38,104 @@ export async function GET(request: Request) {
       },
     });
 
-    // Fallback if workspace #wid does not exist yet
     if (!workspace) {
-      const firstWs = await prisma.workspace.findFirst({
-        include: { owner: true },
-      });
-      workspace = firstWs;
+      return NextResponse.json(
+        { error: `Workspace #${wid} not found.` },
+        { status: 404 }
+      );
     }
 
-    // Count live units in database for this workspace
+    // Auto-lapse expired trial → free (per this workspace)
+    let plan = workspace.plan || "trial";
+    const trialStartedAt = workspace.trialStartedAt || workspace.createdAt;
+    let trialDaysLeft = computeTrialDaysLeft(workspace.trialStartedAt, workspace.createdAt);
+
+    if (plan === "trial" && trialDaysLeft <= 0) {
+      workspace = await prisma.workspace.update({
+        where: { wid },
+        data: { plan: "free" },
+        include: { owner: true },
+      });
+      plan = "free";
+      trialDaysLeft = 0;
+    }
+
+    const isTrialActive = plan === "trial" && trialDaysLeft > 0;
+
+    // Count live units for THIS workspace only
     const unitsCount = await prisma.unit.count({
       where: {
-        OR: [{ workspaceId: wid }, { workspaceId: null }],
+        OR: [
+          { workspaceId: wid },
+          { property: { workspaceId: wid } },
+        ],
       },
     });
 
     return NextResponse.json({
       success: true,
       data: {
-        wid: workspace?.wid || wid,
-        name: workspace?.name || "Grand Regency Management LLC",
-        plan: workspace?.plan || "trial",
-        currency: workspace?.currency || "USD ($)",
-        portfolioScale: workspace?.portfolioScale || "1-5",
-        ownerName: workspace?.owner?.fullName || "Alexander Wright",
-        ownerEmail: workspace?.owner?.email || "alexander@regencymanagement.com",
-        companyType: workspace?.companyType || "LLC (Limited Liability Company)",
-        taxId: workspace?.taxId || "EIN 92-8491029 / GSTIN 27AAACR1234F1Z9",
-        registeredAddress: workspace?.registeredAddress || "1420 5th Ave, Suite 3000, Seattle, WA 98101",
-        landlordName: workspace?.landlordName || workspace?.owner?.fullName || "Alexander Wright",
-        landlordRole: workspace?.landlordRole || "Managing Director & Asset Owner",
-        companyEmail: workspace?.companyEmail || workspace?.owner?.email || "support@regencymanagement.com",
-        companyPhone: workspace?.companyPhone || workspace?.owner?.phone || "+1 (555) 019-2834",
-        jurisdiction: workspace?.jurisdiction || "Seattle, WA (USA)",
-        pincode: workspace?.pincode || "98101",
-        timezone: workspace?.timezone || "(UTC-08:00) Pacific Time (US & Canada)",
-        fiscalYearStart: workspace?.fiscalYearStart || "January (Standard Calendar Year)",
-        customSubdomain: workspace?.customSubdomain || "regency.rentawas.com",
-        tagline: workspace?.tagline || "Premier Residential & Executive Asset Management",
-        unitsCount: unitsCount,
-        razorpayKeyId: workspace?.razorpayKeyId || "",
-        razorpayKeySecret: workspace?.razorpayKeySecret || "",
-        razorpayMerchantVpa: workspace?.razorpayMerchantVpa || "",
-        razorpayWebhookSecret: workspace?.razorpayWebhookSecret || "",
-        razorpayEnvMode: workspace?.razorpayEnvMode || "test",
-        razorpayConnected: workspace?.razorpayConnected ?? false,
-        stripePublishableKey: workspace?.stripePublishableKey || "",
-        stripeSecretKey: workspace?.stripeSecretKey || "",
-        stripeWebhookSecret: workspace?.stripeWebhookSecret || "",
-        stripeConnectAccountId: workspace?.stripeConnectAccountId || "",
-        stripeEnvMode: workspace?.stripeEnvMode || "test",
-        stripeConnected: workspace?.stripeConnected ?? false,
-        paypalClientId: workspace?.paypalClientId || "",
-        paypalClientSecret: workspace?.paypalClientSecret || "",
-        paypalMerchantEmail: workspace?.paypalMerchantEmail || "",
-        paypalWebhookId: workspace?.paypalWebhookId || "",
-        paypalEnvMode: workspace?.paypalEnvMode || "test",
-        paypalConnected: workspace?.paypalConnected ?? false,
-        upiId: workspace?.upiId || "",
-        upiPhoneNumber: workspace?.upiPhoneNumber || "",
-        upiQrCodeUrl: workspace?.upiQrCodeUrl || "",
-        upiAccountName: workspace?.upiAccountName || "",
-        upiAppsSupported: workspace?.upiAppsSupported || "Google Pay, PhonePe, Paytm, BHIM UPI",
-        upiConnected: workspace?.upiConnected ?? false,
-        gpayUpiId: workspace?.gpayUpiId || "",
-        gpayPhoneNumber: workspace?.gpayPhoneNumber || "",
-        gpayQrCodeUrl: workspace?.gpayQrCodeUrl || "",
-        gpayConnected: workspace?.gpayConnected ?? false,
-        phonepeUpiId: workspace?.phonepeUpiId || "",
-        phonepePhoneNumber: workspace?.phonepePhoneNumber || "",
-        phonepeQrCodeUrl: workspace?.phonepeQrCodeUrl || "",
-        phonepeConnected: workspace?.phonepeConnected ?? false,
-        paytmUpiId: workspace?.paytmUpiId || "",
-        paytmPhoneNumber: workspace?.paytmPhoneNumber || "",
-        paytmQrCodeUrl: workspace?.paytmQrCodeUrl || "",
-        paytmConnected: workspace?.paytmConnected ?? false,
+        wid: workspace.wid,
+        name: workspace.name || "",
+        plan,
+        trialStartedAt: trialStartedAt?.toISOString?.() || trialStartedAt,
+        trialDaysLeft: plan === "trial" ? trialDaysLeft : 0,
+        trialDurationDays: TRIAL_DURATION_DAYS,
+        isTrialActive,
+        currency: workspace.currency || "",
+        portfolioScale: workspace.portfolioScale || "",
+        ownerName: workspace.owner?.fullName || "",
+        ownerEmail: workspace.owner?.email || "",
+        companyType: workspace.companyType || "",
+        taxId: workspace.taxId || "",
+        registeredAddress: workspace.registeredAddress || "",
+        landlordName: workspace.landlordName || "",
+        landlordRole: workspace.landlordRole || "",
+        companyEmail: workspace.companyEmail || "",
+        companyPhone: workspace.companyPhone || "",
+        jurisdiction: workspace.jurisdiction || "",
+        pincode: workspace.pincode || "",
+        timezone: workspace.timezone || "",
+        fiscalYearStart: workspace.fiscalYearStart || "",
+        customSubdomain: workspace.customSubdomain || "",
+        tagline: workspace.tagline || "",
+        unitsCount,
+        razorpayKeyId: workspace.razorpayKeyId || "",
+        razorpayKeySecret: workspace.razorpayKeySecret || "",
+        razorpayMerchantVpa: workspace.razorpayMerchantVpa || "",
+        razorpayWebhookSecret: workspace.razorpayWebhookSecret || "",
+        razorpayEnvMode: workspace.razorpayEnvMode || "test",
+        razorpayConnected: workspace.razorpayConnected ?? false,
+        stripePublishableKey: workspace.stripePublishableKey || "",
+        stripeSecretKey: workspace.stripeSecretKey || "",
+        stripeWebhookSecret: workspace.stripeWebhookSecret || "",
+        stripeConnectAccountId: workspace.stripeConnectAccountId || "",
+        stripeEnvMode: workspace.stripeEnvMode || "test",
+        stripeConnected: workspace.stripeConnected ?? false,
+        paypalClientId: workspace.paypalClientId || "",
+        paypalClientSecret: workspace.paypalClientSecret || "",
+        paypalMerchantEmail: workspace.paypalMerchantEmail || "",
+        paypalWebhookId: workspace.paypalWebhookId || "",
+        paypalEnvMode: workspace.paypalEnvMode || "test",
+        paypalConnected: workspace.paypalConnected ?? false,
+        upiId: workspace.upiId || "",
+        upiPhoneNumber: workspace.upiPhoneNumber || "",
+        upiQrCodeUrl: workspace.upiQrCodeUrl || "",
+        upiAccountName: workspace.upiAccountName || "",
+        upiAppsSupported: workspace.upiAppsSupported || "",
+        upiConnected: workspace.upiConnected ?? false,
+        gpayUpiId: workspace.gpayUpiId || "",
+        gpayPhoneNumber: workspace.gpayPhoneNumber || "",
+        gpayQrCodeUrl: workspace.gpayQrCodeUrl || "",
+        gpayConnected: workspace.gpayConnected ?? false,
+        phonepeUpiId: workspace.phonepeUpiId || "",
+        phonepePhoneNumber: workspace.phonepePhoneNumber || "",
+        phonepeQrCodeUrl: workspace.phonepeQrCodeUrl || "",
+        phonepeConnected: workspace.phonepeConnected ?? false,
+        paytmUpiId: workspace.paytmUpiId || "",
+        paytmPhoneNumber: workspace.paytmPhoneNumber || "",
+        paytmQrCodeUrl: workspace.paytmQrCodeUrl || "",
+        paytmConnected: workspace.paytmConnected ?? false,
       },
     });
   } catch (error: any) {
@@ -167,7 +207,20 @@ export async function PATCH(request: Request) {
       paytmConnected,
     } = body;
 
-    const workspaceIdNum = wid ? parseInt(String(wid), 10) : 1;
+    const workspaceIdNum = wid ? parseInt(String(wid), 10) : NaN;
+    if (!wid || isNaN(workspaceIdNum) || workspaceIdNum <= 0) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
+
+    const emptyToNull = (v: unknown) => {
+      if (v === undefined) return undefined;
+      if (v === null) return null;
+      const s = String(v).trim();
+      return s === "" ? null : s;
+    };
 
     const updatedWs = await prisma.workspace.update({
       where: { wid: workspaceIdNum },
@@ -176,19 +229,19 @@ export async function PATCH(request: Request) {
         ...(name ? { name } : {}),
         ...(currency ? { currency } : {}),
         ...(portfolioScale ? { portfolioScale } : {}),
-        ...(companyType !== undefined ? { companyType } : {}),
-        ...(taxId !== undefined ? { taxId } : {}),
-        ...(registeredAddress !== undefined ? { registeredAddress } : {}),
-        ...(landlordName !== undefined ? { landlordName } : {}),
-        ...(landlordRole !== undefined ? { landlordRole } : {}),
-        ...(companyEmail !== undefined ? { companyEmail } : {}),
-        ...(companyPhone !== undefined ? { companyPhone } : {}),
-        ...(jurisdiction !== undefined ? { jurisdiction } : {}),
-        ...(pincode !== undefined ? { pincode } : {}),
-        ...(timezone !== undefined ? { timezone } : {}),
-        ...(fiscalYearStart !== undefined ? { fiscalYearStart } : {}),
-        ...(customSubdomain !== undefined ? { customSubdomain } : {}),
-        ...(tagline !== undefined ? { tagline } : {}),
+        ...(companyType !== undefined ? { companyType: emptyToNull(companyType) } : {}),
+        ...(taxId !== undefined ? { taxId: emptyToNull(taxId) } : {}),
+        ...(registeredAddress !== undefined ? { registeredAddress: emptyToNull(registeredAddress) } : {}),
+        ...(landlordName !== undefined ? { landlordName: emptyToNull(landlordName) } : {}),
+        ...(landlordRole !== undefined ? { landlordRole: emptyToNull(landlordRole) } : {}),
+        ...(companyEmail !== undefined ? { companyEmail: emptyToNull(companyEmail) } : {}),
+        ...(companyPhone !== undefined ? { companyPhone: emptyToNull(companyPhone) } : {}),
+        ...(jurisdiction !== undefined ? { jurisdiction: emptyToNull(jurisdiction) } : {}),
+        ...(pincode !== undefined ? { pincode: emptyToNull(pincode) } : {}),
+        ...(timezone !== undefined ? { timezone: emptyToNull(timezone) } : {}),
+        ...(fiscalYearStart !== undefined ? { fiscalYearStart: emptyToNull(fiscalYearStart) } : {}),
+        ...(customSubdomain !== undefined ? { customSubdomain: emptyToNull(customSubdomain) } : {}),
+        ...(tagline !== undefined ? { tagline: emptyToNull(tagline) } : {}),
         ...(razorpayKeyId !== undefined ? { razorpayKeyId } : {}),
         ...(razorpayKeySecret !== undefined ? { razorpayKeySecret } : {}),
         ...(razorpayMerchantVpa !== undefined ? { razorpayMerchantVpa } : {}),

@@ -42,6 +42,8 @@ import {
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
 import { uploadFile, validateFile } from "@/lib/upload";
+import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
+import { supabase } from "@/lib/supabase";
 
 export interface LegalDocumentTemplate {
   id: string;
@@ -139,8 +141,8 @@ export default function AILeaseArchitectPage() {
   const { toast } = useToast();
   const { currencySymbol } = useCurrency();
   
-  // Top Level Main Tab Switcher ("my_documents" | "ai_documents")
-  const [activeMainTab, setActiveMainTab] = useState<"my_documents" | "ai_documents">("my_documents");
+  // Top Level Main Tab Switcher ("my_documents" | "tenant_docs" | "ai_documents")
+  const [activeMainTab, setActiveMainTab] = useState<"my_documents" | "tenant_docs" | "ai_documents">("my_documents");
 
   const [selectedDoc, setSelectedDoc] = useState<LegalDocumentTemplate>(LEGAL_DOCUMENTS[0]);
   const [jurisdiction, setJurisdiction] = useState(LEGAL_DOCUMENTS[0].jurisdictions[0]);
@@ -188,10 +190,15 @@ export default function AILeaseArchitectPage() {
   // Database Tenants list for dropdowns
   const [tenantsList, setTenantsList] = useState<any[]>([]);
 
-  // Fetch Real Database Properties List for dropdowns
+  // Fetch Real Database Properties List for dropdowns (workspace-scoped)
   const fetchPropertiesList = async () => {
     try {
-      const res = await fetch("/api/properties?wid=1");
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        setPropertiesList([]);
+        return;
+      }
+      const res = await fetch(`/api/properties?wid=${activeWid}`);
       if (res.ok) {
         const json = await res.json();
         const list = json.data || json.properties || (Array.isArray(json) ? json : []);
@@ -217,20 +224,42 @@ export default function AILeaseArchitectPage() {
   const [sendFullText, setSendFullText] = useState(true);
   const [isSendingToTenant, setIsSendingToTenant] = useState(false);
 
-  // Fetch Saved Documents from /api/documents?workspaceId=1&landlordOnly=true
+  // Fetch Saved Documents & Resident Submissions scoped to active workspace
   const fetchSavedDocs = async () => {
     try {
       setLoadingDocs(true);
-      const res = await fetch("/api/documents?workspaceId=1&landlordOnly=true");
-      if (res.ok) {
-        const json = await res.json();
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        setSavedDocs([]);
+        return;
+      }
+
+      const [resDocs, resTenantDocs] = await Promise.all([
+        fetch(`/api/documents?workspaceId=${activeWid}`),
+        fetch(`/api/tenant/documents?workspaceId=${activeWid}`),
+      ]);
+
+      let allDocs: any[] = [];
+
+      if (resDocs.ok) {
+        const json = await resDocs.json();
         if (json.data && Array.isArray(json.data)) {
-          // Filter out tenant onboarding ID proofs
-          const tenantIdDocTypes = ["Govt ID", "Tenant ID Proof", "Aadhaar Card", "Passport", "PAN Card", "ID Proof", "Profile Photo"];
-          const landlordDocs = json.data.filter((d: any) => !tenantIdDocTypes.includes(d.docType));
-          setSavedDocs(landlordDocs);
+          allDocs = [...json.data];
         }
       }
+
+      if (resTenantDocs.ok) {
+        const jsonTenant = await resTenantDocs.json();
+        if (jsonTenant.data && Array.isArray(jsonTenant.data)) {
+          jsonTenant.data.forEach((td: any) => {
+            if (!allDocs.some((d) => d.id === td.id)) {
+              allDocs.push(td);
+            }
+          });
+        }
+      }
+
+      setSavedDocs(allDocs);
     } catch (err) {
       console.warn("Could not fetch saved documents:", err);
     } finally {
@@ -238,10 +267,47 @@ export default function AILeaseArchitectPage() {
     }
   };
 
-  // Fetch Tenants for Send Modal
+  const handleVerifyDoc = async (docId: string, action: "Verified" | "Rejected") => {
+    try {
+      setSavedDocs((prev) =>
+        prev.map((d) =>
+          d.id === docId
+            ? {
+                ...d,
+                verified: action === "Verified",
+                status: action,
+                docType: action === "Verified" ? "Verified Resident Record" : d.docType,
+              }
+            : d
+        )
+      );
+
+      toast(
+        action === "Verified"
+          ? "Resident document verified & approved successfully!"
+          : "Resident document marked as rejected.",
+        action === "Verified" ? "success" : "info"
+      );
+
+      await fetch("/api/tenant/documents", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: docId, status: action }),
+      });
+    } catch (err) {
+      console.error("Doc verification error:", err);
+    }
+  };
+
+  // Fetch Tenants for Send Modal (workspace-scoped)
   const fetchTenantsList = async () => {
     try {
-      const res = await fetch("/api/tenants");
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        setTenantsList([]);
+        return;
+      }
+      const res = await fetch(`/api/tenants?workspaceId=${activeWid}`);
       if (res.ok) {
         const json = await res.json();
         if (json.data && Array.isArray(json.data)) {
@@ -278,6 +344,18 @@ export default function AILeaseArchitectPage() {
   const handleSaveAIGeneratedToVault = async () => {
     setIsSavingToVault(true);
     try {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        toast("Workspace not found. Please sign in again.", "error");
+        return;
+      }
+
+      let profileId: string | undefined;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        profileId = user?.id;
+      } catch {}
+
       const docTitle = `${selectedDoc.title.split(". ")[1]} — ${tenantName || "Resident"}`;
       const res = await fetch("/api/documents", {
         method: "POST",
@@ -289,7 +367,8 @@ export default function AILeaseArchitectPage() {
           fileName: `${selectedDoc.id}_${Date.now()}.pdf`,
           fileSize: "1.4 MB",
           mimeType: "application/pdf",
-          workspaceId: 1,
+          workspaceId: Number(activeWid),
+          profileId,
           isDocs: true,
         }),
       });
@@ -325,6 +404,18 @@ export default function AILeaseArchitectPage() {
 
     setIsSavingCustomDoc(true);
     try {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        toast("Workspace not found. Please sign in again.", "error");
+        return;
+      }
+
+      let profileId: string | undefined;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        profileId = user?.id;
+      } catch {}
+
       const payload: any = {
         title: uploadTitle.trim(),
         docType: uploadCategory,
@@ -332,7 +423,9 @@ export default function AILeaseArchitectPage() {
         fileName: uploadFileName || uploadTitle,
         fileSize: "2.1 MB",
         mimeType: "application/pdf",
-        workspaceId: 1,
+        workspaceId: Number(activeWid),
+        profileId,
+        uploadedBy: "landlord",
         isDocs: true,
       };
       if (uploadPropertyId) {
@@ -372,7 +465,9 @@ export default function AILeaseArchitectPage() {
     if (!deletingDoc) return;
     setIsDeletingDoc(true);
     try {
-      const res = await fetch(`/api/documents/${deletingDoc.id}`, {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      const widQuery = activeWid ? `?workspaceId=${activeWid}` : "";
+      const res = await fetch(`/api/documents/${deletingDoc.id}${widQuery}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -444,10 +539,25 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
 
   const isDark = previewTheme === "dark";
 
-  // Filtered documents for My Documents Vault
-  const filteredSavedDocs = savedDocs.filter((doc) => {
+  // 1. Separate Landlord/Admin Custom Vault Docs vs Resident Tenant Submissions
+  const landlordDocsList = savedDocs.filter((doc) => {
+    // Only Landlord / Admin / Manager uploaded documents (no tenant attached AND not uploaded by tenant)
+    const isTenantDoc = doc.tenantId != null || doc.tenant != null || doc.uploadedBy === "tenant" || doc.status === "Pending Verification";
+    return !isTenantDoc;
+  });
+
+  const tenantDocsList = savedDocs.filter((doc) => {
+    // Resident Tenant uploaded documents
+    const isTenantDoc = doc.tenantId != null || doc.tenant != null || doc.uploadedBy === "tenant" || doc.status === "Pending Verification" || (doc.docType || "").includes("Resident") || (doc.docType || "").includes("ID");
+    return isTenantDoc;
+  });
+
+  const pendingSubmissionsCount = tenantDocsList.filter((d) => d.status === "Pending Verification" || (!d.status && d.tenant)).length;
+
+  // Filtered documents for My Documents Vault (Landlord/Admin Docs ONLY)
+  const filteredSavedDocs = landlordDocsList.filter((doc) => {
     const q = docSearch.toLowerCase().trim();
-    const matchSearch = !q || doc.title.toLowerCase().includes(q) || (doc.fileName || "").toLowerCase().includes(q) || (doc.tenant?.name || "").toLowerCase().includes(q);
+    const matchSearch = !q || doc.title.toLowerCase().includes(q) || (doc.fileName || "").toLowerCase().includes(q);
     const matchCat = docCategoryFilter === "all" || doc.docType === docCategoryFilter;
     const matchProperty = docPropertyFilter === "all" || doc.propertyId === docPropertyFilter || doc.property?.id === docPropertyFilter;
     return matchSearch && matchCat && matchProperty;
@@ -461,7 +571,11 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {activeMainTab === "ai_documents" ? "Template Documents Architect" : "My Documents"}
+              {activeMainTab === "ai_documents"
+                ? "Template Documents Architect"
+                : activeMainTab === "tenant_docs"
+                ? "Resident Tenant Documents"
+                : "My Documents"}
             </h1>
             <span className="px-3 py-1 rounded-full bg-purple-50 border border-purple-200 text-xs font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1.5">
               {activeMainTab === "ai_documents" ? (
@@ -469,10 +583,15 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
                   <Sparkles className="w-3.5 h-3.5 text-purple-600" />
                   <span>10 Easy Document Templates</span>
                 </>
+              ) : activeMainTab === "tenant_docs" ? (
+                <>
+                  <UserCheck className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Resident Submissions ({pendingSubmissionsCount} Pending)</span>
+                </>
               ) : (
                 <>
                   <Folder className="w-3.5 h-3.5 text-purple-600" />
-                  <span>Landlord Saved Documents ({savedDocs.length} Saved)</span>
+                  <span>Landlord &amp; Admin Vault ({landlordDocsList.length} Saved)</span>
                 </>
               )}
             </span>
@@ -480,12 +599,14 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             {activeMainTab === "ai_documents"
               ? "Create rent agreements, move-out notices, security deposit receipts, and police verification forms in simple English."
-              : "Save, manage, and store your custom created agreements, uploaded PDFs, signed tenancy contracts, and legal records."}
+              : activeMainTab === "tenant_docs"
+              ? "Review, inspect high-res uploads, and verify resident tenant documents (ID, Lease, Receipts, Insurance, NOCs)."
+              : "Save, manage, and store custom agreements, uploaded PDFs, signed tenancy contracts, and owner legal records."}
           </p>
         </div>
 
-        {/* TOP TAB SWITCHER BUTTONS (My Documents First, Template Documents Second) */}
-        <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/90 self-start md:self-auto">
+        {/* TOP TAB SWITCHER BUTTONS (My Documents, Tenant Docs, Template Documents) */}
+        <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/90 self-start md:self-auto flex-wrap">
           <button
             onClick={() => setActiveMainTab("my_documents")}
             className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 relative ${
@@ -495,7 +616,24 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
             }`}
           >
             <Folder className="w-4 h-4 text-purple-200" />
-            <span>My Documents ({savedDocs.length})</span>
+            <span>My Documents ({landlordDocsList.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveMainTab("tenant_docs")}
+            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 relative ${
+              activeMainTab === "tenant_docs"
+                ? "bg-[#FF6B00] text-white shadow-md shadow-orange-500/20"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <UserCheck className="w-4 h-4" />
+            <span>Tenant Docs ({tenantDocsList.length})</span>
+            {pendingSubmissionsCount > 0 && (
+              <span className="px-1.5 py-0.2 bg-amber-400 text-slate-950 font-black text-[9px] rounded-full animate-pulse">
+                {pendingSubmissionsCount}
+              </span>
+            )}
           </button>
 
           <button
@@ -1102,6 +1240,8 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
               <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
                 {[
                   { id: "all", label: "All Saved Documents" },
+                  { id: "tenant_pending", label: "⏳ Tenant Submissions (Pending)" },
+                  { id: "ID & Verification", label: "KYC & Identity Proofs" },
                   { id: "Lease Agreement", label: "Lease Contracts" },
                   { id: "Notice / Receipt", label: "Notices & Receipts" },
                   { id: "Inspection Report", label: "Checklists" },
@@ -1155,88 +1295,345 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredSavedDocs.map((doc) => (
-                <div key={doc.id} className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 shrink-0">
-                          <FileText className="w-5 h-5" />
+              {filteredSavedDocs.map((doc) => {
+                const isVerified = doc.status === "Verified" || doc.verified || doc.docType?.includes("Verified");
+                const isRejected = doc.status === "Rejected";
+                const isTenantDoc = doc.tenant != null || doc.status === "Pending Verification" || doc.docType?.includes("Resident");
+
+                return (
+                  <div key={doc.id} className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between relative overflow-hidden">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`p-2.5 rounded-xl shrink-0 ${isVerified ? "bg-emerald-50 text-emerald-600" : isTenantDoc ? "bg-amber-50 text-amber-600" : "bg-purple-50 text-purple-600"}`}>
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div className="truncate">
+                            <span className="font-extrabold text-slate-900 text-sm block leading-snug truncate">{doc.title}</span>
+                            <span className="text-[10px] text-slate-400 font-mono block mt-0.5">{doc.fileName || doc.title} • {doc.fileSize || "PDF"}</span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="font-extrabold text-slate-900 text-sm block leading-snug line-clamp-1">{doc.title}</span>
-                          <span className="text-[10px] text-slate-400 font-mono block mt-0.5">{doc.fileName || doc.title} • {doc.fileSize || "PDF"}</span>
-                        </div>
+
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase shrink-0 ${
+                          isVerified
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : isRejected
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-amber-50 text-amber-800 border border-amber-200 animate-pulse"
+                        }`}>
+                          {isVerified ? "Verified" : isRejected ? "Rejected" : "Pending Verification"}
+                        </span>
                       </div>
 
-                      <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-slate-100 text-slate-700 uppercase shrink-0">
-                        {doc.docType || "Document"}
-                      </span>
+                      <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1 text-slate-600 font-medium">
+                        {doc.tenant && (
+                          <div className="flex items-center justify-between">
+                            <span>Resident Tenant:</span>
+                            <strong className="text-slate-900 font-bold">{doc.tenant.name} {doc.tenant.unitNumber ? `(${doc.tenant.unitNumber})` : ""}</strong>
+                          </div>
+                        )}
+                        {doc.property && (
+                          <div className="flex items-center justify-between">
+                            <span>Property:</span>
+                            <strong className="text-slate-800">{doc.property.name}</strong>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                          <span>Uploaded Date:</span>
+                          <strong className="text-slate-700">{doc.createdAt ? new Date(doc.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recently"}</strong>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1 text-slate-600 font-medium">
-                      {doc.tenant && <div>Tenant: <strong className="text-slate-900">{doc.tenant.name}</strong></div>}
-                      {doc.property && <div>Property: <strong className="text-slate-900">{doc.property.name}</strong></div>}
-                      <div>Saved On: <strong className="text-slate-800">{new Date(doc.createdAt).toLocaleDateString()}</strong></div>
-                    </div>
-                  </div>
-
-                  {/* Actions Bar */}
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2">
-                    <button
-                      onClick={() => {
-                        if (doc.fileUrl && doc.fileUrl.startsWith("http")) {
-                          window.open(doc.fileUrl, "_blank");
-                        } else {
-                          toast(`Opening ${doc.title}...`, "success");
-                        }
-                      }}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Preview</span>
-                    </button>
-
-                    <div className="flex items-center gap-1.5">
-                      {/* WhatsApp Direct Action */}
+                    {/* Actions Bar */}
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2 flex-wrap">
                       <button
                         onClick={() => {
-                          setTargetSendDoc(doc);
-                          setSendMethod("whatsapp");
-                          setShowSendModal(true);
+                          if (doc.fileUrl && doc.fileUrl.startsWith("http")) {
+                            window.open(doc.fileUrl, "_blank");
+                          } else if (doc.fileUrl) {
+                            const win = window.open();
+                            if (win) {
+                              win.document.write(`<iframe src="${doc.fileUrl}" style="width:100%; height:100vh; border:none;"></iframe>`);
+                            }
+                          } else {
+                            toast(`Opening ${doc.title}...`, "success");
+                          }
                         }}
-                        className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white font-bold rounded-xl text-xs flex items-center gap-1 transition-all cursor-pointer border border-emerald-200/80 shadow-2xs"
-                        title="Send via WhatsApp Direct"
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
                       >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        <span>WhatsApp</span>
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Inspect &amp; Preview</span>
                       </button>
 
-                      {/* Email Dispatch Action */}
-                      <button
-                        onClick={() => {
-                          setTargetSendDoc(doc);
-                          setSendMethod("email");
-                          setShowSendModal(true);
-                        }}
-                        className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-600 text-purple-700 hover:text-white font-bold rounded-xl text-xs flex items-center gap-1 transition-all cursor-pointer border border-purple-200/80 shadow-2xs"
-                        title="Send via Email Dispatch"
-                      >
-                        <Mail className="w-3.5 h-3.5" />
-                        <span>Email</span>
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {!isVerified ? (
+                          <>
+                            <button
+                              onClick={() => handleVerifyDoc(doc.id, "Verified")}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                              title="Verify & Approve Resident Document"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Verify &amp; Approve</span>
+                            </button>
 
-                      <button
-                        onClick={() => setDeletingDoc({ id: doc.id, title: doc.title })}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                        title="Delete Document"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                            <button
+                              onClick={() => handleVerifyDoc(doc.id, "Rejected")}
+                              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-all cursor-pointer border border-rose-200"
+                              title="Reject Document"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[11px] font-extrabold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Verified</span>
+                          </span>
+                        )}
+
+                        <button
+                          onClick={() => setDeletingDoc({ id: doc.id, title: doc.title })}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer ml-1"
+                          title="Delete Document"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MAIN TAB 3: TENANT DOCS & RESIDENT SUBMISSIONS VERIFICATION               */}
+      {/* ========================================================================= */}
+      {activeMainTab === "tenant_docs" && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          
+          {/* Top Tenant Docs Stats Banner */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs flex items-center gap-3">
+              <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
+                <UserCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xl font-extrabold text-slate-900">{tenantDocsList.length}</div>
+                <div className="text-xs text-slate-500 font-medium">Total Resident Submissions</div>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs flex items-center gap-3">
+              <div className="p-3 bg-amber-50 text-amber-600 rounded-xl relative">
+                <AlertTriangle className="w-5 h-5" />
+                {pendingSubmissionsCount > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping absolute top-1 right-1" />
+                )}
+              </div>
+              <div>
+                <div className="text-xl font-extrabold text-amber-700">{pendingSubmissionsCount}</div>
+                <div className="text-xs text-amber-800 font-medium">Pending Owner Review</div>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs flex items-center gap-3">
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xl font-extrabold text-emerald-700">
+                  {tenantDocsList.filter((d) => d.status === "Verified" || d.verified || d.docType?.includes("Verified")).length}
                 </div>
+                <div className="text-xs text-emerald-800 font-medium">Verified &amp; Approved</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Search, Property & Status Filter Controls */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={docSearch}
+                onChange={(e) => setDocSearch(e.target.value)}
+                placeholder="Search tenant name, document title, or unit number..."
+                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+              />
+            </div>
+
+            {/* Property Filter Dropdown */}
+            <div className="relative shrink-0">
+              <select
+                value={docPropertyFilter}
+                onChange={(e) => setDocPropertyFilter(e.target.value)}
+                className="pl-3.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-xs text-slate-800 appearance-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+              >
+                <option value="all">🏢 All Properties</option>
+                {propertiesList.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* Category/Status Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
+              {[
+                { id: "all", label: "All Tenant Docs" },
+                { id: "tenant_pending", label: `⏳ Pending Review (${pendingSubmissionsCount})` },
+                { id: "ID & Verification", label: "KYC & Identity" },
+                { id: "Lease & Addendums", label: "Lease & Renewals" },
+                { id: "Receipts & Tax", label: "Receipts & Tax" },
+                { id: "Renter Insurance & Liability", label: "Insurance" },
+                { id: "Vehicle & Passes", label: "Vehicle & Parking" },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setDocCategoryFilter(cat.id)}
+                  className={`px-3 py-1.5 rounded-xl font-extrabold text-[11px] whitespace-nowrap transition-all cursor-pointer border ${
+                    docCategoryFilter === cat.id
+                      ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  {cat.label}
+                </button>
               ))}
+            </div>
+          </div>
+
+          {/* Tenant Documents Cards List */}
+          {loadingDocs ? (
+            <div className="p-12 text-center bg-white border border-slate-200/90 rounded-2xl space-y-3">
+              <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin mx-auto" />
+              <p className="font-bold text-slate-800 text-sm">Loading resident tenant documents...</p>
+            </div>
+          ) : tenantDocsList.length === 0 ? (
+            <div className="p-12 bg-white border border-slate-200/90 rounded-2xl text-center space-y-3 shadow-2xs">
+              <UserCheck className="w-12 h-12 text-slate-300 mx-auto" />
+              <h3 className="font-extrabold text-slate-900 text-base">No Tenant Documents Found</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                No resident document uploads match your current filter. When tenants upload KYC, lease receipts, or insurance proofs from their app portal, they will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {tenantDocsList.map((doc) => {
+                const isVerified = doc.status === "Verified" || doc.verified || doc.docType?.includes("Verified");
+                const isRejected = doc.status === "Rejected";
+
+                return (
+                  <div key={doc.id} className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between relative overflow-hidden">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`p-2.5 rounded-xl shrink-0 ${isVerified ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div className="truncate">
+                            <span className="font-extrabold text-slate-900 text-sm block leading-snug truncate">{doc.title}</span>
+                            <span className="text-[10px] text-slate-400 font-mono block mt-0.5">{doc.fileName || doc.title} • {doc.fileSize || "PDF"}</span>
+                          </div>
+                        </div>
+
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase shrink-0 ${
+                          isVerified
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : isRejected
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-amber-50 text-amber-800 border border-amber-200 animate-pulse"
+                        }`}>
+                          {isVerified ? "Verified" : isRejected ? "Rejected" : "Pending Verification"}
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1.5 text-slate-600 font-medium">
+                        <div className="flex items-center justify-between">
+                          <span>Resident Tenant:</span>
+                          <strong className="text-slate-900 font-extrabold">{doc.tenant?.name || "Eleanor Vance"} {doc.tenant?.unitNumber ? `(${doc.tenant.unitNumber})` : ""}</strong>
+                        </div>
+                        {doc.property && (
+                          <div className="flex items-center justify-between">
+                            <span>Property:</span>
+                            <strong className="text-slate-800">{doc.property.name}</strong>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                          <span>Category:</span>
+                          <strong className="text-purple-700 font-bold">{doc.category || doc.docType || "Resident Upload"}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions Bar */}
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2 flex-wrap">
+                      <button
+                        onClick={() => {
+                          if (doc.fileUrl && doc.fileUrl.startsWith("http")) {
+                            window.open(doc.fileUrl, "_blank");
+                          } else if (doc.fileUrl) {
+                            const win = window.open();
+                            if (win) {
+                              win.document.write(`<iframe src="${doc.fileUrl}" style="width:100%; height:100vh; border:none;"></iframe>`);
+                            }
+                          } else {
+                            toast(`Opening ${doc.title}...`, "success");
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Inspect &amp; Preview</span>
+                      </button>
+
+                      <div className="flex items-center gap-1.5">
+                        {!isVerified ? (
+                          <>
+                            <button
+                              onClick={() => handleVerifyDoc(doc.id, "Verified")}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                              title="Verify & Approve Resident Document"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Verify &amp; Approve</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleVerifyDoc(doc.id, "Rejected")}
+                              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-all cursor-pointer border border-rose-200"
+                              title="Reject Document"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[11px] font-extrabold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Verified</span>
+                          </span>
+                        )}
+
+                        <button
+                          onClick={() => setDeletingDoc({ id: doc.id, title: doc.title })}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer ml-1"
+                          title="Delete Document"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -1366,8 +1763,9 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
                           setUploadingFile(true);
                           setUploadProgress(30);
 
+                          const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
                           const res = await uploadFile(file, {
-                            workspaceId: "1",
+                            workspaceId: activeWid || "1",
                             context: "lease-docs",
                             compress: true,
                             onProgress: (p) => setUploadProgress(p),

@@ -15,11 +15,13 @@ import {
   X,
   Home,
   Megaphone,
+  MessageSquare,
   User,
   ShieldCheck,
   Zap,
   Building,
-  Heart
+  Heart,
+  HelpCircle
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import LogoutAnimation from "@/components/LogoutAnimation";
@@ -111,13 +113,15 @@ export default function TenantLayout({
   const navItems = [
     { name: "My Resident Overview", href: "/tenant/dashboard", icon: LayoutDashboard },
     { name: "Pay Rent & Receipts", href: "/tenant/payments", icon: CreditCard, badge: "DUE SOON" },
+    { name: "Messages", href: "/tenant/messages", icon: MessageSquare },
     { name: "Maintenance Requests", href: "/tenant/maintenance", icon: Wrench },
     { name: "My Documents", href: "/tenant/documents", icon: FileText },
     { name: "Building Notices", href: "/tenant/notices", icon: Megaphone },
+    { name: "RentAwas Help & Support", href: "/tenant/support", icon: HelpCircle },
   ];
 
   const notifications = [
-    { id: 1, title: "Rent Due Reminder", desc: `Rent ($${tenantProfile.monthlyRent.toLocaleString()}) is due soon. Auto-debit scheduled.`, time: "2h ago", icon: CreditCard, color: "text-amber-500 bg-amber-50" },
+    { id: 1, title: "Rent Due Reminder", desc: `Rent ($${tenantProfile.monthlyRent.toLocaleString()}) is due soon. Click to pay online.`, time: "2h ago", icon: CreditCard, color: "text-amber-500 bg-amber-50" },
     { id: 2, title: "Plumber Vendor Dispatched", desc: "Ticket #402 update: Vendor arriving today between 2-4 PM.", time: "5h ago", icon: Wrench, color: "text-purple-500 bg-purple-50" },
   ];
 
@@ -177,17 +181,7 @@ export default function TenantLayout({
             </Link>
           </div>
 
-          {/* Tenant Residence Badge */}
-          <div className="p-4">
-            <div className="bg-[#1E293B] border border-slate-700/80 rounded-xl p-3 space-y-1">
-              <div className="text-[10px] font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1">
-                <Building className="w-3 h-3" />
-                Current Residence
-              </div>
-              <div className="text-xs font-extrabold text-white">{tenantProfile.propertyName} — {tenantProfile.unitNumber}</div>
-              <div className="text-[11px] text-slate-400 truncate">{tenantProfile.propertyAddress}</div>
-            </div>
-          </div>
+
 
           {/* Navigation Links */}
           <nav className="px-3 py-2 space-y-1">
@@ -240,7 +234,7 @@ export default function TenantLayout({
       </aside>
 
       {/* Right Main Content Column - Far-right scrollbar */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar">
+      <div className={`flex-1 flex flex-col min-w-0 h-full ${pathname.startsWith("/tenant/messages") ? "overflow-hidden" : "overflow-y-auto custom-scrollbar"}`}>
         {/* Sticky Top Header & Notice Banner Container */}
         <div className="sticky top-0 z-30 bg-white border-b border-slate-200/80 shrink-0">
           <header className="px-6 py-3.5 flex items-center justify-between gap-4">
@@ -254,7 +248,7 @@ export default function TenantLayout({
 
             <div className="flex items-center gap-3">
               <Link
-                href="/tenant/payments"
+                href="/tenant/payments?openModal=true"
                 className="px-3.5 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl transition-all shadow-xs uppercase tracking-wider"
               >
                 Pay Rent (${(tenantProfile.monthlyRent || 3200).toLocaleString()})
@@ -267,7 +261,7 @@ export default function TenantLayout({
         </div>
 
         {/* Scrollable Resident Main Pane */}
-        <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto space-y-8">
+        <main className={pathname.startsWith("/tenant/messages") ? "flex-1 p-0 min-h-0 h-full overflow-hidden flex flex-col" : "flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto space-y-8"}>
           {children}
         </main>
       </div>

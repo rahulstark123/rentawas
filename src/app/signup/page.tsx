@@ -73,7 +73,7 @@ export default function SignupPage() {
             accessRole,
             phone: formattedPhone,
             trialStartedAt: new Date().toISOString(),
-            trialDays: 7,
+            trialDays: 14,
           },
         },
       });
@@ -86,7 +86,7 @@ export default function SignupPage() {
 
       // 2. Generate Prisma Profile & Workspace with auto-incrementing integer wid (1, 2, 3...)
       const userId = authData?.user?.id || `user_${Date.now()}`;
-      await createUserProfileAndWorkspace({
+      const workspaceResult = await createUserProfileAndWorkspace({
         userId,
         email,
         fullName,
@@ -97,6 +97,10 @@ export default function SignupPage() {
       setIsLoading(false);
       if (typeof window !== "undefined") {
         localStorage.setItem("signup_portfolio_scale", portfolioSize);
+        if (workspaceResult?.wid) {
+          const { setActiveWorkspaceId } = await import("@/lib/workspace");
+          setActiveWorkspaceId(workspaceResult.wid);
+        }
       }
       if (role === "tenant") {
         router.push("/tenant/dashboard");
@@ -176,7 +180,7 @@ export default function SignupPage() {
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-500/20 border border-orange-400/30 backdrop-blur-md text-xs font-extrabold text-orange-300 mb-6">
                 <Sparkles className="w-4 h-4 text-orange-400" />
-                <span>7-Day Free Trial Included</span>
+                <span>14-Day Free Trial Included</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white leading-tight mb-3">
                 Elevate Your Rental Ecosystem

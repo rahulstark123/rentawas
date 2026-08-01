@@ -6,13 +6,18 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const widParam = searchParams.get("wid");
-    const wid = widParam ? parseInt(widParam, 10) : undefined;
+    const wid = widParam ? parseInt(widParam, 10) : NaN;
 
-    const whereClause: any = wid && !isNaN(wid) ? { workspaceId: wid } : {};
+    // Require wid so properties never leak across workspaces
+    if (!widParam || isNaN(wid) || wid <= 0) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required to list properties." },
+        { status: 400 }
+      );
+    }
 
-    // Fetch properties scoped workspace-wise by wid (or all if not specified)
     const properties = await prisma.property.findMany({
-      where: whereClause,
+      where: { workspaceId: wid },
       include: {
         units: {
           include: {
@@ -134,7 +139,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Auto-generate unit inventory records floor-wise
+    // Auto-generate unit inventory records floor-wise (scoped to same workspace)
     const unitCreatePromises = [];
     for (let fl = 1; fl <= totalFloorsInt; fl++) {
       for (let u = 1; u <= unitsPerFloorInt; u++) {
@@ -143,6 +148,7 @@ export async function POST(request: Request) {
           prisma.unit.create({
             data: {
               propertyId: property.id,
+              workspaceId: workspace.wid,
               floorNumber: fl,
               unitNumber: unitNoStr,
               rent: 0,
@@ -158,7 +164,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: `Property "${property.name}" created under Workspace ID ${workspace.wid} with ${totalUnitsCount} units!`,
+        message: `Property "${property.name}" created successfully with ${totalUnitsCount} units!`,
         data: property,
       },
       { status: 201 }

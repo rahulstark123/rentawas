@@ -1,21 +1,33 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/announcements - Fetch announcements (with targeting filter support)
+function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): number | null {
+  const raw =
+    searchParams.get("workspaceId") ||
+    searchParams.get("wid") ||
+    (bodyWid != null ? String(bodyWid) : null);
+  if (!raw) return null;
+  const n = parseInt(raw, 10);
+  return !isNaN(n) && n > 0 ? n : null;
+}
+
+// GET /api/announcements?workspaceId=3 — workspace-scoped notices only
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get("workspaceId");
+    const workspaceId = parseWorkspaceId(searchParams);
     const tenantEmail = searchParams.get("tenantEmail");
     const propertyId = searchParams.get("propertyId");
 
-    const where: any = {};
-    if (workspaceId) {
-      where.workspaceId = Number(workspaceId);
+    if (!workspaceId) {
+      return NextResponse.json(
+        { error: "Workspace ID (workspaceId / wid) is required." },
+        { status: 400 }
+      );
     }
 
     const announcements = await prisma.announcement.findMany({
-      where,
+      where: { workspaceId },
       orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
     });
 
@@ -23,15 +35,12 @@ export async function GET(request: Request) {
     let filtered = announcements;
     if (tenantEmail || propertyId) {
       filtered = announcements.filter((a) => {
-        // 1. All properties broadcast
         if (a.targetScope === "ALL_PROPERTIES") return true;
 
-        // 2. Specific properties targeting
         if (a.targetScope === "SPECIFIC_PROPERTIES" && propertyId) {
           if (a.targetProperties.includes(propertyId)) return true;
         }
 
-        // 3. Specific tenants targeting
         if (a.targetScope === "SPECIFIC_TENANTS" && tenantEmail) {
           const lowerEmail = tenantEmail.toLowerCase();
           if (a.targetTenants.some((t) => t.toLowerCase() === lowerEmail)) return true;
@@ -51,7 +60,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/announcements - Create a new portfolio announcement
+// POST /api/announcements - Create a new portfolio announcement (requires wid)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -63,9 +72,19 @@ export async function POST(request: Request) {
       targetScope,
       targetProperties,
       targetTenants,
-      workspaceId,
+      workspaceId: bodyWorkspaceId,
+      wid,
       creatorName,
     } = body;
+
+    const workspaceId = parseWorkspaceId(new URLSearchParams(), bodyWorkspaceId ?? wid);
+
+    if (!workspaceId) {
+      return NextResponse.json(
+        { error: "Workspace ID (workspaceId / wid) is required." },
+        { status: 400 }
+      );
+    }
 
     if (!title || !title.trim()) {
       return NextResponse.json({ error: "Announcement title is required." }, { status: 400 });
@@ -75,23 +94,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Announcement message content is required." }, { status: 400 });
     }
 
-    const announcementData: any = {
-      title: title.trim(),
-      content: content.trim(),
-      category: category || "General Notice",
-      priority: priority || "Normal",
-      targetScope: targetScope || "ALL_PROPERTIES",
-      targetProperties: Array.isArray(targetProperties) ? targetProperties : [],
-      targetTenants: Array.isArray(targetTenants) ? targetTenants : [],
-      creatorName: creatorName || "Landlord / Portfolio Management",
-    };
-
-    if (workspaceId) {
-      announcementData.workspace = { connect: { wid: Number(workspaceId) } };
-    }
-
     const announcement = await prisma.announcement.create({
-      data: announcementData,
+      data: {
+        title: title.trim(),
+        content: content.trim(),
+        category: category || "General Notice",
+        priority: priority || "Normal",
+        targetScope: targetScope || "ALL_PROPERTIES",
+        targetProperties: Array.isArray(targetProperties) ? targetProperties : [],
+        targetTenants: Array.isArray(targetTenants) ? targetTenants : [],
+        creatorName: creatorName || "Landlord / Portfolio Management",
+        workspace: { connect: { wid: workspaceId } },
+      },
     });
 
     return NextResponse.json(

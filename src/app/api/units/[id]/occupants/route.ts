@@ -58,6 +58,7 @@ export async function GET(request: Request, { params }: Params) {
       moveIn: t.leaseStart ? new Date(t.leaseStart).toISOString().split("T")[0] : "2026-01-01",
       leaseEnd: t.leaseEnd ? new Date(t.leaseEnd).toISOString().split("T")[0] : "2026-12-31",
       paymentStatus: "Auto Paid (ACH)",
+      rentDueDay: t.rentDueDay ?? 1,
       govIdType: t.govIdType || undefined,
       govIdNumber: t.govIdNumber || undefined,
       govIdUrl: t.govIdUrl || undefined,
@@ -98,6 +99,11 @@ export async function POST(request: Request, { params }: Params) {
       govIdNumber,
       govIdUrl,
       leaseDocUrl,
+      rentDueDay,
+      collectFirstRent,
+      firstRentAmount,
+      firstRentMethod,
+      firstRentPaid,
     } = body;
 
     if (!name || !name.trim()) {
@@ -207,11 +213,15 @@ export async function POST(request: Request, { params }: Params) {
       console.warn("Tenant auth profile creation notice:", authErr);
     }
 
+    const parsedDueDay = Math.min(28, Math.max(1, parseInt(String(rentDueDay ?? 1), 10) || 1));
+
     const tenantData: any = {
       name,
       email: tenantEmail,
       phone: phone || "",
       monthlyRent: parseFloat(monthlyRent) || (unit ? unit.rent : 0),
+      rentBillingType: "monthly",
+      rentDueDay: parsedDueDay,
       leaseStart: leaseStart ? new Date(leaseStart) : new Date(),
       leaseEnd: leaseEnd ? new Date(leaseEnd) : null,
       floorNumber: unit ? unit.floorNumber : (floorNumber ? Number(floorNumber) : 1),
@@ -247,11 +257,37 @@ export async function POST(request: Request, { params }: Params) {
       });
     }
 
+    // Optional: record move-in / current-period rent collection
+    let firstBill = null;
+    if (collectFirstRent) {
+      const amount = parseFloat(String(firstRentAmount ?? monthlyRent)) || tenant.monthlyRent || 0;
+      const paid = firstRentPaid !== false;
+      const periodLabel = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+      firstBill = await prisma.bill.create({
+        data: {
+          invoiceNumber: `INV-MOVEIN-${Date.now().toString().slice(-6)}`,
+          title: `Move-in rent — ${periodLabel}`,
+          amount,
+          status: paid ? "Paid" : "Pending",
+          category: "Rent",
+          paymentMethod: firstRentMethod || "Recorded at move-in",
+          dueDate: new Date(),
+          paidDate: paid ? new Date() : null,
+          notes: `First period rent collected during resident assignment. Recurring due day: ${parsedDueDay}.`,
+          tenantId: tenant.id,
+          unitId: unit?.id || null,
+          propertyId: resolvedPropId,
+          workspaceId: targetWorkspaceId,
+        },
+      });
+    }
+
     return NextResponse.json(
       {
         success: true,
         message: `Tenant "${tenant.name}" created and assigned to unit!`,
         data: tenant,
+        firstBill,
       },
       { status: 201 }
     );

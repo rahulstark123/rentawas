@@ -24,6 +24,11 @@ import {
   ChevronDown
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
+
+async function resolveActiveWid(): Promise<string> {
+  return (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+}
 
 export interface TicketItem {
   id: string;
@@ -74,11 +79,16 @@ export default function MaintenancePage() {
   const [newPriority, setNewPriority] = useState<"High" | "Medium" | "Low" | "Emergency">("Medium");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch real tickets from global /api/maintenance API
+  // Fetch tickets for the active workspace only
   const fetchTickets = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/maintenance");
+      const activeWid = await resolveActiveWid();
+      if (!activeWid) {
+        setTickets([]);
+        return;
+      }
+      const res = await fetch(`/api/maintenance?workspaceId=${encodeURIComponent(activeWid)}`);
       if (res.ok) {
         const json = await res.json();
         if (json.data && Array.isArray(json.data)) {
@@ -118,20 +128,29 @@ export default function MaintenancePage() {
           });
           setTickets(formatted);
         }
+      } else {
+        setTickets([]);
       }
     } catch (err) {
       console.warn("Could not fetch maintenance tickets from API:", err);
+      setTickets([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch dropdown metadata for create modal
+  // Fetch dropdown metadata for create modal (same workspace)
   const fetchMetadata = async () => {
     try {
+      const activeWid = await resolveActiveWid();
+      if (!activeWid) {
+        setPropertiesList([]);
+        setTenantsList([]);
+        return;
+      }
       const [propsRes, tenantsRes] = await Promise.all([
-        fetch("/api/properties"),
-        fetch("/api/tenants"),
+        fetch(`/api/properties?wid=${encodeURIComponent(activeWid)}`),
+        fetch(`/api/tenants?workspaceId=${encodeURIComponent(activeWid)}`),
       ]);
       if (propsRes.ok) {
         const json = await propsRes.json();
@@ -139,6 +158,8 @@ export default function MaintenancePage() {
           setPropertiesList(json.data);
           if (json.data.length > 0) {
             setSelectedPropertyId(json.data[0].id);
+          } else {
+            setSelectedPropertyId("");
           }
         }
       }
@@ -170,7 +191,9 @@ export default function MaintenancePage() {
 
     setLoadingUnits(true);
     try {
-      const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}/units`);
+      const activeWid = await resolveActiveWid();
+      const qs = activeWid ? `?wid=${encodeURIComponent(activeWid)}` : "";
+      const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}/units${qs}`);
       if (res.ok) {
         const json = await res.json();
         if (json.data && Array.isArray(json.data) && json.data.length > 0) {
@@ -183,16 +206,7 @@ export default function MaintenancePage() {
       console.warn("Could not fetch units for property:", err);
     }
 
-    // Comprehensive fallback units for all floors
-    const fallbackUnits: any[] = [];
-    for (let f = 1; f <= 5; f++) {
-      fallbackUnits.push(
-        { id: `${propertyId}-u${f}01`, unitNumber: `Unit ${f}01`, floorNumber: f, isOccupied: false },
-        { id: `${propertyId}-u${f}02`, unitNumber: `Unit ${f}02`, floorNumber: f, isOccupied: true },
-        { id: `${propertyId}-u${f}03`, unitNumber: `Unit ${f}03`, floorNumber: f, isOccupied: false }
-      );
-    }
-    setPropertyUnits(fallbackUnits);
+    setPropertyUnits([]);
     setLoadingUnits(false);
   };
 
@@ -233,10 +247,11 @@ export default function MaintenancePage() {
   const handleStatusChange = async (targetId: string, newStatus: "New Requests" | "In Progress" | "Resolved") => {
     const dbStatus = newStatus === "New Requests" ? "Open" : newStatus;
     try {
-      const res = await fetch(`/api/maintenance/${encodeURIComponent(targetId)}`, {
+      const activeWid = await resolveActiveWid();
+      const res = await fetch(`/api/maintenance/${encodeURIComponent(targetId)}?workspaceId=${encodeURIComponent(activeWid)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: dbStatus }),
+        body: JSON.stringify({ status: dbStatus, workspaceId: Number(activeWid) || undefined }),
       });
       if (res.ok) {
         toast(`Ticket status updated to "${newStatus}"`, "success");
@@ -253,7 +268,8 @@ export default function MaintenancePage() {
   const handleDeleteTicket = async (targetId: string, ticketNumber: string) => {
     if (!confirm(`Are you sure you want to delete ticket ${ticketNumber}?`)) return;
     try {
-      const res = await fetch(`/api/maintenance/${encodeURIComponent(targetId)}`, {
+      const activeWid = await resolveActiveWid();
+      const res = await fetch(`/api/maintenance/${encodeURIComponent(targetId)}?workspaceId=${encodeURIComponent(activeWid)}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -277,6 +293,11 @@ export default function MaintenancePage() {
 
     setIsSubmitting(true);
     try {
+      const activeWid = await resolveActiveWid();
+      if (!activeWid) {
+        toast("No active workspace found. Please refresh and try again.", "error");
+        return;
+      }
       const selectedTenant = tenantsList.find((t) => t.id === selectedTenantId);
 
       const res = await fetch("/api/maintenance", {
@@ -291,6 +312,7 @@ export default function MaintenancePage() {
           tenantId: selectedTenantId || null,
           unitId: selectedUnitId || null,
           propertyId: selectedPropertyId || null,
+          workspaceId: Number(activeWid),
           loggedBy: selectedTenant ? `${selectedTenant.name} (Tenant)` : "Admin / Property Staff",
         }),
       });
@@ -303,7 +325,8 @@ export default function MaintenancePage() {
         setShowCreateModal(false);
         fetchTickets();
       } else {
-        toast("Failed to create maintenance ticket", "error");
+        const errJson = await res.json().catch(() => null);
+        toast(errJson?.error || "Failed to create maintenance ticket", "error");
       }
     } catch (err) {
       console.error("Create ticket submit error:", err);

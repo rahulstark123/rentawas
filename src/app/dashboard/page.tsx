@@ -28,6 +28,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
 import { generatePaymentReceiptHtml, triggerPrintOrDownload } from "@/lib/pdfGenerator";
 import EmptyStateIllustration from "@/components/ui/EmptyStateIllustration";
+import { getActiveWorkspaceId, ensureActiveWorkspaceId } from "@/lib/workspace";
 
 export interface DashboardTransaction {
   id: string;
@@ -46,6 +47,8 @@ export default function DashboardOverviewPage() {
   const { formatCurrency } = useCurrency();
   const [filter, setFilter] = useState<"all" | "paid" | "pending" | "overdue">("all");
   const [showAddPropertyModal, setShowAddPropertyModal] = useState(false);
+  const [showEmptyStateCard, setShowEmptyStateCard] = useState(false);
+  const [filterPeriod, setFilterPeriod] = useState<"this_month" | "last_month" | "ytd">("this_month");
   const [loading, setLoading] = useState(true);
 
   // Live PostgreSQL Data States
@@ -59,9 +62,14 @@ export default function DashboardOverviewPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        setLoading(false);
+        return;
+      }
 
       // 1. Fetch Real Transactions
-      const txRes = await fetch("/api/transactions?wid=1");
+      const txRes = await fetch(`/api/transactions?wid=${activeWid}`);
       if (txRes.ok) {
         const json = await txRes.json();
         if (json.success && Array.isArray(json.data)) {
@@ -101,7 +109,7 @@ export default function DashboardOverviewPage() {
       }
 
       // 2. Fetch Live Properties
-      const propRes = await fetch("/api/properties?wid=1");
+      const propRes = await fetch(`/api/properties?wid=${activeWid}`);
       if (propRes.ok) {
         const json = await propRes.json();
         if (json.success && Array.isArray(json.data)) {
@@ -110,7 +118,7 @@ export default function DashboardOverviewPage() {
       }
 
       // 3. Fetch Live Tenants
-      const tenantRes = await fetch("/api/tenants?wid=1");
+      const tenantRes = await fetch(`/api/tenants?wid=${activeWid}`);
       if (tenantRes.ok) {
         const json = await tenantRes.json();
         if (json.success && Array.isArray(json.data)) {
@@ -119,7 +127,7 @@ export default function DashboardOverviewPage() {
       }
 
       // 4. Fetch Live Maintenance Tickets
-      const maintRes = await fetch("/api/maintenance?wid=1");
+      const maintRes = await fetch(`/api/maintenance?wid=${activeWid}`);
       if (maintRes.ok) {
         const json = await maintRes.json();
         if (json.success && Array.isArray(json.data)) {

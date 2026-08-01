@@ -53,6 +53,7 @@ import { supabase } from "@/lib/supabase";
 import LogoutAnimation from "@/components/LogoutAnimation";
 import { IconAutopilotRent } from "@/components/ui/CustomIcons";
 import { useToast } from "@/components/ui/Toast";
+import { useCurrency } from "@/context/CurrencyContext";
 import GlobalSearchModal from "@/components/ui/GlobalSearchModal";
 import ListPropertyModal from "@/components/ui/ListPropertyModal";
 import PaywallModal from "@/components/ui/PaywallModal";
@@ -66,6 +67,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
+  const { currencySymbol } = useCurrency();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isScreenTooSmall, setIsScreenTooSmall] = useState(false);
@@ -78,8 +80,9 @@ export default function DashboardLayout({
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   // Dynamic user profile & workspace active plan
-  const [activePlan, setActivePlan] = useState("Pro Plan");
+  const [activePlan, setActivePlan] = useState("Trial Plan");
   const [hasPaidSubscription, setHasPaidSubscription] = useState(false);
+
   const [userProfile, setUserProfile] = useState({
     name: "Alexander Wright",
     email: "alexander.wright@rentawas.com",
@@ -87,31 +90,15 @@ export default function DashboardLayout({
     initials: "AW",
   });
 
-  // 7-Day Free Trial & Paywall Modal State
-  const [trialDaysLeft, setTrialDaysLeft] = useState<number>(7);
+  // 14-Day Free Trial (workspace/wid scoped — not shared localStorage)
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number>(14);
   const [isTrialActive, setIsTrialActive] = useState<boolean>(true);
   const [showPaywallModal, setShowPaywallModal] = useState<boolean>(false);
   const [paywallFeatureName, setPaywallFeatureName] = useState<string>("Add New Item");
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      let storedStart = localStorage.getItem("rentawas_trial_start_date");
-      if (!storedStart) {
-        storedStart = new Date().toISOString();
-        localStorage.setItem("rentawas_trial_start_date", storedStart);
-      }
-      const startTime = new Date(storedStart).getTime();
-      const elapsedMs = Date.now() - startTime;
-      const elapsedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
-      const remainingDays = Math.max(0, 7 - elapsedDays);
-      setTrialDaysLeft(remainingDays);
-      setIsTrialActive(remainingDays > 0);
-    }
-  }, []);
-
   const checkCanAddAction = (featureName: string = "Add New Item"): boolean => {
     if (isTrialActive || hasPaidSubscription) {
-      return true; // 100% unlocked during 7-day trial or with paid subscription!
+      return true; // Unlocked during 14-day trial or with paid subscription
     }
     setPaywallFeatureName(featureName);
     setShowPaywallModal(true);
@@ -147,13 +134,22 @@ export default function DashboardLayout({
   const fetchPublishedListings = async () => {
     setIsLoadingListings(true);
     try {
-      const res = await fetch("/api/listings");
+      const { ensureActiveWorkspaceId, getActiveWorkspaceId } = await import("@/lib/workspace");
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        setMyListings([]);
+        return;
+      }
+      const res = await fetch(`/api/listings?wid=${encodeURIComponent(activeWid)}&limit=100`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setMyListings(json.data);
+      } else {
+        setMyListings([]);
       }
     } catch (err) {
       console.error("Error fetching published listings:", err);
+      setMyListings([]);
     } finally {
       setIsLoadingListings(false);
     }
@@ -164,13 +160,22 @@ export default function DashboardLayout({
 
   const fetchTenantInquiries = async () => {
     try {
-      const res = await fetch("/api/listings/inquiries");
+      const { ensureActiveWorkspaceId, getActiveWorkspaceId } = await import("@/lib/workspace");
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        setTenantLeads([]);
+        return;
+      }
+      const res = await fetch(`/api/listings/inquiries?wid=${encodeURIComponent(activeWid)}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setTenantLeads(json.data);
+      } else {
+        setTenantLeads([]);
       }
     } catch (err) {
       console.error("Error fetching tenant inquiries:", err);
+      setTenantLeads([]);
     }
   };
 
@@ -184,15 +189,19 @@ export default function DashboardLayout({
 
   const updateInquiryStatus = async (id: string, newStatus: string) => {
     try {
+      const { ensureActiveWorkspaceId, getActiveWorkspaceId } = await import("@/lib/workspace");
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
       const res = await fetch("/api/listings/inquiries", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: newStatus }),
+        body: JSON.stringify({ id, status: newStatus, wid: Number(activeWid) || undefined }),
       });
       const json = await res.json();
       if (json.success) {
         toast(`Inquiry status updated to ${newStatus}`, "success");
         fetchTenantInquiries();
+      } else {
+        toast(json.error || "Failed to update inquiry status", "error");
       }
     } catch (err) {
       toast("Failed to update inquiry status", "error");
@@ -201,16 +210,20 @@ export default function DashboardLayout({
 
   const toggleListingLiveStatus = async (id: string, currentIsLive: boolean) => {
     try {
+      const { ensureActiveWorkspaceId, getActiveWorkspaceId } = await import("@/lib/workspace");
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
       const nextIsLive = !currentIsLive;
       const res = await fetch("/api/listings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, isLive: nextIsLive }),
+        body: JSON.stringify({ id, isLive: nextIsLive, wid: Number(activeWid) || undefined }),
       });
       const json = await res.json();
       if (json.success) {
         toast(`Listing status updated to ${nextIsLive ? "Live" : "Draft"}`, "success");
         fetchPublishedListings();
+      } else {
+        toast(json.error || "Failed to update listing status", "error");
       }
     } catch (err) {
       toast("Failed to update listing status", "error");
@@ -220,13 +233,18 @@ export default function DashboardLayout({
   const deleteListingItem = async (id: string) => {
     if (!confirm("Are you sure you want to delete this property listing?")) return;
     try {
-      const res = await fetch(`/api/listings?id=${encodeURIComponent(id)}`, {
-        method: "DELETE",
-      });
+      const { ensureActiveWorkspaceId, getActiveWorkspaceId } = await import("@/lib/workspace");
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      const res = await fetch(
+        `/api/listings?id=${encodeURIComponent(id)}&wid=${encodeURIComponent(activeWid)}`,
+        { method: "DELETE" }
+      );
       const json = await res.json();
       if (json.success) {
         toast("Property listing deleted", "info");
         fetchPublishedListings();
+      } else {
+        toast(json.error || "Failed to delete listing", "error");
       }
     } catch (err) {
       toast("Failed to delete listing", "error");
@@ -257,17 +275,39 @@ export default function DashboardLayout({
   useEffect(() => {
     async function loadWorkspacePlan() {
       try {
-        const res = await fetch("/api/workspace?wid=1");
+        const { ensureActiveWorkspaceId } = await import("@/lib/workspace");
+        const activeWid = await ensureActiveWorkspaceId();
+        if (!activeWid) return;
+
+        const res = await fetch(`/api/workspace?wid=${activeWid}`);
         if (res.ok) {
           const json = await res.json();
-          if (json.data && json.data.plan) {
-            const pKey = json.data.plan;
-            if (pKey === "pro" || pKey === "enterprise" || pKey === "starter") {
-              setActivePlan(pKey === "enterprise" ? "Enterprise Plan" : pKey === "pro" ? "Pro Plan" : "Starter Plan");
+          if (json.data) {
+            const pKey = String(json.data.plan || "trial").toLowerCase();
+            const daysLeft = Number(json.data.trialDaysLeft ?? 0);
+            const trialActive = Boolean(json.data.isTrialActive) || (pKey === "trial" && daysLeft > 0);
+
+            setTrialDaysLeft(pKey === "trial" ? daysLeft : 0);
+            setIsTrialActive(trialActive);
+
+            if (pKey === "starter" || pKey === "pro" || pKey === "pro_plus" || pKey === "enterprise") {
+              const labels: Record<string, string> = {
+                starter: "Starter Plan",
+                pro: "Pro Plan",
+                pro_plus: "Pro Plus Plan",
+                enterprise: "Pro Plus Plan",
+              };
+              setActivePlan(labels[pKey] || "Pro Plan");
               setHasPaidSubscription(true);
-            } else {
-              setActivePlan("Free Listing Plan");
+            } else if (pKey === "trial" && trialActive) {
+              setActivePlan("Trial Plan");
               setHasPaidSubscription(false);
+            } else {
+              // Lapsed trial or explicit free plan
+              setActivePlan("Free Plan");
+              setHasPaidSubscription(false);
+              setIsTrialActive(false);
+              setTrialDaysLeft(0);
             }
           }
         }
@@ -355,6 +395,7 @@ export default function DashboardLayout({
     { id: "overview", name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { id: "properties", name: "Properties & Units", href: "/dashboard/properties", icon: Building2 },
     { id: "payments", name: "Rent Payments", href: "/dashboard/payments", icon: CreditCard },
+    { id: "messages", name: "Messages", href: "/dashboard/messages", icon: MessageSquare },
     { id: "leases", name: "Documents", href: "/dashboard/leases", icon: FileText },
     { id: "tenants", name: "Tenants & Health", href: "/dashboard/tenants", icon: Users },
     { id: "maintenance", name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench },
@@ -645,7 +686,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* Right Main Content Column */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar">
+      <div className={`flex-1 flex flex-col min-w-0 h-full ${pathname.startsWith("/dashboard/messages") ? "overflow-hidden" : "overflow-y-auto custom-scrollbar"}`}>
         {/* Fixed Top Desktop Header Bar */}
         <div className="sticky top-0 z-30 bg-white border-b border-slate-200/80">
           <header className="px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
@@ -718,16 +759,16 @@ export default function DashboardLayout({
               </button>
             </div>
 
-            {/* Active Plan or 7-Day Free Trial Badge */}
+            {/* Active Plan or 14-Day Free Trial Badge */}
             {isTrialActive ? (
               <Link
                 href="/dashboard/billing"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200/80 text-amber-800 transition-all cursor-pointer group shrink-0"
-                title="7-Day Free Trial Active - All Features Unlocked"
+                title="14-Day Free Trial Active - All Features Unlocked"
               >
                 <Sparkles className="w-3.5 h-3.5 fill-amber-500 text-amber-500 group-hover:scale-110 transition-transform" />
                 <span className="text-xs font-black uppercase tracking-wider">
-                  {trialDaysLeft > 0 ? `${trialDaysLeft} Days Trial` : "Free Trial"}
+                  {trialDaysLeft > 0 ? `${trialDaysLeft} Days Trial` : "Trial Ending"}
                 </span>
               </Link>
             ) : hasPaidSubscription ? (
@@ -743,11 +784,11 @@ export default function DashboardLayout({
               <button
                 type="button"
                 onClick={() => checkCanAddAction("Add Operations")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200/80 text-red-600 transition-all cursor-pointer group shrink-0"
-                title="Trial Expired — Upgrade to Pro Plan"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200/80 text-slate-700 transition-all cursor-pointer group shrink-0"
+                title="Free Plan — Upgrade for full features"
               >
-                <Lock className="w-3.5 h-3.5 text-red-600 group-hover:scale-110 transition-transform" />
-                <span className="text-xs font-black uppercase tracking-wider">Trial Expired</span>
+                <Lock className="w-3.5 h-3.5 text-slate-500 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-black uppercase tracking-wider">Free Plan</span>
               </button>
             )}
 
@@ -825,7 +866,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Page Main Content Area */}
-        <main className="p-4 sm:p-6 md:p-8 flex-1">
+        <main className={pathname.startsWith("/dashboard/messages") ? "p-0 flex-1 min-h-0 h-full overflow-hidden flex flex-col" : "p-4 sm:p-6 md:p-8 flex-1"}>
           {pathname !== "/dashboard" || dashboardViewMode === "manage" ? (
             children
           ) : (
@@ -1335,7 +1376,7 @@ export default function DashboardLayout({
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                          Monthly Rent (₹) *
+                          Monthly Rent ({currencySymbol}) *
                         </label>
                         <input
                           type="text"

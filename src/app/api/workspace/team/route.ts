@@ -2,35 +2,31 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { supabase } from "@/lib/supabase";
 
-// GET /api/workspace/team - Fetch workspace team members from database
+function parseWid(raw: unknown): number | null {
+  if (raw == null || raw === "") return null;
+  const n = parseInt(String(raw), 10);
+  return !isNaN(n) && n > 0 ? n : null;
+}
+
+// GET /api/workspace/team?wid=3
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const widParam = searchParams.get("wid");
-    const wid = widParam ? parseInt(widParam, 10) : 1;
+    const wid = parseWid(searchParams.get("wid") || searchParams.get("workspaceId"));
 
-    // Purge legacy seeded dummy records if any exist in database
-    await prisma.teamMember.deleteMany({
-      where: {
-        email: {
-          in: [
-            "alexander@regencymanagement.com",
-            "sarah.j@regencymanagement.com",
-            "david.r@accounting.com",
-            "dispatch@quickplumb.com",
-          ],
-        },
-      },
-    });
+    if (!wid) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
 
     const teamMembers = await prisma.teamMember.findMany({
-      where: {
-        OR: [{ workspaceId: wid }, { workspaceId: null }],
-      },
+      where: { workspaceId: wid },
       orderBy: { createdAt: "asc" },
     });
 
-    return NextResponse.json({ success: true, data: teamMembers });
+    return NextResponse.json({ success: true, workspaceId: wid, data: teamMembers });
   } catch (error: any) {
     return NextResponse.json(
       { error: "Failed to fetch workspace team members", details: error?.message },
@@ -39,11 +35,11 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/workspace/team - Add a new team member to workspace & create login credentials automatically
+// POST /api/workspace/team - Add team member (requires wid)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, email, countryCode, phone, role, password, wid } = body;
+    const { name, email, countryCode, phone, role, password, wid, workspaceId } = body;
 
     if (!name || !email) {
       return NextResponse.json(
@@ -52,19 +48,28 @@ export async function POST(request: Request) {
       );
     }
 
+    const workspaceIdNum = parseWid(wid ?? workspaceId);
+    if (!workspaceIdNum) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
+
     const cleanEmail = email.trim().toLowerCase();
     const cleanPhone = phone ? `${countryCode || "+1"} ${phone.trim()}` : null;
     const memberPassword = (password && password.trim()) || "Rentawas@123";
-    const workspaceIdNum = wid ? parseInt(String(wid), 10) : 1;
 
-    // Check if target workspace exists in database
     const existingWs = await prisma.workspace.findUnique({
       where: { wid: workspaceIdNum },
     });
+    if (!existingWs) {
+      return NextResponse.json(
+        { error: `Workspace #${workspaceIdNum} not found.` },
+        { status: 404 }
+      );
+    }
 
-    const targetWsId = existingWs ? existingWs.wid : null;
-
-    // 1. Create or ensure Supabase Auth user & Prisma Profile exist for Team Member login
     let linkedProfileId: string | null = null;
     try {
       let existingProfile = await prisma.profile.findUnique({
@@ -110,23 +115,22 @@ export async function POST(request: Request) {
       console.warn("Could not create Supabase Auth User for Team Member, fallback to TeamMember record:", authErr);
     }
 
-    // 2. Create or update TeamMember record in database
     const newMember = await prisma.teamMember.create({
       data: {
         name: name.trim(),
         email: cleanEmail,
         countryCode: countryCode || "+1",
         phone: phone ? phone.trim() : null,
-        role: role || "Manager", // "Owner", "Admin", "Manager", "Employee"
+        role: role || "Manager",
         password: memberPassword,
         status: "Active",
-        workspaceId: targetWsId,
+        workspaceId: workspaceIdNum,
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: `Team member "${newMember.name}" added to workspace! Login account created for (${cleanEmail}).`,
+      message: `Team member "${newMember.name}" added to workspace #${workspaceIdNum}!`,
       data: {
         ...newMember,
         profileId: linkedProfileId,

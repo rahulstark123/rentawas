@@ -20,12 +20,23 @@ export async function GET(request: Request) {
 
     const whereClause: any = {};
 
-    if (widParam) {
-      const wid = parseInt(widParam, 10);
-      if (!isNaN(wid)) whereClause.workspaceId = wid;
+    const isPublicMarketplace = isLiveParam === "true";
+    const wid = widParam ? parseInt(widParam, 10) : NaN;
+
+    // Landlord dashboard must pass wid. Public marketplace uses isLive=true without wid.
+    if (!isPublicMarketplace) {
+      if (!widParam || isNaN(wid) || wid <= 0) {
+        return NextResponse.json(
+          { error: "Workspace ID (wid) is required to list your property listings." },
+          { status: 400 }
+        );
+      }
+      whereClause.workspaceId = wid;
+    } else if (widParam && !isNaN(wid) && wid > 0) {
+      whereClause.workspaceId = wid;
     }
 
-    if (isLiveParam === "true") {
+    if (isPublicMarketplace) {
       whereClause.isLive = true;
       whereClause.status = "Active";
     } else if (status) {
@@ -144,11 +155,14 @@ export async function POST(request: Request) {
     const parsedRent = typeof rent === "number" ? rent : parseFloat(String(rent).replace(/[^0-9.]/g, "")) || 0;
     const parsedDeposit = deposit ? (typeof deposit === "number" ? deposit : parseFloat(String(deposit).replace(/[^0-9.]/g, ""))) : null;
 
-    let workspaceId: number | null = null;
-    if (wid) {
-      const parsedWid = parseInt(String(wid), 10);
-      if (!isNaN(parsedWid)) workspaceId = parsedWid;
+    const parsedWid = wid != null ? parseInt(String(wid), 10) : NaN;
+    if (!wid || isNaN(parsedWid) || parsedWid <= 0) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required to create a property listing." },
+        { status: 400 }
+      );
     }
+    const workspaceId = parsedWid;
 
     const newListing = await prisma.propertyListing.create({
       data: {
@@ -201,10 +215,25 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, isLive, status } = body;
+    const { id, isLive, status, wid } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Missing required listing id." }, { status: 400 });
+    }
+
+    const workspaceId = wid != null ? parseInt(String(wid), 10) : NaN;
+    if (!wid || isNaN(workspaceId) || workspaceId <= 0) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.propertyListing.findFirst({
+      where: { id, workspaceId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Listing not found in this workspace." }, { status: 404 });
     }
 
     const updateData: any = {};
@@ -258,14 +287,29 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE /api/listings?id=xxx
+// DELETE /api/listings?id=xxx&wid=3
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const widParam = searchParams.get("wid");
+    const workspaceId = widParam ? parseInt(widParam, 10) : NaN;
 
     if (!id) {
       return NextResponse.json({ error: "Missing required listing id." }, { status: 400 });
+    }
+    if (!widParam || isNaN(workspaceId) || workspaceId <= 0) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.propertyListing.findFirst({
+      where: { id, workspaceId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Listing not found in this workspace." }, { status: 404 });
     }
 
     await prisma.propertyListing.delete({

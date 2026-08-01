@@ -17,18 +17,22 @@ import {
   PawPrint, 
   UserCheck, 
   X,
-  Printer
+  Printer,
+  ChevronDown,
+  Trash2,
+  Loader2,
+  File
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export interface TenantDoc {
   id: string;
   title: string;
-  category: "Lease & Addendums" | "Receipts & Tax" | "ID & Verification" | "Vehicle & Passes";
+  category: string;
   icon: any;
   date: string;
   size: string;
-  status: "Verified" | "Active" | "Issued";
+  status: "Verified" | "Active" | "Issued" | "Pending Verification" | "Rejected";
   description: string;
   fileUrl?: string;
 }
@@ -77,7 +81,69 @@ export default function TenantDocumentsPage() {
   // Upload Modal State
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
-  const [uploadCategory, setUploadCategory] = useState<TenantDoc["category"]>("ID & Verification");
+  const [uploadCategory, setUploadCategory] = useState<string>("ID & Verification");
+  const [customCategory, setCustomCategory] = useState("");
+  const [uploadDesc, setUploadDesc] = useState("");
+  const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string; sizeStr: string; dataUrl: string }[]>([]);
+  const [previewAttachedFile, setPreviewAttachedFile] = useState<{ name: string; dataUrl: string; sizeStr: string } | null>(null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+
+  const handleMultipleFilesSelect = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+
+    Array.from(fileList).forEach((file) => {
+      const sizeInKb = file.size / 1024;
+      const sizeStr = sizeInKb > 1024 ? `${(sizeInKb / 1024).toFixed(1)} MB` : `${Math.round(sizeInKb)} KB`;
+      const id = `item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new window.Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 1200;
+
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+              setAttachedFiles((prev) => [
+                ...prev,
+                { id, name: file.name, sizeStr, dataUrl }
+              ]);
+            }
+          };
+          img.src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = (e.target?.result as string) || "";
+          setAttachedFiles((prev) => [
+            ...prev,
+            { id, name: file.name, sizeStr, dataUrl }
+          ]);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  };
 
   useEffect(() => {
     async function loadTenantDocs() {
@@ -148,33 +214,99 @@ export default function TenantDocumentsPage() {
     loadTenantDocs();
   }, []);
 
-  const categories = ["All", "Lease & Addendums", "Receipts & Tax", "ID & Verification", "Vehicle & Passes"];
+  const categories = [
+    "All",
+    "ID & Verification",
+    "Lease & Addendums",
+    "Receipts & Tax",
+    "Renter Insurance & Liability",
+    "Vehicle & Passes",
+    "Pet Records & License",
+    "Utility Bills & NOC",
+    "Move-In / Move-Out Inspection",
+    "Other"
+  ];
 
   const filteredDocs = documents.filter((doc) => {
-    const matchesCategory = activeCategory === "All" || doc.category === activeCategory;
+    const matchesCategory = activeCategory === "All" || doc.category.includes(activeCategory);
     const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           doc.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
-  const handleUploadSubmit = (e: React.FormEvent) => {
+  const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadTitle) return;
+    if (attachedFiles.length === 0) {
+      alert("Please select at least one document file to upload.");
+      return;
+    }
 
-    const newDoc: TenantDoc = {
-      id: `DOC-${Math.floor(100 + Math.random() * 900)}`,
-      title: uploadTitle,
-      category: uploadCategory,
-      icon: FileText,
-      date: "Just now",
-      size: "620 KB",
-      status: "Verified",
-      description: "Resident uploaded personal record file.",
-    };
+    const finalCategory = uploadCategory === "Other" ? (customCategory.trim() || "Other Document") : uploadCategory;
 
-    setDocuments([newDoc, ...documents]);
-    setUploadTitle("");
-    setShowUploadModal(false);
+    setIsUploading(true);
+    try {
+      const categoryIconMap: Record<string, any> = {
+        "Lease & Addendums": FileText,
+        "Receipts & Tax": Receipt,
+        "ID & Verification": UserCheck,
+        "Renter Insurance & Liability": ShieldCheck,
+        "Vehicle & Passes": Car,
+        "Pet Records & License": PawPrint,
+        "Utility Bills & NOC": Receipt,
+        "Move-In / Move-Out Inspection": FileCheck2,
+      };
+
+      const newDocs: TenantDoc[] = attachedFiles.map((af, idx) => {
+        const title = attachedFiles.length === 1
+          ? uploadTitle
+          : `${uploadTitle} — ${af.name}`;
+
+        return {
+          id: `DOC-${Math.floor(100 + Math.random() * 900)}-${idx}`,
+          title,
+          category: finalCategory,
+          icon: categoryIconMap[uploadCategory] || FileText,
+          date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          size: af.sizeStr || "650 KB",
+          status: "Pending Verification",
+          description: uploadDesc || `Resident uploaded document file: ${af.name}. Pending owner review.`,
+          fileUrl: af.dataUrl || undefined,
+        };
+      });
+
+      if (tenant && tenant.id && tenant.id !== "demo-tenant-id") {
+        for (const af of attachedFiles) {
+          try {
+            await fetch("/api/tenant/documents", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                title: attachedFiles.length === 1 ? uploadTitle : `${uploadTitle} — ${af.name}`,
+                category: finalCategory,
+                fileName: af.name,
+                fileSize: af.sizeStr,
+                fileUrl: af.dataUrl,
+                tenantId: tenant.id,
+                workspaceId: tenant.workspaceId,
+              }),
+            });
+          } catch (err) {
+            console.error("Doc API save error:", err);
+          }
+        }
+      }
+
+      setDocuments((prev) => [...newDocs, ...prev]);
+      setUploadTitle("");
+      setUploadCategory("ID & Verification");
+      setCustomCategory("");
+      setUploadDesc("");
+      setAttachedFiles([]);
+      setShowUploadModal(false);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const isKycVerified = tenant?.govIdUrl || documents.some(d => d.category === "ID & Verification");
@@ -317,8 +449,14 @@ export default function TenantDocumentsPage() {
                       </div>
                     </div>
 
-                    <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-50 text-emerald-700 uppercase shrink-0">
-                      {doc.status}
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase shrink-0 ${
+                      doc.status === "Verified" || doc.status === "Active" || doc.status === "Issued"
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : doc.status === "Rejected"
+                        ? "bg-rose-50 text-rose-700 border border-rose-200"
+                        : "bg-amber-50 text-amber-800 border border-amber-200"
+                    }`}>
+                      {doc.status || "Pending Verification"}
                     </span>
                   </div>
 
@@ -423,65 +561,283 @@ export default function TenantDocumentsPage() {
         </div>
       )}
 
+      {/* Attached File Inspector Preview Lightbox */}
+      {previewAttachedFile && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-60 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl relative">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="truncate pr-4">
+                <span className="text-xs font-mono font-bold text-purple-400 block uppercase tracking-wider">
+                  File Preview Inspector ({previewAttachedFile.sizeStr})
+                </span>
+                <h4 className="text-base font-extrabold text-white truncate">
+                  {previewAttachedFile.name}
+                </h4>
+              </div>
+              <button
+                onClick={() => setPreviewAttachedFile(null)}
+                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800/80 flex items-center justify-center max-h-[60vh] overflow-auto">
+              {previewAttachedFile.dataUrl.startsWith("data:image/") ? (
+                <img
+                  src={previewAttachedFile.dataUrl}
+                  alt={previewAttachedFile.name}
+                  className="max-h-[55vh] max-w-full object-contain rounded-xl shadow-lg"
+                />
+              ) : previewAttachedFile.dataUrl.startsWith("data:application/pdf") ? (
+                <iframe
+                  src={previewAttachedFile.dataUrl}
+                  title={previewAttachedFile.name}
+                  className="w-full h-[55vh] rounded-xl border border-slate-800 bg-white"
+                />
+              ) : (
+                <div className="text-center py-12 space-y-3">
+                  <FileText className="w-12 h-12 text-purple-400 mx-auto" />
+                  <p className="text-sm font-bold text-slate-200">{previewAttachedFile.name}</p>
+                  <p className="text-xs text-slate-400">Standard document file ({previewAttachedFile.sizeStr}) ready to be uploaded.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setPreviewAttachedFile(null)}
+                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Upload Document Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <form onSubmit={handleUploadSubmit} className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="text-xl font-bold text-slate-900">Upload New Resident Document</h3>
-            <p className="text-xs text-slate-500">Upload personal records, vehicle registration, or identity documents.</p>
-
-            <div className="space-y-3 text-xs">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <form
+            onSubmit={handleUploadSubmit}
+            className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl relative my-6 max-h-[90vh] overflow-y-auto font-sans"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Document Title</label>
+                <h3 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                  <span>Upload New Resident Document</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Upload personal records, renter&apos;s insurance, vehicle registration, or identity documents.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowUploadModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs font-sans">
+              {/* Document Title */}
+              <div>
+                <label className="block font-extrabold text-slate-700 uppercase tracking-wider text-[11px] mb-1.5">
+                  Document Title *
+                </label>
                 <input
                   type="text"
                   required
                   value={uploadTitle}
                   onChange={(e) => setUploadTitle(e.target.value)}
-                  placeholder="e.g. Renter's Insurance Policy 2026"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-600"
+                  placeholder="e.g. Renter's Insurance Policy 2026 or Vehicle Registration"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:bg-white transition-all"
                 />
               </div>
 
+              {/* Category Dropdown */}
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Category</label>
-                <select
-                  value={uploadCategory}
-                  onChange={(e) => setUploadCategory(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-600"
-                >
-                  <option value="ID & Verification">ID & Verification</option>
-                  <option value="Lease & Addendums">Lease & Addendums</option>
-                  <option value="Receipts & Tax">Receipts & Tax</option>
-                  <option value="Vehicle & Passes">Vehicle & Passes</option>
-                </select>
+                <label className="block font-extrabold text-slate-700 uppercase tracking-wider text-[11px] mb-1.5">
+                  Category *
+                </label>
+                <div className="relative">
+                  <select
+                    value={uploadCategory}
+                    onChange={(e) => setUploadCategory(e.target.value)}
+                    className="w-full px-3.5 py-2.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:bg-white transition-all appearance-none cursor-pointer"
+                  >
+                    <option value="ID & Verification">ID &amp; Verification (Passport, Driver License, Aadhaar, KYC)</option>
+                    <option value="Lease & Addendums">Lease &amp; Addendums (Tenancy Contract, Renewals, House Rules)</option>
+                    <option value="Receipts & Tax">Receipts &amp; Tax (Rent Receipts, Escrow Deposit, TDS/Form 16)</option>
+                    <option value="Renter Insurance & Liability">Renter Insurance &amp; Liability (Policy &amp; Coverage Proof)</option>
+                    <option value="Vehicle & Passes">Vehicle &amp; Passes (Vehicle RC, Parking Permit, RFID Gate Pass)</option>
+                    <option value="Pet Records & License">Pet Records &amp; License (Vaccination, Pet License &amp; Agreement)</option>
+                    <option value="Utility Bills & NOC">Utility Bills &amp; NOC (Electricity, Water Clearance &amp; NOC)</option>
+                    <option value="Move-In / Move-Out Inspection">Move-In / Move-Out Inspection (Condition Audit, Key Receipt)</option>
+                    <option value="Other">Other (Specify Custom Document Category)</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Attach File (PDF, PNG, JPG)</label>
-                <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl flex items-center justify-between text-slate-500">
-                  <span className="flex items-center gap-2">
-                    <Upload className="w-4 h-4 text-purple-600" />
-                    <span>Choose document file...</span>
-                  </span>
-                  <span className="text-[10px] font-bold text-purple-700">Browse</span>
+              {/* Conditional Custom Category Input field when 'Other' is selected */}
+              {uploadCategory === "Other" && (
+                <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                  <label className="block font-extrabold text-purple-700 uppercase text-[11px]">
+                    Specify Custom Category *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    placeholder="e.g. Society No-Objection Certificate, Employment Verification..."
+                    className="w-full px-3.5 py-2.5 bg-purple-50/40 border border-purple-200 rounded-xl text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:bg-white transition-all"
+                  />
                 </div>
+              )}
+
+              {/* Attach Multiple Document Files */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-extrabold text-slate-700 uppercase tracking-wider text-[11px]">
+                    Attach Document Files ({attachedFiles.length} Selected) *
+                  </label>
+                  <label className="text-[10px] font-extrabold text-purple-700 hover:underline cursor-pointer flex items-center gap-1">
+                    <Plus className="w-3 h-3" />
+                    <span>Add More Files</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.csv"
+                      onChange={(e) => handleMultipleFilesSelect(e.target.files)}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {attachedFiles.length > 0 ? (
+                  <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                    {attachedFiles.map((af) => (
+                      <div
+                        key={af.id}
+                        className="p-3 bg-purple-50/60 border border-purple-200 rounded-2xl flex items-center justify-between gap-3 animate-in fade-in duration-150"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <FileCheck2 className="w-4 h-4" />
+                          </div>
+                          <div className="truncate">
+                            <span className="text-xs font-extrabold text-slate-900 truncate block">
+                              {af.name}
+                            </span>
+                            <span className="text-[10px] text-purple-700 font-bold flex items-center gap-1.5 mt-0.5">
+                              <span>{af.sizeStr}</span>
+                              <span>•</span>
+                              <span className="text-emerald-600 font-black">Ready to Upload</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (af.dataUrl) {
+                                setPreviewAttachedFile({ name: af.name, dataUrl: af.dataUrl, sizeStr: af.sizeStr });
+                              } else {
+                                alert(`Previewing ${af.name} (${af.sizeStr})`);
+                              }
+                            }}
+                            className="p-1.5 bg-white hover:bg-purple-50 text-purple-600 border border-slate-200 hover:border-purple-200 rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                            title="Inspect & Preview file"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAttachedFiles((prev) => prev.filter((item) => item.id !== af.id));
+                            }}
+                            className="p-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                            title="Remove file"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <label className="p-6 bg-slate-50 border border-dashed border-slate-300 hover:border-purple-500 hover:bg-purple-50/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-500 transition-all cursor-pointer group">
+                    <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
+                      <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-slate-900 block group-hover:text-purple-700 transition-colors">
+                          Click or drag multiple files to attach
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          Select multiple PDFs, Images (PNG, JPG), Word (DOCX) &amp; Text documents
+                        </span>
+                      </div>
+                    </div>
+                    <span className="px-4 py-2 bg-purple-600 text-white text-xs font-extrabold rounded-xl shadow-xs uppercase tracking-wider group-hover:bg-purple-700 transition-colors shrink-0">
+                      Browse Files
+                    </span>
+                    <input
+                      type="file"
+                      multiple
+                      required
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.csv"
+                      onChange={(e) => handleMultipleFilesSelect(e.target.files)}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* Document Description / Notes */}
+              <div>
+                <label className="block font-extrabold text-slate-700 uppercase tracking-wider text-[11px] mb-1.5">
+                  Description &amp; Document Notes (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={uploadDesc}
+                  onChange={(e) => setUploadDesc(e.target.value)}
+                  placeholder="Provide any context or notes regarding this document..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:bg-white transition-all"
+                />
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-3">
+            {/* Modal Footer */}
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowUploadModal(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                className="px-5 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-xs font-bold text-white bg-purple-600 rounded-xl shadow-xs uppercase tracking-wider cursor-pointer"
+                disabled={isUploading}
+                className="px-6 py-2.5 text-xs font-extrabold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-xl shadow-md uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2"
               >
-                Upload File
+                {isUploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5" />
+                )}
+                <span>{isUploading ? "Uploading Documents..." : "Upload Files"}</span>
               </button>
             </div>
           </form>

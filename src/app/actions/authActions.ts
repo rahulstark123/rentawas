@@ -42,6 +42,7 @@ export async function createUserProfileAndWorkspace(params: SignUpParams) {
           name: workspaceName || `${fullName}'s Workspace`,
           currency: currency || "USD ($)",
           plan: "trial",
+          trialStartedAt: new Date(),
           ownerId: profile.id,
         },
       });

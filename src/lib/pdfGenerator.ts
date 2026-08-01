@@ -17,7 +17,7 @@ export interface BillingDocRecord {
 export function generateTaxInvoiceHtml(record: BillingDocRecord): string {
   const invNum = record.invoiceNumber || "INV-2026-001";
   const dateStr = record.date || new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-  const plan = record.planName || "Pro Portfolio Plan";
+  const plan = record.planName || "Pro Plan";
   const amt = record.amount || "$15.00 USD";
   const term = record.billingTerm || "Monthly";
 
@@ -155,7 +155,7 @@ export function generatePaymentReceiptHtml(record: BillingDocRecord): string {
   const rcptNum = record.receiptNumber || `RCPT-2026-${Math.floor(100 + Math.random() * 900)}`;
   const invNum = record.invoiceNumber || "INV-2026-001";
   const dateStr = record.date || new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-  const plan = record.planName || "Pro Portfolio Plan";
+  const plan = record.planName || "Pro Plan";
   const amt = record.amount || "$15.00 USD";
   const payId = record.paymentId || "pay_P9283401";
 

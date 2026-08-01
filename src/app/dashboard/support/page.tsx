@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
+import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
 
 export interface SupportTicketRecord {
   id: string;
@@ -102,7 +103,12 @@ export default function LandlordSupportPage() {
   const fetchTickets = async () => {
     try {
       setLoadingTickets(true);
-      const res = await fetch("/api/support/tickets?wid=1");
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        setTickets([]);
+        return;
+      }
+      const res = await fetch(`/api/support/tickets?wid=${activeWid}&isTenant=false`);
       if (res.ok) {
         const json = await res.json();
         if (json.data && Array.isArray(json.data)) {
@@ -157,9 +163,10 @@ export default function LandlordSupportPage() {
 
   const uploadAttachmentToStorage = async (file: File): Promise<string> => {
     try {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId() || "support";
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("workspaceId", "support-tickets");
+      formData.append("workspaceId", String(activeWid));
       formData.append("context", "misc");
 
       const res = await fetch("/api/storage/upload", {
@@ -255,6 +262,13 @@ export default function LandlordSupportPage() {
     const fullPhone = contactPhone.trim() ? `${selectedCountry.dialCode} ${contactPhone.trim()}` : null;
 
     try {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        toast("Workspace not found. Please sign in again.", "error");
+        setIsSubmitting(false);
+        return;
+      }
+
       const res = await fetch("/api/support/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -266,7 +280,8 @@ export default function LandlordSupportPage() {
           contactEmail: contactEmail.trim() || null,
           contactPhone: fullPhone,
           attachments: attachments.map((a) => a.url),
-          wid: 1,
+          wid: Number(activeWid),
+          isTenant: false,
         }),
       });
 
@@ -294,10 +309,11 @@ export default function LandlordSupportPage() {
   const handleStatusUpdate = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "Resolved" ? "Open" : "Resolved";
     try {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
       const res = await fetch("/api/support/tickets", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: newStatus }),
+        body: JSON.stringify({ id, status: newStatus, wid: activeWid ? Number(activeWid) : undefined, isTenant: false }),
       });
       if (res.ok) {
         toast(`Ticket status updated to "${newStatus}"!`, "success");
@@ -316,7 +332,9 @@ export default function LandlordSupportPage() {
     if (!ticketToDelete) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/support/tickets?id=${ticketToDelete.id}`, {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      const widQuery = activeWid ? `&wid=${activeWid}&isTenant=false` : "&isTenant=false";
+      const res = await fetch(`/api/support/tickets?id=${ticketToDelete.id}${widQuery}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -363,7 +381,7 @@ export default function LandlordSupportPage() {
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Generate support tickets, report application issues, and get technical assistance live from PostgreSQL.
+            Create support tickets, report issues, and get help from the RentAwas team.
           </p>
         </div>
 
@@ -425,7 +443,7 @@ export default function LandlordSupportPage() {
 
         {loadingTickets ? (
           <div className="py-12 text-center text-xs font-semibold text-slate-400">
-            Loading tickets from PostgreSQL database...
+            Loading your support tickets...
           </div>
         ) : tickets.length === 0 ? (
           <div className="py-12 text-center space-y-3">
@@ -596,7 +614,7 @@ export default function LandlordSupportPage() {
               </button>
             </div>
 
-            <p className="text-xs text-slate-500">Submit a support request directly to your workspace log in PostgreSQL.</p>
+            <p className="text-xs text-slate-500">Describe your issue and our support team will respond shortly.</p>
 
             <div className="space-y-3.5 text-xs">
               <div>
@@ -781,7 +799,7 @@ export default function LandlordSupportPage() {
             <div className="space-y-1.5">
               <h3 className="text-lg font-black text-slate-900">Delete Support Ticket?</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Are you sure you want to permanently delete <strong>Ticket #{ticketToDelete.ticketNumber}</strong> from PostgreSQL database? This action cannot be undone.
+                Are you sure you want to permanently delete <strong>Ticket #{ticketToDelete.ticketNumber}</strong>? This action cannot be undone.
               </p>
             </div>
 

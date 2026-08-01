@@ -59,7 +59,26 @@ function LoginForm() {
         return;
       }
 
-      // Successful login — check user metadata for role
+      // Resolve this owner's workspace wid so property/unit data is scoped correctly
+      try {
+        const user = data?.user;
+        if (user && role === "owner") {
+          const params = new URLSearchParams();
+          if (user.id) params.set("userId", user.id);
+          else if (user.email) params.set("email", user.email);
+          const wsRes = await fetch(`/api/workspace/me?${params.toString()}`);
+          if (wsRes.ok) {
+            const wsJson = await wsRes.json();
+            if (wsJson?.data?.wid) {
+              const { setActiveWorkspaceId } = await import("@/lib/workspace");
+              setActiveWorkspaceId(wsJson.data.wid);
+            }
+          }
+        }
+      } catch {
+        // Non-blocking — dashboard will re-resolve wid
+      }
+
       router.push(getTargetRedirect());
     } catch (err: any) {
       setErrorMessage(err?.message || "An unexpected error occurred. Please try again.");

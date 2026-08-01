@@ -59,10 +59,10 @@ export default function PaywallModal({
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-orange-100/80 text-[#FF6B00] font-extrabold text-[10px] uppercase tracking-wider rounded-full border border-orange-200/80">
                 <Sparkles className="w-3 h-3" />
-                <span>{isTrialExpired ? "7-Day Free Trial Ended" : "RentAwas Pro Feature"}</span>
+                <span>{isTrialExpired ? "14-Day Free Trial Ended" : "RentAwas Pro Feature"}</span>
               </div>
               <h3 className="text-xl font-extrabold text-slate-900 tracking-tight mt-0.5">
-                Upgrade to RentAwas Pro Plan
+                Upgrade to Unlock Full Access
               </h3>
             </div>
           </div>
@@ -72,16 +72,16 @@ export default function PaywallModal({
             <p className="leading-relaxed bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl text-slate-700 font-medium">
               Browsing and viewing your listings and dashboard is <strong className="text-emerald-600 font-bold">100% Free Forever</strong>! 
               {isTrialExpired ? (
-                <span> Your 7-Day Free Trial has ended. To <strong>{featureName}</strong>, upgrade to the RentAwas Pro Plan.</span>
+                <span> Your 14-Day Free Trial has ended and you are on the Free plan. To <strong>{featureName}</strong>, upgrade to Starter, Pro, or Pro Plus.</span>
               ) : (
-                <span> To <strong>{featureName}</strong> and unlock unlimited property operations, upgrade to the RentAwas Pro Plan.</span>
+                <span> To <strong>{featureName}</strong> and unlock unlimited property operations, choose Starter, Pro, or Pro Plus.</span>
               )}
             </p>
 
             {/* Pro Plan Feature Checklist */}
             <div className="space-y-2.5 pt-1">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block">
-                Included in RentAwas Pro Plan:
+                Paid plans unlock:
               </span>
               <ul className="space-y-2">
                 <li className="flex items-center gap-2.5 text-xs font-semibold text-slate-800">
@@ -113,9 +113,9 @@ export default function PaywallModal({
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Starting at</span>
               <div className="text-xl font-extrabold text-white flex items-baseline gap-1">
-                <span>$15</span>
+                <span>₹499</span>
                 <span className="text-xs text-slate-300 font-normal">/ month</span>
-                <span className="text-[11px] text-amber-400 font-bold ml-1">(or ₹1,249/mo)</span>
+                <span className="text-[11px] text-amber-400 font-bold ml-1">(Starter)</span>
               </div>
             </div>
             <span className="px-2.5 py-1 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase rounded-lg border border-amber-500/30">
@@ -131,7 +131,7 @@ export default function PaywallModal({
               className="w-full sm:flex-1 py-3 px-5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-orange-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Zap className="w-4 h-4" />
-              <span>Avail Pro Plan Now</span>
+              <span>View Plans & Upgrade</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 

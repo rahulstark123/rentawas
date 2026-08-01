@@ -1,20 +1,34 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/listings/inquiries?wid=1
+function parseWid(raw: unknown): number | null {
+  if (raw == null || raw === "") return null;
+  const n = parseInt(String(raw), 10);
+  return !isNaN(n) && n > 0 ? n : null;
+}
+
+// GET /api/listings/inquiries?wid=3 — landlord workspace leads only
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const widParam = searchParams.get("wid");
+    const workspaceId = parseWid(searchParams.get("wid") || searchParams.get("workspaceId"));
     const listingId = searchParams.get("listingId");
 
-    const whereClause: any = {};
-    if (widParam) {
-      const wid = parseInt(widParam, 10);
-      if (!isNaN(wid)) whereClause.workspaceId = wid;
+    if (!workspaceId) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
     }
+
+    const whereClause: any = {
+      OR: [
+        { workspaceId },
+        { listing: { workspaceId } },
+      ],
+    };
     if (listingId) {
-      whereClause.listingId = listingId;
+      whereClause.AND = [{ listingId }];
     }
 
     const inquiries = await prisma.tenantInquiry.findMany({
@@ -27,6 +41,7 @@ export async function GET(request: Request) {
             city: true,
             locality: true,
             rent: true,
+            workspaceId: true,
           },
         },
       },
@@ -64,7 +79,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/listings/inquiries
+// POST /api/listings/inquiries — public lead form; wid derived from listing when possible
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -77,10 +92,16 @@ export async function POST(request: Request) {
       );
     }
 
-    let workspaceId: number | null = null;
-    if (wid) {
-      const parsedWid = parseInt(String(wid), 10);
-      if (!isNaN(parsedWid)) workspaceId = parsedWid;
+    let workspaceId = parseWid(wid);
+
+    if (listingId) {
+      const listing = await prisma.propertyListing.findUnique({
+        where: { id: listingId },
+        select: { workspaceId: true },
+      });
+      if (listing?.workspaceId) {
+        workspaceId = listing.workspaceId;
+      }
     }
 
     const inquiry = await prisma.tenantInquiry.create({
@@ -96,7 +117,6 @@ export async function POST(request: Request) {
       },
     });
 
-    // Increment inquiriesCount on target listing
     if (listingId) {
       try {
         await prisma.propertyListing.update({
@@ -122,19 +142,42 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH /api/listings/inquiries
+// PATCH /api/listings/inquiries — landlord status update (scoped by wid)
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, status, notes } = body;
+    const { id, status, notes, wid } = body;
+    const workspaceId = parseWid(wid);
 
     if (!id) {
       return NextResponse.json({ error: "Missing required inquiry id." }, { status: 400 });
+    }
+    if (!workspaceId) {
+      return NextResponse.json(
+        { error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.tenantInquiry.findFirst({
+      where: {
+        id,
+        OR: [
+          { workspaceId },
+          { listing: { workspaceId } },
+        ],
+      },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Inquiry not found in this workspace." }, { status: 404 });
     }
 
     const updateData: any = {};
     if (status) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;
+    if (existing.workspaceId == null) {
+      updateData.workspaceId = workspaceId;
+    }
 
     const updated = await prisma.tenantInquiry.update({
       where: { id },

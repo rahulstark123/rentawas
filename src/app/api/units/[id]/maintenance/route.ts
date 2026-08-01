@@ -140,7 +140,17 @@ export async function POST(request: Request, { params }: Params) {
     if (unit?.id) maintenanceData.unit = { connect: { id: unit.id } };
     const resolvedPropId = unit ? unit.propertyId : propertyId;
     if (resolvedPropId) maintenanceData.property = { connect: { id: resolvedPropId } };
-    if (unit?.workspaceId) maintenanceData.workspace = { connect: { wid: unit.workspaceId } };
+
+    let resolvedWid = unit?.workspaceId ?? null;
+    if (!resolvedWid && resolvedPropId) {
+      const prop = await prisma.property.findUnique({
+        where: { id: resolvedPropId },
+        select: { workspaceId: true },
+      });
+      resolvedWid = prop?.workspaceId ?? null;
+    }
+    if (resolvedWid) maintenanceData.workspace = { connect: { wid: resolvedWid } };
+
     if (tenantId) maintenanceData.tenant = { connect: { id: tenantId } };
 
     const ticket = await prisma.maintenance.create({

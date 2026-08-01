@@ -8,20 +8,26 @@ export default function JsonLd() {
     "offers": [
       {
         "@type": "Offer",
-        "name": "Starter Trial Plan",
+        "name": "Free Plan",
         "price": "0",
         "priceCurrency": "INR"
       },
       {
         "@type": "Offer",
-        "name": "Growth Plan",
-        "price": "999",
+        "name": "Starter Plan",
+        "price": "499",
         "priceCurrency": "INR"
       },
       {
         "@type": "Offer",
-        "name": "Pro Portfolio Plan",
-        "price": "2499",
+        "name": "Pro Plan",
+        "price": "1299",
+        "priceCurrency": "INR"
+      },
+      {
+        "@type": "Offer",
+        "name": "Pro Plus Plan",
+        "price": "3299",
         "priceCurrency": "INR"
       }
     ],

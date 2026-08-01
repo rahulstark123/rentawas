@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion, Variants } from "framer-motion";
-import { Search } from "lucide-react";
+import { Search, MessageSquare } from "lucide-react";
 import { 
   IconInventory, 
   IconLeaseAI, 
@@ -194,7 +194,29 @@ export default function FeaturesBento({ onOpenEarlyAccess }: FeaturesBentoProps 
             </Link>
           </motion.div>
 
-          {/* Card 5: Rent Payments & Collections */}
+          {/* Card 5: In-App Tenant Direct & Group Messaging */}
+          <motion.div 
+            variants={cardVariants}
+            whileHover={{ y: -3 }}
+            className="md:col-span-6 bg-white rounded-xl md:rounded-2xl p-6 sm:p-7 border border-slate-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between group"
+          >
+            <div>
+              <div className="w-10 h-10 rounded-lg bg-orange-50 border border-orange-100 text-[#FF6B00] flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-orange-100 text-[#FF6B00] text-[10px] font-extrabold uppercase mb-2">
+                <span>Direct DMs & Group Channels</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">
+                In-App Tenant & Resident Messaging
+              </h3>
+              <p className="text-slate-600 font-normal text-xs sm:text-sm leading-relaxed">
+                Communicate directly with tenants via 1-on-1 DMs and create building-wide group channels for announcements & maintenance.
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Card 6: Rent Payments & Collections */}
           <motion.div 
             variants={cardVariants}
             whileHover={{ y: -3 }}

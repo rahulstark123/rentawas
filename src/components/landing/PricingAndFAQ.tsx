@@ -29,6 +29,18 @@ export default function PricingAndFAQ() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("Free Trial Registration");
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [isAnnual, setIsAnnual] = useState(true);
+
+  const plans = {
+    starter: { monthly: 499, annual: 399 },
+    pro: { monthly: 1299, annual: 999 },
+    proPlus: { monthly: 3299, annual: 2499 },
+  };
+
+  const formatInr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+  const starterPrice = isAnnual ? plans.starter.annual : plans.starter.monthly;
+  const proPrice = isAnnual ? plans.pro.annual : plans.pro.monthly;
+  const proPlusPrice = isAnnual ? plans.proPlus.annual : plans.proPlus.monthly;
 
   const triggerModal = (title: string) => {
     setModalTitle(title);
@@ -41,6 +53,7 @@ export default function PricingAndFAQ() {
 
   const includedFeatures = [
     { icon: Building2, label: "100% Free Property Listing (Zero Brokerage)" },
+    { icon: MessageSquareHeart, label: "In-App Direct & Group Messaging System" },
     { icon: IconCloudStorage, label: "Cloud Workspace Ledgers" },
     { icon: Building2, label: "Floor & Unit Inventory Matrix" },
     { icon: TrendingUp, label: "Net Operating Income (NOI)" },
@@ -57,11 +70,15 @@ export default function PricingAndFAQ() {
     },
     {
       q: "Is there a free trial?",
-      a: "Yes! Every plan comes with a 14-day full feature free trial. No credit card is required to sign up and start managing your properties immediately.",
+      a: "Yes! Every new account gets a 14-day full-feature free trial. No credit card is required. When the trial ends, your workspace moves to the Free plan automatically.",
+    },
+    {
+      q: "What happens after the trial ends?",
+      a: "You stay on the Free plan forever for browsing and property listing. Upgrade anytime to Starter, Pro, or Pro Plus to unlock add operations and higher unit limits.",
     },
     {
       q: "Can I upgrade anytime?",
-      a: "Absolutely. You can switch between Starter, Growth, and Business plans at any time directly from your workspace settings with pro-rated billing.",
+      a: "Absolutely. You can switch between Free, Starter, Pro, and Pro Plus at any time directly from your workspace billing settings with pro-rated billing.",
     },
     {
       q: "Can I cancel anytime?",
@@ -114,18 +131,103 @@ export default function PricingAndFAQ() {
           </h2>
           {/* Inter Description */}
           <p className="text-slate-600 font-normal text-base sm:text-lg mt-4 leading-relaxed font-sans">
-            Choose the perfect software plan for your property management tool.
+            Start with a 14-day free trial. After it ends, stay on Free forever — or upgrade to Starter, Pro, or Pro Plus.
             <span className="font-bold text-slate-800 block mt-1">
-              ✨ Property Listing is <span className="text-emerald-600 font-extrabold">100% FREE</span> for all landlords! Start with a 14-day free trial — no credit card required.
+              Property Listing is <span className="text-emerald-600 font-extrabold">100% FREE</span> for all landlords. No credit card required.
             </span>
           </p>
+
+          {/* Monthly vs Annual Toggle */}
+          <div className="mt-8 inline-flex items-center gap-1.5 bg-slate-100/90 border border-slate-200/80 p-1.5 rounded-xl shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setIsAnnual(false)}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                !isAnnual ? "bg-white text-slate-900 shadow-xs" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Monthly Billing
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAnnual(true)}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                isAnnual ? "bg-[#FF6B00] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <span>Annual Billing</span>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
+                  isAnnual ? "bg-white/20 text-white" : "bg-orange-100 text-[#FF6B00]"
+                }`}
+              >
+                Save 20%
+              </span>
+            </button>
+          </div>
         </motion.div>
 
-        {/* 3 Pricing Cards Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-6 items-stretch mb-24 font-sans">
-          {/* Card 1: Starter */}
+        {/* 4 Pricing Cards Grid: Free → Starter → Pro → Pro Plus */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-6 items-stretch mb-24 font-sans">
+          {/* Card 1: Free */}
           <motion.div 
             custom={0}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={cardVariants}
+            whileHover={{ y: -4 }}
+            className="bg-white rounded-xl md:rounded-2xl p-7 sm:p-8 border border-emerald-200/80 card-shadow card-shadow-hover transition-all flex flex-col justify-between"
+          >
+            <div>
+              <h3 
+                className="text-2xl font-bold text-slate-900 mb-1"
+                style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
+              >
+                Free
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mb-6">
+                After your 14-day trial ends
+              </p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl sm:text-5xl font-extrabold text-slate-900">₹0</span>
+                <span className="text-xs font-semibold text-slate-500 uppercase">/forever</span>
+              </div>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5 mb-6">No credit card required</p>
+              <ul className="space-y-3 mb-8 text-xs sm:text-sm text-slate-600 font-medium">
+                <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>14-day full-feature trial on signup</span>
+                </li>
+                <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>100% Free Property Listing</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>Browse & view dashboard forever</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>View properties, tenants & ledgers</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>Upgrade anytime to unlock ops</span>
+                </li>
+              </ul>
+            </div>
+            <button
+              onClick={() => triggerModal("Start 14-Day Free Trial")}
+              className="w-full text-center text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors py-3 rounded-lg cursor-pointer uppercase tracking-wider"
+            >
+              Start Free Trial
+            </button>
+          </motion.div>
+
+          {/* Card 2: Starter */}
+          <motion.div 
+            custom={1}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
@@ -144,10 +246,12 @@ export default function PricingAndFAQ() {
                 Best for Individual Landlords
               </p>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl sm:text-5xl font-extrabold text-slate-900">₹499</span>
+                <span className="text-4xl sm:text-5xl font-extrabold text-slate-900">{formatInr(starterPrice)}</span>
                 <span className="text-xs font-semibold text-slate-500 uppercase">/month</span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5 mb-6">+18% GST</p>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5 mb-6">
+                {isAnnual ? `+18% GST · billed annually` : `+18% GST`}
+              </p>
               <ul className="space-y-3 mb-8 text-xs sm:text-sm text-slate-600 font-medium">
                 <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -167,7 +271,7 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Tenant Management & Profiles</span>
+                  <span>Tenant Management & Messaging Directory</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -181,10 +285,6 @@ export default function PricingAndFAQ() {
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span>Digital Lease Management</span>
                 </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Basic Reports & Ledgers</span>
-                </li>
               </ul>
             </div>
             <button
@@ -195,9 +295,9 @@ export default function PricingAndFAQ() {
             </button>
           </motion.div>
 
-          {/* Card 2: Growth (Most Popular) */}
+          {/* Card 3: Pro (Most Popular) */}
           <motion.div 
-            custom={1}
+            custom={2}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
@@ -205,7 +305,6 @@ export default function PricingAndFAQ() {
             whileHover={{ y: -6 }}
             className="bg-white rounded-xl md:rounded-2xl p-7 sm:p-8 border-2 border-[#FF6B00] shadow-lg relative flex flex-col justify-between lg:-translate-y-2"
           >
-            {/* Most Popular Badge */}
             <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#FF6B00] text-white text-[10px] font-extrabold uppercase tracking-wider px-3.5 py-0.5 rounded-full shadow-xs">
               Most Popular
             </div>
@@ -214,16 +313,20 @@ export default function PricingAndFAQ() {
                 className="text-2xl font-bold text-slate-900 mb-1"
                 style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
               >
-                Growth
+                Pro
               </h3>
               <p className="text-xs text-slate-500 font-medium mb-6">
                 Best for PG Owners & Apartment Owners
               </p>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl sm:text-5xl font-extrabold text-slate-900">₹999</span>
+                <span className="text-4xl sm:text-5xl font-extrabold text-slate-900">{formatInr(proPrice)}</span>
                 <span className="text-xs font-semibold text-slate-500 uppercase">/month</span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5 mb-6">+18% GST</p>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5 mb-6">
+                {isAnnual
+                  ? `+18% GST · ${formatInr(plans.pro.monthly)}/mo if billed monthly`
+                  : `+18% GST · ${formatInr(plans.pro.annual)}/mo billed annually`}
+              </p>
               <ul className="space-y-3 mb-8 text-xs sm:text-sm text-slate-600 font-medium">
                 <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -235,7 +338,7 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5 font-bold text-slate-900">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Unlimited Properties</span>
+                  <span>Everything in Starter</span>
                 </li>
                 <li className="flex items-center gap-2.5 font-bold text-slate-900">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
@@ -243,45 +346,33 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Everything in Starter</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
                   <span>Floor-by-Floor Unit Matrix</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Dedicated Property Yield Analytics</span>
+                  <span>Property Yield Analytics & NOI</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
                   <span>Tenant Health Score Tracking</span>
                 </li>
-                <li className="flex items-center gap-2.5">
+                <li className="flex items-center gap-2.5 font-bold text-orange-700">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Expense & Net Operating Income (NOI)</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Multi-Period Fiscal Year Filtering</span>
-                </li>
-                <li className="flex items-center gap-2.5 font-bold text-purple-700">
-                  <Check className="w-4 h-4 text-purple-600 shrink-0" />
                   <span>100 AI Credits / month</span>
                 </li>
               </ul>
             </div>
             <button
-              onClick={() => triggerModal("Growth Plan Free Trial")}
+              onClick={() => triggerModal("Pro Plan Free Trial")}
               className="w-full text-center text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all py-3 rounded-lg shadow-xs hover:shadow-sm cursor-pointer uppercase tracking-wider"
             >
               Start Free Trial
             </button>
           </motion.div>
 
-          {/* Card 3: Business */}
+          {/* Card 4: Pro Plus */}
           <motion.div 
-            custom={2}
+            custom={3}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
@@ -294,16 +385,20 @@ export default function PricingAndFAQ() {
                 className="text-2xl font-bold text-slate-900 mb-1"
                 style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
               >
-                Business
+                Pro Plus
               </h3>
               <p className="text-xs text-slate-500 font-medium mb-6">
-                Best for Property Managers & Rental Companies
+                Best for Property Managers & Portfolios
               </p>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl sm:text-5xl font-extrabold text-slate-900">₹1,999</span>
+                <span className="text-4xl sm:text-5xl font-extrabold text-slate-900">{formatInr(proPlusPrice)}</span>
                 <span className="text-xs font-semibold text-slate-500 uppercase">/month</span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5 mb-6">+18% GST</p>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5 mb-6">
+                {isAnnual
+                  ? `+18% GST · ${formatInr(plans.proPlus.monthly)}/mo if billed monthly`
+                  : `+18% GST · ${formatInr(plans.proPlus.annual)}/mo billed annually`}
+              </p>
               <ul className="space-y-3 mb-8 text-xs sm:text-sm text-slate-600 font-medium">
                 <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -313,13 +408,9 @@ export default function PricingAndFAQ() {
                   <Check className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>Free Access to RentAwas Expert Service (Coming Soon)</span>
                 </li>
-                <li className="flex items-center gap-2.5 font-extrabold text-[#FF6B00] bg-orange-50/80 px-2.5 py-1 rounded-lg border border-orange-200/60">
-                  <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>Priority Property Listing (Featured Top Badge)</span>
-                </li>
                 <li className="flex items-center gap-2.5 font-bold text-slate-900">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Unlimited Properties</span>
+                  <span>Everything in Pro</span>
                 </li>
                 <li className="flex items-center gap-2.5 font-bold text-slate-900">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -327,15 +418,7 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Everything in Growth</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span>Tenant Resident Portal Access</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Global Command Palette (Ctrl + K)</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -345,14 +428,14 @@ export default function PricingAndFAQ() {
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span>Advanced Portfolio Analytics</span>
                 </li>
-                <li className="flex items-center gap-2.5 font-bold text-purple-700">
-                  <Check className="w-4 h-4 text-purple-600 shrink-0" />
+                <li className="flex items-center gap-2.5 font-bold text-orange-700">
+                  <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
                   <span>500 AI Credits / month</span>
                 </li>
               </ul>
             </div>
             <button
-              onClick={() => triggerModal("Business Plan Free Trial")}
+              onClick={() => triggerModal("Pro Plus Plan Free Trial")}
               className="w-full text-center text-xs font-bold text-white bg-[#0B132B] hover:bg-[#162244] transition-colors py-3 rounded-lg cursor-pointer uppercase tracking-wider"
             >
               Start Free Trial

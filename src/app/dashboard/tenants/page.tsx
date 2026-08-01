@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
+import { getActiveWorkspaceId, ensureActiveWorkspaceId } from "@/lib/workspace";
 import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
 import { uploadFile, validateFile } from "@/lib/upload";
 
@@ -73,7 +74,7 @@ const ITEMS_PER_PAGE = 10;
 
 export default function TenantsPage() {
   const { toast } = useToast();
-  const { formatCurrency } = useCurrency();
+  const { formatCurrency, currencySymbol } = useCurrency();
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -160,16 +161,21 @@ export default function TenantsPage() {
   // Main Tenants State
   const [tenants, setTenants] = useState<TenantItem[]>([]);
 
-  // Fetch real tenants from database
+  // Fetch real tenants from database (workspace-scoped)
   const fetchTenants = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/tenants");
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        setTenants([]);
+        return;
+      }
+      const res = await fetch(`/api/tenants?workspaceId=${activeWid}`);
       if (res.ok) {
         const json = await res.json();
         if (json.data && Array.isArray(json.data)) {
           const loaded: TenantItem[] = json.data.map((t: any) => {
-            const propName = t.unit?.property?.name || "Property";
+            const propName = t.unit?.property?.name || t.property?.name || "Property";
             const unitNo = t.unit?.unitNumber || "Unit 101";
             
             let score = t.healthScore || 80;
@@ -199,7 +205,7 @@ export default function TenantsPage() {
               leaseDocUrl: t.leaseDocUrl,
               unitId: t.unitId,
               propertyId: t.propertyId || t.unit?.propertyId,
-              workspaceId: t.workspaceId || t.unit?.workspaceId || t.unit?.property?.workspaceId,
+              workspaceId: t.workspaceId || t.unit?.workspaceId || t.unit?.property?.workspaceId || t.property?.workspaceId,
               floorNumber: t.floorNumber || t.unit?.floorNumber || 1,
               currentStatus: t.currentStatus || (t.unitId ? "Current" : "Past"),
             };
@@ -214,13 +220,18 @@ export default function TenantsPage() {
     }
   };
 
-  // Fetch live properties from API with robust fallback
+  // Fetch live properties from API (workspace-scoped, no fake fallbacks)
   const fetchPropertiesList = async () => {
     try {
-      const res = await fetch("/api/properties?wid=1");
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        setPropertiesList([]);
+        return;
+      }
+      const res = await fetch(`/api/properties?wid=${activeWid}`);
       if (res.ok) {
         const json = await res.json();
-        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.data && Array.isArray(json.data)) {
           setPropertiesList(json.data);
           return;
         }
@@ -228,13 +239,7 @@ export default function TenantsPage() {
     } catch (err) {
       console.warn("Could not fetch properties list from API:", err);
     }
-    // Fallback properties if DB has 0 items or API call is loading
-    setPropertiesList([
-      { id: "prop-regent", name: "The Regent - Wing A", totalFloors: 5 },
-      { id: "prop-horizon", name: "Downtown Horizon Suites", totalFloors: 4 },
-      { id: "prop-oakwood", name: "Oakwood Executive Residency", totalFloors: 3 },
-      { id: "prop-skyline", name: "Skyline Manor", totalFloors: 2 }
-    ]);
+    setPropertiesList([]);
   };
 
   useEffect(() => {
@@ -568,6 +573,7 @@ export default function TenantsPage() {
         govIdUrl: govIdDocs[0]?.url || govIdUrl || null,
         leaseDocUrl: leaseDocs[0]?.url || leaseUrl || null,
         documents: documentsPayload,
+        workspaceId: Number((await ensureActiveWorkspaceId()) || getActiveWorkspaceId() || 0) || undefined,
       };
 
       if (editingTenantId) {
@@ -1171,7 +1177,7 @@ export default function TenantsPage() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Outstanding Dues ($ / ₹)</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Outstanding Dues ({currencySymbol})</label>
                   <input
                     type="number"
                     value={dueAmount}
@@ -1312,64 +1318,73 @@ export default function TenantsPage() {
                     {/* 1. Property Dropdown (Fetched from API) */}
                     <div>
                       <label className="block font-bold text-slate-700 uppercase mb-1">1. Select Property *</label>
-                      <select
-                        required
-                        value={selectedPropertyId}
-                        onChange={(e) => handlePropertyChange(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                      >
-                        <option value="">-- Select Property --</option>
-                        {propertiesList.map((p) => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <select
+                          required
+                          value={selectedPropertyId}
+                          onChange={(e) => handlePropertyChange(e.target.value)}
+                          className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                        >
+                          <option value="">-- Select Property --</option>
+                          {propertiesList.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {/* 2. Floor Dropdown (Disabled until Property is selected) */}
                       <div>
                         <label className="block font-bold text-slate-700 uppercase mb-1">2. Select Floor *</label>
-                        <select
-                          required
-                          disabled={!selectedPropertyId}
-                          value={selectedFloor}
-                          onChange={(e) => handleFloorChange(e.target.value)}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
-                        >
-                          <option value="">
-                            {!selectedPropertyId ? "-- Select Property First --" : "-- Select Floor --"}
-                          </option>
-                          {availableFloors.map((fl) => (
-                            <option key={fl} value={fl}>Floor {fl}</option>
-                          ))}
-                        </select>
+                        <div className="relative">
+                          <select
+                            required
+                            disabled={!selectedPropertyId}
+                            value={selectedFloor}
+                            onChange={(e) => handleFloorChange(e.target.value)}
+                            className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                          >
+                            <option value="">
+                              {!selectedPropertyId ? "-- Select Property First --" : "-- Select Floor --"}
+                            </option>
+                            {availableFloors.map((fl) => (
+                              <option key={fl} value={fl}>Floor {fl}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
                       </div>
 
                       {/* 3. Unit Dropdown (Disabled until Floor is selected) */}
                       <div>
                         <label className="block font-bold text-slate-700 uppercase mb-1">3. Select Room / Unit *</label>
-                        <select
-                          required
-                          disabled={!selectedFloor || loadingUnits}
-                          value={selectedUnitId}
-                          onChange={(e) => handleUnitChange(e.target.value)}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
-                        >
-                          <option value="">
-                            {loadingUnits
-                              ? "Loading units..."
-                              : !selectedFloor
-                              ? "-- Select Floor First --"
-                              : filteredUnitsForFloor.length === 0
-                              ? "-- No units on this floor --"
-                              : "-- Select Unit --"}
-                          </option>
-                          {filteredUnitsForFloor.map((u) => (
-                            <option key={u.id} value={u.id}>
-                              {u.unitNumber} {u.isOccupied ? "(Occupied)" : "(Vacant)"}
+                        <div className="relative">
+                          <select
+                            required
+                            disabled={!selectedFloor || loadingUnits}
+                            value={selectedUnitId}
+                            onChange={(e) => handleUnitChange(e.target.value)}
+                            className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                          >
+                            <option value="">
+                              {loadingUnits
+                                ? "Loading units..."
+                                : !selectedFloor
+                                ? "-- Select Floor First --"
+                                : filteredUnitsForFloor.length === 0
+                                ? "-- No units on this floor --"
+                                : "-- Select Unit --"}
                             </option>
-                          ))}
-                        </select>
+                            {filteredUnitsForFloor.map((u) => (
+                              <option key={u.id} value={u.id}>
+                                {u.unitNumber} {u.isOccupied ? "(Occupied)" : "(Vacant)"}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1428,7 +1443,7 @@ export default function TenantsPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent ($ / ₹) *</label>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Monthly Rent ({currencySymbol}) *</label>
                     <input
                       type="number"
                       required
@@ -1452,7 +1467,7 @@ export default function TenantsPage() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Security Deposit ($ / ₹) (Optional)</label>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Security Deposit ({currencySymbol}) (Optional)</label>
                   <input
                     type="number"
                     value={securityDeposit}
@@ -1470,15 +1485,18 @@ export default function TenantsPage() {
                 <div className="grid grid-cols-2 gap-3.5">
                   <div>
                     <label className="block font-bold text-slate-700 uppercase mb-1">Government ID Type</label>
-                    <select
-                      value={idType}
-                      onChange={(e) => setIdType(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                    >
-                      <option value="Passport">Passport</option>
-                      <option value="Driver's License">Driver&apos;s License</option>
-                      <option value="National Identity Card (Aadhaar / SSN)">National Identity Card</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={idType}
+                        onChange={(e) => setIdType(e.target.value)}
+                        className="w-full appearance-none pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                      >
+                        <option value="Passport">Passport</option>
+                        <option value="Driver's License">Driver&apos;s License</option>
+                        <option value="National Identity Card (Aadhaar / SSN)">National Identity Card</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
                   </div>
 
                   <div>
@@ -1610,15 +1628,18 @@ export default function TenantsPage() {
               <div className="space-y-4 text-xs animate-in fade-in">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase mb-1">Document Category</label>
-                  <select
-                    value={docType}
-                    onChange={(e) => setDocType(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="Signed Residential Lease Agreement">Signed Residential Lease Agreement</option>
-                    <option value="Police Verification Certificate">Police Verification Certificate</option>
-                    <option value="Proof of Income / Salary Slip">Proof of Income / Salary Slip</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={docType}
+                      onChange={(e) => setDocType(e.target.value)}
+                      className="w-full appearance-none pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                    >
+                      <option value="Signed Residential Lease Agreement">Signed Residential Lease Agreement</option>
+                      <option value="Police Verification Certificate">Police Verification Certificate</option>
+                      <option value="Proof of Income / Salary Slip">Proof of Income / Salary Slip</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
 
                 {/* Cloudflare R2 Upload Box for Lease Contracts & Compliance Documents */}

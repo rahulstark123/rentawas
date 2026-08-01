@@ -26,6 +26,7 @@ import AddPropertyModal, { PropertyData } from "@/components/ui/AddPropertyModal
 import FloorPlanDrawer from "@/components/ui/FloorPlanDrawer";
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
+import { getActiveWorkspaceId, ensureActiveWorkspaceId } from "@/lib/workspace";
 
 export interface PropertyItem {
   id: string;
@@ -90,10 +91,16 @@ export default function PropertiesPage() {
     );
   });
 
-  // Fetch properties from GET /api/properties?wid=1
+  // Fetch properties workspace-wise (scoped by active workspace wid)
   const fetchProperties = async () => {
+    const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+    if (!activeWid) {
+      setPropertyList([]);
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await fetch("/api/properties?wid=1");
+      const res = await fetch(`/api/properties?wid=${activeWid}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         const mapped: PropertyItem[] = json.data.map((item: any) => {
@@ -132,13 +139,18 @@ export default function PropertiesPage() {
   const handleAddProperty = async (newProp: PropertyData) => {
     const numFloors = newProp.floors || 4;
     const computedUnits = newProp.units || numFloors * 4;
+    const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+    if (!activeWid) {
+      toast("Account not found. Please sign in again.", "error");
+      return;
+    }
 
     try {
       const res = await fetch("/api/properties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wid: 1,
+          wid: Number(activeWid),
           name: newProp.name,
           category: newProp.category,
           pincode: newProp.pincode,
@@ -150,7 +162,7 @@ export default function PropertiesPage() {
 
       const json = await res.json();
       if (json.success) {
-        toast(`Property "${newProp.name}" created and synced to database!`, "success");
+        toast(`Property "${newProp.name}" created successfully!`, "success");
         fetchProperties();
         return;
       }
@@ -177,8 +189,9 @@ export default function PropertiesPage() {
   };
 
   const handleDeleteProperty = async (id: string, name: string) => {
+    const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
     try {
-      const res = await fetch(`/api/properties/${id}?wid=1`, {
+      const res = await fetch(`/api/properties/${id}?wid=${activeWid}`, {
         method: "DELETE",
       });
       const json = await res.json();
@@ -199,12 +212,13 @@ export default function PropertiesPage() {
 
   const handleSaveEditProperty = async (updatedData: any) => {
     if (editingProp) {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
       try {
         const res = await fetch(`/api/properties/${editingProp.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            wid: 1,
+            wid: Number(activeWid),
             name: updatedData.name,
             address: updatedData.address,
             floors: updatedData.floors,

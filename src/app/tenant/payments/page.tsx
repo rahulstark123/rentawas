@@ -32,14 +32,14 @@ import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/context/CurrencyContext";
 
 export default function TenantPaymentsPage() {
-  const { formatCurrency, currencySymbol } = useCurrency();
+  const { formatCurrency, currencySymbol, setCurrency } = useCurrency();
   const [paid, setPaid] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tenant, setTenant] = useState<any>(null);
   const [workspaceUpi, setWorkspaceUpi] = useState<any>(null);
   const [copiedUpi, setCopiedUpi] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState<string>("gpay");
+  const [selectedMethod, setSelectedMethod] = useState<string>("");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [maximizedQrUrl, setMaximizedQrUrl] = useState<string | null>(null);
 
@@ -90,50 +90,66 @@ export default function TenantPaymentsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
       const res = await fetch(`/api/tenant/me${emailParam}`);
+      let tenantData: any = null;
       if (res.ok) {
         const json = await res.json();
         if (json.data) {
+          tenantData = json.data;
           setTenant(json.data);
         }
       }
 
-      // Fetch Workspace Payment Settings (Direct UPI, Razorpay, Stripe, PayPal)
-      const wsRes = await fetch("/api/workspace?wid=1");
+      const wid = tenantData?.workspaceId != null ? Number(tenantData.workspaceId) : NaN;
+      if (!wid || isNaN(wid) || wid <= 0) {
+        setWorkspaceUpi(null);
+        return;
+      }
+
+      // Landlord payment channels for THIS tenant's workspace only
+      const wsRes = await fetch(`/api/workspace?wid=${encodeURIComponent(String(wid))}`);
       if (wsRes.ok) {
         const wsJson = await wsRes.json();
         if (wsJson.data) {
+          if (wsJson.data.currency) {
+            setCurrency(wsJson.data.currency);
+          }
           setWorkspaceUpi({
-            upiId: wsJson.data.upiId || "landlord@okicici",
-            upiPhoneNumber: wsJson.data.upiPhoneNumber || "+91 98765 43210",
-            upiAccountName: wsJson.data.upiAccountName || "Ansh Property Management",
+            upiId: wsJson.data.upiId || "",
+            upiPhoneNumber: wsJson.data.upiPhoneNumber || "",
+            upiAccountName: wsJson.data.upiAccountName || "",
             upiQrCodeUrl: wsJson.data.upiQrCodeUrl || "",
-            upiAppsSupported: wsJson.data.upiAppsSupported || "Google Pay, PhonePe, Paytm, BHIM UPI",
-            upiConnected: wsJson.data.upiConnected ?? true,
+            upiAppsSupported: wsJson.data.upiAppsSupported || "",
+            upiConnected: Boolean(wsJson.data.upiConnected),
 
-            gpayUpiId: wsJson.data.gpayUpiId || wsJson.data.upiId || "landlord@okicici",
-            gpayPhoneNumber: wsJson.data.gpayPhoneNumber || wsJson.data.upiPhoneNumber || "+91 98765 43210",
-            gpayQrCodeUrl: wsJson.data.gpayQrCodeUrl || wsJson.data.upiQrCodeUrl || "",
-            gpayConnected: wsJson.data.gpayConnected ?? true,
+            gpayUpiId: wsJson.data.gpayUpiId || "",
+            gpayPhoneNumber: wsJson.data.gpayPhoneNumber || "",
+            gpayQrCodeUrl: wsJson.data.gpayQrCodeUrl || "",
+            gpayConnected: Boolean(wsJson.data.gpayConnected),
 
-            phonepeUpiId: wsJson.data.phonepeUpiId || wsJson.data.upiId || "9876543210@ybl",
-            phonepePhoneNumber: wsJson.data.phonepePhoneNumber || wsJson.data.upiPhoneNumber || "+91 98765 43210",
-            phonepeQrCodeUrl: wsJson.data.phonepeQrCodeUrl || wsJson.data.upiQrCodeUrl || "",
-            phonepeConnected: wsJson.data.phonepeConnected ?? true,
+            phonepeUpiId: wsJson.data.phonepeUpiId || "",
+            phonepePhoneNumber: wsJson.data.phonepePhoneNumber || "",
+            phonepeQrCodeUrl: wsJson.data.phonepeQrCodeUrl || "",
+            phonepeConnected: Boolean(wsJson.data.phonepeConnected),
 
-            paytmUpiId: wsJson.data.paytmUpiId || wsJson.data.upiId || "owner@paytm",
-            paytmPhoneNumber: wsJson.data.paytmPhoneNumber || wsJson.data.upiPhoneNumber || "+91 98765 43210",
-            paytmQrCodeUrl: wsJson.data.paytmQrCodeUrl || wsJson.data.upiQrCodeUrl || "",
-            paytmConnected: wsJson.data.paytmConnected ?? true,
+            paytmUpiId: wsJson.data.paytmUpiId || "",
+            paytmPhoneNumber: wsJson.data.paytmPhoneNumber || "",
+            paytmQrCodeUrl: wsJson.data.paytmQrCodeUrl || "",
+            paytmConnected: Boolean(wsJson.data.paytmConnected),
 
             razorpayKeyId: wsJson.data.razorpayKeyId || "",
-            razorpayConnected: wsJson.data.razorpayConnected ?? false,
-            stripeConnected: wsJson.data.stripeConnected ?? false,
-            paypalConnected: wsJson.data.paypalConnected ?? false,
+            razorpayConnected: Boolean(wsJson.data.razorpayConnected),
+            stripeConnected: Boolean(wsJson.data.stripeConnected),
+            paypalConnected: Boolean(wsJson.data.paypalConnected),
           });
+        } else {
+          setWorkspaceUpi(null);
         }
+      } else {
+        setWorkspaceUpi(null);
       }
     } catch (err) {
       console.error("Error loading tenant payments data:", err);
+      setWorkspaceUpi(null);
     } finally {
       setLoading(false);
     }
@@ -141,6 +157,12 @@ export default function TenantPaymentsPage() {
 
   useEffect(() => {
     loadTenantData();
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get("openModal") === "true" || searchParams.get("pay") === "true") {
+        setShowPaymentModal(true);
+      }
+    }
   }, []);
 
   const rentVal = tenant?.monthlyRent || 3200;
@@ -149,7 +171,7 @@ export default function TenantPaymentsPage() {
     ? tenant.bills.map((b: any, idx: number) => ({
         id: b.invoiceNumber || b.billNumber || `REC-${900 + idx + 1}`,
         period: b.title || "Monthly Rent Payment",
-        amount: `$${(b.amount || rentVal).toLocaleString()}.00`,
+        amount: formatCurrency(b.amount || rentVal),
         paidOn: b.paidDate
           ? new Date(b.paidDate).toISOString().split("T")[0]
           : b.createdAt
@@ -160,7 +182,7 @@ export default function TenantPaymentsPage() {
       }))
     : [];
 
-  // All potential landlord channels
+  // All potential landlord channels — only truly connected ones are shown
   const allLandlordMethods = [
     {
       id: "gpay",
@@ -168,11 +190,11 @@ export default function TenantPaymentsPage() {
       subtitle: "GPay Direct UPI & Scanner",
       type: "upi",
       logo: "/assests/google-pay-logo.png",
-      active: workspaceUpi?.gpayConnected ?? true,
+      active: Boolean(workspaceUpi?.gpayConnected),
       fee: "0%",
-      vpa: workspaceUpi?.gpayUpiId || workspaceUpi?.upiId || "landlord@okicici",
-      phone: workspaceUpi?.gpayPhoneNumber || workspaceUpi?.upiPhoneNumber || "+91 98765 43210",
-      qr: workspaceUpi?.gpayQrCodeUrl || workspaceUpi?.upiQrCodeUrl,
+      vpa: workspaceUpi?.gpayUpiId || "",
+      phone: workspaceUpi?.gpayPhoneNumber || "",
+      qr: workspaceUpi?.gpayQrCodeUrl || "",
     },
     {
       id: "phonepe",
@@ -180,11 +202,11 @@ export default function TenantPaymentsPage() {
       subtitle: "PhonePe VPA & QR Scanner",
       type: "upi",
       logo: "/assests/phonepay logo.png",
-      active: workspaceUpi?.phonepeConnected ?? true,
+      active: Boolean(workspaceUpi?.phonepeConnected),
       fee: "0%",
-      vpa: workspaceUpi?.phonepeUpiId || workspaceUpi?.upiId || "9876543210@ybl",
-      phone: workspaceUpi?.phonepePhoneNumber || workspaceUpi?.upiPhoneNumber || "+91 98765 43210",
-      qr: workspaceUpi?.phonepeQrCodeUrl || workspaceUpi?.upiQrCodeUrl,
+      vpa: workspaceUpi?.phonepeUpiId || "",
+      phone: workspaceUpi?.phonepePhoneNumber || "",
+      qr: workspaceUpi?.phonepeQrCodeUrl || "",
     },
     {
       id: "paytm",
@@ -192,11 +214,23 @@ export default function TenantPaymentsPage() {
       subtitle: "Paytm Scanner & Wallet",
       type: "upi",
       logo: "/assests/paytm logo.png",
-      active: workspaceUpi?.paytmConnected ?? true,
+      active: Boolean(workspaceUpi?.paytmConnected),
       fee: "0%",
-      vpa: workspaceUpi?.paytmUpiId || workspaceUpi?.upiId || "owner@paytm",
-      phone: workspaceUpi?.paytmPhoneNumber || workspaceUpi?.upiPhoneNumber || "+91 98765 43210",
-      qr: workspaceUpi?.paytmQrCodeUrl || workspaceUpi?.upiQrCodeUrl,
+      vpa: workspaceUpi?.paytmUpiId || "",
+      phone: workspaceUpi?.paytmPhoneNumber || "",
+      qr: workspaceUpi?.paytmQrCodeUrl || "",
+    },
+    {
+      id: "upi",
+      name: "Direct UPI & QR",
+      subtitle: "Landlord UPI / QR transfer",
+      type: "upi",
+      logo: "/assests/google-pay-logo.png",
+      active: Boolean(workspaceUpi?.upiConnected),
+      fee: "0%",
+      vpa: workspaceUpi?.upiId || "",
+      phone: workspaceUpi?.upiPhoneNumber || "",
+      qr: workspaceUpi?.upiQrCodeUrl || "",
     },
     {
       id: "razorpay",
@@ -204,7 +238,7 @@ export default function TenantPaymentsPage() {
       subtitle: "India Gateway & Cards",
       type: "gateway",
       logo: "/assests/razorpay icon.jpeg",
-      active: workspaceUpi?.razorpayConnected ?? false,
+      active: Boolean(workspaceUpi?.razorpayConnected),
       fee: "Gateway Fee",
     },
     {
@@ -213,7 +247,7 @@ export default function TenantPaymentsPage() {
       subtitle: "Global Cards & ACH Debit",
       type: "gateway",
       logo: "/assests/stripe icon.jpeg",
-      active: workspaceUpi?.stripeConnected ?? false,
+      active: Boolean(workspaceUpi?.stripeConnected),
       fee: "Card & ACH",
     },
     {
@@ -222,16 +256,15 @@ export default function TenantPaymentsPage() {
       subtitle: "International Wallets",
       type: "gateway",
       logo: "/assests/paypal icon.svg",
-      active: workspaceUpi?.paypalConnected ?? false,
+      active: Boolean(workspaceUpi?.paypalConnected),
       fee: "Global Wallets",
     },
   ];
 
-  // Filter only active methods set by landlord
-  const activeLandlordMethods = allLandlordMethods.filter((m) => m.active);
-  const activeMethods = activeLandlordMethods.length > 0 ? activeLandlordMethods : allLandlordMethods.slice(0, 3);
+  // Only landlord-enabled channels for this workspace — never invent demo methods
+  const activeMethods = allLandlordMethods.filter((m) => m.active);
 
-  const activeSelected = activeMethods.find((m) => m.id === selectedMethod) || activeMethods[0];
+  const activeSelected = activeMethods.find((m) => m.id === selectedMethod) || activeMethods[0] || null;
 
   const handleCopyUpi = (upiString: string) => {
     navigator.clipboard.writeText(upiString);
@@ -263,7 +296,11 @@ export default function TenantPaymentsPage() {
         return;
       }
 
-      const key = workspaceUpi?.razorpayKeyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_1DP5mmOlF5G5ag";
+      const key = workspaceUpi?.razorpayKeyId;
+      if (!key) {
+        alert("Razorpay is not configured by your landlord yet.");
+        return;
+      }
 
       const options = {
         key: key,
@@ -375,31 +412,37 @@ export default function TenantPaymentsPage() {
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
                 Landlord Active Payment Options ({activeMethods.length})
               </span>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {activeMethods.map((m) => (
-                  <div
-                    key={m.id}
-                    title={m.name}
-                    className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-200 p-1 flex items-center justify-center shrink-0 shadow-2xs"
-                  >
-                    <Image src={m.logo} alt={m.name} width={20} height={20} className="object-contain" />
-                  </div>
-                ))}
-              </div>
+              {activeMethods.length > 0 ? (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {activeMethods.map((m) => (
+                    <div
+                      key={m.id}
+                      title={m.name}
+                      className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-200 p-1 flex items-center justify-center shrink-0 shadow-2xs"
+                    >
+                      <Image src={m.logo} alt={m.name} width={20} height={20} className="object-contain" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs font-semibold text-slate-500">
+                  No payment channels enabled by your landlord yet.
+                </p>
+              )}
             </div>
 
             <button
               type="button"
+              disabled={activeMethods.length === 0}
               onClick={() => {
-                if (activeMethods.length > 0) {
-                  setSelectedMethod(activeMethods[0].id);
-                }
+                if (activeMethods.length === 0) return;
+                setSelectedMethod(activeMethods[0].id);
                 setShowPaymentModal(true);
               }}
-              className="px-8 py-3.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-black text-xs rounded-2xl shadow-md shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 hover:scale-[1.02]"
+              className="px-8 py-3.5 bg-[#FF6B00] hover:bg-[#E56000] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 text-white font-black text-xs rounded-2xl shadow-md shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 hover:scale-[1.02]"
             >
               <CreditCard className="w-4 h-4" />
-              <span>Pay Rent Now (${rentVal.toLocaleString()})</span>
+              <span>Pay Rent Now ({formatCurrency(rentVal)})</span>
             </button>
           </div>
         </div>
@@ -410,12 +453,24 @@ export default function TenantPaymentsPage() {
             <h3 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
               Landlord Enabled Payment Channels
             </h3>
-            <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Verified Landlord Accounts</span>
-            </span>
+            {activeMethods.length > 0 && (
+              <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Verified Landlord Accounts</span>
+              </span>
+            )}
           </div>
 
+          {activeMethods.length === 0 ? (
+            <div className="p-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 text-center space-y-2">
+              <AlertCircle className="w-8 h-8 text-slate-300 mx-auto" />
+              <p className="text-sm font-bold text-slate-700">No payment integrations active</p>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Your landlord has not connected GPay, PhonePe, Razorpay, or other payment channels for this property yet.
+                Please contact them to enable rent payments online.
+              </p>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {activeMethods.map((method) => (
               <div
@@ -449,6 +504,7 @@ export default function TenantPaymentsPage() {
               </div>
             ))}
           </div>
+          )}
         </div>
 
         {/* Success Confirmation Toast Banner */}
@@ -460,7 +516,7 @@ export default function TenantPaymentsPage() {
             <div>
               <span className="block font-black text-sm text-emerald-950">Payment Recorded Successfully!</span>
               <span className="text-emerald-700 font-medium">
-                Rent payment of ${rentVal.toLocaleString()}.00 for {tenant?.propertyName || "Residence"} ({tenant?.unitNumber || "Unit"}) has been logged and receipt generated.
+                Rent payment of {formatCurrency(rentVal)} for {tenant?.propertyName || "Residence"} ({tenant?.unitNumber || "Unit"}) has been logged and receipt generated.
               </span>
             </div>
           </div>
@@ -469,7 +525,7 @@ export default function TenantPaymentsPage() {
       </div>
 
       {/* TENANT PAY RENT PREVIEW & CHECKOUT MODAL */}
-      {showPaymentModal && (
+      {showPaymentModal && activeSelected && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto font-sans">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-4xl w-full p-7 sm:p-9 space-y-6 shadow-2xl my-4 relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             
@@ -516,12 +572,12 @@ export default function TenantPaymentsPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500 font-bold">Landlord Beneficiary</span>
                     <span className="font-mono font-bold text-slate-900 truncate max-w-[150px]">
-                      {workspaceUpi?.upiAccountName || "Ansh Property Management"}
+                      {workspaceUpi?.upiAccountName || "Property Management"}
                     </span>
                   </div>
                   <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
                     <span className="font-black text-slate-900">Total Payable</span>
-                    <span className="font-black text-[#FF6B00] text-base">${rentVal.toLocaleString()}.00</span>
+                    <span className="font-black text-[#FF6B00] text-base">{formatCurrency(rentVal)}</span>
                   </div>
                 </div>
 
@@ -762,10 +818,10 @@ export default function TenantPaymentsPage() {
                   {isSubmitting
                     ? "Opening Gateway..."
                     : activeSelected?.id === "razorpay"
-                    ? `Pay via Razorpay ($${rentVal.toLocaleString()})`
+                    ? `Pay via Razorpay (${formatCurrency(rentVal)})`
                     : activeSelected?.type === "upi"
-                    ? `Submit for Verification ($${rentVal.toLocaleString()})`
-                    : `Confirm Payment ($${rentVal.toLocaleString()})`}
+                    ? `Submit for Verification (${formatCurrency(rentVal)})`
+                    : `Confirm Payment (${formatCurrency(rentVal)})`}
                 </span>
               </button>
             </div>

@@ -46,6 +46,7 @@ import {
   ImagePlus
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { useCurrency } from "@/context/CurrencyContext";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 
 interface ListPropertyModalProps {
@@ -98,6 +99,7 @@ export default function ListPropertyModal({
   editingListing,
 }: ListPropertyModalProps) {
   const { toast } = useToast();
+  const { currencySymbol } = useCurrency();
   const [currentStep, setCurrentStep] = useState(1);
 
   // Form State
@@ -431,8 +433,16 @@ export default function ListPropertyModal({
 
   const handlePublish = async () => {
     const isEditMode = Boolean(editingListing && editingListing.id);
+    const { ensureActiveWorkspaceId, getActiveWorkspaceId } = await import("@/lib/workspace");
+    const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+    if (!activeWid) {
+      toast("No active workspace found. Please refresh and try again.", "error");
+      return;
+    }
+
     const payload: any = {
       ...(isEditMode ? { id: editingListing.id } : {}),
+      wid: Number(activeWid),
       title,
       description,
       propertyType,
@@ -665,7 +675,7 @@ export default function ListPropertyModal({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Monthly Rent (₹) *
+                      Monthly Rent ({currencySymbol}) *
                     </label>
                     <input
                       type="number"
@@ -679,7 +689,7 @@ export default function ListPropertyModal({
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Security Deposit (₹)
+                      Security Deposit ({currencySymbol})
                     </label>
                     <input
                       type="number"
@@ -792,13 +802,14 @@ export default function ListPropertyModal({
                     >
                       <option value="N/A (Not Applicable)">N/A (Not Applicable)</option>
                       <option value="Included in Monthly Rent">Included in Monthly Rent</option>
-                      <option value="₹1,000 / Month">₹1,000 / Month</option>
-                      <option value="₹1,500 / Month">₹1,500 / Month</option>
-                      <option value="₹2,000 / Month">₹2,000 / Month</option>
-                      <option value="₹2,500 / Month">₹2,500 / Month</option>
-                      <option value="₹3,000 / Month">₹3,000 / Month</option>
-                      <option value="₹3,500 / Month">₹3,500 / Month</option>
-                      <option value="₹5,000 / Month">₹5,000 / Month</option>
+                      {[1000, 1500, 2000, 2500, 3000, 3500, 5000].map((amount) => {
+                        const label = `${currencySymbol}${amount.toLocaleString()} / Month`;
+                        return (
+                          <option key={amount} value={label}>
+                            {label}
+                          </option>
+                        );
+                      })}
                       <option value="As Per Society Bill (Actuals)">As Per Society Bill (Actuals)</option>
                       <option value="Extra (Billed Annually)">Extra (Billed Annually)</option>
                       <option value="Other / Custom Amount">Other / Custom Amount</option>
@@ -807,7 +818,7 @@ export default function ListPropertyModal({
                     {maintenance === "Other / Custom Amount" && (
                       <div className="mt-2.5 animate-in fade-in zoom-in-95 duration-150">
                         <label className="block text-[11px] font-extrabold text-[#FF6B00] uppercase tracking-wider mb-1">
-                          Specify Custom Amount (₹ / Month) *
+                          Specify Custom Amount ({currencySymbol} / Month) *
                         </label>
                         <input
                           type="number"
@@ -1183,7 +1194,7 @@ export default function ListPropertyModal({
                     </div>
                     <div>
                       <div className="font-extrabold text-slate-900 text-sm">{title || "Property Title"}</div>
-                      <div className="text-xs text-[#FF6B00] font-black">₹{rent || "0"}/month • {propertyType}</div>
+                      <div className="text-xs text-[#FF6B00] font-black">{currencySymbol}{rent || "0"}/month • {propertyType}</div>
                       <div className="text-xs text-slate-500 font-medium">{locality || "Locality"}, {city || "City"}</div>
                     </div>
                   </div>

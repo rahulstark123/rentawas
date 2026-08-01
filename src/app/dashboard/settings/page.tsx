@@ -43,6 +43,12 @@ import {
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
+import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
+
+
+async function resolveActiveWid(): Promise<string> {
+  return (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+}
 
 export const ALL_CURRENCIES = [
   { code: "USD", symbol: "$", name: "USD ($) — United States Dollar" },
@@ -148,21 +154,21 @@ export default function WorkspaceSettingsPage() {
   const [activeTab, setActiveTab] = useState<"general" | "integrations" | "team" | "delete_account">("general");
 
   // General Settings State
-  const [orgName, setOrgName] = useState("Grand Regency Management LLC");
-  const [companyType, setCompanyType] = useState("LLC (Limited Liability Company)");
-  const [taxId, setTaxId] = useState("EIN 92-8491029 / GSTIN 27AAACR1234F1Z9");
-  const [registeredAddress, setRegisteredAddress] = useState("1420 5th Ave, Suite 3000, Seattle, WA 98101");
-  const [landlordName, setLandlordName] = useState("Alexander Wright");
-  const [landlordRole, setLandlordRole] = useState("Managing Director & Asset Owner");
-  const [currency, setCurrency] = useState("USD ($)");
-  const [jurisdiction, setJurisdiction] = useState("Seattle, WA (USA)");
-  const [pincode, setPincode] = useState("98101");
-  const [companyEmail, setCompanyEmail] = useState("support@regencymanagement.com");
-  const [companyPhone, setCompanyPhone] = useState("+1 (555) 019-2834");
-  const [customSubdomain, setCustomSubdomain] = useState("regency.rentawas.com");
-  const [tagline, setTagline] = useState("Premier Residential & Executive Asset Management");
-  const [timezone, setTimezone] = useState("(UTC-08:00) Pacific Time (US & Canada)");
-  const [fiscalYearStart, setFiscalYearStart] = useState("January (Standard Calendar Year)");
+  const [orgName, setOrgName] = useState("");
+  const [companyType, setCompanyType] = useState("");
+  const [taxId, setTaxId] = useState("");
+  const [registeredAddress, setRegisteredAddress] = useState("");
+  const [landlordName, setLandlordName] = useState("");
+  const [landlordRole, setLandlordRole] = useState("");
+  const [currency, setCurrency] = useState("");
+  const [jurisdiction, setJurisdiction] = useState("");
+  const [pincode, setPincode] = useState("");
+  const [companyEmail, setCompanyEmail] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
+  const [customSubdomain, setCustomSubdomain] = useState("");
+  const [tagline, setTagline] = useState("");
+  const [timezone, setTimezone] = useState("");
+  const [fiscalYearStart, setFiscalYearStart] = useState("");
 
   // Edit Settings Modal State
   const [showEditModal, setShowEditModal] = useState(false);
@@ -301,29 +307,34 @@ export default function WorkspaceSettingsPage() {
     setShowEditModal(true);
   };
 
-  // Fetch live workspace settings on component mount
+  // Fetch live workspace settings on component mount (no demo prefill — empty until user saves)
   useEffect(() => {
     async function loadWorkspaceSettings() {
       try {
-        const res = await fetch("/api/workspace?wid=1");
+        const res = await fetch(`/api/workspace?wid=${await resolveActiveWid()}`);
         const json = await res.json();
         if (json.success && json.data) {
           const d = json.data;
-          if (d.name) setOrgName(d.name);
-          if (d.companyType) setCompanyType(d.companyType);
-          if (d.taxId) setTaxId(d.taxId);
-          if (d.registeredAddress) setRegisteredAddress(d.registeredAddress);
-          if (d.landlordName) setLandlordName(d.landlordName);
-          if (d.landlordRole) setLandlordRole(d.landlordRole);
-          if (d.companyEmail) setCompanyEmail(d.companyEmail);
-          if (d.companyPhone) setCompanyPhone(d.companyPhone);
-          if (d.currency) setCurrency(d.currency);
-          if (d.jurisdiction) setJurisdiction(d.jurisdiction);
-          if (d.pincode) setPincode(d.pincode);
-          if (d.timezone) setTimezone(d.timezone);
-          if (d.fiscalYearStart) setFiscalYearStart(d.fiscalYearStart);
-          if (d.customSubdomain) setCustomSubdomain(d.customSubdomain);
-          if (d.tagline) setTagline(d.tagline);
+          const clean = (value: unknown) => {
+            const s = value == null ? "" : String(value).trim();
+            return s;
+          };
+
+          setOrgName(clean(d.name));
+          setCompanyType(clean(d.companyType));
+          setTaxId(clean(d.taxId));
+          setRegisteredAddress(clean(d.registeredAddress));
+          setLandlordName(clean(d.landlordName));
+          setLandlordRole(clean(d.landlordRole));
+          setCompanyEmail(clean(d.companyEmail));
+          setCompanyPhone(clean(d.companyPhone));
+          setCurrency(clean(d.currency));
+          setJurisdiction(clean(d.jurisdiction));
+          setPincode(clean(d.pincode));
+          setTimezone(clean(d.timezone));
+          setFiscalYearStart(clean(d.fiscalYearStart));
+          setCustomSubdomain(clean(d.customSubdomain));
+          setTagline(clean(d.tagline));
         }
       } catch (err) {
         console.error("Failed to load workspace settings from API:", err);
@@ -344,7 +355,7 @@ export default function WorkspaceSettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wid: 1,
+          wid: Number(await resolveActiveWid()) || undefined,
           name: tempOrgName,
           companyType: tempCompanyType,
           taxId: tempTaxId,
@@ -387,8 +398,8 @@ export default function WorkspaceSettingsPage() {
   };
 
   // Payout Settings State
-  const [bankName, setBankName] = useState("JPMorgan Chase Bank");
-  const [accountNumber, setAccountNumber] = useState("•••• •••• •••• 8942");
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
   const [payoutSchedule, setPayoutSchedule] = useState("instant");
 
   // Integrations State & Filters
@@ -461,7 +472,7 @@ export default function WorkspaceSettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wid: 1,
+          wid: Number(await resolveActiveWid()) || undefined,
           gpayUpiId: gpayUpiId.trim(),
           gpayPhoneNumber: gpayPhoneNumber.trim(),
           gpayQrCodeUrl,
@@ -489,7 +500,7 @@ export default function WorkspaceSettingsPage() {
       await fetch("/api/workspace", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wid: 1, gpayConnected: false }),
+        body: JSON.stringify({ wid: Number(await resolveActiveWid()) || undefined, gpayConnected: false }),
       });
       setGpayConnected(false);
       setConnectedMap((prev) => ({ ...prev, gpay: false }));
@@ -518,7 +529,7 @@ export default function WorkspaceSettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wid: 1,
+          wid: Number(await resolveActiveWid()) || undefined,
           phonepeUpiId: phonepeUpiId.trim(),
           phonepePhoneNumber: phonepePhoneNumber.trim(),
           phonepeQrCodeUrl,
@@ -546,7 +557,7 @@ export default function WorkspaceSettingsPage() {
       await fetch("/api/workspace", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wid: 1, phonepeConnected: false }),
+        body: JSON.stringify({ wid: Number(await resolveActiveWid()) || undefined, phonepeConnected: false }),
       });
       setPhonepeConnected(false);
       setConnectedMap((prev) => ({ ...prev, phonepe: false }));
@@ -575,7 +586,7 @@ export default function WorkspaceSettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wid: 1,
+          wid: Number(await resolveActiveWid()) || undefined,
           paytmUpiId: paytmUpiId.trim(),
           paytmPhoneNumber: paytmPhoneNumber.trim(),
           paytmQrCodeUrl,
@@ -603,7 +614,7 @@ export default function WorkspaceSettingsPage() {
       await fetch("/api/workspace", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wid: 1, paytmConnected: false }),
+        body: JSON.stringify({ wid: Number(await resolveActiveWid()) || undefined, paytmConnected: false }),
       });
       setPaytmConnected(false);
       setConnectedMap((prev) => ({ ...prev, paytm: false }));
@@ -639,7 +650,7 @@ export default function WorkspaceSettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wid: 1,
+          wid: Number(await resolveActiveWid()) || undefined,
           paypalClientId,
           paypalClientSecret,
           paypalMerchantEmail,
@@ -670,7 +681,7 @@ export default function WorkspaceSettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wid: 1,
+          wid: Number(await resolveActiveWid()) || undefined,
           paypalConnected: false,
         }),
       });
@@ -707,7 +718,7 @@ export default function WorkspaceSettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wid: 1,
+          wid: Number(await resolveActiveWid()) || undefined,
           stripePublishableKey,
           stripeSecretKey,
           stripeWebhookSecret,
@@ -738,7 +749,7 @@ export default function WorkspaceSettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wid: 1,
+          wid: Number(await resolveActiveWid()) || undefined,
           stripeConnected: false,
         }),
       });
@@ -765,7 +776,7 @@ export default function WorkspaceSettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wid: 1,
+          wid: Number(await resolveActiveWid()) || undefined,
           razorpayKeyId,
           razorpayKeySecret,
           razorpayMerchantVpa,
@@ -796,7 +807,7 @@ export default function WorkspaceSettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wid: 1,
+          wid: Number(await resolveActiveWid()) || undefined,
           razorpayConnected: false,
         }),
       });
@@ -819,7 +830,7 @@ export default function WorkspaceSettingsPage() {
 
   const fetchWorkspaceSettings = async () => {
     try {
-      const res = await fetch("/api/workspace?wid=1");
+      const res = await fetch(`/api/workspace?wid=${await resolveActiveWid()}`);
       if (res.ok) {
         const json = await res.json();
         if (json.data) {
@@ -913,7 +924,7 @@ export default function WorkspaceSettingsPage() {
   const [upiPhoneNumber, setUpiPhoneNumber] = useState("");
   const [upiAccountName, setUpiAccountName] = useState("");
   const [upiQrCodeUrl, setUpiQrCodeUrl] = useState("");
-  const [upiAppsSupported, setUpiAppsSupported] = useState("Google Pay, PhonePe, Paytm, BHIM UPI");
+  const [upiAppsSupported, setUpiAppsSupported] = useState("");
   const [upiConnected, setUpiConnected] = useState(false);
   const [savingUpi, setSavingUpi] = useState(false);
 
@@ -925,7 +936,7 @@ export default function WorkspaceSettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wid: 1,
+          wid: Number(await resolveActiveWid()) || undefined,
           upiId: upiId.trim(),
           upiPhoneNumber: upiPhoneNumber.trim(),
           upiAccountName: upiAccountName.trim(),
@@ -981,7 +992,7 @@ export default function WorkspaceSettingsPage() {
   const fetchTeamMembers = async () => {
     try {
       setLoadingTeam(true);
-      const res = await fetch("/api/workspace/team?wid=1");
+      const res = await fetch(`/api/workspace/team?wid=${await resolveActiveWid()}`);
       if (res.ok) {
         const json = await res.json();
         if (json.data && Array.isArray(json.data)) {
@@ -1027,7 +1038,7 @@ export default function WorkspaceSettingsPage() {
           phone: memberPhone,
           role: memberRole,
           password: password || undefined,
-          wid: 1, // Workspace ID
+          wid: Number(await resolveActiveWid()) || undefined, // Workspace ID
         }),
       });
 
@@ -1065,7 +1076,9 @@ export default function WorkspaceSettingsPage() {
 
     setIsDeletingTeamMember(true);
     try {
-      const res = await fetch(`/api/workspace/team/${encodeURIComponent(deletingTeamMember.id)}`, {
+      const activeWid = await resolveActiveWid();
+      const widQuery = activeWid ? `?wid=${activeWid}` : "";
+      const res = await fetch(`/api/workspace/team/${encodeURIComponent(deletingTeamMember.id)}${widQuery}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -1162,7 +1175,7 @@ export default function WorkspaceSettingsPage() {
                   Organization / Company Name
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {orgName}
+                  {orgName || "—"}
                 </div>
               </div>
 
@@ -1171,7 +1184,7 @@ export default function WorkspaceSettingsPage() {
                   Entity / Business Type
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {companyType}
+                  {companyType || "—"}
                 </div>
               </div>
 
@@ -1180,7 +1193,7 @@ export default function WorkspaceSettingsPage() {
                   Pincode / Postal Code
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {pincode}
+                  {pincode || "—"}
                 </div>
               </div>
 
@@ -1189,7 +1202,7 @@ export default function WorkspaceSettingsPage() {
                   Tax Identification Number (EIN / GSTIN / SSN)
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {taxId}
+                  {taxId || "—"}
                 </div>
               </div>
 
@@ -1198,7 +1211,7 @@ export default function WorkspaceSettingsPage() {
                   Registered Headquarters Address
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {registeredAddress}
+                  {registeredAddress || "—"}
                 </div>
               </div>
             </div>
@@ -1219,7 +1232,7 @@ export default function WorkspaceSettingsPage() {
                   Primary Contact Full Name
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {landlordName}
+                  {landlordName || "—"}
                 </div>
               </div>
 
@@ -1228,7 +1241,7 @@ export default function WorkspaceSettingsPage() {
                   Official Title / Role
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {landlordRole}
+                  {landlordRole || "—"}
                 </div>
               </div>
 
@@ -1237,7 +1250,7 @@ export default function WorkspaceSettingsPage() {
                   Official Notification Email
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {companyEmail}
+                  {companyEmail || "—"}
                 </div>
               </div>
 
@@ -1246,7 +1259,7 @@ export default function WorkspaceSettingsPage() {
                   Direct Contact Phone Number
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {companyPhone}
+                  {companyPhone || "—"}
                 </div>
               </div>
             </div>
@@ -1267,7 +1280,7 @@ export default function WorkspaceSettingsPage() {
                   Default Operating Currency
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {currency}
+                  {currency || "—"}
                 </div>
               </div>
 
@@ -1276,7 +1289,7 @@ export default function WorkspaceSettingsPage() {
                   Pincode / Postal Code
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {pincode}
+                  {pincode || "—"}
                 </div>
               </div>
 
@@ -1285,7 +1298,7 @@ export default function WorkspaceSettingsPage() {
                   Workspace Operating Timezone
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {timezone}
+                  {timezone || "—"}
                 </div>
               </div>
 
@@ -1294,7 +1307,7 @@ export default function WorkspaceSettingsPage() {
                   Fiscal Year Start Month
                 </label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-sm font-semibold text-slate-900">
-                  {fiscalYearStart}
+                  {fiscalYearStart || "—"}
                 </div>
               </div>
             </div>
@@ -2983,6 +2996,7 @@ export default function WorkspaceSettingsPage() {
                         onChange={(e) => setTempCompanyType(e.target.value)}
                         className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                       >
+                        <option value="">Select business type</option>
                         <option value="Individual Landlord / Homeowner (Individual)">Individual Landlord / Homeowner (Individual)</option>
                         <option value="Sole Proprietorship / Single Owner Business">Sole Proprietorship / Single Owner Business</option>
                         <option value="LLC (Limited Liability Company)">LLC (Limited Liability Company)</option>
@@ -3057,9 +3071,9 @@ export default function WorkspaceSettingsPage() {
                     <label className="block font-bold text-slate-700 uppercase mb-1">Primary Contact Full Name</label>
                     <input
                       type="text"
-                      required
                       value={tempLandlordName}
                       onChange={(e) => setTempLandlordName(e.target.value)}
+                      placeholder="Leave blank if not set"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
@@ -3078,9 +3092,9 @@ export default function WorkspaceSettingsPage() {
                     <label className="block font-bold text-slate-700 uppercase mb-1">Notification Email</label>
                     <input
                       type="email"
-                      required
                       value={tempCompanyEmail}
                       onChange={(e) => setTempCompanyEmail(e.target.value)}
+                      placeholder="Leave blank if not set"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                     />
                   </div>
@@ -3113,6 +3127,7 @@ export default function WorkspaceSettingsPage() {
                         onChange={(e) => setTempCurrency(e.target.value)}
                         className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                       >
+                        <option value="">Select currency</option>
                         {ALL_CURRENCIES.map((c) => (
                           <option key={c.code} value={c.name}>
                             {c.name}
@@ -3133,6 +3148,7 @@ export default function WorkspaceSettingsPage() {
                         onChange={(e) => setTempTimezone(e.target.value)}
                         className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                       >
+                        <option value="">Select timezone</option>
                         {ALL_TIMEZONES.map((tz) => (
                           <option key={tz.code} value={tz.name}>
                             {tz.name}
@@ -3151,6 +3167,7 @@ export default function WorkspaceSettingsPage() {
                         onChange={(e) => setTempFiscalYearStart(e.target.value)}
                         className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                       >
+                        <option value="">Select fiscal year start</option>
                         <option value="January (Standard Calendar Year)">January (Standard Calendar Year)</option>
                         <option value="April (India / UK Fiscal Year)">April (India / UK Fiscal Year)</option>
                         <option value="July (Q3 Fiscal Start)">July (Q3 Fiscal Start)</option>

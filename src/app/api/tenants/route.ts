@@ -3,19 +3,46 @@ import { prisma } from "@/lib/prisma";
 import { supabase } from "@/lib/supabase";
 import { Role } from "@/generated/prisma/client";
 
-// GET /api/tenants - Fetch all tenants across units
+function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): number | null {
+  const raw =
+    searchParams.get("workspaceId") ||
+    searchParams.get("wid") ||
+    (bodyWid != null ? String(bodyWid) : null);
+  if (!raw) return null;
+  const n = parseInt(raw, 10);
+  return !isNaN(n) && n > 0 ? n : null;
+}
+
+// GET /api/tenants?workspaceId=3  (or ?wid=3)
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get("workspaceId");
+    const workspaceId = parseWorkspaceId(searchParams);
     const propertyId = searchParams.get("propertyId");
     const status = searchParams.get("status"); // "Current" | "Past" | "Exited" | "Evicted" | "all"
 
-    const where: any = {};
-    if (workspaceId) where.workspaceId = Number(workspaceId);
-    if (propertyId) where.propertyId = propertyId;
+    if (!workspaceId) {
+      return NextResponse.json(
+        { error: "Workspace ID (workspaceId / wid) is required." },
+        { status: 400 }
+      );
+    }
+
+    const where: any = {
+      AND: [
+        {
+          OR: [
+            { workspaceId },
+            { property: { workspaceId } },
+            { unit: { property: { workspaceId } } },
+          ],
+        },
+      ],
+    };
+
+    if (propertyId) where.AND.push({ propertyId });
     if (status && status !== "all") {
-      where.currentStatus = status;
+      where.AND.push({ currentStatus: status });
     }
 
     const tenants = await prisma.tenant.findMany({
@@ -26,15 +53,25 @@ export async function GET(request: Request) {
             property: true,
           },
         },
+        property: true,
         documents: true,
       },
       orderBy: { createdAt: "desc" },
     });
 
+    // Hard filter: never leak tenants whose property belongs to another workspace
+    const scoped = tenants.filter((t) => {
+      if (t.workspaceId === workspaceId) return true;
+      if (t.property?.workspaceId === workspaceId) return true;
+      if (t.unit?.property?.workspaceId === workspaceId) return true;
+      return false;
+    });
+
     return NextResponse.json({
       success: true,
-      count: tenants.length,
-      data: tenants,
+      workspaceId,
+      count: scoped.length,
+      data: scoped,
     });
   } catch (error: any) {
     console.error("GET /api/tenants error:", error);
@@ -45,7 +82,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/tenants - Create new tenant in database
+// POST /api/tenants - Create new tenant in database (requires workspace)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -65,6 +102,8 @@ export async function POST(request: Request) {
       govIdUrl,
       leaseDocUrl,
       documents,
+      workspaceId: bodyWorkspaceId,
+      wid,
     } = body;
 
     if (!name || !name.trim()) {
@@ -95,16 +134,36 @@ export async function POST(request: Request) {
 
     // Fetch target unit and property to obtain workspaceId
     let targetUnit: any = null;
-    let targetWorkspaceId: number | null = null;
+    let targetWorkspaceId: number | null = parseWorkspaceId(new URLSearchParams(), bodyWorkspaceId ?? wid);
     if (targetUnitId) {
       targetUnit = await prisma.unit.findUnique({
         where: { id: targetUnitId },
         include: { property: true },
       });
-      targetWorkspaceId = targetUnit?.workspaceId || targetUnit?.property?.workspaceId || null;
+      const unitWid = targetUnit?.workspaceId || targetUnit?.property?.workspaceId || null;
+      if (targetWorkspaceId && unitWid && targetWorkspaceId !== unitWid) {
+        return NextResponse.json(
+          { error: "Unit does not belong to the specified workspace." },
+          { status: 403 }
+        );
+      }
+      targetWorkspaceId = targetWorkspaceId || unitWid;
     } else if (propertyId) {
       const prop = await prisma.property.findUnique({ where: { id: propertyId } });
-      targetWorkspaceId = prop?.workspaceId || null;
+      if (targetWorkspaceId && prop?.workspaceId && targetWorkspaceId !== prop.workspaceId) {
+        return NextResponse.json(
+          { error: "Property does not belong to the specified workspace." },
+          { status: 403 }
+        );
+      }
+      targetWorkspaceId = targetWorkspaceId || prop?.workspaceId || null;
+    }
+
+    if (!targetWorkspaceId) {
+      return NextResponse.json(
+        { error: "Workspace ID (workspaceId / wid) is required to create a tenant." },
+        { status: 400 }
+      );
     }
 
     const resolvedPropId = targetUnit ? targetUnit.propertyId : (propertyId || null);
@@ -186,6 +245,7 @@ export async function POST(request: Request) {
       govIdNumber: govIdNumber || null,
       govIdUrl: govIdUrl || (docList.find((d: any) => d.fileUrl)?.fileUrl || null),
       leaseDocUrl: leaseDocUrl || null,
+      workspace: { connect: { wid: targetWorkspaceId } },
     };
 
     if (linkedProfileId) {
@@ -196,10 +256,6 @@ export async function POST(request: Request) {
     }
     if (resolvedPropId) {
       tenantData.property = { connect: { id: resolvedPropId } };
-    }
-    const widNum = targetWorkspaceId || (body.workspaceId ? Number(body.workspaceId) : null);
-    if (widNum) {
-      tenantData.workspace = { connect: { wid: widNum } };
     }
 
     const tenant = await prisma.tenant.create({
@@ -245,7 +301,7 @@ export async function POST(request: Request) {
           tenant: { connect: { id: tenant.id } },
           ...(tenant.unitId ? { unit: { connect: { id: tenant.unitId } } } : {}),
           ...(tenant.propertyId ? { property: { connect: { id: tenant.propertyId } } } : {}),
-          ...(tenant.workspaceId ? { workspace: { connect: { wid: tenant.workspaceId } } } : {}),
+          workspace: { connect: { wid: targetWorkspaceId } },
         },
       });
     }
@@ -261,7 +317,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: `Tenant "${tenant.name}" created successfully with ${allDocsToCreate.length} document(s) uploaded!`,
+        message: `Tenant "${tenant.name}" created successfully!`,
         data: tenant,
       },
       { status: 201 }

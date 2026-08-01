@@ -20,6 +20,7 @@ export default function TenantNoticesPage() {
 
         let propId = "";
         let propName = "";
+        let workspaceId = "";
         if (userEmail) {
           const tenantRes = await fetch(`/api/tenant/me?email=${encodeURIComponent(userEmail)}`);
           if (tenantRes.ok) {
@@ -28,11 +29,18 @@ export default function TenantNoticesPage() {
               setTenantInfo(tenantJson.data);
               propId = tenantJson.data.propertyId || "";
               propName = tenantJson.data.propertyName || "";
+              workspaceId = tenantJson.data.workspaceId != null ? String(tenantJson.data.workspaceId) : "";
             }
           }
         }
 
+        if (!workspaceId) {
+          setNotices([]);
+          return;
+        }
+
         const queryParams = new URLSearchParams();
+        queryParams.set("workspaceId", workspaceId);
         if (userEmail) queryParams.set("tenantEmail", userEmail);
         if (propId) queryParams.set("propertyId", propId);
         if (propName) queryParams.append("propertyId", propName);
@@ -45,6 +53,8 @@ export default function TenantNoticesPage() {
           } else {
             setNotices([]);
           }
+        } else {
+          setNotices([]);
         }
       } catch (err) {
         console.error("Error loading tenant notices:", err);

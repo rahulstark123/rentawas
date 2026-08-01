@@ -67,10 +67,14 @@ export default function OnboardingPage() {
     setIsFinishing(true);
 
     try {
+      const { ensureActiveWorkspaceId, setActiveWorkspaceId, getActiveWorkspaceId } = await import("@/lib/workspace");
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+
       const res = await fetch("/api/workspace/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          wid: activeWid ? Number(activeWid) : undefined,
           companyName: companyName.trim(),
           businessType,
           operatingCity: operatingCity.trim() || "Main City",
@@ -83,6 +87,9 @@ export default function OnboardingPage() {
       const json = await res.json();
 
       if (json.success) {
+        if (json.data?.wid) {
+          setActiveWorkspaceId(json.data.wid);
+        }
         toast(`Welcome to RentAwas! Workspace configured for ${companyName.trim()} in ${currency}.`, "success");
         setTimeout(() => {
           router.push("/dashboard");

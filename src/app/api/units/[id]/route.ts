@@ -6,12 +6,14 @@ interface Params {
 }
 
 // GET /api/units/[id] - Fetch single unit with tenants
-// Accepts optional ?propertyId=xxx to scope lookup precisely
+// Accepts optional ?propertyId=xxx and ?wid=xxx to scope lookup precisely
 export async function GET(request: Request, { params }: Params) {
   try {
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const propertyId = searchParams.get("propertyId");
+    const widParam = searchParams.get("wid");
+    const wid = widParam ? parseInt(widParam, 10) : NaN;
 
     // 1. Try direct UUID lookup first
     let unit = await prisma.unit.findUnique({
@@ -22,7 +24,7 @@ export async function GET(request: Request, { params }: Params) {
       },
     });
 
-    // 2. Try by unitNumber scoped to property
+    // 2. Try by unitNumber scoped to property (and workspace via property)
     if (!unit) {
       const whereClause: any = {
         OR: [
@@ -34,6 +36,10 @@ export async function GET(request: Request, { params }: Params) {
 
       if (propertyId) {
         whereClause.propertyId = propertyId;
+      }
+
+      if (!isNaN(wid) && wid > 0) {
+        whereClause.property = { workspaceId: wid };
       }
 
       unit = await prisma.unit.findFirst({
@@ -65,6 +71,17 @@ export async function GET(request: Request, { params }: Params) {
           property: null,
         },
       });
+    }
+
+    // Workspace gate when wid is provided
+    if (!isNaN(wid) && wid > 0) {
+      const unitWid = unit.workspaceId ?? unit.property?.workspaceId;
+      if (unitWid != null && unitWid !== wid) {
+        return NextResponse.json(
+          { error: "Forbidden: Unit does not belong to specified workspace ID." },
+          { status: 403 }
+        );
+      }
     }
 
     return NextResponse.json({

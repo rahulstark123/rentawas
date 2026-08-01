@@ -5,10 +5,31 @@ interface Params {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/properties/[id]/units
+// GET /api/properties/[id]/units?wid=1
 export async function GET(request: Request, { params }: Params) {
   try {
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const widParam = searchParams.get("wid");
+
+    const property = await prisma.property.findUnique({
+      where: { id },
+      select: { id: true, workspaceId: true },
+    });
+
+    if (!property) {
+      return NextResponse.json({ error: "Property not found" }, { status: 404 });
+    }
+
+    if (widParam) {
+      const wid = parseInt(widParam, 10);
+      if (isNaN(wid) || property.workspaceId !== wid) {
+        return NextResponse.json(
+          { error: "Forbidden: Property does not belong to specified workspace ID." },
+          { status: 403 }
+        );
+      }
+    }
 
     const units = await prisma.unit.findMany({
       where: { propertyId: id },
@@ -21,6 +42,7 @@ export async function GET(request: Request, { params }: Params) {
     return NextResponse.json({
       success: true,
       propertyId: id,
+      workspaceId: property.workspaceId,
       count: units.length,
       data: units,
     });
@@ -38,13 +60,32 @@ export async function POST(request: Request, { params }: Params) {
   try {
     const { id: propertyId } = await params;
     const body = await request.json();
-    const { unitNumber, floorNumber = 1, rent = 0, isOccupied = false } = body;
+    const { unitNumber, floorNumber = 1, rent = 0, isOccupied = false, wid } = body;
 
     if (!unitNumber) {
       return NextResponse.json(
         { error: "unitNumber is required." },
         { status: 400 }
       );
+    }
+
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { id: true, workspaceId: true },
+    });
+
+    if (!property) {
+      return NextResponse.json({ error: "Property not found" }, { status: 404 });
+    }
+
+    if (wid != null) {
+      const workspaceId = parseInt(String(wid), 10);
+      if (!isNaN(workspaceId) && property.workspaceId !== workspaceId) {
+        return NextResponse.json(
+          { error: "Forbidden: Property does not belong to specified workspace ID." },
+          { status: 403 }
+        );
+      }
     }
 
     const targetFloor = parseInt(floorNumber, 10) || 1;
@@ -68,6 +109,7 @@ export async function POST(request: Request, { params }: Params) {
     const unit = await prisma.unit.create({
       data: {
         propertyId,
+        workspaceId: property.workspaceId,
         unitNumber,
         floorNumber: parseInt(floorNumber, 10) || 1,
         rent: parseFloat(rent) || 0,
