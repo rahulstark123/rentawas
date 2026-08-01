@@ -58,6 +58,7 @@ const PLANS: Record<PlanId, PlanDetails> = {
     unitsCap: 0,
     isPaid: false,
     features: [
+      "20 AI Credits for RentAwas Buddy",
       "14-day full-feature trial on signup, then Free forever",
       "Browse & view dashboard, properties & tenants",
       "100% Free Property Listing & Marketplace Leads",
@@ -77,6 +78,7 @@ const PLANS: Record<PlanId, PlanDetails> = {
     unitsCap: 15,
     isPaid: true,
     features: [
+      "50 AI Credits / month for RentAwas Buddy",
       "100% Free Property Listing & Marketplace Leads",
       "Free Access to RentAwas Expert Service (Coming Soon)",
       "Up to 3 Properties & 15 Units",
@@ -98,6 +100,7 @@ const PLANS: Record<PlanId, PlanDetails> = {
     unitsCap: 75,
     isPaid: true,
     features: [
+      "200 AI Credits / month for RentAwas Buddy",
       "100% Free Property Listing & Marketplace Leads",
       "Free Access to RentAwas Expert Service (Coming Soon)",
       "Everything in Starter",
@@ -107,7 +110,6 @@ const PLANS: Record<PlanId, PlanDetails> = {
       "Dedicated Property Yield Analytics",
       "Tenant Health Score Tracking (0-100%)",
       "Expense Categorization & NOI Calculator",
-      "100 AI Legal & Inspection Credits / month",
     ],
   },
   pro_plus: {
@@ -122,6 +124,7 @@ const PLANS: Record<PlanId, PlanDetails> = {
     unitsCap: Number.POSITIVE_INFINITY,
     isPaid: true,
     features: [
+      "500 AI Credits / month for RentAwas Buddy",
       "100% Free Property Listing & Marketplace Leads",
       "Free Access to RentAwas Expert Service (Coming Soon)",
       "Unlimited Property Units & Portfolios",
@@ -131,7 +134,6 @@ const PLANS: Record<PlanId, PlanDetails> = {
       "Global Command Palette (Ctrl + K)",
       "Multiple Workspace Manager Roles",
       "Advanced Portfolio Financial Analytics",
-      "500 AI Credits / month",
     ],
   },
 };

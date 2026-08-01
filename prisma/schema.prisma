@@ -39,6 +39,7 @@ model Workspace {
   isOnboarded    Boolean    @default(false)
   plan           String     @default("trial") // "trial" | "free" | "starter" | "pro" | "pro_plus"
   trialStartedAt DateTime   @default(now()) // 14-day free trial starts at account/workspace creation; then Free plan
+  aiCreditsUsed  Int        @default(0)     // AI credits consumed; limit depends on plan (free=20, starter=50, pro=200, pro_plus=500)
 
   // General Organization & Compliance Settings — no seed defaults; stay empty until user fills them
   companyType       String?
@@ -141,6 +142,10 @@ model Property {
   unitsPerFloor Int       @default(4)
   totalUnits    Int       @default(4)
   avgRent       Float     @default(0)
+
+  // AI Summary Cache — stores the most recent AI-generated property summary
+  aiSummary            String?   // The last generated AI summary text
+  aiSummaryGeneratedAt DateTime? // When the summary was last generated
   
   workspaceId   Int
   workspace     Workspace @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)

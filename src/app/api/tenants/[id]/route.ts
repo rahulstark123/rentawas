@@ -57,7 +57,7 @@ export async function PATCH(request: Request, { params }: Params) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, email, phone, monthlyRent, leaseStart, leaseEnd, unitId, workspaceId, wid, rentDueDay } = body;
+    const { name, email, phone, monthlyRent, leaseStart, leaseEnd, unitId, workspaceId, wid, rentDueDay, healthScore, currentStatus } = body;
     const widNum = workspaceId != null || wid != null ? Number(workspaceId ?? wid) : NaN;
 
     const existing = await prisma.tenant.findUnique({
@@ -96,6 +96,8 @@ export async function PATCH(request: Request, { params }: Params) {
         unitId: unitId !== undefined ? unitId : existing.unitId,
         rentBillingType: "monthly",
         rentDueDay: parsedDueDay,
+        ...(healthScore !== undefined ? { healthScore: Number(healthScore) } : {}),
+        ...(currentStatus !== undefined ? { currentStatus: String(currentStatus) } : {}),
       },
     });
 

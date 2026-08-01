@@ -47,12 +47,18 @@ import {
   Copy,
   Check,
   Upload,
+  Brain,
+  RefreshCw,
+  CreditCard,
+  Bot,
+  Send,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
 import { getActiveWorkspaceId, ensureActiveWorkspaceId } from "@/lib/workspace";
 import { getActivePaymentMethods, type ActivePaymentMethod } from "@/lib/paymentMethods";
 import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
+import AiCreditsExhaustedModal from "@/components/AiCreditsExhaustedModal";
 
 // Interface for unit item
 export interface UnitItem {
@@ -161,11 +167,166 @@ export default function PropertyFloorPlanPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "occupied" | "vacant">("all");
 
+  // ─── AI Property Intelligence State & Actions ──────────────────────────────
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [buddyQuestion, setBuddyQuestion] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSummary, setAiSummary] = useState("");
+  const [aiCreditsUsed, setAiCreditsUsed] = useState(0);
+  const [aiCreditLimit, setAiCreditLimit] = useState(20);
+  const [aiPlan, setAiPlan] = useState("free");
+  const [aiError, setAiError] = useState("");
+  const [aiGeneratedAt, setAiGeneratedAt] = useState<string | null>(null);
+
+  const fetchAiCredits = async () => {
+    try {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) return;
+      const res = await fetch(`/api/ai/property-summary?workspaceId=${activeWid}&propertyId=${encodeURIComponent(propId)}`);
+      if (res.ok) {
+        const json = await res.json();
+        setAiCreditsUsed(json.creditsUsed ?? 0);
+        setAiCreditLimit(json.creditLimit ?? 20);
+        setAiPlan(json.plan ?? "free");
+        // Load saved summary from DB if it exists
+        if (json.savedSummary) {
+          setAiSummary(json.savedSummary);
+          setAiGeneratedAt(json.savedAt ?? null);
+        }
+      }
+    } catch {}
+  };
+
+  const openBuddyModal = () => {
+    setShowAiModal(true);
+    setBuddyQuestion("");
+    setAiError("");
+  };
+
+  const handleAskBuddy = async (customPrompt?: string) => {
+    const promptToUse = customPrompt || buddyQuestion;
+    if (!promptToUse.trim()) return;
+
+    setAiLoading(true);
+    setAiError("");
+    try {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      const res = await fetch("/api/ai/property-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          propertyId: propId,
+          workspaceId: activeWid,
+          question: promptToUse,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        if (json.error === "AI_CREDITS_EXHAUSTED") {
+          setAiError(json.message || "AI credits exhausted. Upgrade your plan to ask more questions.");
+        } else {
+          setAiError(json.error || "Failed to get AI response.");
+        }
+        return;
+      }
+      setAiSummary(json.summary || "");
+      setAiGeneratedAt(json.generatedAt || new Date().toISOString());
+      setAiCreditsUsed(json.creditsUsed ?? aiCreditsUsed + 2);
+      setAiCreditLimit(json.creditLimit ?? aiCreditLimit);
+      setAiPlan(json.plan ?? aiPlan);
+      setBuddyQuestion("");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("ai-credits-updated"));
+      }
+    } catch {
+      setAiError("Network error. Could not reach AI service.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // ─── RentAwas Buddy Unit AI Assistant State ────────────────────────────
+  const [selectedBuddyUnit, setSelectedBuddyUnit] = useState<UnitItem | null>(null);
+  const [showUnitBuddyModal, setShowUnitBuddyModal] = useState(false);
+  const [unitBuddyQuestion, setUnitBuddyQuestion] = useState("");
+  const [unitBuddyLoading, setUnitBuddyLoading] = useState(false);
+  const [unitBuddyResponse, setUnitBuddyResponse] = useState("");
+  const [unitBuddyGeneratedAt, setUnitBuddyGeneratedAt] = useState<string | null>(null);
+  const [unitBuddyError, setUnitBuddyError] = useState("");
+
+  const openBuddyModalForUnit = async (u: UnitItem) => {
+    setSelectedBuddyUnit(u);
+    setShowUnitBuddyModal(true);
+    setUnitBuddyQuestion("");
+    setUnitBuddyResponse("");
+    setUnitBuddyError("");
+
+    try {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) return;
+      const res = await fetch(`/api/ai/unit-summary?workspaceId=${activeWid}`);
+      if (res.ok) {
+        const json = await res.json();
+        setAiCreditsUsed(json.creditsUsed ?? 0);
+        setAiCreditLimit(json.creditLimit ?? 20);
+        setAiPlan(json.plan ?? "free");
+      }
+    } catch {}
+  };
+
+  const handleAskUnitBuddy = async (customPrompt?: string) => {
+    if (!selectedBuddyUnit) return;
+    const promptToUse = customPrompt || unitBuddyQuestion;
+    if (!promptToUse.trim()) return;
+
+    setUnitBuddyLoading(true);
+    setUnitBuddyError("");
+    try {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      const res = await fetch("/api/ai/unit-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          unitNo: selectedBuddyUnit.unitNo,
+          propertyId: propId,
+          workspaceId: activeWid,
+          question: promptToUse,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        if (json.error === "AI_CREDITS_EXHAUSTED") {
+          setUnitBuddyError(json.message || "AI credits exhausted. Upgrade your plan to ask more questions.");
+        } else {
+          setUnitBuddyError(json.error || "Failed to get AI response.");
+        }
+        return;
+      }
+      setUnitBuddyResponse(json.summary || "");
+      setUnitBuddyGeneratedAt(json.generatedAt || new Date().toISOString());
+      setAiCreditsUsed(json.creditsUsed ?? aiCreditsUsed + 2);
+      setAiCreditLimit(json.creditLimit ?? aiCreditLimit);
+      setAiPlan(json.plan ?? aiPlan);
+      setUnitBuddyQuestion("");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("ai-credits-updated"));
+      }
+    } catch {
+      setUnitBuddyError("Network error. Could not reach AI service.");
+    } finally {
+      setUnitBuddyLoading(false);
+    }
+  };
+  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Dynamic Units State indexed by Floor Number
   const [floorUnitsMap, setFloorUnitsMap] = useState<Record<number, UnitItem[]>>({});
 
   // Fetch live property details & unit matrix from API
   useEffect(() => {
+    fetchAiCredits();
     async function loadPropertyDetails() {
       setLoading(true);
       try {
@@ -632,6 +793,15 @@ export default function PropertyFloorPlanPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* AI Summary Button */}
+          <button
+            onClick={openBuddyModal}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white font-bold text-xs rounded-xl shadow-md shadow-purple-500/25 transition-all uppercase tracking-wider cursor-pointer"
+          >
+            <Bot className="w-4 h-4" />
+            <span>RentAwas Buddy</span>
+          </button>
+
           <button
             onClick={() => {
               toast(`Loading dedicated analytics for ${propertyData.name}...`, "info");
@@ -825,6 +995,16 @@ export default function PropertyFloorPlanPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {/* Robot Icon Button for Unit-Specific RentAwas Buddy */}
+                      <button
+                        type="button"
+                        onClick={() => openBuddyModalForUnit(u)}
+                        title="Ask RentAwas Buddy"
+                        className="p-1.5 px-2 rounded-lg bg-gradient-to-br from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white transition-all cursor-pointer flex items-center justify-center shadow-md shadow-purple-500/20 shrink-0"
+                      >
+                        <Bot className="w-4 h-4" />
+                      </button>
+
                       {/* EYE ICON: Full Details Page Link */}
                       <Link
                         href={`/dashboard/properties/${propId}/unit/${encodeURIComponent(u.unitNo)}`}
@@ -2202,6 +2382,497 @@ export default function PropertyFloorPlanPage() {
           </form>
         </div>
       )}
+
+      {/* ─────────────────────── AI PROPERTY INTELLIGENCE MODAL ─────────────────────── */}
+      {showAiModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full shadow-2xl flex flex-col max-h-[90vh]">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 shadow-lg shadow-purple-500/30">
+                  <Bot className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 leading-none">RentAwas Buddy</h3>
+                  <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                    Ask anything about {propertyData.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAiModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body — scrollable */}
+            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
+
+              {/* 1. TOP SECTION: BIG Textarea Input Field FIRST */}
+              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 space-y-3 shadow-2xs">
+                <label className="block text-xs font-black uppercase text-slate-800 tracking-wider">
+                  Ask RentAwas Buddy a Custom Question:
+                </label>
+                <div className="space-y-2">
+                  <textarea
+                    rows={3}
+                    value={buddyQuestion}
+                    onChange={(e) => setBuddyQuestion(e.target.value)}
+                    placeholder={`Type anything about ${propertyData.name}... (e.g. What is the occupancy rate? Are there any pending maintenance issues? What is the monthly yield?)`}
+                    disabled={aiLoading}
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all resize-none disabled:opacity-50"
+                  />
+                  <div className="flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleAskBuddy()}
+                      disabled={!buddyQuestion.trim() || aiLoading || aiCreditsUsed >= aiCreditLimit}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl shadow-md shadow-purple-500/25 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed uppercase tracking-wider"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>Ask RentAwas Buddy</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. SECOND SECTION: Big Choice Cards with Title & Info Subtitle */}
+              <div className="space-y-2.5">
+                <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider block">
+                  Or Pick a Quick Analysis Preset:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    {
+                      title: "Summarise Property",
+                      info: "Get a full 360° overview of operations, yield & risks",
+                      icon: "📊",
+                      border: "hover:border-emerald-400 hover:bg-emerald-50/60 border-slate-200/90",
+                    },
+                    {
+                      title: "Revenue & Financials",
+                      info: "Analyze gross yield, billings & pending rent payments",
+                      icon: "💰",
+                      border: "hover:border-amber-400 hover:bg-amber-50/60 border-slate-200/90",
+                    },
+                    {
+                      title: "Risk & Maintenance Check",
+                      info: "Review high-priority tickets, open issues & risks",
+                      icon: "⚠️",
+                      border: "hover:border-rose-400 hover:bg-rose-50/60 border-slate-200/90",
+                    },
+                    {
+                      title: "Tenant Health & Leases",
+                      info: "Check active resident scores & 60-day lease expirations",
+                      icon: "👥",
+                      border: "hover:border-violet-400 hover:bg-violet-50/60 border-slate-200/90",
+                    },
+                  ].map((preset, idx) => (
+                    <button
+                      key={idx}
+                      disabled={aiLoading}
+                      onClick={() => handleAskBuddy(preset.title)}
+                      className={`p-4 bg-white border rounded-2xl text-left transition-all cursor-pointer shadow-2xs hover:shadow-md disabled:opacity-50 group ${preset.border}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl shrink-0 group-hover:scale-110 transition-transform">{preset.icon}</span>
+                        <div>
+                          <h4 className="text-xs font-black text-slate-900 leading-snug">{preset.title}</h4>
+                          <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">{preset.info}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. RESPONSE / LOADING / ERROR SECTION */}
+              {/* Saved Date Note Banner */}
+              {!aiLoading && aiSummary && aiGeneratedAt && (
+                <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-800 font-semibold leading-relaxed">
+                    <span className="font-black">Note:</span> Generated on{" "}
+                    <span className="font-black">
+                      {new Date(aiGeneratedAt).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>.
+                    {" "}If your property data changed, ask a new question or click "Summarise Property".
+                  </p>
+                </div>
+              )}
+
+              {/* Loading State */}
+              {aiLoading && (
+                <div className="flex flex-col items-center justify-center py-12 gap-4 bg-slate-50/80 border border-slate-200/80 rounded-2xl">
+                  <div className="relative">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center">
+                      <Bot className="w-7 h-7 text-violet-600 animate-pulse" />
+                    </div>
+                    <Loader2 className="w-4 h-4 text-violet-500 animate-spin absolute -bottom-1 -right-1 bg-white rounded-full p-0.5" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-extrabold text-slate-800">RentAwas Buddy is analyzing data...</p>
+                    <p className="text-xs text-slate-500 mt-1 font-medium">Reviewing building units, active tenants & finances</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Credits Finished Alert Box */}
+              {(aiCreditsUsed >= aiCreditLimit || aiError.toLowerCase().includes("exhausted")) && (
+                <div className="p-5 bg-gradient-to-br from-rose-50 to-amber-50 border-2 border-rose-300 rounded-2xl text-center space-y-3 shadow-md animate-in zoom-in-95 duration-200">
+                  <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+                    <Zap className="w-6 h-6 text-rose-600 animate-bounce" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-black text-rose-950 uppercase tracking-wide">
+                      Your AI Credits are finished!
+                    </h4>
+                    <p className="text-xs text-rose-800 font-semibold mt-1 leading-relaxed">
+                      You have used all {aiCreditLimit} AI credits. Please recharge now to continue asking RentAwas Buddy.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowRechargeModal(true)}
+                    className="px-6 py-2.5 bg-gradient-to-r from-rose-600 via-purple-600 to-violet-600 hover:from-rose-500 hover:to-violet-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-purple-500/30 uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Recharge AI Credits Now</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Error State */}
+              {!aiLoading && aiError && (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-extrabold text-rose-900">Could Not Process Question</p>
+                    <p className="text-xs text-rose-700 mt-1 font-medium leading-relaxed">{aiError}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* AI Summary Content */}
+              {!aiLoading && !aiError && aiSummary && (
+                <div className="space-y-3 pt-1">
+                  {aiSummary.split(/\n(?=###)/).filter(Boolean).map((section, idx) => {
+                    const lines = section.trim().split("\n");
+                    const heading = lines[0].replace(/^###\s*/, "").trim();
+                    const content = lines.slice(1).join("\n").trim();
+
+                    const sectionConfig: Record<string, { bg: string; border: string }> = {
+                      "🏠": { bg: "bg-blue-50", border: "border-blue-100" },
+                      "📊": { bg: "bg-emerald-50", border: "border-emerald-100" },
+                      "💰": { bg: "bg-amber-50", border: "border-amber-100" },
+                      "⚠️": { bg: "bg-rose-50", border: "border-rose-100" },
+                      "✅": { bg: "bg-violet-50", border: "border-violet-100" },
+                    };
+                    const emoji = heading.split(" ")[0];
+                    const cfg = sectionConfig[emoji] || { bg: "bg-slate-50", border: "border-slate-200/80" };
+
+                    return (
+                      <div key={idx} className={`p-4 ${cfg.bg} border ${cfg.border} rounded-2xl space-y-2 shadow-2xs`}>
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wide">{heading}</h4>
+                        <div className="text-[12px] text-slate-700 leading-relaxed font-medium whitespace-pre-line">
+                          {content
+                            .replace(/\*\*(.+?)\*\*/g, (_, m) => m)
+                            .replace(/^[-•]\s*/gm, "• ")
+                          }
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Action Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-3xl flex items-center justify-between shrink-0">
+              <div className="inline-flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold">
+                <CreditCard className="w-3.5 h-3.5 text-violet-500" />
+                <span>AI Cost: <span className="font-black text-violet-700">2 Credits</span> per query</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-slate-400 font-semibold">
+                  {aiCreditLimit - aiCreditsUsed > 0
+                    ? `${aiCreditLimit - aiCreditsUsed} credits remaining`
+                    : "No credits remaining"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAiModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────── UNIT RENTAWAS BUDDY AI MODAL ─────────────────────── */}
+      {showUnitBuddyModal && selectedBuddyUnit && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200 font-sans">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full shadow-2xl flex flex-col max-h-[90vh]">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 shadow-lg shadow-purple-500/30">
+                  <Bot className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 leading-none">RentAwas Buddy</h3>
+                  <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                    Ask anything about {selectedBuddyUnit.unitNo} ({selectedBuddyUnit.type || "Suite"}) in {propertyData.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowUnitBuddyModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body — scrollable */}
+            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
+
+              {/* 1. TOP SECTION: BIG Textarea Input Field FIRST */}
+              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 space-y-3 shadow-2xs">
+                <label className="block text-xs font-black uppercase text-slate-800 tracking-wider">
+                  Ask RentAwas Buddy a Custom Question:
+                </label>
+                <div className="space-y-2">
+                  <textarea
+                    rows={3}
+                    value={unitBuddyQuestion}
+                    onChange={(e) => setUnitBuddyQuestion(e.target.value)}
+                    placeholder={`Type anything about ${selectedBuddyUnit.unitNo}... (e.g. Is this unit rent paid on time? What is the lease expiry date? Are there any open maintenance tickets?)`}
+                    disabled={unitBuddyLoading}
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all resize-none disabled:opacity-50"
+                  />
+                  <div className="flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleAskUnitBuddy()}
+                      disabled={!unitBuddyQuestion.trim() || unitBuddyLoading || aiCreditsUsed >= aiCreditLimit}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl shadow-md shadow-purple-500/25 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed uppercase tracking-wider"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>Ask RentAwas Buddy</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. SECOND SECTION: Big Choice Cards with Title & Info Subtitle */}
+              <div className="space-y-2.5">
+                <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider block">
+                  Or Pick a Quick Unit Analysis Preset:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    {
+                      title: "Unit Status & Summary",
+                      info: "Analyze unit occupancy, monthly rent rate & lease terms",
+                      icon: "🚪",
+                      border: "hover:border-violet-400 hover:bg-violet-50/60 border-slate-200/90",
+                    },
+                    {
+                      title: "Resident & Behavioral Health",
+                      info: "Review active tenant profile, payment history & health score",
+                      icon: "👤",
+                      border: "hover:border-emerald-400 hover:bg-emerald-50/60 border-slate-200/90",
+                    },
+                    {
+                      title: "Rent & Financial Yield",
+                      info: "Check unit yield, monthly billing & pending payments",
+                      icon: "💰",
+                      border: "hover:border-amber-400 hover:bg-amber-50/60 border-slate-200/90",
+                    },
+                    {
+                      title: "Unit Maintenance & Tickets",
+                      info: "Review open tickets, repair requests & issue history",
+                      icon: "🔧",
+                      border: "hover:border-rose-400 hover:bg-rose-50/60 border-slate-200/90",
+                    },
+                  ].map((preset, idx) => (
+                    <button
+                      key={idx}
+                      disabled={unitBuddyLoading}
+                      onClick={() => handleAskUnitBuddy(preset.title)}
+                      className={`p-4 bg-white border rounded-2xl text-left transition-all cursor-pointer shadow-2xs hover:shadow-md disabled:opacity-50 group ${preset.border}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl shrink-0 group-hover:scale-110 transition-transform">{preset.icon}</span>
+                        <div>
+                          <h4 className="text-xs font-black text-slate-900 leading-snug">{preset.title}</h4>
+                          <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">{preset.info}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. RESPONSE / LOADING / ERROR SECTION */}
+              {/* Saved Date Note Banner */}
+              {!unitBuddyLoading && unitBuddyResponse && unitBuddyGeneratedAt && (
+                <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-800 font-semibold leading-relaxed">
+                    <span className="font-black">Note:</span> Generated on{" "}
+                    <span className="font-black">
+                      {new Date(unitBuddyGeneratedAt).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>.
+                    {" "}If unit details changed, ask a new question or click "Unit Status & Summary".
+                  </p>
+                </div>
+              )}
+
+              {/* Loading State */}
+              {unitBuddyLoading && (
+                <div className="flex flex-col items-center justify-center py-12 gap-4 bg-slate-50/80 border border-slate-200/80 rounded-2xl">
+                  <div className="relative">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center">
+                      <Bot className="w-7 h-7 text-violet-600 animate-pulse" />
+                    </div>
+                    <Loader2 className="w-4 h-4 text-violet-500 animate-spin absolute -bottom-1 -right-1 bg-white rounded-full p-0.5" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-extrabold text-slate-800">RentAwas Buddy is analyzing unit telemetry...</p>
+                    <p className="text-xs text-slate-500 mt-1 font-medium">Reviewing resident details, rent records & maintenance tickets</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Credits Finished Alert Box */}
+              {(aiCreditsUsed >= aiCreditLimit || unitBuddyError.toLowerCase().includes("exhausted")) && (
+                <div className="p-5 bg-gradient-to-br from-rose-50 to-amber-50 border-2 border-rose-300 rounded-2xl text-center space-y-3 shadow-md animate-in zoom-in-95 duration-200">
+                  <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+                    <Zap className="w-6 h-6 text-rose-600 animate-bounce" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-black text-rose-950 uppercase tracking-wide">
+                      Your AI Credits are finished!
+                    </h4>
+                    <p className="text-xs text-rose-800 font-semibold mt-1 leading-relaxed">
+                      You have used all {aiCreditLimit} AI credits. Please recharge now to continue asking RentAwas Buddy.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowRechargeModal(true)}
+                    className="px-6 py-2.5 bg-gradient-to-r from-rose-600 via-purple-600 to-violet-600 hover:from-rose-500 hover:to-violet-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-purple-500/30 uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Recharge AI Credits Now</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Error State */}
+              {!unitBuddyLoading && unitBuddyError && (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-extrabold text-rose-900">Could Not Process Question</p>
+                    <p className="text-xs text-rose-700 mt-1 font-medium leading-relaxed">{unitBuddyError}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* AI Response Cards */}
+              {!unitBuddyLoading && !unitBuddyError && unitBuddyResponse && (
+                <div className="space-y-3 pt-1">
+                  {unitBuddyResponse.split(/\n(?=###)/).filter(Boolean).map((section, idx) => {
+                    const lines = section.trim().split("\n");
+                    const heading = lines[0].replace(/^###\s*/, "").trim();
+                    const content = lines.slice(1).join("\n").trim();
+
+                    const sectionConfig: Record<string, { bg: string; border: string }> = {
+                      "🚪": { bg: "bg-blue-50", border: "border-blue-100" },
+                      "👤": { bg: "bg-violet-50", border: "border-violet-100" },
+                      "💰": { bg: "bg-emerald-50", border: "border-emerald-100" },
+                      "🔧": { bg: "bg-rose-50", border: "border-rose-100" },
+                      "✅": { bg: "bg-amber-50", border: "border-amber-100" },
+                    };
+                    const emoji = heading.split(" ")[0];
+                    const cfg = sectionConfig[emoji] || { bg: "bg-slate-50", border: "border-slate-200/80" };
+
+                    return (
+                      <div key={idx} className={`p-4 ${cfg.bg} border ${cfg.border} rounded-2xl space-y-2 shadow-2xs`}>
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wide">{heading}</h4>
+                        <div className="text-[12px] text-slate-700 leading-relaxed font-medium whitespace-pre-line">
+                          {content
+                            .replace(/\*\*(.+?)\*\*/g, (_, m) => m)
+                            .replace(/^[-•]\s*/gm, "• ")
+                          }
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Action Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-3xl flex items-center justify-between shrink-0">
+              <div className="inline-flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold">
+                <CreditCard className="w-3.5 h-3.5 text-violet-500" />
+                <span>AI Cost: <span className="font-black text-violet-700">2 Credits</span> per query</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-slate-400 font-semibold">
+                  {aiCreditLimit - aiCreditsUsed > 0
+                    ? `${aiCreditLimit - aiCreditsUsed} credits remaining`
+                    : "No credits remaining"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowUnitBuddyModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+      {/* ─────────────────────────────────────────────────────────────────────── */}
+
+      {/* Recharge AI Credits Popup Modal */}
+      <AiCreditsExhaustedModal
+        isOpen={showRechargeModal}
+        onClose={() => setShowRechargeModal(false)}
+        creditsUsed={aiCreditsUsed}
+        creditLimit={aiCreditLimit}
+        onRecharged={fetchAiCredits}
+      />
     </div>
   );
 }

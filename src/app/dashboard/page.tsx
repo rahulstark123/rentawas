@@ -188,13 +188,9 @@ export default function DashboardOverviewPage() {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
               Mission Control Overview
             </h1>
-            <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Live Telemetry
-            </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time operations, rental yield, and tenant telemetry log.
+            Real-time operations, rental yield, and portfolio status.
           </p>
         </div>
 
