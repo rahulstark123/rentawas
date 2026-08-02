@@ -491,6 +491,8 @@ model SupportTicket {
   message       String
   contactEmail  String?
   contactPhone  String?
+  adminReply    String?
+  adminRepliedAt DateTime?
   attachments   String[]  @default([])
   isTenant      Boolean   @default(false) // true = created by tenant portal; false = landlord dashboard
 
@@ -706,4 +708,20 @@ model AiUsageLog {
   createdAt   DateTime  @default(now())
 
   @@index([workspaceId, createdAt])
+}
+
+model ContactInquiry {
+  id        String   @id @default(cuid())
+  fullName  String
+  email     String
+  phone     String?
+  category  String   @default("General Inquiry")
+  subject   String?
+  message   String
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([status])
 }

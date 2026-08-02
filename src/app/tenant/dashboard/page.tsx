@@ -90,6 +90,10 @@ export default function TenantDashboardPage() {
   };
 
   const rentVal = tenant.monthlyRent || 3200;
+  const dueMonthLabel = new Date().toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
 
   if (loading) {
     return (
@@ -184,15 +188,17 @@ export default function TenantDashboardPage() {
             <div className="flex items-center justify-between">
               <span className="px-3 py-1 rounded-full bg-amber-400/20 border border-amber-400/30 text-amber-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5" />
-                <span>Rent Due Soon</span>
+                <span>{dueMonthLabel} Due</span>
               </span>
 
               <span className="text-xs font-bold text-slate-300">Monthly Billing</span>
             </div>
 
             <div>
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Amount Due</div>
-              <div className="text-3xl sm:text-4xl font-black text-white mt-1">${rentVal.toLocaleString()}.00</div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                {dueMonthLabel} Rent Due
+              </div>
+              <div className="text-3xl sm:text-4xl font-black text-white mt-1">{formatCurrency(rentVal)}</div>
               <div className="text-xs text-slate-300 mt-1">
                 <span>Includes Base Rent &amp; Assigned Premises</span>
               </div>

@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useTenantMe, useTenantWorkspace } from "@/hooks/useTenantMe";
+import { isMethodActive } from "@/lib/paymentMethods";
 
 function TenantPaymentsContent() {
   const router = useRouter();
@@ -129,7 +130,9 @@ function TenantPaymentsContent() {
 
       razorpayKeyId: workspace.razorpayKeyId || "",
       razorpayConnected: Boolean(workspace.razorpayConnected),
+      stripePublishableKey: workspace.stripePublishableKey || "",
       stripeConnected: Boolean(workspace.stripeConnected),
+      paypalClientId: workspace.paypalClientId || "",
       paypalConnected: Boolean(workspace.paypalConnected),
     });
   }, [workspace, setCurrency]);
@@ -138,6 +141,10 @@ function TenantPaymentsContent() {
     queryClient.invalidateQueries({ queryKey: ["tenant-me"] });
 
   const rentVal = tenant?.monthlyRent || 3200;
+  const dueMonthLabel = new Date().toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
 
   const history = Array.isArray(tenant?.bills)
     ? tenant.bills.map((b: any, idx: number) => ({
@@ -162,11 +169,11 @@ function TenantPaymentsContent() {
       subtitle: "GPay Direct UPI & Scanner",
       type: "upi",
       logo: "/assests/google-pay-logo.png",
-      active: Boolean(workspaceUpi?.gpayConnected),
+      active: isMethodActive("gpay", workspaceUpi),
       fee: "0%",
-      vpa: workspaceUpi?.gpayUpiId || "",
-      phone: workspaceUpi?.gpayPhoneNumber || "",
-      qr: workspaceUpi?.gpayQrCodeUrl || "",
+      vpa: workspaceUpi?.gpayUpiId || workspaceUpi?.upiId || "",
+      phone: workspaceUpi?.gpayPhoneNumber || workspaceUpi?.upiPhoneNumber || "",
+      qr: workspaceUpi?.gpayQrCodeUrl || workspaceUpi?.upiQrCodeUrl || "",
     },
     {
       id: "phonepe",
@@ -174,11 +181,11 @@ function TenantPaymentsContent() {
       subtitle: "PhonePe VPA & QR Scanner",
       type: "upi",
       logo: "/assests/phonepay logo.png",
-      active: Boolean(workspaceUpi?.phonepeConnected),
+      active: isMethodActive("phonepe", workspaceUpi),
       fee: "0%",
-      vpa: workspaceUpi?.phonepeUpiId || "",
-      phone: workspaceUpi?.phonepePhoneNumber || "",
-      qr: workspaceUpi?.phonepeQrCodeUrl || "",
+      vpa: workspaceUpi?.phonepeUpiId || workspaceUpi?.upiId || "",
+      phone: workspaceUpi?.phonepePhoneNumber || workspaceUpi?.upiPhoneNumber || "",
+      qr: workspaceUpi?.phonepeQrCodeUrl || workspaceUpi?.upiQrCodeUrl || "",
     },
     {
       id: "paytm",
@@ -186,11 +193,11 @@ function TenantPaymentsContent() {
       subtitle: "Paytm Scanner & Wallet",
       type: "upi",
       logo: "/assests/paytm logo.png",
-      active: Boolean(workspaceUpi?.paytmConnected),
+      active: isMethodActive("paytm", workspaceUpi),
       fee: "0%",
-      vpa: workspaceUpi?.paytmUpiId || "",
-      phone: workspaceUpi?.paytmPhoneNumber || "",
-      qr: workspaceUpi?.paytmQrCodeUrl || "",
+      vpa: workspaceUpi?.paytmUpiId || workspaceUpi?.upiId || "",
+      phone: workspaceUpi?.paytmPhoneNumber || workspaceUpi?.upiPhoneNumber || "",
+      qr: workspaceUpi?.paytmQrCodeUrl || workspaceUpi?.upiQrCodeUrl || "",
     },
     {
       id: "upi",
@@ -198,7 +205,7 @@ function TenantPaymentsContent() {
       subtitle: "Landlord UPI / QR transfer",
       type: "upi",
       logo: "/assests/google-pay-logo.png",
-      active: Boolean(workspaceUpi?.upiConnected),
+      active: isMethodActive("upi", workspaceUpi),
       fee: "0%",
       vpa: workspaceUpi?.upiId || "",
       phone: workspaceUpi?.upiPhoneNumber || "",
@@ -210,7 +217,7 @@ function TenantPaymentsContent() {
       subtitle: "India Gateway & Cards",
       type: "gateway",
       logo: "/assests/razorpay icon.jpeg",
-      active: Boolean(workspaceUpi?.razorpayConnected),
+      active: isMethodActive("razorpay", workspaceUpi),
       fee: "Gateway Fee",
     },
     {
@@ -219,7 +226,7 @@ function TenantPaymentsContent() {
       subtitle: "Global Cards & ACH Debit",
       type: "gateway",
       logo: "/assests/stripe icon.jpeg",
-      active: Boolean(workspaceUpi?.stripeConnected),
+      active: isMethodActive("stripe", workspaceUpi),
       fee: "Card & ACH",
     },
     {
@@ -228,7 +235,7 @@ function TenantPaymentsContent() {
       subtitle: "International Wallets",
       type: "gateway",
       logo: "/assests/paypal icon.svg",
-      active: Boolean(workspaceUpi?.paypalConnected),
+      active: isMethodActive("paypal", workspaceUpi),
       fee: "Global Wallets",
     },
   ];
@@ -268,22 +275,80 @@ function TenantPaymentsContent() {
         return;
       }
 
-      const key = workspaceUpi?.razorpayKeyId;
-      if (!key) {
+      if (!workspaceUpi?.razorpayKeyId && !workspaceUpi?.razorpayConnected) {
         alert("Razorpay is not configured by your landlord yet.");
+        setIsSubmitting(false);
         return;
       }
 
+      // Create server-side order with landlord workspace keys (locks amount)
+      const orderRes = await fetch("/api/razorpay/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: rentVal,
+          currency: "INR",
+          propertyName: tenant?.propertyName || "Residence",
+          unitNumber: tenant?.unitNumber || "Unit",
+          tenantId: tenant?.id,
+          workspaceId: tenant?.workspaceId,
+          tenantName: tenant?.name,
+          tenantEmail: tenant?.email,
+        }),
+      });
+      const orderData = await orderRes.json();
+
+      if (!orderRes.ok || !orderData.orderId || !orderData.keyId) {
+        throw new Error(orderData.error || "Could not create Razorpay order.");
+      }
+
       const options = {
-        key: key,
-        amount: rentVal * 100, // INR in paise
-        currency: "INR",
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        order_id: orderData.orderId,
         name: workspaceUpi?.upiAccountName || "Rentawas Property Management",
         description: `Monthly Rent — ${tenant?.propertyName || "Residence"} (${tenant?.unitNumber || "Unit"})`,
         image: "/assests/razorpay icon.jpeg",
         handler: async function (response: any) {
           setShowPaymentModal(false);
-          await handlePay(`Razorpay (ID: ${response.razorpay_payment_id || "rzp_live"})`);
+          setIsSubmitting(true);
+          try {
+            // Only create Historical Receipt after server verifies success
+            const verifyRes = await fetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                amount: rentVal,
+                propertyName: tenant?.propertyName || "Residence",
+                unitNumber: tenant?.unitNumber || "Unit",
+                billingMonth: dueMonthLabel,
+                tenantId: tenant?.id,
+                unitId: tenant?.unitId || undefined,
+                propertyId: tenant?.propertyId || undefined,
+                workspaceId: tenant?.workspaceId || undefined,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (!verifyRes.ok || !verifyData.paid) {
+              throw new Error(
+                verifyData.error || "Razorpay payment could not be verified. Receipt was not created."
+              );
+            }
+
+            setPaid(true);
+            setTimeout(() => setPaid(false), 6000);
+            await refreshTenantData();
+          } catch (err: any) {
+            console.error("Razorpay verify error:", err);
+            alert(err.message || "Payment succeeded at Razorpay but receipt could not be saved.");
+          } finally {
+            setIsSubmitting(false);
+          }
         },
         prefill: {
           name: tenant?.name || "Resident Tenant",
@@ -310,8 +375,9 @@ function TenantPaymentsContent() {
         setIsSubmitting(false);
       });
       rzp.open();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Razorpay trigger error:", err);
+      alert(err.message || "Failed to open Razorpay checkout.");
       setIsSubmitting(false);
     }
   };
@@ -320,11 +386,11 @@ function TenantPaymentsContent() {
     setIsSubmitting(true);
     try {
       if (tenant && tenant.id && tenant.id !== "demo-tenant-id") {
-        await fetch("/api/bills", {
+        const res = await fetch("/api/bills", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: `Rent Payment — ${tenant.propertyName || "Residence"} (${tenant.unitNumber || "Unit"})`,
+            title: `Rent Payment — ${dueMonthLabel} — ${tenant.propertyName || "Residence"} (${tenant.unitNumber || "Unit"})`,
             amount: rentVal,
             category: "Rent",
             status: "Paid",
@@ -335,18 +401,118 @@ function TenantPaymentsContent() {
             workspaceId: tenant.workspaceId || undefined,
           }),
         });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to save payment receipt.");
+        }
       }
 
       setPaid(true);
       setShowPaymentModal(false);
       setTimeout(() => setPaid(false), 6000);
       await refreshTenantData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Payment submit error:", err);
+      alert(err.message || "Failed to save payment receipt.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleStripeCheckout = async () => {
+    setIsSubmitting(true);
+    try {
+      if (!workspaceUpi?.stripeConnected && !workspaceUpi?.stripePublishableKey) {
+        alert("Stripe is not configured by your landlord yet.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: rentVal,
+          currency: workspace?.currency || "USD",
+          propertyName: tenant?.propertyName || "Residence",
+          unitNumber: tenant?.unitNumber || "Unit",
+          tenantEmail: tenant?.email || "tenant@example.com",
+          tenantName: tenant?.name || "Resident",
+          tenantId: tenant?.id,
+          workspaceId: tenant?.workspaceId,
+          successUrl: `${origin}/tenant/payments?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${origin}/tenant/payments?stripe=cancel`,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || "Stripe Checkout session could not be created.");
+      }
+
+      // Redirect to Stripe-hosted Checkout (same role as Razorpay's rzp.open())
+      window.location.href = data.url;
+    } catch (err: any) {
+      console.error("Stripe checkout error:", err);
+      alert(err.message || "Failed to open Stripe checkout.");
+      setIsSubmitting(false);
+    }
+  };
+
+  // After returning from Stripe Checkout, verify payment and record the bill
+  useEffect(() => {
+    const stripeStatus = searchParams.get("stripe");
+    const sessionId = searchParams.get("session_id");
+    if (!stripeStatus) return;
+
+    if (stripeStatus === "cancel") {
+      alert("Stripe payment was cancelled. No charge was made.");
+      router.replace("/tenant/payments");
+      return;
+    }
+
+    if (stripeStatus !== "success" || !sessionId || !tenant?.workspaceId) return;
+
+    const processedKey = `stripe_paid_${sessionId}`;
+    if (typeof window !== "undefined" && sessionStorage.getItem(processedKey)) {
+      router.replace("/tenant/payments");
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setIsSubmitting(true);
+      try {
+        const res = await fetch(
+          `/api/stripe/checkout?session_id=${encodeURIComponent(sessionId)}&workspaceId=${tenant.workspaceId}`
+        );
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (res.ok && data.paid) {
+          if (typeof window !== "undefined") sessionStorage.setItem(processedKey, "1");
+          await handlePay(`Stripe (ID: ${sessionId})`);
+        } else {
+          alert(data.error || "Stripe payment could not be verified.");
+        }
+      } catch (err) {
+        console.error("Stripe return verify error:", err);
+        if (!cancelled) alert("Failed to verify Stripe payment.");
+      } finally {
+        if (!cancelled) {
+          setIsSubmitting(false);
+          router.replace("/tenant/payments");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run on Stripe return
+  }, [searchParams, tenant?.workspaceId, tenant?.id]);
 
   return (
     <div className="space-y-8 font-sans">
@@ -367,14 +533,16 @@ function TenantPaymentsContent() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-100">
           <div className="space-y-1">
             <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">
-              Current Monthly Rent Due
+              {dueMonthLabel} Rent Due
             </span>
             <div className="text-3xl sm:text-4xl font-black text-slate-900">
               {formatCurrency(rentVal)}
             </div>
             <div className="text-xs text-slate-500 flex items-center gap-1.5 pt-1">
               <Building2 className="w-3.5 h-3.5 text-[#FF6B00]" />
-              <span>Assigned Rent for {tenant?.propertyName || "Property"} — {tenant?.unitNumber || "Unit"}</span>
+              <span>
+                {dueMonthLabel} rent for {tenant?.propertyName || "Property"} — {tenant?.unitNumber || "Unit"}
+              </span>
             </div>
           </div>
 
@@ -533,7 +701,7 @@ function TenantPaymentsContent() {
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500 font-bold">Billing Month</span>
-                    <span className="font-extrabold text-slate-900">July 2026 Monthly Rent</span>
+                    <span className="font-extrabold text-slate-900">{dueMonthLabel} Monthly Rent</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500 font-bold">Residence &amp; Unit</span>
@@ -760,6 +928,8 @@ function TenantPaymentsContent() {
               <p className="text-[10px] text-slate-400 font-medium">
                 {activeSelected?.id === "razorpay"
                   ? "Razorpay secure payment checkout modal will pop up on click."
+                  : activeSelected?.id === "stripe"
+                  ? "You will be redirected to Stripe Checkout to pay securely by card."
                   : activeSelected?.type === "upi"
                   ? "Manual verification request will be submitted to your landlord."
                   : "Instant electronic receipt will be logged upon confirmation."}
@@ -770,6 +940,8 @@ function TenantPaymentsContent() {
                 onClick={() => {
                   if (activeSelected?.id === "razorpay") {
                     handleRazorpayCheckout();
+                  } else if (activeSelected?.id === "stripe") {
+                    handleStripeCheckout();
                   } else if (activeSelected?.type === "upi") {
                     handlePay(`Manual Verification (${activeSelected.name})`);
                   } else {
@@ -791,6 +963,8 @@ function TenantPaymentsContent() {
                     ? "Opening Gateway..."
                     : activeSelected?.id === "razorpay"
                     ? `Pay via Razorpay (${formatCurrency(rentVal)})`
+                    : activeSelected?.id === "stripe"
+                    ? `Pay via Stripe Checkout (${formatCurrency(rentVal)})`
                     : activeSelected?.type === "upi"
                     ? `Submit for Verification (${formatCurrency(rentVal)})`
                     : `Confirm Payment (${formatCurrency(rentVal)})`}

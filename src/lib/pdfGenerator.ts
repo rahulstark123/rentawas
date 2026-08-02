@@ -105,8 +105,8 @@ export function generateTaxInvoiceHtml(record: BillingDocRecord): string {
       <div class="product-name">Rent Awas</div>
       <div style="font-size: 13px; font-weight: 700; color: #64748B; margin-top: 1px; margin-bottom: 4px;">rentawas.com</div>
       <div class="udyam-no">Udyam Registration No: UDYAM-BR-23-0127857</div>
-      <div class="support-info">Support: support@anshapps.com | Website: rentawas.com</div>
-      <div class="support-info" style="margin-top: 2px;">For billing support contact support@anshapps.com</div>
+      <div class="support-info">Support: support.rentawas@anshapps.com | Website: rentawas.com</div>
+      <div class="support-info" style="margin-top: 2px;">For billing support contact support.rentawas@anshapps.com</div>
     </div>
 
     <div class="doc-meta-row">
@@ -251,8 +251,8 @@ export function generatePaymentReceiptHtml(record: BillingDocRecord): string {
       <div class="product-name">Rent Awas</div>
       <div style="font-size: 13px; font-weight: 700; color: #64748B; margin-top: 1px; margin-bottom: 4px;">rentawas.com</div>
       <div class="udyam-no">Udyam Registration No: UDYAM-BR-23-0127857</div>
-      <div class="support-info">Support: support@anshapps.com | Website: rentawas.com</div>
-      <div class="support-info" style="margin-top: 2px;">For billing support contact support@anshapps.com</div>
+      <div class="support-info">Support: support.rentawas@anshapps.com | Website: rentawas.com</div>
+      <div class="support-info" style="margin-top: 2px;">For billing support contact support.rentawas@anshapps.com</div>
     </div>
 
     <div class="doc-row">

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 
 export interface CurrencyDetails {
   symbol: string;
@@ -93,18 +93,20 @@ export const useCurrency = () => useContext(CurrencyContext);
 export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrencyState] = useState<string>("USD ($)");
   const [{ symbol, code }, setDetails] = useState<CurrencyDetails>({ symbol: "$", code: "USD" });
+  const currencyRef = useRef(currency);
+  currencyRef.current = currency;
 
-  const updateCurrency = (newCurrency: string) => {
-    if (!newCurrency) return;
+  const updateCurrency = useCallback((newCurrency: string) => {
+    if (!newCurrency || currencyRef.current === newCurrency) return;
+    currencyRef.current = newCurrency;
     setCurrencyState(newCurrency);
-    const details = extractCurrencyDetails(newCurrency);
-    setDetails(details);
+    setDetails(extractCurrencyDetails(newCurrency));
     if (typeof window !== "undefined") {
       localStorage.setItem("rentawas_workspace_currency", newCurrency);
     }
-  };
+  }, []);
 
-  const refetchCurrency = async () => {
+  const refetchCurrency = useCallback(async () => {
     try {
       const res = await fetch("/api/workspace?wid=1");
       if (res.ok) {
@@ -116,7 +118,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.warn("Failed to refetch workspace currency:", err);
     }
-  };
+  }, [updateCurrency]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -126,7 +128,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       }
     }
     refetchCurrency();
-  }, []);
+  }, [updateCurrency, refetchCurrency]);
 
   const formatCurrency = (amount: number | string) => {
     return formatCurrencyWithSymbol(amount, symbol);

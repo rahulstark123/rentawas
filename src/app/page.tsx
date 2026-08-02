@@ -39,8 +39,8 @@ export default function Home() {
       
       <PricingAndFAQ />
 
-      {/* RentAwas Experts & Service Partners Section */}
-      <RentAwasExpertsSection />
+      {/* RentAwas Experts & Service Partners Section (Cards hidden, section & join banner active) */}
+      <RentAwasExpertsSection hideCards={true} />
 
       <Footer />
 

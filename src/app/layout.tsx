@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     "digital lease agreement India",
     "Regency Property Management RentAwas",
   ],
-  authors: [{ name: "RentAwas Technologies", url: "https://rentawas.com" }],
+  authors: [{ name: "ANSH Apps", url: "https://rentawas.com" }],
   creator: "RentAwas Real Estate Technology",
   publisher: "RentAwas Inc.",
   applicationName: "RentAwas",

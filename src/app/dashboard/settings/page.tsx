@@ -839,27 +839,19 @@ export default function WorkspaceSettingsPage() {
           if (json.data.razorpayMerchantVpa) setRazorpayMerchantVpa(json.data.razorpayMerchantVpa);
           if (json.data.razorpayWebhookSecret) setRazorpayWebhookSecret(json.data.razorpayWebhookSecret);
           if (json.data.razorpayEnvMode) setRazorpayEnvMode(json.data.razorpayEnvMode as any);
-          if (json.data.razorpayConnected !== undefined) {
-            setConnectedMap((prev) => ({ ...prev, razorpay: json.data.razorpayConnected }));
-          }
+          const isRazorpayActive = Boolean(json.data.razorpayConnected || json.data.razorpayKeyId);
+          const isStripeActive = Boolean(json.data.stripeConnected || json.data.stripePublishableKey);
+          const isPaypalActive = Boolean(json.data.paypalConnected || json.data.paypalClientId);
+          const isUpiActive = Boolean(json.data.upiId || json.data.upiPhoneNumber || json.data.upiQrCodeUrl);
 
-          if (json.data.stripePublishableKey) setStripePublishableKey(json.data.stripePublishableKey);
-          if (json.data.stripeSecretKey) setStripeSecretKey(json.data.stripeSecretKey);
-          if (json.data.stripeWebhookSecret) setStripeWebhookSecret(json.data.stripeWebhookSecret);
-          if (json.data.stripeConnectAccountId) setStripeConnectAccountId(json.data.stripeConnectAccountId);
-          if (json.data.stripeEnvMode) setStripeEnvMode(json.data.stripeEnvMode as any);
-          if (json.data.stripeConnected !== undefined) {
-            setConnectedMap((prev) => ({ ...prev, stripe: json.data.stripeConnected }));
-          }
-
-          if (json.data.paypalClientId) setPaypalClientId(json.data.paypalClientId);
-          if (json.data.paypalClientSecret) setPaypalClientSecret(json.data.paypalClientSecret);
-          if (json.data.paypalMerchantEmail) setPaypalMerchantEmail(json.data.paypalMerchantEmail);
-          if (json.data.paypalWebhookId) setPaypalWebhookId(json.data.paypalWebhookId);
-          if (json.data.paypalEnvMode) setPaypalEnvMode(json.data.paypalEnvMode as any);
-          if (json.data.paypalConnected !== undefined) {
-            setConnectedMap((prev) => ({ ...prev, paypal: json.data.paypalConnected }));
-          }
+          setConnectedMap((prev) => ({
+            ...prev,
+            razorpay: isRazorpayActive,
+            stripe: isStripeActive,
+            paypal: isPaypalActive,
+            gpay: isUpiActive,
+            phonepe: isUpiActive,
+          }));
 
           if (json.data.upiId) setUpiId(json.data.upiId);
           if (json.data.upiPhoneNumber) setUpiPhoneNumber(json.data.upiPhoneNumber);
@@ -1651,11 +1643,11 @@ export default function WorkspaceSettingsPage() {
 
               <div className="pt-1">
                 <a
-                  href="mailto:support@anshapps.com?subject=Account%20Deletion%20Request"
+                  href="mailto:support.rentawas@anshapps.com?subject=Account%20Deletion%20Request"
                   className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold border border-teal-200 transition-all text-xs cursor-pointer shadow-2xs group"
                 >
                   <Mail className="w-4 h-4 text-teal-600 group-hover:scale-110 transition-transform" />
-                  <span>support@anshapps.com</span>
+                  <span>support.rentawas@anshapps.com</span>
                 </a>
               </div>
 
@@ -1707,8 +1699,8 @@ export default function WorkspaceSettingsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[11px] text-slate-500 font-medium pt-2">
               <p>
                 If you have any questions regarding account deletion, please contact us at{" "}
-                <a href="mailto:support@anshapps.com" className="font-bold text-teal-600 hover:underline">
-                  support@anshapps.com
+                <a href="mailto:support.rentawas@anshapps.com" className="font-bold text-teal-600 hover:underline">
+                  support.rentawas@anshapps.com
                 </a>.
               </p>
               <span className="uppercase text-[10px] font-bold text-slate-400 tracking-wider">

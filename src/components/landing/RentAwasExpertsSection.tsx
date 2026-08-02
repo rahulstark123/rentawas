@@ -16,7 +16,11 @@ import {
 } from "lucide-react";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 
-export default function RentAwasExpertsSection() {
+interface RentAwasExpertsSectionProps {
+  hideCards?: boolean;
+}
+
+export default function RentAwasExpertsSection({ hideCards = true }: RentAwasExpertsSectionProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<Country>(
@@ -152,24 +156,25 @@ export default function RentAwasExpertsSection() {
     },
     {
       title: "And Many More Experts",
-      desc: "Electricians, painters, interior decorators, gardeners & local specialists.",
-      image: "/rentawas experts/many more.jpg",
+      desc: "Electricians, painters, interior decorators, gardeners & local handymen.",
+      image: "/rentawas experts/more.jpg",
       tag: "50+ Services",
     },
   ];
 
   const expertRoles = [
-    "Technician",
     "Plumber",
-    "Carpenter",
     "Electrician",
-    "Househelp & Maid",
-    "Appliance Repair",
+    "AC Technician",
+    "Carpenter",
+    "Domestic Househelp",
     "Painter",
     "Packers & Movers",
-    "Locksmith",
     "Laundry Service",
-    "Many More...",
+    "Childcare / Nanny",
+    "Locksmith",
+    "Pest Control Expert",
+    "Handyman",
   ];
 
   const handlePincodeChange = async (pincodeVal: string) => {
@@ -270,53 +275,55 @@ export default function RentAwasExpertsSection() {
           </div>
         </div>
 
-        {/* 5 IMAGES PER ROW GRID (2 ROWS OF 5 CARDS) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4.5">
-          {expertCategories.map((cat, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.35, delay: (i % 5) * 0.06 }}
-              onClick={() => setIsModalOpen(true)}
-              className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden shadow-xl hover:border-[#FF6B00]/70 hover:shadow-orange-500/10 transition-all duration-300 group cursor-pointer flex flex-col justify-between"
-            >
-              {/* Image Container */}
-              <div className="h-56 sm:h-64 relative overflow-hidden bg-slate-950">
-                <Image
-                  src={cat.image}
-                  alt={cat.title}
-                  fill
-                  className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
-                {i === expertCategories.length - 1 && (
-                  <span className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full bg-slate-950/90 backdrop-blur-md border border-orange-500/40 text-[10px] font-black text-orange-400 uppercase tracking-wider shadow-md">
-                    {cat.tag}
-                  </span>
-                )}
-              </div>
-
-              {/* Content Details */}
-              <div className="p-4 space-y-2 flex-1 flex flex-col justify-between bg-slate-900/90">
-                <div>
-                  <h3 className="text-sm font-extrabold text-white group-hover:text-[#FF6B00] transition-colors leading-tight">
-                    {cat.title}
-                  </h3>
-                  <p className="text-[11px] text-slate-400 font-medium line-clamp-2 mt-1 leading-snug">
-                    {cat.desc}
-                  </p>
+        {/* 5 IMAGES PER ROW GRID (Hidden when hideCards is true) */}
+        {!hideCards && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4.5">
+            {expertCategories.map((cat, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.35, delay: (i % 5) * 0.06 }}
+                onClick={() => setIsModalOpen(true)}
+                className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden shadow-xl hover:border-[#FF6B00]/70 hover:shadow-orange-500/10 transition-all duration-300 group cursor-pointer flex flex-col justify-between"
+              >
+                {/* Image Container */}
+                <div className="h-56 sm:h-64 relative overflow-hidden bg-slate-950">
+                  <Image
+                    src={cat.image}
+                    alt={cat.title}
+                    fill
+                    className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+                  {i === expertCategories.length - 1 && (
+                    <span className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full bg-slate-950/90 backdrop-blur-md border border-orange-500/40 text-[10px] font-black text-orange-400 uppercase tracking-wider shadow-md">
+                      {cat.tag}
+                    </span>
+                  )}
                 </div>
 
-                <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-[#FF6B00] font-extrabold">
-                  <span>Join as Expert</span>
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                {/* Content Details */}
+                <div className="p-4 space-y-2 flex-1 flex flex-col justify-between bg-slate-900/90">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-white group-hover:text-[#FF6B00] transition-colors leading-tight">
+                      {cat.title}
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-medium line-clamp-2 mt-1 leading-snug">
+                      {cat.desc}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-[#FF6B00] font-extrabold">
+                    <span>Join as Expert</span>
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
 
         {/* Big Bottom Join Banner */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Mail, Phone } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -28,6 +29,21 @@ export default function Footer() {
               The ultimate mission control for rental ecosystems. Automate rent collection,
               streamline maintenance, and maximize yield with precision.
             </p>
+
+            <div className="mt-5 space-y-2 text-xs font-sans text-slate-300 font-medium">
+              <div className="flex items-center gap-2.5">
+                <Mail className="w-4 h-4 text-[#FF6B00] shrink-0" />
+                <a href="mailto:hello.rentawas@anshapps.com" className="hover:text-[#FF6B00] transition-colors font-mono">
+                  hello.rentawas@anshapps.com
+                </a>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Phone className="w-4 h-4 text-[#FF6B00] shrink-0" />
+                <a href="tel:+919625727372" className="hover:text-[#FF6B00] transition-colors font-mono">
+                  +91 96257 27372
+                </a>
+              </div>
+            </div>
           </div>
 
           {/* Nav Links Col 1 */}
@@ -92,11 +108,6 @@ export default function Footer() {
               <li>
                 <Link href="/terms" className="hover:text-[#FF6B00] transition-colors">
                   Terms of Service
-                </Link>
-              </li>
-              <li>
-                <Link href="/security" className="hover:text-[#FF6B00] transition-colors">
-                  Security Overview
                 </Link>
               </li>
             </ul>

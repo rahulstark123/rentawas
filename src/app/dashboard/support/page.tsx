@@ -26,7 +26,8 @@ import {
   RefreshCw,
   Check,
   Paperclip,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Eye
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
@@ -43,6 +44,8 @@ export interface SupportTicketRecord {
   message: string;
   contactEmail?: string;
   contactPhone?: string;
+  adminReply?: string;
+  adminRepliedAt?: string;
   attachments?: string[];
   workspaceId?: number;
   createdAt: string;
@@ -58,6 +61,8 @@ export interface AttachmentItem {
 
 export default function LandlordSupportPage() {
   const { toast } = useToast();
+
+  const [selectedTicketForView, setSelectedTicketForView] = useState<SupportTicketRecord | null>(null);
 
   // ─── Workspace ID ──────────────────────────────────────────────────────────
   const [supportWorkspaceId, setSupportWorkspaceId] = useState<string | null>(null);
@@ -424,7 +429,7 @@ export default function LandlordSupportPage() {
           </div>
           <div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Dedicated Email Desk</span>
-            <span className="font-extrabold text-slate-900 text-sm block">support@anshapps.com</span>
+            <span className="font-extrabold text-slate-900 text-sm block">support.rentawas@anshapps.com</span>
             <span className="text-[11px] text-blue-600 font-bold">Email Support Active</span>
           </div>
         </div>
@@ -487,6 +492,16 @@ export default function LandlordSupportPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTicketForView(t)}
+                      className="p-1.5 text-xs text-slate-600 hover:text-[#FF6B00] hover:bg-orange-50 rounded-lg transition-colors cursor-pointer border border-slate-200 flex items-center gap-1 font-bold shadow-2xs"
+                      title="View Ticket Details & Replies"
+                    >
+                      <Eye className="w-4 h-4 text-slate-600 group-hover:text-[#FF6B00]" />
+                      <span className="hidden sm:inline text-[11px]">View Details</span>
+                    </button>
+
                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                       t.status === "Resolved"
                         ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -689,7 +704,7 @@ export default function LandlordSupportPage() {
                   type="email"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
-                  placeholder="support@anshapps.com"
+                  placeholder="support.rentawas@anshapps.com"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 />
               </div>
@@ -835,6 +850,171 @@ export default function LandlordSupportPage() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* SLIDE-OVER SIDEBAR / DRAWER FOR TICKET DETAILS & REPLIES */}
+      {selectedTicketForView && (
+        <div className="fixed inset-0 z-50 overflow-hidden font-sans">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            onClick={() => setSelectedTicketForView(null)}
+          />
+
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col divide-y divide-slate-200 animate-in slide-in-from-right duration-300">
+              
+              {/* Drawer Header */}
+              <div className="p-6 bg-[#0B132B] text-white flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-extrabold text-[#FF6B00]">
+                      #{selectedTicketForView.ticketNumber}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-500/20 text-purple-300 uppercase">
+                      {selectedTicketForView.category}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-extrabold text-white leading-tight">
+                    {selectedTicketForView.subject}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setSelectedTicketForView(null)}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Drawer Body */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                
+                {/* Query Status Banner */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Ticket Status</span>
+                    <span className="text-sm font-extrabold text-slate-900">{selectedTicketForView.status}</span>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${
+                      selectedTicketForView.status === "Resolved"
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                        : selectedTicketForView.status === "In Progress"
+                        ? "bg-blue-100 text-blue-800 border border-blue-300"
+                        : "bg-amber-100 text-amber-800 border border-amber-300"
+                    }`}
+                  >
+                    {selectedTicketForView.status}
+                  </span>
+                </div>
+
+                {/* User Original Message Card */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-extrabold text-slate-700">
+                    <span className="flex items-center gap-1.5">
+                      <UserCheck className="w-4 h-4 text-[#FF6B00]" />
+                      <span>Submitted Request (You)</span>
+                    </span>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      {new Date(selectedTicketForView.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-orange-50/50 border border-orange-200/80 space-y-3">
+                    <p className="text-xs text-slate-800 leading-relaxed font-medium">
+                      {selectedTicketForView.message}
+                    </p>
+
+                    {Array.isArray(selectedTicketForView.attachments) &&
+                      selectedTicketForView.attachments.length > 0 && (
+                        <div className="pt-2 border-t border-orange-200/60">
+                          <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1.5">
+                            Attachments ({selectedTicketForView.attachments.length})
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedTicketForView.attachments.map((attUrl, idx) => (
+                              <a
+                                key={idx}
+                                href={attUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1 rounded-lg bg-white border border-orange-200 text-slate-700 text-[11px] font-bold hover:text-[#FF6B00] transition-colors inline-flex items-center gap-1.5"
+                              >
+                                <Paperclip className="w-3.5 h-3.5 text-[#FF6B00]" />
+                                <span>Attachment #{idx + 1}</span>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                </div>
+
+                {/* Support Team Reply Section */}
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center justify-between text-xs font-extrabold text-slate-700">
+                    <span className="flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Support Team Response</span>
+                    </span>
+                    {selectedTicketForView.adminRepliedAt && (
+                      <span className="text-[11px] font-mono text-slate-400">
+                        {new Date(selectedTicketForView.adminRepliedAt).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedTicketForView.adminReply ? (
+                    <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-2 animate-in fade-in duration-200">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded bg-emerald-600 text-white font-extrabold text-[10px]">
+                          ANSH Support Desk
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-900 leading-relaxed font-medium">
+                        {selectedTicketForView.adminReply}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-300 text-center space-y-2">
+                      <Clock className="w-6 h-6 text-amber-500 mx-auto animate-pulse" />
+                      <p className="text-xs font-bold text-slate-700">Under Review by Support Team</p>
+                      <p className="text-[11px] text-slate-500">
+                        Our team is actively processing your ticket. You will see official responses here as soon as an agent replies.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Registered Contact Information */}
+                <div className="p-4 rounded-2xl bg-slate-100/70 border border-slate-200 space-y-2 text-xs">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Associated Contact Info</span>
+                  <div className="flex flex-col gap-1 font-mono text-[11px]">
+                    {selectedTicketForView.contactEmail && (
+                      <span className="text-slate-700">Email: {selectedTicketForView.contactEmail}</span>
+                    )}
+                    {selectedTicketForView.contactPhone && (
+                      <span className="text-slate-700">Phone: {selectedTicketForView.contactPhone}</span>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Drawer Footer */}
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <button
+                  onClick={() => setSelectedTicketForView(null)}
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer"
+                >
+                  Close Details
+                </button>
+              </div>
+
+            </div>
           </div>
         </div>
       )}
