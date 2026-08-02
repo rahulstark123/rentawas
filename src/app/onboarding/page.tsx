@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CurrencySelector from "@/components/ui/CurrencySelector";
+import { PROPERTY_CATEGORIES } from "@/components/ui/AddPropertyModal";
+import { RENT_DUE_DAY_OPTIONS, formatRentDueDayLabel } from "@/lib/rentDueDay";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -30,27 +32,32 @@ export default function OnboardingPage() {
 
   // Step 1: Business Profile & Workspace
   const [companyName, setCompanyName] = useState("");
-  const [businessType, setBusinessType] = useState("Landlord / Individual Owner");
+  const [businessType, setBusinessType] = useState("Individual Landlord / Homeowner (Individual)");
   const [operatingCity, setOperatingCity] = useState("");
 
   // Step 2: Operational Preferences & Currency
   const [currency, setCurrency] = useState("USD ($)");
-  const [portfolioFocus, setPortfolioFocus] = useState("Residential Apartments & Flats");
+  const [portfolioFocus, setPortfolioFocus] = useState(PROPERTY_CATEGORIES[0]);
   const [dueDay, setDueDay] = useState<number>(1);
 
+  // Same entity options as Settings → Entity / Business Type
   const businessTypes = [
-    "Landlord / Individual Owner",
-    "Property Management Firm",
-    "PG / Co-Living Host",
-    "Commercial Real Estate Manager",
+    "Individual Landlord / Homeowner (Individual)",
+    "Sole Proprietorship / Single Owner Business",
+    "LLC (Limited Liability Company)",
+    "LLP (Limited Liability Partnership)",
+    "Partnership Firm / General Partnership",
+    "Private Limited Corporation (Pvt Ltd / Inc)",
+    "Public Limited Corporation (Ltd / PLC / Corp)",
+    "REIT (Real Estate Investment Trust)",
+    "Property Management Agency (PMA / Brokerage)",
+    "Co-Living & PG / Student Housing Operator",
+    "Commercial Real Estate Manager / Asset Manager",
     "Real Estate Broker / Channel Partner",
-  ];
-
-  const portfolioFocusOptions = [
-    "Residential Apartments & Flats",
-    "PG Beds & Co-Living Hostels",
-    "Commercial Offices & Retail Shops",
-    "Mixed Real Estate Portfolio",
+    "Builder / Developer (Inventory Leasing)",
+    "HUF (Hindu Undivided Family / Family Trust)",
+    "Non-Profit / Trust / Cooperative Housing Society",
+    "Other / Mixed Portfolio Operator",
   ];
 
   const handleNextStep = (e: React.FormEvent) => {
@@ -279,11 +286,11 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              {/* Portfolio Focus */}
+              {/* Property Type — same options as Add Property */}
               <div>
                 <label className="block font-bold text-slate-300 uppercase mb-1.5 flex items-center gap-1">
                   <Building2 className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Portfolio Focus & Target</span>
+                  <span>Property Type</span>
                 </label>
                 <div className="relative">
                   <select
@@ -291,7 +298,7 @@ export default function OnboardingPage() {
                     onChange={(e) => setPortfolioFocus(e.target.value)}
                     className="w-full appearance-none pl-3.5 pr-8 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                   >
-                    {portfolioFocusOptions.map((pf) => (
+                    {PROPERTY_CATEGORIES.map((pf) => (
                       <option key={pf} value={pf}>{pf}</option>
                     ))}
                   </select>
@@ -313,10 +320,11 @@ export default function OnboardingPage() {
                     onChange={(e) => setDueDay(Number(e.target.value))}
                     className="w-full appearance-none pl-3.5 pr-8 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                   >
-                    <option value={1}>1st of Every Month (Standard)</option>
-                    <option value={5}>5th of Every Month</option>
-                    <option value={10}>10th of Every Month</option>
-                    <option value={15}>15th of Every Month</option>
+                    {RENT_DUE_DAY_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
                     <ChevronDown className="w-4 h-4" />
@@ -328,7 +336,7 @@ export default function OnboardingPage() {
               <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-2xl space-y-1 text-slate-400">
                 <span className="font-bold text-white block">Initialization Summary</span>
                 <p className="text-[11px] leading-relaxed">
-                  Workspace <strong className="text-white">{companyName}</strong> will be configured with <strong className="text-amber-400">{currency}</strong> currency and rent due on the <strong className="text-emerald-400">{dueDay}th</strong> of every month.
+                  Workspace <strong className="text-white">{companyName}</strong> will be configured with <strong className="text-amber-400">{currency}</strong> currency and rent due on the <strong className="text-emerald-400">{formatRentDueDayLabel(dueDay)}</strong>.
                 </p>
               </div>
 

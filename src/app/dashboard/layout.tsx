@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, 
@@ -61,7 +62,8 @@ import { useCurrency } from "@/context/CurrencyContext";
 import GlobalSearchModal from "@/components/ui/GlobalSearchModal";
 import ListPropertyModal from "@/components/ui/ListPropertyModal";
 import PaywallModal from "@/components/ui/PaywallModal";
-import BuildingPhaseBanner from "@/components/ui/BuildingPhaseBanner";
+import { checkPlanQuota } from "@/lib/planLimits";
+import { invalidateAiUsage } from "@/lib/queryInvalidation";
 
 export default function DashboardLayout({
   children,
@@ -72,6 +74,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const { toast } = useToast();
   const { currencySymbol } = useCurrency();
+  const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isScreenTooSmall, setIsScreenTooSmall] = useState(false);
@@ -94,17 +97,37 @@ export default function DashboardLayout({
     initials: "AW",
   });
 
-  // 14-Day Free Trial (workspace/wid scoped — not shared localStorage)
   const [trialDaysLeft, setTrialDaysLeft] = useState<number>(14);
   const [isTrialActive, setIsTrialActive] = useState<boolean>(true);
+  const [workspacePlanKey, setWorkspacePlanKey] = useState<string>("trial");
+  const [unitsCount, setUnitsCount] = useState(0);
+  const [propertiesCount, setPropertiesCount] = useState(0);
   const [showPaywallModal, setShowPaywallModal] = useState<boolean>(false);
   const [paywallFeatureName, setPaywallFeatureName] = useState<string>("Add New Item");
+  const [paywallCustomMessage, setPaywallCustomMessage] = useState<string | null>(null);
 
   const checkCanAddAction = (featureName: string = "Add New Item"): boolean => {
-    if (isTrialActive || hasPaidSubscription) {
-      return true; // Unlocked during 14-day trial or with paid subscription
-    }
+    const lower = featureName.toLowerCase();
+    const action =
+      lower.includes("unit")
+        ? "unit"
+        : lower.includes("property")
+          ? "property"
+          : "mutate";
+
+    const result = checkPlanQuota({
+      plan: workspacePlanKey,
+      isTrialActive,
+      unitsCount,
+      propertiesCount,
+      action,
+      unitsToAdd: action === "unit" ? 1 : action === "property" ? 1 : 0,
+    });
+
+    if (result.ok) return true;
+
     setPaywallFeatureName(featureName);
+    setPaywallCustomMessage(result.message);
     setShowPaywallModal(true);
     return false;
   };
@@ -113,7 +136,7 @@ export default function DashboardLayout({
     if (typeof window !== "undefined") {
       (window as any).checkCanAddAction = checkCanAddAction;
     }
-  }, [isTrialActive, hasPaidSubscription]);
+  }, [isTrialActive, hasPaidSubscription, workspacePlanKey, unitsCount, propertiesCount]);
 
   // View Mode Switcher: Manage View (Operations) vs Listing View  // Mode Switcher & Listing State
   const [dashboardViewMode, setDashboardViewMode] = useState<"manage" | "listing">("manage");
@@ -283,7 +306,10 @@ export default function DashboardLayout({
     fetchTenantInquiries();
     fetchAiCredits();
 
-    const handleCreditsUpdated = () => fetchAiCredits();
+    const handleCreditsUpdated = () => {
+      fetchAiCredits();
+      invalidateAiUsage(queryClient);
+    };
     if (typeof window !== "undefined") {
       window.addEventListener("ai-credits-updated", handleCreditsUpdated);
     }
@@ -292,7 +318,7 @@ export default function DashboardLayout({
         window.removeEventListener("ai-credits-updated", handleCreditsUpdated);
       }
     };
-  }, []);
+  }, [queryClient]);
 
   const updateInquiryStatus = async (id: string, newStatus: string) => {
     try {
@@ -396,6 +422,9 @@ export default function DashboardLayout({
 
             setTrialDaysLeft(pKey === "trial" ? daysLeft : 0);
             setIsTrialActive(trialActive);
+            setWorkspacePlanKey(pKey);
+            setUnitsCount(Number(json.data.unitsCount ?? 0));
+            setPropertiesCount(Number(json.data.propertiesCount ?? 0));
 
             if (pKey === "starter" || pKey === "pro" || pKey === "pro_plus" || pKey === "enterprise") {
               const labels: Record<string, string> = {
@@ -415,6 +444,7 @@ export default function DashboardLayout({
               setHasPaidSubscription(false);
               setIsTrialActive(false);
               setTrialDaysLeft(0);
+              setWorkspacePlanKey("free");
             }
           }
         }
@@ -510,6 +540,7 @@ export default function DashboardLayout({
     { id: "expenses", name: "Property Expenses", href: "/dashboard/expenses", icon: Receipt },
     { id: "settings", name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
     { id: "billing", name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },
+    { id: "ai", name: "RentAwas AI", href: "/dashboard/ai", icon: Bot, badge: "AI" },
     { id: "support", name: "Help & Support", href: "/dashboard/support", icon: HelpCircle },
   ];
 
@@ -519,6 +550,7 @@ export default function DashboardLayout({
     { id: "publicSite", name: "Public Marketplace", href: "/find-property", external: true, icon: Search },
     { id: "settings", name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
     { id: "billing", name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },
+    { id: "ai", name: "RentAwas AI", href: "/dashboard/ai", icon: Bot, badge: "AI" },
     { id: "support", name: "Help & Support", href: "/dashboard/support", icon: HelpCircle },
   ];
 
@@ -833,7 +865,7 @@ export default function DashboardLayout({
             <div className="w-full pl-10 pr-16 py-2 bg-slate-50 border border-slate-200/90 rounded-xl text-xs font-medium text-slate-500 flex items-center justify-between group-hover:bg-white group-hover:border-slate-300 transition-all">
               <span className="truncate">Search properties, residents, maintenance...</span>
               <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] font-mono font-bold bg-white border border-slate-200 text-slate-500 rounded shadow-2xs">
-                <span className="text-[9px]">Ctrl</span> K
+                <span className="text-[9px]">Ctrl / ⌘</span> K
               </kbd>
             </div>
           </div>
@@ -984,9 +1016,6 @@ export default function DashboardLayout({
           </div>
           </div>
           </header>
-          
-          {/* Building Phase Notice Banner Locked Below Top Header */}
-          <BuildingPhaseBanner />
         </div>
 
         {/* Page Main Content Area */}
@@ -1704,9 +1733,13 @@ export default function DashboardLayout({
       {/* Paywall Upgrade Modal */}
       <PaywallModal
         isOpen={showPaywallModal}
-        onClose={() => setShowPaywallModal(false)}
+        onClose={() => {
+          setShowPaywallModal(false);
+          setPaywallCustomMessage(null);
+        }}
         featureName={paywallFeatureName}
-        isTrialExpired={!isTrialActive}
+        customMessage={paywallCustomMessage}
+        isTrialExpired={!isTrialActive && !hasPaidSubscription}
         daysLeftInTrial={trialDaysLeft}
       />
 
@@ -1871,7 +1904,7 @@ export default function DashboardLayout({
               {(aiCreditsUsed >= aiCreditLimit || listingBuddyError.toLowerCase().includes("exhausted")) && (
                 <div className="p-5 bg-gradient-to-br from-rose-50 to-amber-50 border-2 border-rose-300 rounded-2xl text-center space-y-3 shadow-md animate-in zoom-in-95 duration-200">
                   <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
-                    <Zap className="w-6 h-6 text-rose-600 animate-bounce" />
+                    <Zap className="w-6 h-6 text-rose-600" />
                   </div>
                   <div>
                     <h4 className="text-base font-black text-rose-950 uppercase tracking-wide">

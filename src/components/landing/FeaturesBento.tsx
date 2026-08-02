@@ -77,10 +77,10 @@ export default function FeaturesBento({ onOpenEarlyAccess }: FeaturesBentoProps 
           className="text-center max-w-3xl mx-auto mb-14 md:mb-18"
         >
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0B132B] tracking-tight">
-            Everything you need, in one interface.
+            Ops, AI & messaging—in one interface.
           </h2>
           <p className="text-slate-600 font-normal text-base sm:text-lg mt-3">
-            Precision-engineered tools for every stage of the property lifecycle.
+            Inventory, leases, rent, and maintenance—plus RentAwas Buddy AI and in-app DMs so landlords and tenants stay in sync.
           </p>
         </motion.div>
 

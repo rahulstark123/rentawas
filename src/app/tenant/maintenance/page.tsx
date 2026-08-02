@@ -1,10 +1,33 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Wrench, Plus, CheckCircle2, AlertCircle, Clock, Send, Upload, Loader2, ChevronDown, X, Camera, Trash2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { useTenantMe } from "@/hooks/useTenantMe";
+import { invalidateMaintenance } from "@/lib/queryInvalidation";
+
+function mapMaintenanceTickets(maintenances: any[]): any[] {
+  return maintenances.map((m: any, idx: number) => ({
+    id: m.ticketNumber || `TCK-${400 + idx}`,
+    category: m.category || "General Maintenance",
+    issue: m.issue || m.title || "Unit Maintenance",
+    urgency: m.priority || "Medium",
+    status: m.status || "Open",
+    date: m.createdAt
+      ? new Date(m.createdAt).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "Recently",
+    notes: m.notes || m.description || "Ticket logged with Property Manager.",
+    images: Array.isArray(m.images) ? m.images : m.imageUrl ? [m.imageUrl] : [],
+  }));
+}
 
 export default function TenantMaintenancePage() {
+  const queryClient = useQueryClient();
+  const { data: tenantMe, isLoading } = useTenantMe();
   const [tenant, setTenant] = useState<any>(null);
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,44 +79,24 @@ export default function TenantMaintenancePage() {
     reader.readAsDataURL(file);
   };
 
-  const fetchTenantProfile = async () => {
-    try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
-      const res = await fetch(`/api/tenant/me${emailParam}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data) {
-          setTenant(json.data);
-          if (Array.isArray(json.data.maintenances)) {
-            setTickets(
-              json.data.maintenances.map((m: any, idx: number) => ({
-                id: m.ticketNumber || `TCK-${400 + idx}`,
-                category: m.category || "General Maintenance",
-                issue: m.issue || m.title || "Unit Maintenance",
-                urgency: m.priority || "Medium",
-                status: m.status || "Open",
-                date: m.createdAt ? new Date(m.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recently",
-                notes: m.notes || m.description || "Ticket logged with Property Manager.",
-                images: Array.isArray(m.images) ? m.images : m.imageUrl ? [m.imageUrl] : [],
-              }))
-            );
-          } else {
-            setTickets([]);
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Error loading tenant maintenance tickets:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchTenantProfile();
-  }, []);
+    if (isLoading) {
+      setLoading(true);
+      return;
+    }
+    if (tenantMe) {
+      setTenant(tenantMe);
+      if (Array.isArray(tenantMe.maintenances)) {
+        setTickets(mapMaintenanceTickets(tenantMe.maintenances));
+      } else {
+        setTickets([]);
+      }
+    }
+    setLoading(false);
+  }, [tenantMe, isLoading]);
+
+  const refreshTenantProfile = () =>
+    queryClient.invalidateQueries({ queryKey: ["tenant-me"] });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,7 +146,8 @@ export default function TenantMaintenancePage() {
       setDesc("");
       setProofImages(["", "", ""]);
       setShowModal(false);
-      await fetchTenantProfile();
+      invalidateMaintenance(queryClient);
+      await queryClient.refetchQueries({ queryKey: ["tenant-me"] });
     } catch (err) {
       console.error("Submit ticket error:", err);
     } finally {
@@ -175,9 +179,31 @@ export default function TenantMaintenancePage() {
 
       {/* Active Tickets Stream */}
       {loading ? (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center space-y-3 shadow-2xs">
-          <Loader2 className="w-7 h-7 text-[#FF6B00] animate-spin mx-auto" />
-          <p className="text-xs font-bold text-slate-600">Loading your maintenance tickets...</p>
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={i}
+              className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-3 animate-pulse"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-3.5 w-16 bg-slate-200 rounded" />
+                  <div className="h-5 w-20 bg-slate-100 rounded" />
+                  <div className="h-5 w-24 bg-slate-100 rounded" />
+                </div>
+                <div className="h-6 w-20 bg-slate-100 rounded-full" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 w-48 bg-slate-200 rounded-md" />
+                <div className="h-3 w-full max-w-md bg-slate-100 rounded" />
+                <div className="h-3 w-3/4 max-w-sm bg-slate-100 rounded" />
+              </div>
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <div className="h-3 w-28 bg-slate-100 rounded" />
+                <div className="h-3 w-36 bg-slate-100 rounded" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : tickets.length === 0 ? (
         <div className="bg-white border border-slate-200/90 rounded-3xl p-12 text-center space-y-4 shadow-2xs">

@@ -32,3 +32,11 @@ export function getActivePaymentMethods(
   if (!workspace) return [];
   return INTEGRATION_PAYMENT_METHODS.filter((m) => Boolean(workspace[m.connectedKey]));
 }
+
+/** Same gate as tenant Pay Rent portal — any landlord channel including Direct UPI. */
+export function hasActiveRentPaymentChannels(
+  workspace: WorkspacePaymentFlags | null | undefined
+): boolean {
+  if (!workspace) return false;
+  return getActivePaymentMethods(workspace).length > 0 || Boolean(workspace.upiConnected);
+}

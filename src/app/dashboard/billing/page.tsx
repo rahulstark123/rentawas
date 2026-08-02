@@ -21,6 +21,7 @@ import {
   FileText
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
 import { 
@@ -153,6 +154,8 @@ export default function LandlordBillingPage() {
   const [activePlanId, setActivePlanId] = useState<PlanId>("free");
   const [isTrialActive, setIsTrialActive] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(0);
+  const [scheduledPlanId, setScheduledPlanId] = useState<PlanId | null>(null);
+  const [scheduledPlanName, setScheduledPlanName] = useState<string | null>(null);
   const [isIndia, setIsIndia] = useState(true);
 
   useEffect(() => {
@@ -170,74 +173,79 @@ export default function LandlordBillingPage() {
   const [isProcessingRazorpay, setIsProcessingRazorpay] = useState(false);
 
   // Subscriptions & Document Preview State
-  const [subscriptionsList, setSubscriptionsList] = useState<any[]>([]);
-  const [loadingSubscriptions, setLoadingSubscriptions] = useState(true);
   const [selectedSubRecord, setSelectedSubRecord] = useState<any | null>(null);
   const [showDocModal, setShowDocModal] = useState(false);
-
-  // Workspace Profile & Active Plan from PostgreSQL
   const [workspaceData, setWorkspaceData] = useState<any>({
     plan: "trial",
     unitsCount: 0,
     ownerName: "Alexander Wright",
     ownerEmail: "alexander@regencymanagement.com",
   });
-  const [loadingWorkspace, setLoadingWorkspace] = useState(true);
 
-  const fetchWorkspaceInfo = async () => {
-    try {
-      setLoadingWorkspace(true);
-      const { ensureActiveWorkspaceId } = await import("@/lib/workspace");
-      const activeWid = await ensureActiveWorkspaceId();
-      if (!activeWid) return;
-
-      const res = await fetch(`/api/workspace?wid=${activeWid}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data) {
-          setWorkspaceData(json.data);
-          if (json.data.currency) {
-            setGlobalCurrency(json.data.currency);
-          }
-          const pKey = String(json.data.plan || "trial").toLowerCase();
-          const trialActive = Boolean(json.data.isTrialActive) || (pKey === "trial" && Number(json.data.trialDaysLeft ?? 0) > 0);
-          setIsTrialActive(trialActive);
-          setTrialDaysLeft(pKey === "trial" ? Number(json.data.trialDaysLeft ?? 0) : 0);
-          setActivePlanId(normalizePlanId(pKey === "trial" ? "free" : pKey));
-        }
-      }
-    } catch (err) {
-      console.warn("Could not fetch workspace info from API:", err);
-    } finally {
-      setLoadingWorkspace(false);
-    }
-  };
-
-  const fetchSubscriptions = async () => {
-    try {
-      setLoadingSubscriptions(true);
-      const { ensureActiveWorkspaceId } = await import("@/lib/workspace");
-      const activeWid = await ensureActiveWorkspaceId();
-      if (!activeWid) return;
-
-      const res = await fetch(`/api/subscriptions?wid=${activeWid}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && Array.isArray(json.data)) {
-          setSubscriptionsList(json.data);
-        }
-      }
-    } catch (err) {
-      console.warn("Could not fetch subscriptions from DB:", err);
-    } finally {
-      setLoadingSubscriptions(false);
-    }
-  };
+  // ─── Workspace ID ──────────────────────────────────────────────────────────
+  const [billingWorkspaceId, setBillingWorkspaceId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    fetchSubscriptions();
-    fetchWorkspaceInfo();
+    import("@/lib/workspace").then(({ ensureActiveWorkspaceId }) =>
+      ensureActiveWorkspaceId().then((wid) => { if (wid) setBillingWorkspaceId(wid); })
+    );
   }, []);
+
+  // ─── TanStack Query ─────────────────────────────────────────────────────────
+  const { data: workspaceApiData, isLoading: loadingWorkspace } = useQuery({
+    queryKey: ["billing-workspace", billingWorkspaceId],
+    enabled: !!billingWorkspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/workspace?wid=${billingWorkspaceId}`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data || null;
+    },
+  });
+
+  // Apply workspace data side-effects when it loads
+  useEffect(() => {
+    if (!workspaceApiData) return;
+    setWorkspaceData(workspaceApiData);
+    if (workspaceApiData.currency) setGlobalCurrency(workspaceApiData.currency);
+    const pKey = String(workspaceApiData.plan || "trial").toLowerCase();
+    const trialActive = Boolean(workspaceApiData.isTrialActive) || (pKey === "trial" && Number(workspaceApiData.trialDaysLeft ?? 0) > 0);
+    setIsTrialActive(trialActive);
+    setTrialDaysLeft(pKey === "trial" ? Number(workspaceApiData.trialDaysLeft ?? 0) : 0);
+    setActivePlanId(normalizePlanId(pKey === "trial" ? "free" : pKey));
+
+    const sched = workspaceApiData.scheduledPlan
+      ? normalizePlanId(String(workspaceApiData.scheduledPlan))
+      : null;
+    setScheduledPlanId(sched && sched !== "free" ? sched : null);
+    setScheduledPlanName(workspaceApiData.scheduledPlanName || null);
+  }, [workspaceApiData]);
+
+  const { data: subscriptionsList = [], isLoading: loadingSubscriptions } = useQuery({
+    queryKey: ["billing", billingWorkspaceId],
+    enabled: !!billingWorkspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/subscriptions?wid=${billingWorkspaceId}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.data && Array.isArray(json.data)) ? json.data : [];
+    },
+  });
+
+  const fetchSubscriptions = () => queryClient.invalidateQueries({ queryKey: ["billing", billingWorkspaceId] });
+  const fetchWorkspaceInfo = () => queryClient.invalidateQueries({ queryKey: ["billing-workspace", billingWorkspaceId] });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash === "#plan-invoices") {
+      requestAnimationFrame(() => {
+        document.getElementById("plan-invoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }, [loadingSubscriptions]);
+
+
 
   // Helper to load Razorpay Checkout script dynamically
   const loadRazorpayScript = () => {
@@ -308,7 +316,7 @@ export default function LandlordBillingPage() {
     }
 
     const options: any = {
-      key: checkoutPayload?.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
+      key: checkoutPayload?.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_SdilED7xPbKcdV",
       amount: totalInr * 100, // Amount in paise
       currency: "INR",
       name: "RentAwas Property OS",
@@ -357,22 +365,32 @@ export default function LandlordBillingPage() {
           console.warn("Could not save subscription to DB:", e);
         }
 
-        // Update active plan in Workspace model in PostgreSQL
-        try {
-          await fetch("/api/workspace", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              wid: Number(activeWid),
-              plan: pendingPlan.id,
-            }),
-          });
+        // During trial: keep trial plan; paid plan activates after trial ends.
+        // After trial: switch workspace plan immediately.
+        if (!isTrialActive) {
+          try {
+            await fetch("/api/workspace", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                wid: Number(activeWid),
+                plan: pendingPlan.id,
+              }),
+            });
+            fetchWorkspaceInfo();
+          } catch (e) {
+            console.warn("Could not update workspace plan in DB:", e);
+          }
+          setActivePlanId(pendingPlan.id);
+        } else {
+          setScheduledPlanId(pendingPlan.id);
+          setScheduledPlanName(pendingPlan.name);
           fetchWorkspaceInfo();
-        } catch (e) {
-          console.warn("Could not update workspace plan in DB:", e);
+          toast(
+            `${pendingPlan.name} purchased. After your trial ends, this plan will become active.`,
+            "success"
+          );
         }
-
-        setActivePlanId(pendingPlan.id);
         setShowPurchasePreviewModal(false);
         setIsProcessingRazorpay(false);
       },
@@ -403,8 +421,18 @@ export default function LandlordBillingPage() {
       console.warn("Razorpay Checkout Error (Fallback Simulation):", err);
       // Fallback checkout simulation if dummy Razorpay key is rejected by sandbox
       setTimeout(() => {
-        toast(`Razorpay Sandbox Payment of ₹${totalInr.toLocaleString()} confirmed! Activated ${pendingPlan.name}.`, "success");
-        setActivePlanId(pendingPlan.id);
+        toast(
+          isTrialActive
+            ? `Payment confirmed! ${pendingPlan.name} will become active after your trial ends.`
+            : `Razorpay Sandbox Payment of ₹${totalInr.toLocaleString()} confirmed! Activated ${pendingPlan.name}.`,
+          "success"
+        );
+        if (!isTrialActive) {
+          setActivePlanId(pendingPlan.id);
+        } else {
+          setScheduledPlanId(pendingPlan.id);
+          setScheduledPlanName(pendingPlan.name);
+        }
         setShowPurchasePreviewModal(false);
         setIsProcessingRazorpay(false);
       }, 1500);
@@ -433,63 +461,112 @@ export default function LandlordBillingPage() {
             Manage your RentAwas subscription plan, active billing cycle, invoice tax receipts, and payment methods.
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            document.getElementById("plan-invoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-extrabold text-xs rounded-xl shadow-2xs transition-all cursor-pointer hover:border-[#FF6B00]/50"
+        >
+          <Receipt className="w-4 h-4 text-[#FF6B00]" />
+          <span>Plan Billing Receipts</span>
+        </button>
       </div>
 
       {/* Current Subscription Active Banner Card */}
-      <div className="bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] text-white rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-700/80">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-md bg-[#FF6B00] text-white font-extrabold text-[10px] uppercase tracking-wider">
-                CURRENT ACTIVE PLAN
-              </span>
-              <span className="text-xs font-bold text-slate-300">Auto-Renews Aug 24, 2026</span>
+      {loadingWorkspace ? (
+        <div className="bg-[#0F172A] border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl animate-pulse space-y-6 min-h-[220px] flex flex-col justify-between">
+          <div className="flex justify-between items-center pb-6 border-b border-slate-800">
+            <div className="space-y-3">
+              <div className="h-4 w-36 bg-slate-800 rounded-md" />
+              <div className="h-8 w-56 bg-slate-800 rounded-xl" />
+              <div className="h-4 w-72 bg-slate-800 rounded-md" />
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
-              <span>{isTrialActive ? "14-Day Free Trial" : activePlan.name}</span>
-              <Zap className="w-6 h-6 text-[#FF6B00] fill-[#FF6B00]" />
-            </h2>
-            <p className="text-xs text-slate-300 font-medium">
-              {isTrialActive
-                ? `Full access unlocked — ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left, then Free plan`
-                : activePlan.isPaid
-                ? isIndia || currencyCode === "INR" || currencySymbol === "₹"
-                  ? `₹${isAnnual ? activePlan.priceAnnualInr : activePlan.priceMonthlyInr}.00 / Month ${isAnnual ? "(Billed Annually)" : ""}`
-                  : `$${isAnnual ? activePlan.priceAnnualUsd : activePlan.priceMonthlyUsd}.00 / Month ${isAnnual ? "(Billed Annually)" : ""}`
-                : "₹0 forever — upgrade anytime to unlock add operations"}
-            </p>
+            <div className="h-10 w-28 bg-slate-800 rounded-xl" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <div className="h-3.5 w-40 bg-slate-800 rounded" />
+              <div className="h-3 w-full bg-slate-800 rounded-full" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-3.5 w-32 bg-slate-800 rounded" />
+              <div className="h-4 w-44 bg-slate-800 rounded" />
+            </div>
           </div>
         </div>
+      ) : (
+        <div className="bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] text-white rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Meter Progress bar for units */}
-        <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs pt-2">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between font-bold">
-              <span className="text-slate-300">Units Managed Quota</span>
-              <span className="text-white">{workspaceData.unitsCount} / {activePlan.unitsLimit}</span>
-            </div>
-            <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
-              <div 
-                className="h-full bg-gradient-to-r from-[#FF6B00] to-amber-400 rounded-full transition-all duration-500" 
-                style={{
-                  width: `${Math.min(100, Math.max(5, Math.round((workspaceData.unitsCount / Math.max(1, unitsCap)) * 100)))}%`
-                }}
-              />
-            </div>
-            <div className="text-[10px] text-slate-400">
-              {unitsRemainingLabel}
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-700/80">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-md bg-[#FF6B00] text-white font-extrabold text-[10px] uppercase tracking-wider">
+                  CURRENT ACTIVE PLAN
+                </span>
+                <span className="text-xs font-bold text-slate-300">Auto-Renews Aug 24, 2026</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
+                <span>{isTrialActive ? "14-Day Free Trial" : activePlan.name}</span>
+                <Zap className="w-6 h-6 text-[#FF6B00] fill-[#FF6B00]" />
+              </h2>
+              <p className="text-xs text-slate-300 font-medium">
+                {isTrialActive
+                  ? scheduledPlanId
+                    ? `Full access unlocked — ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left. After trial, ${scheduledPlanName || PLANS[scheduledPlanId].name} will become active.`
+                    : `Full access unlocked — ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left, then Free plan`
+                  : activePlan.isPaid
+                  ? isIndia || currencyCode === "INR" || currencySymbol === "₹"
+                    ? `₹${isAnnual ? activePlan.priceAnnualInr : activePlan.priceMonthlyInr}.00 / Month ${isAnnual ? "(Billed Annually)" : ""}`
+                    : `$${isAnnual ? activePlan.priceAnnualUsd : activePlan.priceMonthlyUsd}.00 / Month ${isAnnual ? "(Billed Annually)" : ""}`
+                  : "₹0 forever — upgrade anytime to unlock add operations"}
+              </p>
+              {isTrialActive && scheduledPlanId && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-400/30 text-[11px] font-bold text-emerald-300">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {scheduledPlanName || PLANS[scheduledPlanId].name} purchased — activates after trial
+                  </span>
+                </div>
+              )}
+              {isTrialActive && !scheduledPlanId && (
+                <p className="mt-1.5 text-[11px] text-amber-300/90 font-semibold">
+                  Buy Starter, Pro, or Pro Plus now — after trial, that plan will become active.
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Billing Contact</span>
-            <div className="font-bold text-white">{workspaceData.ownerName}</div>
-            <div className="text-[10px] text-slate-400">{workspaceData.ownerEmail}</div>
+          {/* Meter Progress bar for units */}
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs pt-2">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between font-bold">
+                <span className="text-slate-300">Units Managed Quota</span>
+                <span className="text-white">{workspaceData.unitsCount} / {activePlan.unitsLimit}</span>
+              </div>
+              <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                <div 
+                  className="h-full bg-gradient-to-r from-[#FF6B00] to-amber-400 rounded-full transition-all duration-500" 
+                  style={{
+                    width: `${Math.min(100, Math.max(5, Math.round((workspaceData.unitsCount / Math.max(1, unitsCap)) * 100)))}%`
+                  }}
+                />
+              </div>
+              <div className="text-[10px] text-slate-400">
+                {unitsRemainingLabel}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Billing Contact</span>
+              <div className="font-bold text-white">{workspaceData.ownerName}</div>
+              <div className="text-[10px] text-slate-400">{workspaceData.ownerEmail}</div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Monthly vs Annual Toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs">
@@ -613,10 +690,15 @@ export default function LandlordBillingPage() {
             </div>
           </div>
 
-          {activePlanId === "starter" ? (
+          {activePlanId === "starter" && !isTrialActive ? (
             <div className="w-full py-3 bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md uppercase tracking-wider opacity-90 cursor-default flex items-center justify-center gap-2">
               <CheckCircle2 className="w-4 h-4" />
               <span>Current Active Plan</span>
+            </div>
+          ) : isTrialActive && scheduledPlanId === "starter" ? (
+            <div className="w-full py-3 bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs rounded-xl uppercase tracking-wider cursor-default flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Activates after trial</span>
             </div>
           ) : (
             <button
@@ -624,7 +706,7 @@ export default function LandlordBillingPage() {
               className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 font-extrabold text-xs rounded-xl transition-all cursor-pointer uppercase tracking-wider flex items-center justify-center gap-2"
             >
               <Building2 className="w-4 h-4 text-slate-600" />
-              <span>Subscribe to Starter</span>
+              <span>{isTrialActive ? "Buy — activates after trial" : "Subscribe to Starter"}</span>
             </button>
           )}
         </div>
@@ -672,10 +754,15 @@ export default function LandlordBillingPage() {
             </div>
           </div>
 
-          {activePlanId === "pro" ? (
+          {activePlanId === "pro" && !isTrialActive ? (
             <div className="w-full py-3 bg-[#FF6B00] text-white font-bold text-xs rounded-xl shadow-md uppercase tracking-wider opacity-90 cursor-default flex items-center justify-center gap-2">
               <CheckCircle2 className="w-4 h-4" />
               <span>Current Active Plan</span>
+            </div>
+          ) : isTrialActive && scheduledPlanId === "pro" ? (
+            <div className="w-full py-3 bg-amber-500/20 text-amber-200 border border-amber-400/40 font-bold text-xs rounded-xl uppercase tracking-wider cursor-default flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Activates after trial</span>
             </div>
           ) : (
             <button
@@ -683,7 +770,7 @@ export default function LandlordBillingPage() {
               className="w-full py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs rounded-xl shadow-md uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
-              <span>Subscribe to Pro</span>
+              <span>{isTrialActive ? "Buy — activates after trial" : "Subscribe to Pro"}</span>
             </button>
           )}
         </div>
@@ -727,10 +814,15 @@ export default function LandlordBillingPage() {
             </div>
           </div>
 
-          {activePlanId === "pro_plus" ? (
+          {activePlanId === "pro_plus" && !isTrialActive ? (
             <div className="w-full py-3 bg-[#FF6B00] text-white font-bold text-xs rounded-xl shadow-md uppercase tracking-wider opacity-90 cursor-default flex items-center justify-center gap-2">
               <CheckCircle2 className="w-4 h-4" />
               <span>Current Active Plan</span>
+            </div>
+          ) : isTrialActive && scheduledPlanId === "pro_plus" ? (
+            <div className="w-full py-3 bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs rounded-xl uppercase tracking-wider cursor-default flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Activates after trial</span>
             </div>
           ) : (
             <button
@@ -738,20 +830,29 @@ export default function LandlordBillingPage() {
               className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer uppercase tracking-wider flex items-center justify-center gap-2"
             >
               <Crown className="w-4 h-4 text-orange-400" />
-              <span>Upgrade to Pro Plus</span>
+              <span>{isTrialActive ? "Buy — activates after trial" : "Upgrade to Pro Plus"}</span>
             </button>
           )}
         </div>
 
       </div>
 
-      {/* Invoice Receipts History */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-4">
-        <div className="flex items-center justify-between">
+      {/* Invoice Receipts History — workspace plan subscriptions only */}
+      <div id="plan-invoices" className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-4 scroll-mt-6">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Subscription Invoice & Tax Receipts</h3>
-            <p className="text-xs text-slate-500">Live database history of generated invoices and payment receipts.</p>
+            <h3 className="text-base font-bold text-slate-900">Plan Invoice &amp; Tax Receipts</h3>
+            <p className="text-xs text-slate-500">
+              Workspace subscription invoices only. AI credit recharges are on the AI Control Center.
+            </p>
           </div>
+          <a
+            href="/dashboard/ai"
+            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-purple-700 hover:text-purple-900"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>AI billing receipts</span>
+          </a>
         </div>
 
         <div className="overflow-x-auto">
@@ -768,14 +869,26 @@ export default function LandlordBillingPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
-              {subscriptionsList.length === 0 ? (
+              {loadingSubscriptions ? (
+                [...Array(3)].map((_, i) => (
+                  <tr key={i} className="animate-pulse border-b border-slate-100">
+                    <td className="py-4 px-2"><div className="h-3.5 w-28 bg-slate-200 rounded-md" /></td>
+                    <td className="py-4 px-2"><div className="h-3.5 w-20 bg-slate-200 rounded-md" /></td>
+                    <td className="py-4 px-2"><div className="h-3.5 w-32 bg-slate-200 rounded-md" /></td>
+                    <td className="py-4 px-2"><div className="h-3.5 w-20 bg-slate-200 rounded-md" /></td>
+                    <td className="py-4 px-2"><div className="h-3.5 w-16 bg-slate-200 rounded-md" /></td>
+                    <td className="py-4 px-2"><div className="h-5 w-14 bg-emerald-100/70 rounded-full" /></td>
+                    <td className="py-4 px-2 text-right"><div className="h-8 w-28 bg-slate-200 rounded-xl ml-auto" /></td>
+                  </tr>
+                ))
+              ) : subscriptionsList.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-slate-500">
                     No subscription invoices found in database.
                   </td>
                 </tr>
               ) : (
-                subscriptionsList.map((inv) => (
+                subscriptionsList.map((inv: any) => (
                   <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3 px-2 font-mono font-bold text-slate-900">{inv.invoiceNumber}</td>
                     <td className="py-3 px-2 font-mono text-slate-600">{inv.receiptNumber || `RCPT-2026-${inv.id.slice(-3)}`}</td>
@@ -928,10 +1041,26 @@ export default function LandlordBillingPage() {
               </div>
             </div>
 
+            {/* Trial notice */}
+            {isTrialActive && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <span>
+                  You are on a free trial ({trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left).
+                  After trial, <strong>{pendingPlan.name}</strong> will become active automatically.
+                  Full trial access continues until then.
+                </span>
+              </div>
+            )}
+
             {/* Razorpay Guarantee Banner */}
             <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-semibold flex items-center gap-2.5">
               <ShieldCheck className="w-5 h-5 text-purple-600 shrink-0" />
-              <span>Encrypted Razorpay Payment Gateway. Instant plan activation & tax invoice receipt.</span>
+              <span>
+                {isTrialActive
+                  ? "Encrypted Razorpay Payment Gateway. Plan schedules after trial + tax invoice receipt."
+                  : "Encrypted Razorpay Payment Gateway. Instant plan activation & tax invoice receipt."}
+              </span>
             </div>
 
             {/* Modal Actions */}

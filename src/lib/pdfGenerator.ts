@@ -4,6 +4,8 @@ export interface BillingDocRecord {
   invoiceNumber: string;
   receiptNumber?: string;
   date?: string;
+  startDate?: string;
+  endDate?: string;
   planName: string;
   amount: string;
   billingTerm?: string;
@@ -16,10 +18,43 @@ export interface BillingDocRecord {
 // Generate Official Tax Invoice Document
 export function generateTaxInvoiceHtml(record: BillingDocRecord): string {
   const invNum = record.invoiceNumber || "INV-2026-001";
-  const dateStr = record.date || new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-  const plan = record.planName || "Pro Plan";
-  const amt = record.amount || "$15.00 USD";
-  const term = record.billingTerm || "Monthly";
+  const rawDate = record.date ? new Date(record.date) : new Date();
+  const dateStr = record.date
+    ? new Date(record.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+    : new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
+  const isAiRecharge = record.planName?.toLowerCase().includes("ai") || record.billingTerm?.toLowerCase().includes("ai");
+  const isYearly = record.billingTerm?.toLowerCase().includes("year") || record.planName?.toLowerCase().includes("year") || record.billingTerm?.toLowerCase().includes("annual");
+
+  // Determine Billing Cycle column text
+  const billingCycleColumnText = isAiRecharge
+    ? "AI Credit Recharge"
+    : isYearly
+    ? "Yearly Subscription (Auto-Pay)"
+    : "Monthly Subscription (Auto-Pay)";
+
+  // Calculate billing cycle start and end date (Monthly = 30 Days, Yearly = 1 Year)
+  const cycleStart = record.startDate || dateStr;
+  const cycleEnd = record.endDate || (() => {
+    const end = new Date(rawDate.getTime());
+    if (isYearly) {
+      end.setFullYear(end.getFullYear() + 1);
+    } else {
+      end.setDate(end.getDate() + 30);
+    }
+    return end.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  })();
+
+  // Clean plan name string (avoid duplicate "Subscription" word)
+  let cleanPlan = (record.planName || "Pro Plan").trim();
+  cleanPlan = cleanPlan.replace(/\bSubscription\b/gi, "").trim();
+  const displayTitle = isAiRecharge
+    ? cleanPlan
+    : cleanPlan.toLowerCase().includes("plan")
+    ? `${cleanPlan} Subscription`
+    : `${cleanPlan} Plan Subscription`;
+
+  const amt = record.amount || "₹1,299.00";
 
   return `
 <!DOCTYPE html>
@@ -68,8 +103,9 @@ export function generateTaxInvoiceHtml(record: BillingDocRecord): string {
     <div class="company-header">
       <h1 class="company-name">ANSH Apps</h1>
       <div class="product-name">Rent Awas</div>
+      <div style="font-size: 13px; font-weight: 700; color: #64748B; margin-top: 1px; margin-bottom: 4px;">rentawas.com</div>
       <div class="udyam-no">Udyam Registration No: UDYAM-BR-23-0127857</div>
-      <div class="support-info">Support: support@anshapps.com | Website: anshapps.com</div>
+      <div class="support-info">Support: support@anshapps.com | Website: rentawas.com</div>
       <div class="support-info" style="margin-top: 2px;">For billing support contact support@anshapps.com</div>
     </div>
 
@@ -89,7 +125,6 @@ export function generateTaxInvoiceHtml(record: BillingDocRecord): string {
         <p><strong>Alexander Wright</strong></p>
         <p>Regency Property Management LLC</p>
         <p>alexander@regencymanagement.com</p>
-        <p>Workspace ID: #1</p>
       </div>
       <div class="meta-box" style="text-align: right;">
         <h4>Invoice Details</h4>
@@ -110,8 +145,20 @@ export function generateTaxInvoiceHtml(record: BillingDocRecord): string {
       </thead>
       <tbody>
         <tr>
-          <td><strong>Rent Awas ${plan} Subscription</strong><br/><span style="font-size:11px; color:#64748B;">Full property portfolio management, rent disbursals & tenant health analytics</span></td>
-          <td>${term}</td>
+          <td>
+            <strong>Rent Awas ${displayTitle}</strong>
+            <br/>
+            <span style="font-size:11px; color:#64748B;">
+              ${isAiRecharge ? "Instant AI credit top-up for RentAwas Buddy assistant" : "Full property portfolio management, rent disbursals & tenant health analytics"}
+            </span>
+            ${!isAiRecharge ? `
+            <br/>
+            <div style="margin-top: 5px; font-size: 11px; color: #334155; font-weight: 700; background: #F1F5F9; display: inline-block; padding: 3px 8px; border-radius: 6px;">
+              Billing Period: <span style="color: #FF6B00;">${cycleStart} – ${cycleEnd}</span>
+            </div>
+            ` : ""}
+          </td>
+          <td>${billingCycleColumnText}</td>
           <td>1</td>
           <td style="text-align: right;"><strong>${amt}</strong></td>
         </tr>
@@ -202,8 +249,9 @@ export function generatePaymentReceiptHtml(record: BillingDocRecord): string {
     <div class="company-header">
       <h1 class="company-name">ANSH Apps</h1>
       <div class="product-name">Rent Awas</div>
+      <div style="font-size: 13px; font-weight: 700; color: #64748B; margin-top: 1px; margin-bottom: 4px;">rentawas.com</div>
       <div class="udyam-no">Udyam Registration No: UDYAM-BR-23-0127857</div>
-      <div class="support-info">Support: support@anshapps.com | Website: anshapps.com</div>
+      <div class="support-info">Support: support@anshapps.com | Website: rentawas.com</div>
       <div class="support-info" style="margin-top: 2px;">For billing support contact support@anshapps.com</div>
     </div>
 

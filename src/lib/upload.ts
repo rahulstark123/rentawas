@@ -3,6 +3,7 @@
  *
  * Sends file to POST /api/storage/upload which:
  *  - Compresses images to WebP via Sharp (server-side)
+ *  - Compresses PDFs via pdf-lib + unpdf (PDF.js) + sharp
  *  - Stores in: rentawas/{workspaceId}/{context}/{timestamp}_{name}.{ext}
  *
  * Usage:
@@ -108,6 +109,11 @@ export async function uploadFile(
   try {
     const { workspaceId, context, filename, onProgress, compress = true } = options;
 
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      return { success: false, error: validation.error || "Invalid file" };
+    }
+
     // Compress images client-side before sending over network
     let fileToUpload = file;
     if (compress && file.type.startsWith("image/")) {
@@ -171,6 +177,11 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+/** Max PDF upload size (before server-side compression). */
+export const MAX_PDF_UPLOAD_MB = 2;
+/** Max image upload size (before compression). */
+export const MAX_IMAGE_UPLOAD_MB = 15;
+
 /**
  * Validate file before uploading
  */
@@ -178,7 +189,9 @@ export function validateFile(
   file: File,
   options?: { maxSizeMB?: number; allowedTypes?: string[] }
 ): { valid: boolean; error?: string } {
-  const maxSizeMB = options?.maxSizeMB ?? 25;
+  const isPdf = file.type === "application/pdf";
+  const maxSizeMB =
+    options?.maxSizeMB ?? (isPdf ? MAX_PDF_UPLOAD_MB : MAX_IMAGE_UPLOAD_MB);
   const allowedTypes = options?.allowedTypes ?? [
     "image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"
   ];
@@ -193,7 +206,9 @@ export function validateFile(
   if (file.size > maxSizeMB * 1024 * 1024) {
     return {
       valid: false,
-      error: `File too large (${formatFileSize(file.size)}). Max size is ${maxSizeMB}MB.`,
+      error: isPdf
+        ? `PDF too large (${formatFileSize(file.size)}). Max PDF size is ${maxSizeMB}MB.`
+        : `File too large (${formatFileSize(file.size)}). Max size is ${maxSizeMB}MB.`,
     };
   }
 

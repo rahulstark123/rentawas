@@ -6,7 +6,7 @@ import HeroSection from "@/components/landing/HeroSection";
 import EarlyAccessBanner from "@/components/landing/EarlyAccessBanner";
 import WhyRentAwas from "@/components/landing/WhyRentAwas";
 import FeaturesBento from "@/components/landing/FeaturesBento";
-import OperationsAndAICommand from "@/components/landing/OperationsAndAICommand";
+import HowRentAwasHelps from "@/components/landing/HowRentAwasHelps";
 import ResidentAppSection from "@/components/landing/ResidentAppSection";
 import WallOfLove from "@/components/landing/WallOfLove";
 import PricingAndFAQ from "@/components/landing/PricingAndFAQ";
@@ -31,7 +31,7 @@ export default function Home() {
       
       <WhyRentAwas />
       <FeaturesBento onOpenEarlyAccess={handleOpenEarlyAccess} />
-      <OperationsAndAICommand />
+      <HowRentAwasHelps />
       <ResidentAppSection />
       
       {/* Wall of Love Testimonials (Right above Pricing) */}

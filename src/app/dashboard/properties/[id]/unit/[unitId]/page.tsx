@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   Building2, 
   ArrowLeft, 
@@ -52,6 +53,9 @@ import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } 
 import { uploadFile, validateFile } from "@/lib/upload";
 import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
 import { getActivePaymentMethods, type ActivePaymentMethod } from "@/lib/paymentMethods";
+import { invalidateMaintenance, invalidateLandlordPortfolio } from "@/lib/queryInvalidation";
+import { useUnitDetail } from "@/hooks/useUnitDetail";
+import { RENT_DUE_DAY_OPTIONS } from "@/lib/rentDueDay";
 
 export interface OccupantItem {
   id: string;
@@ -92,6 +96,8 @@ export default function RoomTelemetryFullPage() {
   const propId = (params?.id as string) || "PROP-1";
   const rawUnitId = (params?.unitId as string) || "Unit 301";
   const unitId = decodeURIComponent(rawUnitId);
+  const queryClient = useQueryClient();
+  const { data: unitDetail, isLoading: loading } = useUnitDetail(propId, unitId);
 
   const [propertyData, setPropertyData] = useState<{ id: string; name: string; address: string; tag: string }>({
     id: propId,
@@ -157,7 +163,6 @@ export default function RoomTelemetryFullPage() {
     }
   };
 
-  const [loading, setLoading] = useState(true);
   const [unitMeta, setUnitMeta] = useState<{
     unitNumber: string;
     rent: number;
@@ -172,118 +177,25 @@ export default function RoomTelemetryFullPage() {
   // Historical Timeline Log
   const [roomHistory, setRoomHistory] = useState<PastHistoryRecord[]>([]);
 
+  // Sync TanStack Query cache → local state for mutation-friendly UI
   useEffect(() => {
-    let isMounted = true;
-    async function loadUnitAndPropertyDetails() {
-      try {
-        setLoading(true);
-
-        const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
-        const widQuery = activeWid ? `?wid=${activeWid}` : "";
-        const widAmp = activeWid ? `&wid=${activeWid}` : "";
-
-        // Fetch Property Info (workspace-scoped)
-        const propRes = await fetch(`/api/properties/${propId}${widQuery}`);
-        if (propRes.ok) {
-          const propJson = await propRes.json();
-          if (propJson.data && isMounted) {
-            setPropertyData({
-              id: propJson.data.id,
-              name: propJson.data.name,
-              address: propJson.data.address || "Property Location",
-              tag: propJson.data.tag || "Property",
-            });
-          }
-        }
-
-        // Fetch Unit Details (scoped to property + workspace)
-        const res = await fetch(`/api/units/${encodeURIComponent(unitId)}?propertyId=${encodeURIComponent(propId)}${widAmp}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (json.data && isMounted) {
-            const u = json.data;
-            setUnitMeta({
-              unitNumber: u.unitNumber,
-              rent: u.rent || 0,
-              floorNumber: u.floorNumber || 1,
-              isOccupied: u.isOccupied || false,
-              propertyName: u.property?.name,
-            });
-
-            if (u.property && isMounted) {
-              setPropertyData({
-                id: u.property.id || propId,
-                name: u.property.name || "Property",
-                address: u.property.address || "Property Location",
-                tag: u.property.tag || "Property",
-              });
-            }
-
-            if (u.tenants && u.tenants.length > 0) {
-              const loadedOccupants: OccupantItem[] = u.tenants.map((t: any, idx: number) => ({
-                id: t.id,
-                name: t.name,
-                bedSlot: t.bedSlot || `Bed Slot ${String.fromCharCode(65 + idx)}`,
-                individualRent: t.monthlyRent || u.rent || 0,
-                phone: t.phone || "+1 (555) 000-0000",
-                email: t.email || "resident@rentawas.com",
-                moveIn: t.leaseStart ? new Date(t.leaseStart).toISOString().split("T")[0] : "2026-08-01",
-                leaseEnd: t.leaseEnd ? new Date(t.leaseEnd).toISOString().split("T")[0] : "2027-07-31",
-                paymentStatus: "Auto Paid (ACH)",
-              }));
-              setOccupants(loadedOccupants);
-            }
-
-            // Fetch all tabs scoped to propertyId + workspace
-            try {
-              const [occRes, maintRes, billsRes, docsRes, histRes] = await Promise.all([
-                fetch(`/api/units/${encodeURIComponent(unitId)}/occupants?propertyId=${encodeURIComponent(propId)}${widAmp}`),
-                fetch(`/api/units/${encodeURIComponent(unitId)}/maintenance?propertyId=${encodeURIComponent(propId)}${widAmp}`),
-                fetch(`/api/units/${encodeURIComponent(unitId)}/rents?propertyId=${encodeURIComponent(propId)}${widAmp}`),
-                fetch(`/api/units/${encodeURIComponent(unitId)}/documents?propertyId=${encodeURIComponent(propId)}${widAmp}`),
-                fetch(`/api/units/${encodeURIComponent(unitId)}/history?propertyId=${encodeURIComponent(propId)}${widAmp}`),
-              ]);
-
-              if (occRes.ok) {
-                const occJson = await occRes.json();
-                if (occJson.data && Array.isArray(occJson.data) && occJson.data.length > 0 && isMounted) {
-                  setOccupants(occJson.data);
-                }
-              }
-              if (maintRes.ok) {
-                const maintJson = await maintRes.json();
-                if (maintJson.data && isMounted) setMaintenanceLogs(maintJson.data);
-              }
-              if (billsRes.ok) {
-                const billsJson = await billsRes.json();
-                if (billsJson.data && isMounted) setRentLedger(billsJson.data);
-              }
-              if (docsRes.ok) {
-                const docsJson = await docsRes.json();
-                if (docsJson.data && isMounted) setTenantDocs(docsJson.data);
-              }
-              if (histRes.ok) {
-                const histJson = await histRes.json();
-                if (histJson.data && isMounted) setRoomHistory(histJson.data);
-              }
-            } catch (tabErr) {
-              console.warn("Could not load initial tab data:", tabErr);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn("Could not load unit details via API:", err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
-    loadUnitAndPropertyDetails();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [propId, unitId]);
+    if (!unitDetail) return;
+    setPropertyData(unitDetail.property);
+    setUnitMeta(unitDetail.unitMeta);
+    setOccupants(unitDetail.occupants);
+    setMaintenanceLogs(unitDetail.maintenanceLogs);
+    setRentLedger(unitDetail.rentLedger);
+    setTenantDocs(unitDetail.tenantDocs);
+    setRoomHistory(unitDetail.roomHistory);
+    setFetchedTabsMap({
+      analytics: true,
+      resident: true,
+      docs: true,
+      history: true,
+      maintenance: true,
+      bills: true,
+    });
+  }, [unitDetail]);
 
   // Modal State 1: 4-Step Add / Edit Tenant Modal
   const [showAddTenantModal, setShowAddTenantModal] = useState(false);
@@ -600,6 +512,7 @@ export default function RoomTelemetryFullPage() {
             : `Added new resident ${name} to ${unitId} with rent ${formatCurrency(rentVal)}/mo!`,
           "success"
         );
+        invalidateLandlordPortfolio(queryClient, { propId });
       }
       setShowAddTenantModal(false);
     } catch (err) {
@@ -641,7 +554,7 @@ export default function RoomTelemetryFullPage() {
           propertyId: propId,
         }),
       });
-      fetchTabData("history");
+      fetchTabData("history", true);
     } catch (err) {
       console.warn("Could not save history log via API:", err);
     }
@@ -650,6 +563,7 @@ export default function RoomTelemetryFullPage() {
     toast(`Resident ${exitOccupant.name} offboarded cleanly. Review saved with ${starRating}★ rating!`, "success");
     setShowNormalExitModal(false);
     setExitOccupant(null);
+    invalidateLandlordPortfolio(queryClient, { propId });
   };
 
   // ---------------- HANDLER 2: REMOVE / EVICT OCCUPANT ----------------
@@ -683,7 +597,7 @@ export default function RoomTelemetryFullPage() {
           propertyId: propId,
         }),
       });
-      fetchTabData("history");
+      fetchTabData("history", true);
     } catch (err) {
       console.warn("Could not save removal history log via API:", err);
     }
@@ -692,19 +606,84 @@ export default function RoomTelemetryFullPage() {
     toast(`Resident ${removeOccupantTarget.name} removed from ${unitId}. Incident archived in database.`, "warning");
     setShowRemoveModal(false);
     setRemoveOccupantTarget(null);
+    invalidateLandlordPortfolio(queryClient, { propId });
   };
 
   if (loading) {
     return (
-      <div className="space-y-8 font-sans animate-in fade-in duration-200 min-h-[60vh] flex flex-col justify-center items-center py-24">
-        <div className="p-4 rounded-2xl bg-orange-50 text-[#FF6B00] border border-orange-200/80 shadow-md animate-bounce mb-4">
-          <Building2 className="w-8 h-8" />
+      <div className="space-y-8 font-sans pb-12 animate-pulse">
+        {/* Header skeleton */}
+        <div>
+          <div className="h-3.5 w-48 bg-slate-100 rounded-md mb-3" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-slate-200 shrink-0" />
+              <div className="space-y-2">
+                <div className="h-7 w-56 sm:w-72 bg-slate-200 rounded-lg" />
+                <div className="h-3.5 w-64 bg-slate-100 rounded-md" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-28 bg-slate-200 rounded-xl" />
+              <div className="h-10 w-36 bg-slate-100 rounded-xl" />
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-slate-900 font-extrabold text-lg">
-          <Loader2 className="w-5 h-5 text-[#FF6B00] animate-spin" />
-          <span>Fetching Unit Telemetry Data...</span>
+
+        {/* Stats ribbon skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="h-2.5 w-24 bg-slate-100 rounded" />
+              <div className="h-5 w-28 bg-slate-200 rounded-md" />
+            </div>
+          ))}
         </div>
-        <p className="text-xs font-semibold text-slate-400 mt-1">Loading real room metrics, lease records & resident details</p>
+
+        {/* Tabs skeleton */}
+        <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl">
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className={`h-10 rounded-xl ${i === 0 ? "w-28 bg-white shadow-xs" : "w-32 bg-slate-200/80"}`}
+            />
+          ))}
+        </div>
+
+        {/* Content cards skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {[...Array(4)].map((_, i) => (
+            <div
+              key={i}
+              className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-4"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-200 shrink-0" />
+                  <div className="space-y-2">
+                    <div className="h-4 w-28 bg-slate-200 rounded-md" />
+                    <div className="h-3 w-36 bg-slate-100 rounded" />
+                  </div>
+                </div>
+                <div className="h-6 w-16 bg-slate-100 rounded-full" />
+              </div>
+              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                <div className="space-y-1.5">
+                  <div className="h-2.5 w-16 bg-slate-200 rounded" />
+                  <div className="h-4 w-20 bg-slate-200 rounded" />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="h-2.5 w-16 bg-slate-200 rounded" />
+                  <div className="h-4 w-20 bg-slate-200 rounded" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <div className="h-8 flex-1 bg-slate-100 rounded-xl" />
+                <div className="h-8 flex-1 bg-slate-100 rounded-xl" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -1423,6 +1402,7 @@ export default function RoomTelemetryFullPage() {
                           if (res.ok) {
                             toast(`Ticket status updated to "${newStatus}"`, "success");
                             fetchTabData("maintenance", true);
+                            invalidateMaintenance(queryClient);
                           } else {
                             toast("Failed to update status", "error");
                           }
@@ -1459,6 +1439,7 @@ export default function RoomTelemetryFullPage() {
                           if (res.ok) {
                             toast(`Ticket ${t.id || t.ticketNumber} deleted!`, "success");
                             fetchTabData("maintenance", true);
+                            invalidateMaintenance(queryClient);
                           } else {
                             toast("Failed to delete ticket", "error");
                           }
@@ -1739,9 +1720,9 @@ export default function RoomTelemetryFullPage() {
                       onChange={(e) => setRentDueDay(e.target.value)}
                       className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                     >
-                      {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
-                        <option key={day} value={String(day)}>
-                          Day {day} of every month
+                      {RENT_DUE_DAY_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={String(opt.value)}>
+                          {opt.label}
                         </option>
                       ))}
                     </select>
@@ -1885,7 +1866,7 @@ export default function RoomTelemetryFullPage() {
                         <div className="text-xs font-bold text-slate-800">
                           {govIdFile ? `Attached: ${govIdFile}` : "Drag & drop passport, license, or national ID"}
                         </div>
-                        <p className="text-[10px] text-slate-400">PDF, JPG, PNG (Max 15MB) — compressed automatically</p>
+                        <p className="text-[10px] text-slate-400">PDF (max 2MB), JPG, PNG — compressed automatically</p>
                       </>
                     )}
                     {!govIdUploading && (
@@ -1898,7 +1879,7 @@ export default function RoomTelemetryFullPage() {
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
-                            const check = validateFile(file, { maxSizeMB: 15 });
+                            const check = validateFile(file);
                             if (!check.valid) { toast(check.error!, "error"); return; }
                             setGovIdUploading(true); setGovIdProgress(0);
                             const res = await uploadFile(file, {
@@ -1957,7 +1938,7 @@ export default function RoomTelemetryFullPage() {
                         <div className="text-xs font-bold text-slate-800">
                           {leaseFile ? `Attached: ${leaseFile}` : "Drag & drop signed tenancy contract"}
                         </div>
-                        <p className="text-[10px] text-slate-400">PDF, JPG, PNG (Max 25MB)</p>
+                        <p className="text-[10px] text-slate-400">PDF (max 2MB), JPG, PNG — auto-compressed</p>
                       </>
                     )}
                     {!leaseUploading && (
@@ -1970,7 +1951,7 @@ export default function RoomTelemetryFullPage() {
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
-                            const check = validateFile(file, { maxSizeMB: 25 });
+                            const check = validateFile(file);
                             if (!check.valid) { toast(check.error!, "error"); return; }
                             setLeaseUploading(true); setLeaseProgress(0);
                             const res = await uploadFile(file, {
@@ -2490,7 +2471,8 @@ export default function RoomTelemetryFullPage() {
                   setShowIssueInvoiceModal(false);
                   setInvoiceTitle("");
                   setInvoiceAmount("");
-                  fetchTabData("bills");
+                  await fetchTabData("bills", true);
+                  invalidateLandlordPortfolio(queryClient, { propId });
                 } else {
                   toast("Failed to issue invoice", "error");
                 }
@@ -2636,7 +2618,8 @@ export default function RoomTelemetryFullPage() {
                   toast(json.message || "Maintenance ticket logged!", "success");
                   setShowLogMaintenanceModal(false);
                   setMaintIssue("");
-                  fetchTabData("maintenance");
+                  await fetchTabData("maintenance", true);
+                  invalidateMaintenance(queryClient);
                 } else {
                   toast("Failed to log maintenance ticket", "error");
                 }

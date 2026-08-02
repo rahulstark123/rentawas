@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
@@ -84,9 +85,52 @@ export default function PropertiesPage() {
   const [isCopied, setIsCopied] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [loading, setLoading] = useState(true);
-  const [propertyList, setPropertyList] = useState<PropertyItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // ─── Workspace ID ────────────────────────────────────────────────────────────
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    (async () => {
+      const wid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (wid) setWorkspaceId(wid);
+    })();
+  }, []);
+
+  // ─── TanStack Query ──────────────────────────────────────────────────────────
+  // Cache stores raw API properties (shared with dashboard). Map in `select` for UI.
+  const { data: propertyList = [], isLoading: propertiesLoading } = useQuery({
+    queryKey: ["properties", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/properties?wid=${workspaceId}`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) return json.data;
+      return [];
+    },
+    select: (data): PropertyItem[] =>
+      (Array.isArray(data) ? data : []).map((item: any): PropertyItem => ({
+        id: item.id,
+        name: item.name,
+        address: item.address,
+        floors: item.floors || 1,
+        units: item.totalUnits ?? item.units ?? 0,
+        occupied: item.occupiedUnits ?? item.occupied ?? 0,
+        rawMonthlyYield:
+          item.rawMonthlyYield !== undefined
+            ? item.rawMonthlyYield
+            : parseFloat(String(item.monthlyYield || "").replace(/[^0-9.]/g, "")) || 0,
+        monthlyYield: item.monthlyYield || "$0",
+        rawYtdExpenses: item.rawYtdExpenses || 0,
+        ytdExpenses: "$0",
+        status: item.status || "0% Occupied",
+        tag: item.tag || item.category || "Property",
+      })),
+  });
+
+  // Include !workspaceId: query is disabled until wid resolves, so isLoading is false otherwise
+  const isLoading = !workspaceId || propertiesLoading;
 
   // ─── RentAwas Buddy AI Assistant State ─────────────────────────────────────
   const [selectedBuddyProp, setSelectedBuddyProp] = useState<PropertyItem | null>(null);
@@ -175,50 +219,12 @@ export default function PropertiesPage() {
     );
   });
 
-  // Fetch properties workspace-wise (scoped by active workspace wid)
-  const fetchProperties = async () => {
-    const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
-    if (!activeWid) {
-      setPropertyList([]);
-      setLoading(false);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/properties?wid=${activeWid}`);
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        const mapped: PropertyItem[] = json.data.map((item: any) => {
-          const rawYield = item.rawMonthlyYield !== undefined 
-            ? item.rawMonthlyYield 
-            : (parseFloat(String(item.monthlyYield || "").replace(/[^0-9.]/g, "")) || 0);
 
-          return {
-            id: item.id,
-            name: item.name,
-            address: item.address,
-            floors: item.floors || 1,
-            units: item.totalUnits || 0,
-            occupied: item.occupiedUnits || 0,
-            rawMonthlyYield: rawYield,
-            monthlyYield: item.monthlyYield || "$0",
-            rawYtdExpenses: item.rawYtdExpenses || 0,
-            ytdExpenses: "$0",
-            status: item.status || "0% Occupied",
-            tag: item.tag || item.category || "Property",
-          };
-        });
-        setPropertyList(mapped);
-      }
-    } catch (err) {
-      console.warn("Could not fetch properties from API:", err);
-    } finally {
-      setLoading(false);
-    }
+  // Refresh properties list (called after mutations)
+  const fetchProperties = async () => {
+    queryClient.invalidateQueries({ queryKey: ["properties", workspaceId] });
   };
 
-  useEffect(() => {
-    fetchProperties();
-  }, []);
 
   const handleAddProperty = async (newProp: PropertyData) => {
     const numFloors = newProp.floors || 4;
@@ -251,25 +257,9 @@ export default function PropertiesPage() {
         return;
       }
     } catch (err) {
-      console.warn("Failed to create property via API, adding locally:", err);
+      console.warn("Failed to create property via API:", err);
+      toast("Error creating property.", "error");
     }
-
-    // Local fallback if API fails
-    setPropertyList([
-      {
-        id: newProp.id || `LOCAL-${Date.now()}`,
-        name: newProp.name,
-        address: newProp.address,
-        floors: numFloors,
-        units: computedUnits,
-        occupied: 0,
-        monthlyYield: `${newProp.avgRent || "$0"}/mo`,
-        ytdExpenses: "$0",
-        status: "0% Occupied (New)",
-        tag: newProp.category.replace(/^[^\s]+\s/, ""),
-      },
-      ...propertyList,
-    ]);
   };
 
   const handleDeleteProperty = async (id: string, name: string) => {
@@ -286,12 +276,11 @@ export default function PropertiesPage() {
         return;
       }
     } catch (err) {
-      console.warn("Delete API call failed, removing locally:", err);
+      console.warn("Delete API call failed:", err);
+      toast("Error deleting property.", "error");
     }
 
-    setPropertyList(propertyList.filter((p) => p.id !== id));
     setActiveMenuId(null);
-    toast(`Property "${name}" removed from portfolio!`, "info");
   };
 
   const handleSaveEditProperty = async (updatedData: any) => {
@@ -319,23 +308,10 @@ export default function PropertiesPage() {
           return;
         }
       } catch (err) {
-        console.warn("Patch API call failed, updating locally:", err);
+        console.warn("Patch API call failed:", err);
+        toast("Error updating property.", "error");
       }
 
-      setPropertyList((prev) =>
-        prev.map((p) =>
-          p.id === editingProp.id
-            ? {
-                ...p,
-                name: updatedData.name,
-                address: updatedData.address,
-                floors: updatedData.floors,
-                units: updatedData.units,
-                tag: updatedData.category || p.tag,
-              }
-            : p
-        )
-      );
       setEditingProp(null);
     } else {
       handleAddProperty(updatedData);
@@ -390,10 +366,52 @@ export default function PropertiesPage() {
       </div>
 
       {/* Property Cards Grid or Empty State */}
-      {loading ? (
-        <div className="py-16 text-center">
-          <div className="inline-block w-8 h-8 border-4 border-slate-200 border-t-[#FF6B00] rounded-full animate-spin mb-3" />
-          <p className="text-xs font-semibold text-slate-500">Loading your property portfolio...</p>
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-5 animate-pulse">
+              {/* Header row — badge + 3-dot skeleton */}
+              <div className="flex items-start justify-between">
+                <div className="space-y-2.5">
+                  <div className="h-4 w-24 bg-slate-200 rounded-md" />
+                  <div className="h-5 w-52 bg-slate-200 rounded-lg" />
+                  <div className="h-3.5 w-36 bg-slate-100 rounded-md" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-20 bg-slate-100 rounded-full" />
+                  <div className="h-7 w-7 bg-slate-100 rounded-lg" />
+                </div>
+              </div>
+
+              {/* Metrics row — 4 stat boxes */}
+              <div className="grid grid-cols-4 gap-2.5 p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
+                {[...Array(4)].map((_, j) => (
+                  <div key={j} className="space-y-1.5">
+                    <div className="h-3 w-12 bg-slate-200 rounded" />
+                    <div className="h-4 w-14 bg-slate-200 rounded" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Occupancy bar skeleton */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between">
+                  <div className="h-3 w-24 bg-slate-200 rounded" />
+                  <div className="h-3 w-12 bg-slate-200 rounded" />
+                </div>
+                <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-slate-200 rounded-full" style={{ width: "60%" }} />
+                </div>
+              </div>
+
+              {/* Action buttons row */}
+              <div className="flex items-center gap-2.5 pt-1 border-t border-slate-100">
+                <div className="h-8 flex-1 bg-slate-100 rounded-xl" />
+                <div className="h-8 flex-1 bg-slate-100 rounded-xl" />
+                <div className="h-8 flex-1 bg-slate-100 rounded-xl" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : filteredPropertyList.length === 0 ? (
         <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center max-w-xl mx-auto shadow-2xs space-y-4 my-8">
@@ -662,7 +680,7 @@ export default function PropertiesPage() {
               </button>
               <button
                 type="button"
-                disabled={confirmNameInput.trim() !== deletingProp.name.trim() || isDeleting}
+                disabled={isDeleting}
                 onClick={async () => {
                   setIsDeleting(true);
                   await handleDeleteProperty(deletingProp.id, deletingProp.name);
@@ -830,7 +848,7 @@ export default function PropertiesPage() {
               {(buddyCreditsUsed >= buddyCreditLimit || buddyError.toLowerCase().includes("exhausted")) && (
                 <div className="p-5 bg-gradient-to-br from-rose-50 to-amber-50 border-2 border-rose-300 rounded-2xl text-center space-y-3 shadow-md animate-in zoom-in-95 duration-200">
                   <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
-                    <Zap className="w-6 h-6 text-rose-600 animate-bounce" />
+                    <Zap className="w-6 h-6 text-rose-600" />
                   </div>
                   <div>
                     <h4 className="text-base font-black text-rose-950 uppercase tracking-wide">

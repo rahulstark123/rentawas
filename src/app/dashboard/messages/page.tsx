@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   MessageSquare,
   Plus,
@@ -856,109 +857,91 @@ export default function MessagesPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Resolve landlord profile + workspace-scoped chat rooms
+  // ─── Workspace ID for TanStack Query ──────────────────────────────────────────────
+  const [chatWorkspaceId, setChatWorkspaceId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  // Resolve workspace + profile on mount (auth stays here, not in useQuery)
   useEffect(() => {
-    const fetchRooms = async () => {
-      try {
-        const workspaceId = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+    const initChat = async () => {
+      const workspaceId = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (workspaceId) setChatWorkspaceId(workspaceId);
 
-        // Load landlord profile (profile-wise identity for sends / groups)
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const params = new URLSearchParams();
-          if (user.id) params.set("userId", user.id);
-          else if (user.email) params.set("email", user.email);
-          const meRes = await fetch(`/api/workspace/me?${params.toString()}`);
-          if (meRes.ok) {
-            const meJson = await meRes.json();
-            const fullName =
-              meJson?.data?.fullName ||
-              user.user_metadata?.fullName ||
-              user.email?.split("@")[0] ||
-              "Property Manager";
-            const nameParts = fullName.trim().split(/\s+/);
-            const initials =
-              nameParts.length >= 2
-                ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
-                : fullName.substring(0, 2).toUpperCase();
-            setLandlordProfile({
-              id: meJson?.data?.profileId || user.id,
-              name: fullName,
-              initials: initials || "PM",
-              email: meJson?.data?.email || user.email || undefined,
-            });
-          } else {
-            const fullName = user.user_metadata?.fullName || user.email?.split("@")[0] || "Property Manager";
-            setLandlordProfile({
-              id: user.id,
-              name: fullName,
-              initials: getInitials(fullName),
-              email: user.email || undefined,
-            });
-          }
+      // Load landlord profile (profile-wise identity for sends / groups)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const params = new URLSearchParams();
+        if (user.id) params.set("userId", user.id);
+        else if (user.email) params.set("email", user.email);
+        const meRes = await fetch(`/api/workspace/me?${params.toString()}`);
+        if (meRes.ok) {
+          const meJson = await meRes.json();
+          const fullName = meJson?.data?.fullName || user.user_metadata?.fullName || user.email?.split("@")[0] || "Property Manager";
+          const nameParts = fullName.trim().split(/\s+/);
+          const initials = nameParts.length >= 2
+            ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+            : fullName.substring(0, 2).toUpperCase();
+          setLandlordProfile({ id: meJson?.data?.profileId || user.id, name: fullName, initials: initials || "PM", email: meJson?.data?.email || user.email || undefined });
+        } else {
+          const fullName = user.user_metadata?.fullName || user.email?.split("@")[0] || "Property Manager";
+          setLandlordProfile({ id: user.id, name: fullName, initials: getInitials(fullName), email: user.email || undefined });
         }
-
-        if (!workspaceId) {
-          setRooms([]);
-          return;
-        }
-
-        const res = await fetch(`/api/chat/rooms?workspaceId=${workspaceId}&userRole=landlord`);
-        if (res.ok) {
-          const result = await res.json();
-          if (result.data && Array.isArray(result.data)) {
-            const loadedRooms: ChatRoom[] = result.data.map((r: any) => ({
-              id: r.id,
-              type: r.type,
-              name: r.name,
-              initials: r.initials || getInitials(r.name),
-              color: r.color || "bg-purple-500",
-              property: r.property || (r.tenant?.unit?.property?.name || "Property"),
-              description: r.description,
-              lastMessage: r.lastMessage || "No messages yet",
-              lastTime: r.lastTime || "Just now",
-              unreadCount: r.unreadCount || 0,
-              email: r.tenant?.email || r.tenant?.profile?.email || r.email,
-              phone: r.tenant?.phone || r.phone || "",
-              unit: r.tenant?.unit?.unitNumber || r.unit || "Unit N/A",
-              rentAmount: r.tenant?.monthlyRent
-                ? `₹${Number(r.tenant.monthlyRent).toLocaleString("en-IN")}/mo`
-                : undefined,
-              rentStatus:
-                r.tenant?.currentStatus === "Current" || r.tenant?.currentStatus === "Active"
-                  ? "Paid"
-                  : r.tenant
-                    ? "Due"
-                    : undefined,
-              leaseEndDate: r.tenant?.leaseEnd
-                ? new Date(r.tenant.leaseEnd).toLocaleDateString("en-IN", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })
-                : undefined,
-              members: r.membersJson ? JSON.parse(r.membersJson) : undefined,
-              messages: (r.messages || []).map((m: any) => ({
-                id: m.id,
-                senderId: m.senderId,
-                senderName: m.senderName,
-                senderInitials: m.senderInitials,
-                text: m.text,
-                timestamp: new Date(m.createdAt),
-                isMe: m.isMe,
-              })),
-            }));
-            setRooms(loadedRooms);
-            if (loadedRooms.length > 0) {
-              setSelectedRoomId(loadedRooms[0].id);
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Error loading chat rooms:", err);
       }
     };
-    fetchRooms();
+    initChat();
   }, []);
+
+  // ─── Cache chat rooms with TanStack Query ─────────────────────────────────────────
+  const { data: fetchedRooms = [], isLoading: loadingRooms } = useQuery({
+    queryKey: ["rooms", chatWorkspaceId],
+    enabled: !!chatWorkspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/chat/rooms?workspaceId=${chatWorkspaceId}&userRole=landlord`);
+      if (!res.ok) return [];
+      const result = await res.json();
+      if (!result.data || !Array.isArray(result.data)) return [];
+      return result.data.map((r: any): ChatRoom => ({
+        id: r.id,
+        type: r.type,
+        name: r.name,
+        initials: r.initials || getInitials(r.name),
+        color: r.color || "bg-purple-500",
+        property: r.property || (r.tenant?.unit?.property?.name || "Property"),
+        description: r.description,
+        lastMessage: r.lastMessage || "No messages yet",
+        lastTime: r.lastTime || "Just now",
+        unreadCount: r.unreadCount || 0,
+        email: r.tenant?.email || r.tenant?.profile?.email || r.email,
+        phone: r.tenant?.phone || r.phone || "",
+        unit: r.tenant?.unit?.unitNumber || r.unit || "Unit N/A",
+        rentAmount: r.tenant?.monthlyRent ? `₹${Number(r.tenant.monthlyRent).toLocaleString("en-IN")}/mo` : undefined,
+        rentStatus: r.tenant?.currentStatus === "Current" || r.tenant?.currentStatus === "Active" ? "Paid" : r.tenant ? "Due" : undefined,
+        leaseEndDate: r.tenant?.leaseEnd ? new Date(r.tenant.leaseEnd).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : undefined,
+        members: r.membersJson ? JSON.parse(r.membersJson) : undefined,
+        messages: (r.messages || []).map((m: any) => ({
+          id: m.id,
+          senderId: m.senderId,
+          senderName: m.senderName,
+          senderInitials: m.senderInitials,
+          text: m.text,
+          timestamp: new Date(m.createdAt),
+          isMe: m.isMe,
+        })),
+      }));
+    },
+  });
+
+  // Sync rooms state when query data changes
+  useEffect(() => {
+    if (fetchedRooms.length > 0) {
+      setRooms(fetchedRooms);
+      if (!selectedRoomId) {
+        setSelectedRoomId(fetchedRooms[0].id);
+      }
+    }
+  }, [fetchedRooms]);
+
+
 
   const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
   const filteredRooms = rooms.filter((r) => r.name.toLowerCase().includes(search.toLowerCase()));
@@ -1225,63 +1208,79 @@ export default function MessagesPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar py-2">
-            {/* Groups — header with + button */}
-            <div>
-              <div className="px-4 py-2 flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Hash className="w-3 h-3 text-slate-400" />
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Groups</span>
-                </div>
-                <button
-                  onClick={() => setShowNewGroupModal(true)}
-                  title="Create a new Group"
-                  className="p-1 rounded-md text-slate-400 hover:text-[#FF6B00] hover:bg-orange-50 transition-colors cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
+            {loadingRooms ? (
+              <div className="space-y-3 px-3 py-2 animate-pulse">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 p-2 rounded-xl">
+                    <div className="w-9 h-9 rounded-xl bg-slate-200 shrink-0" />
+                    <div className="flex-1 space-y-1.5 min-w-0">
+                      <div className="h-3 w-24 bg-slate-200 rounded" />
+                      <div className="h-2.5 w-32 bg-slate-200/60 rounded" />
+                    </div>
+                  </div>
+                ))}
               </div>
-              {groupRooms.length > 0 ? (
-                groupRooms.map((room) => (
-                  <RoomItem key={room.id} room={room} isActive={selectedRoomId === room.id} onSelect={() => handleSelectRoom(room.id)} />
-                ))
-              ) : (
-                <div className="px-4 py-2 text-[11px] text-slate-400 font-medium">
-                  No group chats yet.
+            ) : (
+              <>
+                {/* Groups — header with + button */}
+                <div>
+                  <div className="px-4 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Hash className="w-3 h-3 text-slate-400" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Groups</span>
+                    </div>
+                    <button
+                      onClick={() => setShowNewGroupModal(true)}
+                      title="Create a new Group"
+                      className="p-1 rounded-md text-slate-400 hover:text-[#FF6B00] hover:bg-orange-50 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {groupRooms.length > 0 ? (
+                    groupRooms.map((room) => (
+                      <RoomItem key={room.id} room={room} isActive={selectedRoomId === room.id} onSelect={() => handleSelectRoom(room.id)} />
+                    ))
+                  ) : (
+                    <div className="px-4 py-2 text-[11px] text-slate-400 font-medium">
+                      No group chats yet.
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Direct Messages — header with + button */}
-            <div className="mt-2">
-              <div className="px-4 py-2 flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <User className="w-3 h-3 text-slate-400" />
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Direct Messages</span>
+                {/* Direct Messages — header with + button */}
+                <div className="mt-2">
+                  <div className="px-4 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <User className="w-3 h-3 text-slate-400" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Direct Messages</span>
+                    </div>
+                    <button
+                      onClick={() => setShowNewDMModal(true)}
+                      title="Start a new DM"
+                      className="p-1 rounded-md text-slate-400 hover:text-[#FF6B00] hover:bg-orange-50 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {dmRooms.length > 0 ? (
+                    dmRooms.map((room) => (
+                      <RoomItem key={room.id} room={room} isActive={selectedRoomId === room.id} onSelect={() => handleSelectRoom(room.id)} />
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-[11px] text-slate-400 font-medium">
+                      No direct messages yet.
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={() => setShowNewDMModal(true)}
-                  title="Start a new DM"
-                  className="p-1 rounded-md text-slate-400 hover:text-[#FF6B00] hover:bg-orange-50 transition-colors cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              {dmRooms.length > 0 ? (
-                dmRooms.map((room) => (
-                  <RoomItem key={room.id} room={room} isActive={selectedRoomId === room.id} onSelect={() => handleSelectRoom(room.id)} />
-                ))
-              ) : (
-                <div className="px-4 py-3 text-[11px] text-slate-400 font-medium">
-                  No direct messages yet.
-                </div>
-              )}
-            </div>
 
-            {filteredRooms.length === 0 && (
-              <div className="py-12 flex flex-col items-center gap-2 text-slate-400">
-                <MessageSquare className="w-8 h-8" />
-                <p className="text-xs font-medium">No conversations found</p>
-              </div>
+                {filteredRooms.length === 0 && (
+                  <div className="py-12 flex flex-col items-center gap-2 text-slate-400">
+                    <MessageSquare className="w-8 h-8" />
+                    <p className="text-xs font-medium">No conversations found</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </aside>

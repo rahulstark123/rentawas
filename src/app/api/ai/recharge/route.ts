@@ -30,11 +30,37 @@ export async function POST(request: Request) {
       },
     });
 
+    // Record successful AI bill in database table AiBill
+    const packPrices: Record<string, { amount: number; packName: string }> = {
+      starter: { amount: 199, packName: "🚀 Starter Pack — 100 AI Credits" },
+      pro: { amount: 499, packName: "⭐ Pro Pack — 300 AI Credits" },
+      pro_plus: { amount: 999, packName: "💎 Pro+ Pack — 700 AI Credits" },
+    };
+
+    const packInfo = packPrices[String(pack)] || {
+      amount: creditsToAdd === 700 ? 999 : creditsToAdd === 300 ? 499 : 199,
+      packName: `AI Credit Top-Up (+${creditsToAdd} Credits)`,
+    };
+
+    const aiBill = await prisma.aiBill.create({
+      data: {
+        workspaceId: wid,
+        invoiceNumber: `INV-AI-${Date.now().toString().slice(-6)}`,
+        amount: packInfo.amount,
+        credits: creditsToAdd,
+        packName: packInfo.packName,
+        paymentId: body.paymentId || `pay_rzp_${Date.now()}`,
+        paymentMethod: "Razorpay Live Gateway",
+        status: "SUCCESS",
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: `Successfully recharged +${creditsToAdd} AI credits!`,
       creditsUsed: updated.aiCreditsUsed,
       plan: updated.plan,
+      bill: aiBill,
     });
   } catch (error: any) {
     console.error("POST /api/ai/recharge error:", error);

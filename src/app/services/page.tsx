@@ -361,17 +361,6 @@ export default function ServicesPage() {
                   </div>
                 </div>
 
-                {/* Pre-Launch Locality Alert Button */}
-                <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsNotifyModalOpen(true)}
-                    className="px-6 py-3.5 bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg hover:shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <Bell className="w-4 h-4" />
-                    <span>Request Services in Your Locality →</span>
-                  </button>
-                </div>
               </div>
 
               {/* Live in Cities Pills */}
@@ -497,7 +486,7 @@ export default function ServicesPage() {
                 className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between group"
               >
                 {/* Top Image */}
-                <div className="h-52 relative overflow-hidden bg-slate-900">
+                <div className="h-72 sm:h-80 relative overflow-hidden bg-slate-900">
                   <Image
                     src={service.image}
                     alt={service.title}

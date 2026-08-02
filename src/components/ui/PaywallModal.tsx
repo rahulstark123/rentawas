@@ -8,6 +8,8 @@ interface PaywallModalProps {
   isOpen: boolean;
   onClose: () => void;
   featureName?: string;
+  /** Plan quota / lock message from checkPlanQuota */
+  customMessage?: string | null;
   daysLeftInTrial?: number;
   isTrialExpired?: boolean;
 }
@@ -16,6 +18,7 @@ export default function PaywallModal({
   isOpen,
   onClose,
   featureName = "Add New Item",
+  customMessage = null,
   daysLeftInTrial = 0,
   isTrialExpired = true,
 }: PaywallModalProps) {
@@ -59,10 +62,10 @@ export default function PaywallModal({
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-orange-100/80 text-[#FF6B00] font-extrabold text-[10px] uppercase tracking-wider rounded-full border border-orange-200/80">
                 <Sparkles className="w-3 h-3" />
-                <span>{isTrialExpired ? "14-Day Free Trial Ended" : "RentAwas Pro Feature"}</span>
+                <span>{customMessage ? "Plan Limit Reached" : isTrialExpired ? "14-Day Free Trial Ended" : "RentAwas Pro Feature"}</span>
               </div>
               <h3 className="text-xl font-extrabold text-slate-900 tracking-tight mt-0.5">
-                Upgrade to Unlock Full Access
+                {customMessage ? "Upgrade for More Capacity" : "Upgrade to Unlock Full Access"}
               </h3>
             </div>
           </div>
@@ -70,11 +73,17 @@ export default function PaywallModal({
           {/* Body Content */}
           <div className="space-y-4 text-xs sm:text-sm text-slate-600 mb-6">
             <p className="leading-relaxed bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl text-slate-700 font-medium">
-              Browsing and viewing your listings and dashboard is <strong className="text-emerald-600 font-bold">100% Free Forever</strong>! 
-              {isTrialExpired ? (
-                <span> Your 14-Day Free Trial has ended and you are on the Free plan. To <strong>{featureName}</strong>, upgrade to Starter, Pro, or Pro Plus.</span>
+              {customMessage ? (
+                <span>{customMessage}</span>
               ) : (
-                <span> To <strong>{featureName}</strong> and unlock unlimited property operations, choose Starter, Pro, or Pro Plus.</span>
+                <>
+                  Browsing and viewing your listings and dashboard is <strong className="text-emerald-600 font-bold">100% Free Forever</strong>!
+                  {isTrialExpired ? (
+                    <span> Your 14-Day Free Trial has ended and you are on the Free plan. To <strong>{featureName}</strong>, upgrade to Starter, Pro, or Pro Plus.</span>
+                  ) : (
+                    <span> To <strong>{featureName}</strong> and unlock unlimited property operations, choose Starter, Pro, or Pro Plus.</span>
+                  )}
+                </>
               )}
             </p>
 

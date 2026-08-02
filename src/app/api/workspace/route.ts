@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getPlanCreditLimit } from "@/lib/aiCredits";
 
 export const TRIAL_DURATION_DAYS = 14;
 
@@ -45,32 +46,65 @@ export async function GET(request: Request) {
       );
     }
 
-    // Auto-lapse expired trial → free (per this workspace)
+    // Auto-lapse expired trial → paid plan (if purchased during trial) or free
     let plan = workspace.plan || "trial";
     const trialStartedAt = workspace.trialStartedAt || workspace.createdAt;
     let trialDaysLeft = computeTrialDaysLeft(workspace.trialStartedAt, workspace.createdAt);
 
+    const mapSubNameToPlan = (name: string | null | undefined): string | null => {
+      const n = String(name || "").toLowerCase();
+      if (!n) return null;
+      if (n.includes("pro plus") || n.includes("pro_plus") || n.includes("enterprise")) return "pro_plus";
+      if (n.includes("starter")) return "starter";
+      if (n.includes("pro")) return "pro";
+      return null;
+    };
+
     if (plan === "trial" && trialDaysLeft <= 0) {
+      const latestPaidSub = await prisma.subscription.findFirst({
+        where: { workspaceId: wid, status: "Paid" },
+        orderBy: { createdAt: "desc" },
+        select: { planName: true },
+      });
+      const nextPlan = mapSubNameToPlan(latestPaidSub?.planName) || "free";
       workspace = await prisma.workspace.update({
         where: { wid },
-        data: { plan: "free" },
+        data: { plan: nextPlan },
         include: { owner: true },
       });
-      plan = "free";
+      plan = nextPlan;
       trialDaysLeft = 0;
     }
 
     const isTrialActive = plan === "trial" && trialDaysLeft > 0;
 
-    // Count live units for THIS workspace only
-    const unitsCount = await prisma.unit.count({
-      where: {
-        OR: [
-          { workspaceId: wid },
-          { property: { workspaceId: wid } },
-        ],
-      },
-    });
+    // Paid plan purchased during trial — activates when trial ends
+    let scheduledPlan: string | null = null;
+    let scheduledPlanName: string | null = null;
+    if (isTrialActive) {
+      const latestPaidSub = await prisma.subscription.findFirst({
+        where: { workspaceId: wid, status: "Paid" },
+        orderBy: { createdAt: "desc" },
+        select: { planName: true },
+      });
+      scheduledPlan = mapSubNameToPlan(latestPaidSub?.planName);
+      scheduledPlanName = latestPaidSub?.planName || null;
+    }
+
+    // Count live inventory for THIS workspace only
+    const [unitsCount, propertiesCount] = await Promise.all([
+      prisma.unit.count({
+        where: {
+          OR: [
+            { workspaceId: wid },
+            { property: { workspaceId: wid } },
+          ],
+        },
+      }),
+      prisma.property.count({
+        where: { workspaceId: wid },
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -82,6 +116,8 @@ export async function GET(request: Request) {
         trialDaysLeft: plan === "trial" ? trialDaysLeft : 0,
         trialDurationDays: TRIAL_DURATION_DAYS,
         isTrialActive,
+        scheduledPlan,
+        scheduledPlanName,
         currency: workspace.currency || "",
         portfolioScale: workspace.portfolioScale || "",
         ownerName: workspace.owner?.fullName || "",
@@ -100,6 +136,7 @@ export async function GET(request: Request) {
         customSubdomain: workspace.customSubdomain || "",
         tagline: workspace.tagline || "",
         unitsCount,
+        propertiesCount,
         razorpayKeyId: workspace.razorpayKeyId || "",
         razorpayKeySecret: workspace.razorpayKeySecret || "",
         razorpayMerchantVpa: workspace.razorpayMerchantVpa || "",
@@ -222,10 +259,23 @@ export async function PATCH(request: Request) {
       return s === "" ? null : s;
     };
 
+    // When plan upgrades, grant a fresh AI credit allotment for that plan
+    let shouldResetAiCredits = false;
+    if (plan) {
+      const existing = await prisma.workspace.findUnique({
+        where: { wid: workspaceIdNum },
+        select: { plan: true },
+      });
+      if (existing && existing.plan !== plan) {
+        shouldResetAiCredits = true;
+      }
+    }
+
     const updatedWs = await prisma.workspace.update({
       where: { wid: workspaceIdNum },
       data: {
         ...(plan ? { plan } : {}),
+        ...(shouldResetAiCredits ? { aiCreditsUsed: 0 } : {}),
         ...(name ? { name } : {}),
         ...(currency ? { currency } : {}),
         ...(portfolioScale ? { portfolioScale } : {}),
@@ -285,6 +335,9 @@ export async function PATCH(request: Request) {
       success: true,
       message: `Workspace #${workspaceIdNum} updated successfully! Active plan set to ${updatedWs.plan}.`,
       data: updatedWs,
+      ...(shouldResetAiCredits
+        ? { aiCreditsReset: true, aiCreditLimit: getPlanCreditLimit(updatedWs.plan) }
+        : {}),
     });
   } catch (error: any) {
     return NextResponse.json(

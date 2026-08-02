@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   Zap, 
   Coins, 
@@ -42,6 +43,7 @@ export interface TransactionRecord {
 export default function RentPaymentsPage() {
   const { toast } = useToast();
   const { formatCurrency } = useCurrency();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [transactionsList, setTransactionsList] = useState<TransactionRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -184,6 +186,7 @@ export default function RentPaymentsPage() {
         setCustomUnit("");
         setAmountInput("");
         loadTransactions();
+        queryClient.invalidateQueries({ queryKey: ["transactions"] });
       } else {
         toast("Failed to record rent payment", "error");
       }

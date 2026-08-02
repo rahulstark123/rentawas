@@ -27,6 +27,20 @@ export default function AiCreditsExhaustedModal({
 
   if (!isOpen) return null;
 
+  const loadRazorpayScript = () => {
+    return new Promise<boolean>((resolve) => {
+      if (typeof window !== "undefined" && (window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handleRecharge = async () => {
     setIsProcessing(true);
     try {
@@ -38,37 +52,96 @@ export default function AiCreditsExhaustedModal({
         return;
       }
 
-      // Add credits via backend API /api/ai/recharge
-      const creditsToAddMap = {
-        starter: 100,
-        pro: 300,
-        pro_plus: 700,
-      };
-      const creditsToAdd = creditsToAddMap[selectedPack] || 100;
+      const packDetails = {
+        starter: { amount: 199, credits: 100, name: "🚀 Starter Pack (100 AI Credits)" },
+        pro: { amount: 499, credits: 300, name: "⭐ Pro Pack (300 AI Credits)" },
+        pro_plus: { amount: 999, credits: 700, name: "💎 Pro+ Pack (700 AI Credits)" },
+      }[selectedPack] || { amount: 199, credits: 100, name: "Starter Pack" };
 
-      const res = await fetch("/api/ai/recharge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId: activeWid, pack: selectedPack, addCredits: creditsToAdd }),
-      });
-
-      if (!res.ok) {
-        const json = await res.json();
-        toast(json.error || "Failed to recharge AI credits.", "error");
+      const loaded = await loadRazorpayScript();
+      if (!loaded) {
+        toast("Failed to load Razorpay payment SDK. Please check your network.", "error");
+        setIsProcessing(false);
         return;
       }
 
-      toast(`🎉 Successfully recharged +${creditsToAdd} AI Credits! RentAwas Buddy is ready.`, "success");
+      // Use Live Razorpay Key ID from environment configuration
+      let keyToUse = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_SdilED7xPbKcdV";
+      try {
+        const keyRes = await fetch(`/api/workspace/payment-gateways?wid=${activeWid}`);
+        if (keyRes.ok) {
+          const keyJson = await keyRes.json();
+          if (keyJson.data?.razorpayKeyId) {
+            keyToUse = keyJson.data.razorpayKeyId;
+          }
+        }
+      } catch {}
 
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("ai-credits-updated"));
-      }
+      const options = {
+        key: keyToUse,
+        amount: packDetails.amount * 100, // in paise
+        currency: "INR",
+        name: "RentAwas Buddy AI",
+        description: packDetails.name,
+        image: "/logo.png",
+        handler: async function (response: any) {
+          try {
+            const res = await fetch("/api/ai/recharge", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                workspaceId: activeWid,
+                pack: selectedPack,
+                addCredits: packDetails.credits,
+                paymentId: response.razorpay_payment_id || "rzp_paid",
+              }),
+            });
 
-      if (onRecharged) onRecharged();
-      onClose();
-    } catch {
-      toast("Recharge process encountered a network issue.", "error");
-    } finally {
+            if (!res.ok) {
+              const json = await res.json();
+              toast(json.error || "Failed to add credits.", "error");
+              setIsProcessing(false);
+              return;
+            }
+
+            toast(`🎉 Payment Successful! +${packDetails.credits} AI Credits added to workspace.`, "success");
+
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new Event("ai-credits-updated"));
+            }
+
+            if (onRecharged) onRecharged();
+            onClose();
+          } catch {
+            toast("Payment processed, but error updating credits. Contact support.", "error");
+          } finally {
+            setIsProcessing(false);
+          }
+        },
+        prefill: {
+          name: "Workspace Manager",
+          email: "landlord@rentawas.com",
+          contact: "+91 98765 43210",
+        },
+        theme: {
+          color: "#7C3AED",
+        },
+        modal: {
+          ondismiss: function () {
+            setIsProcessing(false);
+          },
+        },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on("payment.failed", function (response: any) {
+        toast(`Razorpay Payment Failed: ${response.error?.description || "Transaction declined"}`, "error");
+        setIsProcessing(false);
+      });
+      rzp.open();
+    } catch (err) {
+      console.error("Razorpay recharge error:", err);
+      toast("Could not launch Razorpay checkout.", "error");
       setIsProcessing(false);
     }
   };
@@ -92,7 +165,7 @@ export default function AiCreditsExhaustedModal({
           </button>
 
           <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <Zap className="w-7 h-7 text-amber-300 animate-bounce" />
+            <Zap className="w-7 h-7 text-amber-300 fill-amber-300/20" />
           </div>
 
           <h3 className="text-xl font-black tracking-tight leading-snug">

@@ -8,8 +8,6 @@ import { Menu, X, MessageSquareHeart, Sparkles, User } from "lucide-react";
 import ComingSoonModal from "@/components/ui/ComingSoonModal";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
-import BuildingPhaseBanner from "@/components/ui/BuildingPhaseBanner";
-import LaunchCountdownWidget from "@/components/ui/LaunchCountdownWidget";
 import { supabase } from "@/lib/supabase";
 
 interface NavbarProps {
@@ -314,9 +312,6 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
           </div>
         )}
         </header>
-        
-        {/* Building Phase Notice Banner Locked Directly Below Navbar */}
-        <BuildingPhaseBanner />
       </div>
 
       {/* Modal Trigger Component */}
@@ -337,9 +332,6 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
         isOpen={isInternalEarlyAccessOpen}
         onClose={() => setIsInternalEarlyAccessOpen(false)}
       />
-
-      {/* Global Floating Launch Countdown Sticky Note Overlay */}
-      <LaunchCountdownWidget />
     </>
   );
 }

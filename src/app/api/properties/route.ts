@@ -102,6 +102,21 @@ export async function POST(request: Request) {
       where: { wid: workspaceId },
     });
 
+    if (workspace) {
+      const { assertWorkspaceQuota } = await import("@/lib/planQuotaServer");
+      const quota = await assertWorkspaceQuota({
+        workspaceId,
+        action: "property",
+        unitsToAdd: totalUnitsCount,
+      });
+      if (!quota.ok) {
+        return NextResponse.json(
+          { error: quota.message, code: quota.code },
+          { status: 403 }
+        );
+      }
+    }
+
     if (!workspace) {
       let ownerProfile = await prisma.profile.findFirst();
       if (!ownerProfile) {

@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       success: true,
       isRealRazorpay: false,
       type: isRecurring ? "subscription" : "order",
-      key_id: keyId || "rzp_test_placeholder",
+      key_id: keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_SdilED7xPbKcdV",
       amount: Math.round(amount * 100),
       currency: "INR",
       notes: {

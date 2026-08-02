@@ -1,69 +1,52 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Megaphone, Calendar, Search, Loader2, Pin, Globe, Building2, Users } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
+import { Megaphone, Calendar, Search, Pin, Globe, Building2, Users } from "lucide-react";
+import { useTenantMe } from "@/hooks/useTenantMe";
 
 export default function TenantNoticesPage() {
+  const { data: tenantMe, isLoading: meLoading } = useTenantMe();
   const [notices, setNotices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [tenantInfo, setTenantInfo] = useState<any>(null);
 
+  const wid = tenantMe?.workspaceId != null ? String(tenantMe.workspaceId) : "";
+  const email = tenantMe?.email || "";
+  const propertyId = tenantMe?.propertyId || "";
+  const propertyName = tenantMe?.propertyName || "";
+
+  const { data: announcementsData, isLoading: annLoading } = useQuery({
+    queryKey: ["tenant-announcements", wid, email, propertyId],
+    enabled: !!tenantMe && !!wid,
+    queryFn: async () => {
+      const queryParams = new URLSearchParams();
+      queryParams.set("workspaceId", wid);
+      if (email) queryParams.set("tenantEmail", email);
+      if (propertyId) queryParams.set("propertyId", propertyId);
+      if (propertyName) queryParams.append("propertyId", propertyName);
+
+      const res = await fetch(`/api/announcements?${queryParams.toString()}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return Array.isArray(json.data) ? json.data : [];
+    },
+  });
+
   useEffect(() => {
-    async function loadNotices() {
-      try {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        const userEmail = user?.email || "";
+    if (tenantMe) setTenantInfo(tenantMe);
+  }, [tenantMe]);
 
-        let propId = "";
-        let propName = "";
-        let workspaceId = "";
-        if (userEmail) {
-          const tenantRes = await fetch(`/api/tenant/me?email=${encodeURIComponent(userEmail)}`);
-          if (tenantRes.ok) {
-            const tenantJson = await tenantRes.json();
-            if (tenantJson.data) {
-              setTenantInfo(tenantJson.data);
-              propId = tenantJson.data.propertyId || "";
-              propName = tenantJson.data.propertyName || "";
-              workspaceId = tenantJson.data.workspaceId != null ? String(tenantJson.data.workspaceId) : "";
-            }
-          }
-        }
-
-        if (!workspaceId) {
-          setNotices([]);
-          return;
-        }
-
-        const queryParams = new URLSearchParams();
-        queryParams.set("workspaceId", workspaceId);
-        if (userEmail) queryParams.set("tenantEmail", userEmail);
-        if (propId) queryParams.set("propertyId", propId);
-        if (propName) queryParams.append("propertyId", propName);
-
-        const res = await fetch(`/api/announcements?${queryParams.toString()}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (Array.isArray(json.data) && json.data.length > 0) {
-            setNotices(json.data);
-          } else {
-            setNotices([]);
-          }
-        } else {
-          setNotices([]);
-        }
-      } catch (err) {
-        console.error("Error loading tenant notices:", err);
-      } finally {
-        setLoading(false);
-      }
+  useEffect(() => {
+    if (announcementsData) {
+      setNotices(announcementsData);
+    } else if (!annLoading && tenantMe && !wid) {
+      setNotices([]);
     }
-    loadNotices();
-  }, []);
+  }, [announcementsData, annLoading, tenantMe, wid]);
+
+  const loading = meLoading || (!!tenantMe && !!wid && annLoading);
 
   const categories = [
     "All",
@@ -137,9 +120,28 @@ export default function TenantNoticesPage() {
 
       {/* Notices Stream - COMPACT CARD GRID VIEW */}
       {loading ? (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center shadow-2xs space-y-3">
-          <Loader2 className="w-7 h-7 text-[#FF6B00] animate-spin mx-auto" />
-          <p className="text-xs font-bold text-slate-600">Loading building notices...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {[...Array(4)].map((_, i) => (
+            <div
+              key={i}
+              className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3 animate-pulse flex flex-col"
+            >
+              <div className="flex items-center gap-1.5">
+                <div className="h-5 w-16 bg-slate-100 rounded" />
+                <div className="h-5 w-24 bg-slate-200 rounded" />
+              </div>
+              <div className="h-4 w-3/4 bg-slate-200 rounded-md" />
+              <div className="space-y-1.5 flex-1">
+                <div className="h-3 w-full bg-slate-100 rounded" />
+                <div className="h-3 w-5/6 bg-slate-100 rounded" />
+                <div className="h-3 w-2/3 bg-slate-100 rounded" />
+              </div>
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <div className="h-3 w-24 bg-slate-100 rounded" />
+                <div className="h-3 w-20 bg-slate-100 rounded" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : filteredNotices.length === 0 ? (
         <div className="bg-white border border-slate-200/90 rounded-3xl p-12 text-center space-y-3 shadow-2xs">

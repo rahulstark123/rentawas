@@ -15,12 +15,10 @@ import {
   Building2, 
   User, 
   AlertCircle,
-  Zap,
-  FileCheck,
+  Bot,
+  MessageSquare,
   Heart
 } from "lucide-react";
-import { IconAutopilotRent } from "@/components/ui/CustomIcons";
-import BuildingPhaseBanner from "@/components/ui/BuildingPhaseBanner";
 import { supabase } from "@/lib/supabase";
 
 function LoginForm() {
@@ -163,9 +161,6 @@ function LoginForm() {
         </Link>
       </header>
 
-      {/* Building Phase Notice Banner Below Top Header */}
-      <BuildingPhaseBanner />
-
       {/* Main Container */}
       <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 z-10">
         <div className="w-full max-w-5xl bg-white border border-slate-200/90 rounded-2xl md:rounded-3xl shadow-xl shadow-slate-200/50 overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[580px]">
@@ -179,14 +174,14 @@ function LoginForm() {
             {/* Top Badge */}
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-md text-xs font-medium text-orange-300 mb-6">
-                <IconAutopilotRent className="w-4 h-4 text-emerald-400" />
-                <span>Autopilot Rent Enabled</span>
+                <Building2 className="w-4 h-4 text-emerald-400" />
+                <span>Property Ops in One Place</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white leading-tight mb-3">
                 Mission Control for Rental Ecosystems
               </h2>
               <p className="text-slate-300 text-sm font-normal leading-relaxed">
-                Automated collections, real-time analytics, and instant maintenance dispatch—all in one place.
+                Manage properties, tenants, rent tracking, maintenance, messaging, and RentAwas Buddy AI—all from one dashboard.
               </p>
             </div>
 
@@ -194,21 +189,21 @@ function LoginForm() {
             <div className="relative z-10 my-8 space-y-4">
               <div className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-xl p-3.5 backdrop-blur-xs">
                 <div className="p-2 rounded-lg bg-orange-500/20 text-orange-400 shrink-0">
-                  <Zap className="w-4 h-4" />
+                  <MessageSquare className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Instant Rent Disbursal</h4>
-                  <p className="text-xs text-slate-300">Automated payout routing directly into property accounts.</p>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">In-App Messaging</h4>
+                  <p className="text-xs text-slate-300">1-on-1 DMs and building group channels for landlords and tenants.</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-xl p-3.5 backdrop-blur-xs">
-                <div className="p-2 rounded-lg bg-purple-500/20 text-purple-400 shrink-0">
-                  <FileCheck className="w-4 h-4" />
+                <div className="p-2 rounded-lg bg-violet-500/20 text-violet-300 shrink-0">
+                  <Bot className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">AI Legal Lease Architect</h4>
-                  <p className="text-xs text-slate-300">Generate fully compliant localized lease agreements instantly.</p>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">RentAwas Buddy AI</h4>
+                  <p className="text-xs text-slate-300">Ask portfolio questions in plain English and get live property insights.</p>
                 </div>
               </div>
             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { 
   HelpCircle, 
   Plus, 
@@ -30,6 +31,7 @@ import {
 import { useToast } from "@/components/ui/Toast";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
+import { invalidateSupportTickets } from "@/lib/queryInvalidation";
 
 export interface SupportTicketRecord {
   id: string;
@@ -56,8 +58,31 @@ export interface AttachmentItem {
 
 export default function LandlordSupportPage() {
   const { toast } = useToast();
-  const [tickets, setTickets] = useState<SupportTicketRecord[]>([]);
-  const [loadingTickets, setLoadingTickets] = useState(true);
+
+  // ─── Workspace ID ──────────────────────────────────────────────────────────
+  const [supportWorkspaceId, setSupportWorkspaceId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    (async () => {
+      const wid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (wid) setSupportWorkspaceId(wid);
+    })();
+  }, []);
+
+  // ─── TanStack Query ────────────────────────────────────────────────────────
+  const { data: tickets = [], isLoading: loadingTickets } = useQuery({
+    queryKey: ["tickets", supportWorkspaceId],
+    enabled: !!supportWorkspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/support/tickets?wid=${supportWorkspaceId}&isTenant=false`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.data && Array.isArray(json.data)) ? json.data as SupportTicketRecord[] : [];
+    },
+  });
+
+  const fetchTickets = () => invalidateSupportTickets(queryClient);
 
   // Form State
   const [showModal, setShowModal] = useState(false);
@@ -99,32 +124,6 @@ export default function LandlordSupportPage() {
     } catch (e) {}
   }, []);
 
-  // 1. Fetch tickets from PostgreSQL API wid-wise
-  const fetchTickets = async () => {
-    try {
-      setLoadingTickets(true);
-      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
-      if (!activeWid) {
-        setTickets([]);
-        return;
-      }
-      const res = await fetch(`/api/support/tickets?wid=${activeWid}&isTenant=false`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && Array.isArray(json.data)) {
-          setTickets(json.data);
-        }
-      }
-    } catch (err) {
-      console.warn("Could not fetch support tickets from DB:", err);
-    } finally {
-      setLoadingTickets(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTickets();
-  }, []);
 
   // Attachment File Upload & WebP Image Compression
   const compressImageFile = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
@@ -442,8 +441,22 @@ export default function LandlordSupportPage() {
         </div>
 
         {loadingTickets ? (
-          <div className="py-12 text-center text-xs font-semibold text-slate-400">
-            Loading your support tickets...
+          <div className="space-y-4 animate-pulse">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3 min-h-[120px] flex flex-col justify-between">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-24 bg-slate-200 rounded-md" />
+                    <div className="h-4 w-32 bg-slate-200/70 rounded-md" />
+                  </div>
+                  <div className="h-6 w-20 bg-slate-200 rounded-full" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 w-48 bg-slate-200 rounded-md" />
+                  <div className="h-3.5 w-full bg-slate-200/60 rounded-md" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : tickets.length === 0 ? (
           <div className="py-12 text-center space-y-3">

@@ -6,6 +6,8 @@ import {
   Users, 
   CreditCard, 
   Wrench, 
+  Bot,
+  MessageSquare,
   CheckCircle2, 
   XCircle,
   ArrowRight
@@ -34,6 +36,22 @@ export default function WhyRentAwas() {
       badge: "Complete Tenant Records",
     },
     {
+      icon: Bot,
+      emoji: "✨",
+      iconBg: "bg-violet-50 text-violet-600 border-violet-100",
+      title: "RentAwas Buddy AI",
+      desc: "Ask property questions in plain English, generate lease documents, and get instant portfolio insights powered by AI credits.",
+      badge: "AI Command Center",
+    },
+    {
+      icon: MessageSquare,
+      emoji: "💬",
+      iconBg: "bg-sky-50 text-sky-600 border-sky-100",
+      title: "In-App Messaging",
+      desc: "Talk to tenants via 1-on-1 DMs and building-wide group channels for announcements, maintenance updates, and support—no WhatsApp chaos.",
+      badge: "DMs & Group Channels",
+    },
+    {
       icon: CreditCard,
       emoji: "💳",
       iconBg: "bg-[#FF6B00]/10 text-[#FF6B00] border-[#FF6B00]/20",
@@ -44,7 +62,7 @@ export default function WhyRentAwas() {
     {
       icon: Wrench,
       emoji: "🛠️",
-      iconBg: "bg-sky-50 text-sky-600 border-sky-100",
+      iconBg: "bg-emerald-50 text-emerald-600 border-emerald-100",
       title: "Maintenance Requests",
       desc: "Tenants can raise maintenance requests, upload photos, and track progress while managers assign and resolve issues efficiently.",
       badge: "Faster Issue Resolution",
@@ -60,7 +78,17 @@ export default function WhyRentAwas() {
     {
       feature: "TENANT MANAGEMENT & LEASES",
       legacy: "Unorganized paper files, lost KYC documents & complex legal jargon agreements",
-      rentawas: "Digital tenant profiles, instant simple-English AI Document generator & secure cloud storage",
+      rentawas: "Digital tenant profiles, instant simple-English AI document generator & secure cloud storage",
+    },
+    {
+      feature: "AI ASSISTANT & INSIGHTS",
+      legacy: "Guesswork, scattered notes & hours digging through chats to answer portfolio questions",
+      rentawas: "RentAwas Buddy answers property queries, drafts docs & surfaces insights from your live data",
+    },
+    {
+      feature: "LANDLORD–TENANT MESSAGING",
+      legacy: "Scattered WhatsApp threads, missed updates & no record of building-wide announcements",
+      rentawas: "In-app 1-on-1 DMs & group channels with a clear history for announcements & support",
     },
     {
       feature: "RENT COLLECTION & RECEIPTING",
@@ -80,7 +108,7 @@ export default function WhyRentAwas() {
       opacity: 1,
       y: 0,
       transition: {
-        delay: i * 0.12,
+        delay: i * 0.1,
         duration: 0.5,
       },
     }),
@@ -108,12 +136,12 @@ export default function WhyRentAwas() {
             Why Rent<span className="text-[#FF6B00]">Awas</span>?
           </h2>
           <p className="text-slate-600 font-normal text-base sm:text-lg mt-4 leading-relaxed font-sans">
-            Everything you need to manage rental properties, tenants, rent collection, maintenance, and documents—all from one modern platform. Built for landlords, property managers, PG owners, and rental businesses.
+            Property ops, rent collection, and maintenance—plus RentAwas Buddy AI and in-app messaging so landlords and tenants stay aligned in one modern platform.
           </p>
         </motion.div>
 
-        {/* 4 Pillars Grid Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
+        {/* 6 Pillars Grid Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
           {pillars.map((pillar, idx) => {
             const IconComponent = pillar.icon;
             return (

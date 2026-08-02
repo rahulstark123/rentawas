@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
-import { supabase } from "@/lib/supabase";
+import { useTenantMe } from "@/hooks/useTenantMe";
 
 interface SupportTicketRecord {
   id: string;
@@ -34,6 +34,7 @@ interface SupportTicketRecord {
 
 export default function TenantSupportPage() {
   const { toast } = useToast();
+  const { data: tenantMe, isLoading: meLoading } = useTenantMe();
   const [tickets, setTickets] = useState<SupportTicketRecord[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(true);
   const [workspaceId, setWorkspaceId] = useState<number | null>(null);
@@ -75,52 +76,36 @@ export default function TenantSupportPage() {
   };
 
   useEffect(() => {
-    async function loadTenantContext() {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
-        const res = await fetch(`/api/tenant/me${emailParam}`);
-        if (!res.ok) {
-          setLoadingTickets(false);
-          return;
-        }
-        const json = await res.json();
-        const d = json.data;
-        if (!d) {
-          setLoadingTickets(false);
-          return;
-        }
+    if (meLoading) return;
 
-        setTenantName(d.name || "Resident");
-        setTenantEmail(d.email || user?.email || "");
-        setContactEmail(d.email || user?.email || "");
-        if (d.phone) {
-          const matched = ALL_COUNTRIES.find((c) => String(d.phone).startsWith(c.dialCode));
-          if (matched) {
-            setSelectedCountry(matched);
-            setContactPhone(String(d.phone).replace(matched.dialCode, "").trim());
-          } else {
-            setContactPhone(String(d.phone));
-          }
-        }
+    if (!tenantMe) {
+      setLoadingTickets(false);
+      return;
+    }
 
-        const wid = d.workspaceId != null ? Number(d.workspaceId) : NaN;
-        if (!isNaN(wid) && wid > 0) {
-          setWorkspaceId(wid);
-          await fetchTickets(wid);
-        } else {
-          setTickets([]);
-          setLoadingTickets(false);
-        }
-      } catch (err) {
-        console.error("Error loading tenant support context:", err);
-        setLoadingTickets(false);
+    const d = tenantMe;
+    setTenantName(d.name || "Resident");
+    setTenantEmail(d.email || "");
+    setContactEmail(d.email || "");
+    if (d.phone) {
+      const matched = ALL_COUNTRIES.find((c) => String(d.phone).startsWith(c.dialCode));
+      if (matched) {
+        setSelectedCountry(matched);
+        setContactPhone(String(d.phone).replace(matched.dialCode, "").trim());
+      } else {
+        setContactPhone(String(d.phone));
       }
     }
-    loadTenantContext();
-  }, []);
+
+    const wid = d.workspaceId != null ? Number(d.workspaceId) : NaN;
+    if (!isNaN(wid) && wid > 0) {
+      setWorkspaceId(wid);
+      fetchTickets(wid);
+    } else {
+      setTickets([]);
+      setLoadingTickets(false);
+    }
+  }, [tenantMe, meLoading]);
 
   const handleTicketSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -264,9 +249,28 @@ export default function TenantSupportPage() {
         </div>
 
         {loadingTickets ? (
-          <div className="py-12 text-center text-xs font-semibold text-slate-400 flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Loading your support tickets...
+          <div className="space-y-4 animate-pulse">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className="p-5 bg-slate-50/80 border border-slate-200/90 rounded-2xl space-y-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-3.5 w-20 bg-slate-200 rounded" />
+                    <div className="h-5 w-24 bg-slate-100 rounded" />
+                  </div>
+                  <div className="h-6 w-20 bg-slate-100 rounded-full" />
+                </div>
+                <div className="h-4 w-48 bg-slate-200 rounded-md" />
+                <div className="h-3 w-full bg-slate-100 rounded" />
+                <div className="h-3 w-3/4 bg-slate-100 rounded" />
+                <div className="pt-2 border-t border-slate-100 flex justify-between">
+                  <div className="h-3 w-24 bg-slate-100 rounded" />
+                  <div className="h-3 w-16 bg-slate-100 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : tickets.length === 0 ? (
           <div className="py-12 text-center space-y-3">

@@ -1,18 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-// AI credit limits per plan
-const CREDIT_LIMITS: Record<string, number> = {
-  trial: 20,
-  free: 20,
-  starter: 50,
-  pro: 200,
-  pro_plus: 500,
-};
-
-function getPlanCreditLimit(plan: string): number {
-  return CREDIT_LIMITS[plan] ?? 20;
-}
+import { getPlanCreditLimit } from "@/lib/aiCredits";
+import { recordAiUsageLog } from "@/lib/aiUsageLog";
 
 // POST /api/ai/listing-summary
 export async function POST(request: Request) {
@@ -158,6 +147,12 @@ ${question && question.trim() && question !== "Listing Performance & Summary" ? 
         const summaryText = fallbackJson.choices?.[0]?.message?.content || "";
         const generatedAt = new Date();
         await prisma.workspace.update({ where: { wid }, data: { aiCreditsUsed: creditsUsed + 2 } });
+        await recordAiUsageLog({
+          workspaceId: wid,
+          feature: "Marketplace Listing Advice",
+          targetItem: listing.title || "Listing",
+          question: question,
+        });
         return NextResponse.json({
           success: true,
           summary: summaryText,
@@ -178,6 +173,12 @@ ${question && question.trim() && question !== "Listing Performance & Summary" ? 
     await prisma.workspace.update({
       where: { wid },
       data: { aiCreditsUsed: creditsUsed + 2 },
+    });
+    await recordAiUsageLog({
+      workspaceId: wid,
+      feature: "Marketplace Listing Advice",
+      targetItem: listing.title || "Listing",
+      question: question,
     });
 
     return NextResponse.json({

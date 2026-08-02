@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { 
   Wrench, 
   Plus, 
@@ -25,6 +26,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
+import { invalidateMaintenance } from "@/lib/queryInvalidation";
 
 async function resolveActiveWid(): Promise<string> {
   return (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
@@ -50,19 +52,121 @@ export interface TicketItem {
   loggedBy?: string;
 }
 
+/** Normalize raw API ticket (or already-mapped cache) for maintenance UI. Shared prefetch may store nested tenant/unit objects. */
+function mapApiTicketToItem(t: any): TicketItem {
+  const tenantLabel =
+    typeof t.tenant === "string"
+      ? t.tenant
+      : t.tenant?.name || t.loggedBy || "Resident";
+
+  const unitLabel =
+    typeof t.unit === "string"
+      ? t.unit
+      : t.unit?.unitNumber || "Unit";
+
+  const propertyLabel =
+    typeof t.property === "string"
+      ? t.property
+      : t.property?.name || "Property";
+
+  let uiStatus: TicketItem["status"] = "New Requests";
+  const rawStatus = String(t.status || "").toLowerCase();
+  if (rawStatus === "new requests" || rawStatus.includes("new") || rawStatus.includes("open") || rawStatus.includes("pending")) {
+    uiStatus = "New Requests";
+  }
+  if (rawStatus === "in progress" || rawStatus.includes("progress")) {
+    uiStatus = "In Progress";
+  }
+  if (rawStatus === "resolved" || rawStatus.includes("resolved") || rawStatus.includes("completed")) {
+    uiStatus = "Resolved";
+  }
+
+  const priority: TicketItem["priority"] =
+    t.priority === "High" || t.priority === "Medium" || t.priority === "Low" || t.priority === "Emergency"
+      ? (t.priority === "Emergency" ? "High" : t.priority)
+      : "Medium";
+
+  const dateLabel =
+    typeof t.date === "string" && !t.createdAt
+      ? t.date
+      : t.createdAt
+        ? new Date(t.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+        : "Recent";
+
+  return {
+    id: t.ticketNumber || t.id || `TCK-${String(t.realId || t.id || "").slice(-4)}`,
+    realId: t.realId || t.id,
+    ticketNumber: t.ticketNumber,
+    tenant: tenantLabel,
+    tenantId: t.tenantId || (typeof t.tenant === "object" ? t.tenant?.id : undefined),
+    unit: unitLabel,
+    unitId: t.unitId || (typeof t.unit === "object" ? t.unit?.id : undefined),
+    property: propertyLabel,
+    propertyId: t.propertyId || (typeof t.property === "object" ? t.property?.id : undefined),
+    issue: t.issue || "",
+    description: t.description || t.notes || t.issue || "",
+    category: t.category || "General Repair",
+    priority,
+    status: uiStatus,
+    date: dateLabel,
+    cost: t.cost,
+    loggedBy: t.loggedBy,
+  };
+}
+
 export default function MaintenancePage() {
   const { toast } = useToast();
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
-  const [loading, setLoading] = useState<boolean>(true);
 
-  const [tickets, setTickets] = useState<TicketItem[]>([]);
+  // ─── Workspace ID ──────────────────────────────────────────────────────────
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    resolveActiveWid().then((wid) => { if (wid) setWorkspaceId(wid); });
+  }, []);
+
+  // ─── TanStack Query hooks ───────────────────────────────────────────────────
+  // Cache stores raw API tickets (shared with dashboard/prefetch). Map in `select` for UI.
+  const { data: tickets = [], isLoading: loading } = useQuery({
+    queryKey: ["maintenance", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/maintenance?workspaceId=${encodeURIComponent(workspaceId!)}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      if (!json.data || !Array.isArray(json.data)) return [];
+      return json.data;
+    },
+    select: (data) => (Array.isArray(data) ? data : []).map(mapApiTicketToItem),
+  });
+
+  // Shared cache with dashboard and properties pages
+  const { data: propertiesList = [] } = useQuery({
+    queryKey: ["properties", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/properties?wid=${encodeURIComponent(workspaceId!)}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.data || [];
+    },
+  });
+
+  const { data: tenantsList = [] } = useQuery({
+    queryKey: ["tenants", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/tenants?workspaceId=${encodeURIComponent(workspaceId!)}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.data || [];
+    },
+  });
 
   // Live database dropdown lists for Create Ticket modal
-  const [propertiesList, setPropertiesList] = useState<any[]>([]);
-  const [unitsList, setUnitsList] = useState<any[]>([]);
-  const [tenantsList, setTenantsList] = useState<any[]>([]);
 
   // Modal State for New Ticket Creation (Property -> Floor -> Unit Cascading Selects)
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -105,105 +209,18 @@ export default function MaintenancePage() {
     }
   };
 
-  // Fetch tickets for the active workspace only
-  const fetchTickets = async () => {
-    try {
-      setLoading(true);
-      const activeWid = await resolveActiveWid();
-      if (!activeWid) {
-        setTickets([]);
-        return;
-      }
-      const res = await fetch(`/api/maintenance?workspaceId=${encodeURIComponent(activeWid)}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && Array.isArray(json.data)) {
-          const formatted: TicketItem[] = json.data.map((t: any) => {
-            // Map DB status to UI columns ("Open" / "Pending" -> "New Requests")
-            let uiStatus: "New Requests" | "In Progress" | "Resolved" = "New Requests";
-            const rawStatus = (t.status || "").toLowerCase();
-            if (rawStatus.includes("progress")) {
-              uiStatus = "In Progress";
-            } else if (rawStatus.includes("resolved") || rawStatus.includes("completed")) {
-              uiStatus = "Resolved";
-            }
 
-            const propName = t.property?.name || "Property";
-            const unitNo = t.unit?.unitNumber || "Unit";
-            const tenantName = t.tenant?.name || t.loggedBy || "Resident";
+  const [unitsList, setUnitsList] = useState<any[]>([]);
 
-            return {
-              id: t.ticketNumber || `TCK-${t.id.slice(-4)}`,
-              realId: t.id,
-              ticketNumber: t.ticketNumber,
-              tenant: tenantName,
-              tenantId: t.tenantId,
-              unit: unitNo,
-              unitId: t.unitId,
-              property: propName,
-              propertyId: t.propertyId,
-              issue: t.issue,
-              description: t.notes || t.issue,
-              category: t.category || "General Repair",
-              priority: t.priority === "Emergency" ? "High" : (t.priority || "Medium"),
-              status: uiStatus,
-              date: t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Recent",
-              cost: t.cost,
-              loggedBy: t.loggedBy,
-            };
-          });
-          setTickets(formatted);
-        }
-      } else {
-        setTickets([]);
-      }
-    } catch (err) {
-      console.warn("Could not fetch maintenance tickets from API:", err);
-      setTickets([]);
-    } finally {
-      setLoading(false);
-    }
+  // Refetch all maintenance caches (dashboard home + this page)
+  const fetchTickets = () => {
+    invalidateMaintenance(queryClient);
   };
 
-  // Fetch dropdown metadata for create modal (same workspace)
-  const fetchMetadata = async () => {
-    try {
-      const activeWid = await resolveActiveWid();
-      if (!activeWid) {
-        setPropertiesList([]);
-        setTenantsList([]);
-        return;
-      }
-      const [propsRes, tenantsRes] = await Promise.all([
-        fetch(`/api/properties?wid=${encodeURIComponent(activeWid)}`),
-        fetch(`/api/tenants?workspaceId=${encodeURIComponent(activeWid)}`),
-      ]);
-      if (propsRes.ok) {
-        const json = await propsRes.json();
-        if (json.data && Array.isArray(json.data)) {
-          setPropertiesList(json.data);
-          if (json.data.length > 0) {
-            setSelectedPropertyId(json.data[0].id);
-          } else {
-            setSelectedPropertyId("");
-          }
-        }
-      }
-      if (tenantsRes.ok) {
-        const json = await tenantsRes.json();
-        if (json.data && Array.isArray(json.data)) {
-          setTenantsList(json.data);
-        }
-      }
-    } catch (err) {
-      console.warn("Could not load maintenance dropdown metadata:", err);
-    }
-  };
+  // fetchMetadata is now a no-op since properties/tenants come from shared cache
+  const fetchMetadata = () => {};
 
-  useEffect(() => {
-    fetchTickets();
-    fetchMetadata();
-  }, []);
+
 
   // Cascading Property Change Handler
   const handlePropertyChange = async (propertyId: string) => {
@@ -243,7 +260,7 @@ export default function MaintenancePage() {
   };
 
   // Derive floors & units for current selections
-  const selectedPropertyObj = propertiesList.find((p) => p.id === selectedPropertyId);
+  const selectedPropertyObj = propertiesList.find((p: any) => p.id === selectedPropertyId);
   const derivedFloorsFromUnits = Array.from(
     new Set(propertyUnits.map((u) => u.floorNumber || 1))
   ).sort((a, b) => (a as number) - (b as number));
@@ -259,7 +276,7 @@ export default function MaintenancePage() {
     return String(u.floorNumber || 1) === String(selectedFloor);
   });
 
-  const filteredTenantsForUnit = tenantsList.filter((t) => {
+  const filteredTenantsForUnit = tenantsList.filter((t: any) => {
     if (selectedUnitId && t.unitId) {
       return t.unitId === selectedUnitId;
     }
@@ -324,7 +341,7 @@ export default function MaintenancePage() {
         toast("No active workspace found. Please refresh and try again.", "error");
         return;
       }
-      const selectedTenant = tenantsList.find((t) => t.id === selectedTenantId);
+      const selectedTenant = tenantsList.find((t: any) => t.id === selectedTenantId);
 
       const res = await fetch("/api/maintenance", {
         method: "POST",
@@ -349,7 +366,8 @@ export default function MaintenancePage() {
         setNewIssue("");
         setNewDescription("");
         setShowCreateModal(false);
-        fetchTickets();
+        invalidateMaintenance(queryClient);
+        await queryClient.refetchQueries({ queryKey: ["maintenance"] });
       } else {
         const errJson = await res.json().catch(() => null);
         toast(errJson?.error || "Failed to create maintenance ticket", "error");
@@ -368,13 +386,16 @@ export default function MaintenancePage() {
     "Resolved",
   ];
 
-  const filteredTickets = tickets.filter((t) => {
+  const filteredTickets = tickets.filter((t: any) => {
     const matchesStatus = filterStatus === "All" || t.status === filterStatus;
+    const tenantText = typeof t.tenant === "string" ? t.tenant : String(t.tenant?.name || "");
+    const unitText = typeof t.unit === "string" ? t.unit : String(t.unit?.unitNumber || "");
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      t.issue.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.tenant.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.unit.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.id.toLowerCase().includes(searchQuery.toLowerCase());
+      String(t.issue || "").toLowerCase().includes(q) ||
+      tenantText.toLowerCase().includes(q) ||
+      unitText.toLowerCase().includes(q) ||
+      String(t.id || "").toLowerCase().includes(q);
     return matchesStatus && matchesSearch;
   });
 
@@ -424,11 +445,11 @@ export default function MaintenancePage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-extrabold text-amber-700 uppercase tracking-wider">📥 New Requests</span>
             <span className="w-7 h-7 rounded-full bg-amber-100 text-amber-900 font-black text-xs flex items-center justify-center">
-              {tickets.filter((t) => t.status === "New Requests").length}
+              {tickets.filter((t: any) => t.status === "New Requests").length}
             </span>
           </div>
           <div className="text-xl font-black text-slate-900 mt-2">
-            {tickets.filter((t) => t.status === "New Requests").length} Reported
+            {tickets.filter((t: any) => t.status === "New Requests").length} Reported
           </div>
           <p className="text-[11px] text-slate-500 mt-1">Tenant issues pending initial review</p>
         </div>
@@ -442,11 +463,11 @@ export default function MaintenancePage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-extrabold text-blue-700 uppercase tracking-wider">⏳ In Progress</span>
             <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-900 font-black text-xs flex items-center justify-center">
-              {tickets.filter((t) => t.status === "In Progress").length}
+              {tickets.filter((t: any) => t.status === "In Progress").length}
             </span>
           </div>
           <div className="text-xl font-black text-slate-900 mt-2">
-            {tickets.filter((t) => t.status === "In Progress").length} Under Repair
+            {tickets.filter((t: any) => t.status === "In Progress").length} Under Repair
           </div>
           <p className="text-[11px] text-slate-500 mt-1">Work actively being serviced</p>
         </div>
@@ -460,11 +481,11 @@ export default function MaintenancePage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-extrabold text-emerald-700 uppercase tracking-wider">✓ Resolved</span>
             <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-900 font-black text-xs flex items-center justify-center">
-              {tickets.filter((t) => t.status === "Resolved").length}
+              {tickets.filter((t: any) => t.status === "Resolved").length}
             </span>
           </div>
           <div className="text-xl font-black text-slate-900 mt-2">
-            {tickets.filter((t) => t.status === "Resolved").length} Completed
+            {tickets.filter((t: any) => t.status === "Resolved").length} Completed
           </div>
           <p className="text-[11px] text-slate-500 mt-1">Fixed &amp; verified in database</p>
         </div>
@@ -545,7 +566,7 @@ export default function MaintenancePage() {
           {viewMode === "kanban" && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-150">
               {columns.map((col) => {
-                const colTickets = filteredTickets.filter((t) => t.status === col);
+                const colTickets = filteredTickets.filter((t: any) => t.status === col);
                 return (
                   <div key={col} className="bg-slate-100/90 border border-slate-200 rounded-3xl p-5 space-y-4 min-h-[480px]">
                     
@@ -569,8 +590,8 @@ export default function MaintenancePage() {
                         <div className="p-8 text-center bg-white/60 border border-dashed border-slate-200 rounded-2xl">
                           <span className="text-xs font-bold text-slate-400">No {col.toLowerCase()} tickets.</span>
                         </div>
-                      ) : (
-                        colTickets.map((t) => (
+                                      ) : (
+                        colTickets.map((t: any) => (
                           <div
                             key={t.realId || t.id}
                             className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs space-y-3 transition-all hover:shadow-md relative group"
@@ -695,7 +716,7 @@ export default function MaintenancePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    {filteredTickets.map((t) => (
+                    {filteredTickets.map((t: any) => (
                       <tr key={t.realId || t.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-3.5 px-3 font-mono font-bold text-slate-800">{t.id}</td>
                         <td className="py-3.5 px-3">
@@ -806,7 +827,7 @@ export default function MaintenancePage() {
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9"
                   >
                     <option value="">-- Select Property --</option>
-                    {propertiesList.map((p) => (
+                    {propertiesList.map((p: any) => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
@@ -877,7 +898,7 @@ export default function MaintenancePage() {
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer appearance-none pr-9"
                   >
                     <option value="">Admin / Property Staff</option>
-                    {filteredTenantsForUnit.map((t) => (
+                    {filteredTenantsForUnit.map((t: any) => (
                       <option key={t.id} value={t.id}>{t.name} {t.unit?.unitNumber ? `(${t.unit.unitNumber})` : ""}</option>
                     ))}
                   </select>

@@ -25,7 +25,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import LogoutAnimation from "@/components/LogoutAnimation";
-import BuildingPhaseBanner from "@/components/ui/BuildingPhaseBanner";
+import { hasActiveRentPaymentChannels } from "@/lib/paymentMethods";
+import { useTenantMe, useTenantWorkspace } from "@/hooks/useTenantMe";
 
 export default function TenantLayout({
   children,
@@ -37,6 +38,10 @@ export default function TenantLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [canPayRent, setCanPayRent] = useState(false);
+
+  const { data: tenantMe } = useTenantMe();
+  const { data: workspace } = useTenantWorkspace(tenantMe?.workspaceId);
 
   const [tenantProfile, setTenantProfile] = useState<{
     name: string;
@@ -74,41 +79,34 @@ export default function TenantLayout({
   };
 
   useEffect(() => {
-    async function loadTenantData() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
-        const res = await fetch(`/api/tenant/me${emailParam}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (json.data) {
-            const d = json.data;
-            const nameParts = d.name.trim().split(" ");
-            const init = nameParts.length >= 2 
-              ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
-              : d.name.substring(0, 2).toUpperCase();
+    if (!tenantMe) return;
+    const d = tenantMe;
+    const nameParts = String(d.name || "Resident").trim().split(" ");
+    const init =
+      nameParts.length >= 2
+        ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+        : String(d.name || "TN").substring(0, 2).toUpperCase();
+    const realDocsCount =
+      (Array.isArray(d.documents) ? d.documents.length : 0) +
+      (d.govIdUrl ? 1 : 0) +
+      (d.leaseDocUrl ? 1 : 0);
 
-            const realDocsCount = (Array.isArray(d.documents) ? d.documents.length : 0) + (d.govIdUrl ? 1 : 0) + (d.leaseDocUrl ? 1 : 0);
+    setTenantProfile({
+      name: d.name,
+      email: d.email,
+      unitNumber: d.unitNumber,
+      propertyName: d.propertyName,
+      propertyAddress: d.propertyAddress,
+      monthlyRent: d.monthlyRent || 3200,
+      initials: init || "TN",
+      maintenancesCount: Array.isArray(d.maintenances) ? d.maintenances.length : 0,
+      documentsCount: realDocsCount,
+    });
+  }, [tenantMe]);
 
-            setTenantProfile({
-              name: d.name,
-              email: d.email,
-              unitNumber: d.unitNumber,
-              propertyName: d.propertyName,
-              propertyAddress: d.propertyAddress,
-              monthlyRent: d.monthlyRent || 3200,
-              initials: init || "TN",
-              maintenancesCount: Array.isArray(d.maintenances) ? d.maintenances.length : 0,
-              documentsCount: realDocsCount,
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Error loading tenant layout profile:", err);
-      }
-    }
-    loadTenantData();
-  }, []);
+  useEffect(() => {
+    setCanPayRent(hasActiveRentPaymentChannels(workspace));
+  }, [workspace]);
 
   const navItems = [
     { name: "My Resident Overview", href: "/tenant/dashboard", icon: LayoutDashboard },
@@ -121,7 +119,7 @@ export default function TenantLayout({
   ];
 
   const notifications = [
-    { id: 1, title: "Rent Due Reminder", desc: `Rent ($${tenantProfile.monthlyRent.toLocaleString()}) is due soon. Click to pay online.`, time: "2h ago", icon: CreditCard, color: "text-amber-500 bg-amber-50" },
+    { id: 1, title: "Rent Due Reminder", desc: `Rent ($${tenantProfile.monthlyRent.toLocaleString()}) is due soon. Auto-debit scheduled.`, time: "2h ago", icon: CreditCard, color: "text-amber-500 bg-amber-50" },
     { id: 2, title: "Plumber Vendor Dispatched", desc: "Ticket #402 update: Vendor arriving today between 2-4 PM.", time: "5h ago", icon: Wrench, color: "text-purple-500 bg-purple-50" },
   ];
 
@@ -247,17 +245,25 @@ export default function TenantLayout({
             </div>
 
             <div className="flex items-center gap-3">
-              <Link
-                href="/tenant/payments?openModal=true"
-                className="px-3.5 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl transition-all shadow-xs uppercase tracking-wider"
-              >
-                Pay Rent (${(tenantProfile.monthlyRent || 3200).toLocaleString()})
-              </Link>
+              {canPayRent ? (
+                <Link
+                  href="/tenant/payments?pay=1"
+                  className="px-3.5 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl transition-all shadow-xs uppercase tracking-wider"
+                >
+                  Pay Rent (${(tenantProfile.monthlyRent || 3200).toLocaleString()})
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  title="No payment channels enabled by your landlord yet"
+                  className="px-3.5 py-1.5 bg-[#FF6B00] text-white text-xs font-bold rounded-xl shadow-xs uppercase tracking-wider opacity-50 cursor-not-allowed"
+                >
+                  Pay Rent (${(tenantProfile.monthlyRent || 3200).toLocaleString()})
+                </button>
+              )}
             </div>
           </header>
-
-          {/* Building Phase Notice Banner Locked Below Top Header */}
-          <BuildingPhaseBanner />
         </div>
 
         {/* Scrollable Resident Main Pane */}

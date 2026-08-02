@@ -90,6 +90,19 @@ export async function POST(request: Request, { params }: Params) {
 
     const targetFloor = parseInt(floorNumber, 10) || 1;
 
+    const { assertWorkspaceQuota } = await import("@/lib/planQuotaServer");
+    const quota = await assertWorkspaceQuota({
+      workspaceId: property.workspaceId,
+      action: "unit",
+      unitsToAdd: 1,
+    });
+    if (!quota.ok) {
+      return NextResponse.json(
+        { error: quota.message, code: quota.code },
+        { status: 403 }
+      );
+    }
+
     // Check duplicate unit on same floor for this property
     const existing = await prisma.unit.findFirst({
       where: {

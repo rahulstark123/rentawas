@@ -15,7 +15,10 @@
  *   - Max width: 2048px (preserves aspect ratio)
  *   - Quality: 82 (visually lossless for documents)
  *
- * PDFs are uploaded as-is (no compression).
+ * PDFs are compressed via open-source pdf-lib + unpdf (PDF.js) + sharp:
+ *   - Structural optimize (object streams, strip metadata)
+ *   - Recompress embedded page images when beneficial (scanned docs)
+ *   - Max upload size: 2MB per PDF
  *
  * Returns:
  *   { success: true, url: "https://...", key: "rentawas/..." }
@@ -24,6 +27,7 @@
 import { NextResponse } from "next/server";
 import sharp from "sharp";
 import { buildR2Key, uploadToR2, UploadContext } from "@/lib/r2";
+import { compressPdfBuffer } from "@/lib/compressPdf";
 
 const IMAGE_MIME_TYPES = [
   "image/jpeg",
@@ -41,7 +45,8 @@ const ALLOWED_MIME_TYPES = [
   "application/pdf",
 ];
 
-const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25MB
+const MAX_IMAGE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
+const MAX_PDF_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
 
 export async function POST(request: Request) {
   try {
@@ -63,6 +68,7 @@ export async function POST(request: Request) {
     const mimeType = file.type || "application/octet-stream";
     const originalName = overrideName || file.name || "upload";
     const fileSize = file.size;
+    const isPdf = mimeType === "application/pdf";
 
     if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
       return NextResponse.json(
@@ -71,9 +77,14 @@ export async function POST(request: Request) {
       );
     }
 
-    if (fileSize > MAX_FILE_SIZE_BYTES) {
+    const maxBytes = isPdf ? MAX_PDF_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES;
+    if (fileSize > maxBytes) {
       return NextResponse.json(
-        { error: `File size exceeds 25MB limit (got ${(fileSize / 1024 / 1024).toFixed(1)}MB).` },
+        {
+          error: isPdf
+            ? `PDF exceeds 2MB limit (got ${(fileSize / 1024 / 1024).toFixed(1)}MB). Please compress or upload a smaller file.`
+            : `File size exceeds 15MB limit (got ${(fileSize / 1024 / 1024).toFixed(1)}MB).`,
+        },
         { status: 413 }
       );
     }
@@ -85,6 +96,7 @@ export async function POST(request: Request) {
     let uploadBuffer: Buffer;
     let uploadContentType: string;
     let uploadFilename: string;
+    let compressionPct = 0;
 
     if (IMAGE_MIME_TYPES.includes(mimeType)) {
       // Compress image using Sharp → WebP
@@ -100,11 +112,17 @@ export async function POST(request: Request) {
 
       uploadContentType = "image/webp";
       uploadFilename = `${timestamp}_${baseName}.webp`;
+      compressionPct =
+        fileSize > 0
+          ? Math.round(((fileSize - uploadBuffer.length) / fileSize) * 100)
+          : 0;
     } else {
-      // PDF — upload as-is
-      uploadBuffer = rawBuffer;
+      // PDF — compress with pdf-lib + unpdf + sharp
+      const pdfResult = await compressPdfBuffer(rawBuffer);
+      uploadBuffer = pdfResult.buffer;
       uploadContentType = "application/pdf";
       uploadFilename = `${timestamp}_${baseName}.pdf`;
+      compressionPct = pdfResult.compressionPct;
     }
 
     const key = buildR2Key(workspaceId, context, uploadFilename);
@@ -112,10 +130,6 @@ export async function POST(request: Request) {
 
     const originalSizeKB = Math.round(fileSize / 1024);
     const uploadedSizeKB = Math.round(uploadBuffer.length / 1024);
-    const compressionPct =
-      fileSize > 0
-        ? Math.round(((fileSize - uploadBuffer.length) / fileSize) * 100)
-        : 0;
 
     return NextResponse.json({
       success: true,
@@ -123,7 +137,7 @@ export async function POST(request: Request) {
       key,
       originalSizeKB,
       uploadedSizeKB,
-      compressionPct: IMAGE_MIME_TYPES.includes(mimeType) ? compressionPct : 0,
+      compressionPct: Math.max(0, compressionPct),
       contentType: uploadContentType,
       filename: uploadFilename,
     });

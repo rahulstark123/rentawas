@@ -1,18 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-// AI credit limits per plan
-const CREDIT_LIMITS: Record<string, number> = {
-  trial: 20,
-  free: 20,
-  starter: 50,
-  pro: 200,
-  pro_plus: 500,
-};
-
-function getPlanCreditLimit(plan: string): number {
-  return CREDIT_LIMITS[plan] ?? 20;
-}
+import { getPlanCreditLimit } from "@/lib/aiCredits";
+import { recordAiUsageLog } from "@/lib/aiUsageLog";
 
 // POST /api/ai/property-summary
 export async function POST(request: Request) {
@@ -218,12 +207,18 @@ ${question && question.trim() && question !== "Summarise Property" ? userQuestio
         const fallbackJson = await fallbackRes.json();
         const summaryText = fallbackJson.choices?.[0]?.message?.content || "";
         const generatedAt = new Date();
-        // Save to workspace credits + property summary cache
+        // Save to workspace credits + property summary cache + usage log
         await Promise.all([
           prisma.workspace.update({ where: { wid }, data: { aiCreditsUsed: creditsUsed + 2 } }),
           prisma.property.update({
             where: { id: propertyId },
             data: { aiSummary: summaryText, aiSummaryGeneratedAt: generatedAt },
+          }),
+          recordAiUsageLog({
+            workspaceId: wid,
+            feature: "Property Operational Intelligence",
+            targetItem: property.name,
+            question: question,
           }),
         ]);
         return NextResponse.json({
@@ -251,6 +246,12 @@ ${question && question.trim() && question !== "Summarise Property" ? userQuestio
       prisma.property.update({
         where: { id: propertyId },
         data: { aiSummary: summaryText, aiSummaryGeneratedAt: generatedAt },
+      }),
+      recordAiUsageLog({
+        workspaceId: wid,
+        feature: "Property Operational Intelligence",
+        targetItem: property.name,
+        question: question,
       }),
     ]);
 

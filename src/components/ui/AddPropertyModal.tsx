@@ -24,6 +24,7 @@ export interface PropertyData {
   category: string;
   pincode: string;
   address: string;
+  sqft?: string;
   floors: number;
   unitsPerFloor: number;
   units: number;
@@ -93,6 +94,7 @@ export const ROOM_LAYOUT_OPTIONS = [
 export default function AddPropertyModal({ isOpen, onClose, onAddProperty, initialData }: AddPropertyModalProps) {
   const { toast } = useToast();
   const [name, setName] = useState("");
+  const [sqft, setSqft] = useState("");
   const [category, setCategory] = useState(PROPERTY_CATEGORIES[0]);
   const [pincode, setPincode] = useState("");
   const [address, setAddress] = useState("");
@@ -113,6 +115,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty, initi
   useEffect(() => {
     if (initialData) {
       setName(initialData.name || "");
+      setSqft(initialData.sqft || "");
       setCategory(initialData.category || PROPERTY_CATEGORIES[0]);
       setPincode(initialData.pincode || "");
       setAddress(initialData.address || "");
@@ -263,6 +266,7 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty, initi
       category,
       pincode,
       address: address || "Primary City Location",
+      sqft,
       floors: numFloors,
       unitsPerFloor: isPerFloorCustom ? Math.round(totalUnits / numFloors) : Number(defaultUnitsPerFloor),
       units: totalUnits,
@@ -329,6 +333,25 @@ export default function AddPropertyModal({ isOpen, onClose, onAddProperty, initi
               placeholder="e.g. Grand Regency Executive Suites"
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
             />
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 uppercase mb-1 flex items-center justify-between">
+              <span>Total Built-Up / Carpet Area (Sq. Ft.)</span>
+              <span className="text-[10px] text-slate-400 font-normal">Optional size in sq. ft.</span>
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                value={sqft}
+                onChange={(e) => setSqft(e.target.value)}
+                placeholder="e.g. 4500"
+                className="w-full pl-3.5 pr-16 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+              />
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] font-extrabold text-slate-500 bg-slate-200/70 px-2 py-0.5 rounded-md pointer-events-none">
+                sq. ft.
+              </span>
+            </div>
           </div>
 
           {/* Property Category */}

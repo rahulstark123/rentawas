@@ -4,6 +4,7 @@ import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import JsonLd from "@/components/seo/JsonLd";
+import QueryProvider from "@/components/providers/QueryProvider";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -130,9 +131,11 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning className="min-h-screen bg-[#F9FAFB] text-slate-950 font-sans selection:bg-orange-100 selection:text-orange-600">
         <ToastProvider>
-          <CurrencyProvider>
-            {children}
-          </CurrencyProvider>
+          <QueryProvider>
+            <CurrencyProvider>
+              {children}
+            </CurrencyProvider>
+          </QueryProvider>
         </ToastProvider>
       </body>
     </html>

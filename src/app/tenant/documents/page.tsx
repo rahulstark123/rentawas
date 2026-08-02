@@ -23,7 +23,8 @@ import {
   Loader2,
   File
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { formatFileSize, uploadFile, validateFile } from "@/lib/upload";
+import { useTenantMe } from "@/hooks/useTenantMe";
 
 export interface TenantDoc {
   id: string;
@@ -36,6 +37,76 @@ export interface TenantDoc {
   description: string;
   fileUrl?: string;
 }
+
+function buildDocumentsFromTenant(data: any): TenantDoc[] {
+  const userDocs: TenantDoc[] = [];
+
+  if (data.leaseDocUrl) {
+    userDocs.push({
+      id: "DOC-LEASE",
+      title: `Signed Residential Lease Agreement (${data.propertyName} — ${data.unitNumber})`,
+      category: "Lease & Addendums",
+      icon: FileText,
+      date: data.leaseStart
+        ? new Date(data.leaseStart).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })
+        : "Verified",
+      size: "1.4 MB",
+      status: "Verified",
+      description: `Official tenancy lease agreement contract for ${data.propertyName} — ${data.unitNumber}.`,
+      fileUrl: data.leaseDocUrl,
+    });
+  }
+
+  if (data.govIdUrl) {
+    userDocs.push({
+      id: "DOC-GOVID",
+      title: `${data.govIdType || "Government Photo ID"} Verification (${data.govIdNumber || "KYC"})`,
+      category: "ID & Verification",
+      icon: UserCheck,
+      date: data.createdAt
+        ? new Date(data.createdAt).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })
+        : "Verified",
+      size: "850 KB",
+      status: "Verified",
+      description: `Verified ${data.govIdType || "Government Photo ID"} record on file with property management.`,
+      fileUrl: data.govIdUrl,
+    });
+  }
+
+  if (Array.isArray(data.documents) && data.documents.length > 0) {
+    data.documents.forEach((d: any, idx: number) => {
+      userDocs.push({
+        id: d.id || `DOC-DB-${idx + 1}`,
+        title: d.title || d.fileName || "Uploaded Tenant Document",
+        category: d.docType === "Lease Agreement" ? "Lease & Addendums" : "ID & Verification",
+        icon: d.docType === "Lease Agreement" ? FileText : UserCheck,
+        date: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : "Uploaded",
+        size: d.fileSize || "1.2 MB",
+        status: "Verified",
+        description: `Uploaded document file: ${d.fileName || "tenant_doc.pdf"}. Verified in DB.`,
+        fileUrl: d.fileUrl,
+      });
+    });
+  }
+
+  return userDocs;
+}
+
+type AttachedUpload = {
+  id: string;
+  name: string;
+  sizeStr: string;
+  file: File;
+  previewUrl?: string;
+};
 
 export const INITIAL_DOCUMENTS: TenantDoc[] = [
   {
@@ -71,6 +142,7 @@ export const INITIAL_DOCUMENTS: TenantDoc[] = [
 ];
 
 export default function TenantDocumentsPage() {
+  const { data: tenantMe, isLoading } = useTenantMe();
   const [tenant, setTenant] = useState<any>(null);
   const [documents, setDocuments] = useState<TenantDoc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,135 +156,48 @@ export default function TenantDocumentsPage() {
   const [uploadCategory, setUploadCategory] = useState<string>("ID & Verification");
   const [customCategory, setCustomCategory] = useState("");
   const [uploadDesc, setUploadDesc] = useState("");
-  const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string; sizeStr: string; dataUrl: string }[]>([]);
-  const [previewAttachedFile, setPreviewAttachedFile] = useState<{ name: string; dataUrl: string; sizeStr: string } | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<AttachedUpload[]>([]);
+  const [previewAttachedFile, setPreviewAttachedFile] = useState<{
+    name: string;
+    previewUrl: string;
+    sizeStr: string;
+    isImage: boolean;
+    isPdf: boolean;
+  } | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
 
   const handleMultipleFilesSelect = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
 
     Array.from(fileList).forEach((file) => {
-      const sizeInKb = file.size / 1024;
-      const sizeStr = sizeInKb > 1024 ? `${(sizeInKb / 1024).toFixed(1)} MB` : `${Math.round(sizeInKb)} KB`;
-      const id = `item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-
-      if (file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new window.Image();
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            let width = img.width;
-            let height = img.height;
-            const maxDim = 1200;
-
-            if (width > maxDim || height > maxDim) {
-              if (width > height) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-              } else {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-              }
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d");
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, width, height);
-              const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-              setAttachedFiles((prev) => [
-                ...prev,
-                { id, name: file.name, sizeStr, dataUrl }
-              ]);
-            }
-          };
-          img.src = e.target?.result as string;
-        };
-        reader.readAsDataURL(file);
-      } else {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const dataUrl = (e.target?.result as string) || "";
-          setAttachedFiles((prev) => [
-            ...prev,
-            { id, name: file.name, sizeStr, dataUrl }
-          ]);
-        };
-        reader.readAsDataURL(file);
+      const validation = validateFile(file);
+      if (!validation.valid) {
+        alert(validation.error || "Invalid file");
+        return;
       }
+
+      const sizeStr = formatFileSize(file.size);
+      const id = `item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const previewUrl = URL.createObjectURL(file);
+
+      setAttachedFiles((prev) => [
+        ...prev,
+        { id, name: file.name, sizeStr, file, previewUrl },
+      ]);
     });
   };
 
   useEffect(() => {
-    async function loadTenantDocs() {
-      try {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
-        const res = await fetch(`/api/tenant/me${emailParam}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (json.data) {
-            setTenant(json.data);
-            const userDocs: TenantDoc[] = [];
-
-            if (json.data.leaseDocUrl) {
-              userDocs.push({
-                id: "DOC-LEASE",
-                title: `Signed Residential Lease Agreement (${json.data.propertyName} — ${json.data.unitNumber})`,
-                category: "Lease & Addendums",
-                icon: FileText,
-                date: json.data.leaseStart ? new Date(json.data.leaseStart).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Verified",
-                size: "1.4 MB",
-                status: "Verified",
-                description: `Official tenancy lease agreement contract for ${json.data.propertyName} — ${json.data.unitNumber}.`,
-                fileUrl: json.data.leaseDocUrl,
-              });
-            }
-
-            if (json.data.govIdUrl) {
-              userDocs.push({
-                id: "DOC-GOVID",
-                title: `${json.data.govIdType || "Government Photo ID"} Verification (${json.data.govIdNumber || "KYC"})`,
-                category: "ID & Verification",
-                icon: UserCheck,
-                date: json.data.createdAt ? new Date(json.data.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Verified",
-                size: "850 KB",
-                status: "Verified",
-                description: `Verified ${json.data.govIdType || "Government Photo ID"} record on file with property management.`,
-                fileUrl: json.data.govIdUrl,
-              });
-            }
-
-            if (Array.isArray(json.data.documents) && json.data.documents.length > 0) {
-              json.data.documents.forEach((d: any, idx: number) => {
-                userDocs.push({
-                  id: d.id || `DOC-DB-${idx + 1}`,
-                  title: d.title || d.fileName || "Uploaded Tenant Document",
-                  category: d.docType === "Lease Agreement" ? "Lease & Addendums" : "ID & Verification",
-                  icon: d.docType === "Lease Agreement" ? FileText : UserCheck,
-                  date: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : "Uploaded",
-                  size: d.fileSize || "1.2 MB",
-                  status: "Verified",
-                  description: `Uploaded document file: ${d.fileName || "tenant_doc.pdf"}. Verified in DB.`,
-                  fileUrl: d.fileUrl,
-                });
-              });
-            }
-
-            setDocuments(userDocs);
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching tenant docs:", err);
-      } finally {
-        setLoading(false);
-      }
+    if (isLoading) {
+      setLoading(true);
+      return;
     }
-    loadTenantDocs();
-  }, []);
+    if (tenantMe) {
+      setTenant(tenantMe);
+      setDocuments(buildDocumentsFromTenant(tenantMe));
+    }
+    setLoading(false);
+  }, [tenantMe, isLoading]);
 
   const categories = [
     "All",
@@ -243,6 +228,7 @@ export default function TenantDocumentsPage() {
     }
 
     const finalCategory = uploadCategory === "Other" ? (customCategory.trim() || "Other Document") : uploadCategory;
+    const workspaceKey = String(tenant?.workspaceId || tenant?.id || "tenant");
 
     setIsUploading(true);
     try {
@@ -257,36 +243,61 @@ export default function TenantDocumentsPage() {
         "Move-In / Move-Out Inspection": FileCheck2,
       };
 
-      const newDocs: TenantDoc[] = attachedFiles.map((af, idx) => {
-        const title = attachedFiles.length === 1
-          ? uploadTitle
-          : `${uploadTitle} — ${af.name}`;
+      const uploadedDocs: TenantDoc[] = [];
 
-        return {
+      for (let idx = 0; idx < attachedFiles.length; idx++) {
+        const af = attachedFiles[idx];
+        const title =
+          attachedFiles.length === 1 ? uploadTitle : `${uploadTitle} — ${af.name}`;
+
+        const uploadRes = await uploadFile(af.file, {
+          workspaceId: workspaceKey,
+          context: "lease-docs",
+          compress: true,
+        });
+
+        if (!uploadRes.success || !uploadRes.url) {
+          alert(uploadRes.error || `Failed to upload ${af.name}`);
+          continue;
+        }
+
+        const sizeLabel =
+          uploadRes.uploadedSizeKB != null
+            ? formatFileSize(uploadRes.uploadedSizeKB * 1024)
+            : af.sizeStr;
+
+        uploadedDocs.push({
           id: `DOC-${Math.floor(100 + Math.random() * 900)}-${idx}`,
           title,
           category: finalCategory,
           icon: categoryIconMap[uploadCategory] || FileText,
-          date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-          size: af.sizeStr || "650 KB",
+          date: new Date().toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          }),
+          size:
+            uploadRes.compressionPct && uploadRes.compressionPct > 0
+              ? `${sizeLabel} (−${uploadRes.compressionPct}%)`
+              : sizeLabel,
           status: "Pending Verification",
-          description: uploadDesc || `Resident uploaded document file: ${af.name}. Pending owner review.`,
-          fileUrl: af.dataUrl || undefined,
-        };
-      });
+          description:
+            uploadDesc ||
+            `Resident uploaded document file: ${af.name}. Pending owner review.`,
+          fileUrl: uploadRes.url,
+        });
 
-      if (tenant && tenant.id && tenant.id !== "demo-tenant-id") {
-        for (const af of attachedFiles) {
+        if (tenant && tenant.id && tenant.id !== "demo-tenant-id") {
           try {
             await fetch("/api/tenant/documents", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                title: attachedFiles.length === 1 ? uploadTitle : `${uploadTitle} — ${af.name}`,
+                title,
                 category: finalCategory,
-                fileName: af.name,
-                fileSize: af.sizeStr,
-                fileUrl: af.dataUrl,
+                fileName: uploadRes.filename || af.name,
+                fileSize: sizeLabel,
+                fileUrl: uploadRes.url,
                 tenantId: tenant.id,
                 workspaceId: tenant.workspaceId,
               }),
@@ -297,11 +308,16 @@ export default function TenantDocumentsPage() {
         }
       }
 
-      setDocuments((prev) => [...newDocs, ...prev]);
+      if (uploadedDocs.length === 0) return;
+
+      setDocuments((prev) => [...uploadedDocs, ...prev]);
       setUploadTitle("");
       setUploadCategory("ID & Verification");
       setCustomCategory("");
       setUploadDesc("");
+      attachedFiles.forEach((af) => {
+        if (af.previewUrl) URL.revokeObjectURL(af.previewUrl);
+      });
       setAttachedFiles([]);
       setShowUploadModal(false);
     } finally {
@@ -403,8 +419,32 @@ export default function TenantDocumentsPage() {
 
       {/* Documents Grid or Empty State */}
       {loading ? (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center shadow-2xs">
-          <p className="text-xs font-bold text-slate-600">Loading vault documents...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {[...Array(4)].map((_, i) => (
+            <div
+              key={i}
+              className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-4 animate-pulse"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-200 shrink-0" />
+                  <div className="space-y-2">
+                    <div className="h-2.5 w-14 bg-slate-100 rounded" />
+                    <div className="h-4 w-36 bg-slate-200 rounded-md" />
+                  </div>
+                </div>
+                <div className="h-5 w-16 bg-slate-100 rounded-full" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="h-3 w-full bg-slate-100 rounded" />
+                <div className="h-3 w-2/3 bg-slate-100 rounded" />
+              </div>
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                <div className="h-8 flex-1 bg-slate-100 rounded-xl" />
+                <div className="h-8 flex-1 bg-slate-100 rounded-xl" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : filteredDocs.length === 0 ? (
         <div className="bg-white border border-slate-200/90 rounded-3xl p-12 text-center space-y-4 shadow-2xs">
@@ -583,15 +623,15 @@ export default function TenantDocumentsPage() {
             </div>
 
             <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800/80 flex items-center justify-center max-h-[60vh] overflow-auto">
-              {previewAttachedFile.dataUrl.startsWith("data:image/") ? (
+              {previewAttachedFile.isImage ? (
                 <img
-                  src={previewAttachedFile.dataUrl}
+                  src={previewAttachedFile.previewUrl}
                   alt={previewAttachedFile.name}
                   className="max-h-[55vh] max-w-full object-contain rounded-xl shadow-lg"
                 />
-              ) : previewAttachedFile.dataUrl.startsWith("data:application/pdf") ? (
+              ) : previewAttachedFile.isPdf ? (
                 <iframe
-                  src={previewAttachedFile.dataUrl}
+                  src={previewAttachedFile.previewUrl}
                   title={previewAttachedFile.name}
                   className="w-full h-[55vh] rounded-xl border border-slate-800 bg-white"
                 />
@@ -705,7 +745,7 @@ export default function TenantDocumentsPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="block font-extrabold text-slate-700 uppercase tracking-wider text-[11px]">
-                    Attach Document Files ({attachedFiles.length} Selected) *
+                    Attach Document Files ({attachedFiles.length} Selected) * — PDF max 2MB, images auto-compressed
                   </label>
                   <label className="text-[10px] font-extrabold text-purple-700 hover:underline cursor-pointer flex items-center gap-1">
                     <Plus className="w-3 h-3" />
@@ -713,7 +753,7 @@ export default function TenantDocumentsPage() {
                     <input
                       type="file"
                       multiple
-                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.csv"
+                      accept="image/*,application/pdf"
                       onChange={(e) => handleMultipleFilesSelect(e.target.files)}
                       className="hidden"
                     />
@@ -747,10 +787,14 @@ export default function TenantDocumentsPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              if (af.dataUrl) {
-                                setPreviewAttachedFile({ name: af.name, dataUrl: af.dataUrl, sizeStr: af.sizeStr });
-                              } else {
-                                alert(`Previewing ${af.name} (${af.sizeStr})`);
+                              if (af.previewUrl) {
+                                setPreviewAttachedFile({
+                                  name: af.name,
+                                  previewUrl: af.previewUrl,
+                                  sizeStr: af.sizeStr,
+                                  isImage: af.file.type.startsWith("image/"),
+                                  isPdf: af.file.type === "application/pdf",
+                                });
                               }
                             }}
                             className="p-1.5 bg-white hover:bg-purple-50 text-purple-600 border border-slate-200 hover:border-purple-200 rounded-xl transition-all flex items-center gap-1 cursor-pointer"
@@ -762,6 +806,7 @@ export default function TenantDocumentsPage() {
                           <button
                             type="button"
                             onClick={() => {
+                              if (af.previewUrl) URL.revokeObjectURL(af.previewUrl);
                               setAttachedFiles((prev) => prev.filter((item) => item.id !== af.id));
                             }}
                             className="p-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 rounded-xl transition-all flex items-center gap-1 cursor-pointer"
@@ -795,7 +840,7 @@ export default function TenantDocumentsPage() {
                       type="file"
                       multiple
                       required
-                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt,.csv"
+                      accept="image/*,application/pdf"
                       onChange={(e) => handleMultipleFilesSelect(e.target.files)}
                       className="hidden"
                     />

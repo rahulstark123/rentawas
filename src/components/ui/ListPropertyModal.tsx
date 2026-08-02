@@ -105,6 +105,7 @@ export default function ListPropertyModal({
   // Form State
   const [propertyType, setPropertyType] = useState("Flat / Apartment");
   const [title, setTitle] = useState("");
+  const [sqft, setSqft] = useState("");
   const [description, setDescription] = useState("");
 
   const [rent, setRent] = useState("");
@@ -347,6 +348,13 @@ export default function ListPropertyModal({
   useEffect(() => {
     if (isOpen && editingListing) {
       setTitle(editingListing.title || "");
+      setSqft(
+        editingListing.sqft !== undefined && editingListing.sqft !== null
+          ? String(editingListing.sqft)
+          : editingListing.areaSqft !== undefined && editingListing.areaSqft !== null
+          ? String(editingListing.areaSqft)
+          : ""
+      );
       setDescription(editingListing.description || "");
       setPropertyType(editingListing.propertyType || "Flat / Apartment");
       setRent(editingListing.rent !== undefined && editingListing.rent !== null ? String(editingListing.rent).replace(/[^0-9.]/g, "") : "");
@@ -376,6 +384,7 @@ export default function ListPropertyModal({
     } else if (isOpen && !editingListing) {
       setCurrentStep(1);
       setTitle("");
+      setSqft("");
       setDescription("");
       setPropertyType("Flat / Apartment");
       setRent("");
@@ -446,6 +455,7 @@ export default function ListPropertyModal({
       title,
       description,
       propertyType,
+      sqft: sqft ? parseFloat(sqft) : null,
       rent: rent ? parseFloat(rent) : 0,
       deposit: deposit ? parseFloat(deposit) : null,
       tenantTypes,
@@ -503,6 +513,7 @@ export default function ListPropertyModal({
     // Reset
     setCurrentStep(1);
     setTitle("");
+    setSqft("");
     setDescription("");
     setRent("");
     setDeposit("");
@@ -643,6 +654,25 @@ export default function ListPropertyModal({
                     placeholder="e.g. Luxury 2BHK Apartment with Balcony"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Built-Up / Carpet Area (Sq. Ft.)</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Optional size in square feet</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={sqft}
+                      onChange={(e) => setSqft(e.target.value)}
+                      placeholder="e.g. 1250"
+                      className="w-full pl-3.5 pr-16 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] font-extrabold text-slate-500 bg-slate-200/70 px-2 py-0.5 rounded-md pointer-events-none">
+                      sq. ft.
+                    </span>
+                  </div>
                 </div>
 
                 <div>
@@ -1194,7 +1224,7 @@ export default function ListPropertyModal({
                     </div>
                     <div>
                       <div className="font-extrabold text-slate-900 text-sm">{title || "Property Title"}</div>
-                      <div className="text-xs text-[#FF6B00] font-black">{currencySymbol}{rent || "0"}/month • {propertyType}</div>
+                      <div className="text-xs text-[#FF6B00] font-black">{currencySymbol}{rent || "0"}/month • {propertyType}{sqft ? ` • ${sqft} sq. ft.` : ""}</div>
                       <div className="text-xs text-slate-500 font-medium">{locality || "Locality"}, {city || "City"}</div>
                     </div>
                   </div>

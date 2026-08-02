@@ -2,31 +2,52 @@
 
 import { useState, useEffect } from "react";
 import { FileText, Download, ShieldCheck, CheckCircle2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { useTenantMe } from "@/hooks/useTenantMe";
 
 export default function TenantLeasePage() {
+  const { data: tenantMe, isLoading } = useTenantMe();
   const [tenant, setTenant] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadTenantData() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
-        const res = await fetch(`/api/tenant/me${emailParam}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (json.data) {
-            setTenant(json.data);
-          }
-        }
-      } catch (err) {
-        console.error("Error loading tenant lease:", err);
-      }
+    if (isLoading) {
+      setLoading(true);
+      return;
     }
-    loadTenantData();
-  }, []);
+    if (tenantMe) setTenant(tenantMe);
+    setLoading(false);
+  }, [tenantMe, isLoading]);
 
   const rentVal = tenant?.monthlyRent || 3200;
+
+  if (loading) {
+    return (
+      <div className="space-y-8 animate-pulse">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <div className="h-8 w-56 bg-slate-200 rounded-lg" />
+            <div className="h-3.5 w-72 bg-slate-100 rounded-md" />
+          </div>
+          <div className="h-10 w-44 bg-slate-200 rounded-xl" />
+        </div>
+
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="h-4 w-56 bg-slate-200 rounded" />
+            <div className="h-6 w-28 bg-slate-100 rounded" />
+          </div>
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 space-y-4">
+            <div className="h-4 w-64 bg-slate-700 rounded mx-auto" />
+            <div className="h-3 w-full bg-slate-800 rounded" />
+            <div className="h-3 w-5/6 bg-slate-800 rounded" />
+            <div className="h-3 w-full bg-slate-800 rounded" />
+            <div className="h-3 w-4/5 bg-slate-800 rounded" />
+            <div className="h-3 w-3/4 bg-slate-800 rounded" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

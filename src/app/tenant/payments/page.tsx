@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Image from "next/image";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   CreditCard, 
   Download, 
@@ -28,14 +30,18 @@ import {
   FileCheck,
   ZoomIn
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useTenantMe, useTenantWorkspace } from "@/hooks/useTenantMe";
 
-export default function TenantPaymentsPage() {
+function TenantPaymentsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { formatCurrency, currencySymbol, setCurrency } = useCurrency();
+  const { data: tenantMe, isLoading: meLoading } = useTenantMe();
+  const { data: workspace, isLoading: wsLoading } = useTenantWorkspace(tenantMe?.workspaceId);
   const [paid, setPaid] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [tenant, setTenant] = useState<any>(null);
   const [workspaceUpi, setWorkspaceUpi] = useState<any>(null);
   const [copiedUpi, setCopiedUpi] = useState(false);
@@ -45,6 +51,8 @@ export default function TenantPaymentsPage() {
 
   // Verification Screenshots for GPay, PhonePe, Paytm (3 slots)
   const [proofImages, setProofImages] = useState<string[]>(["", "", ""]);
+
+  const loading = meLoading || (!!tenantMe?.workspaceId && wsLoading);
 
   const compressScreenshot = (file: File, index: number) => {
     const reader = new FileReader();
@@ -84,86 +92,50 @@ export default function TenantPaymentsPage() {
     reader.readAsDataURL(file);
   };
 
-  const loadTenantData = async () => {
-    try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
-      const res = await fetch(`/api/tenant/me${emailParam}`);
-      let tenantData: any = null;
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data) {
-          tenantData = json.data;
-          setTenant(json.data);
-        }
-      }
-
-      const wid = tenantData?.workspaceId != null ? Number(tenantData.workspaceId) : NaN;
-      if (!wid || isNaN(wid) || wid <= 0) {
-        setWorkspaceUpi(null);
-        return;
-      }
-
-      // Landlord payment channels for THIS tenant's workspace only
-      const wsRes = await fetch(`/api/workspace?wid=${encodeURIComponent(String(wid))}`);
-      if (wsRes.ok) {
-        const wsJson = await wsRes.json();
-        if (wsJson.data) {
-          if (wsJson.data.currency) {
-            setCurrency(wsJson.data.currency);
-          }
-          setWorkspaceUpi({
-            upiId: wsJson.data.upiId || "",
-            upiPhoneNumber: wsJson.data.upiPhoneNumber || "",
-            upiAccountName: wsJson.data.upiAccountName || "",
-            upiQrCodeUrl: wsJson.data.upiQrCodeUrl || "",
-            upiAppsSupported: wsJson.data.upiAppsSupported || "",
-            upiConnected: Boolean(wsJson.data.upiConnected),
-
-            gpayUpiId: wsJson.data.gpayUpiId || "",
-            gpayPhoneNumber: wsJson.data.gpayPhoneNumber || "",
-            gpayQrCodeUrl: wsJson.data.gpayQrCodeUrl || "",
-            gpayConnected: Boolean(wsJson.data.gpayConnected),
-
-            phonepeUpiId: wsJson.data.phonepeUpiId || "",
-            phonepePhoneNumber: wsJson.data.phonepePhoneNumber || "",
-            phonepeQrCodeUrl: wsJson.data.phonepeQrCodeUrl || "",
-            phonepeConnected: Boolean(wsJson.data.phonepeConnected),
-
-            paytmUpiId: wsJson.data.paytmUpiId || "",
-            paytmPhoneNumber: wsJson.data.paytmPhoneNumber || "",
-            paytmQrCodeUrl: wsJson.data.paytmQrCodeUrl || "",
-            paytmConnected: Boolean(wsJson.data.paytmConnected),
-
-            razorpayKeyId: wsJson.data.razorpayKeyId || "",
-            razorpayConnected: Boolean(wsJson.data.razorpayConnected),
-            stripeConnected: Boolean(wsJson.data.stripeConnected),
-            paypalConnected: Boolean(wsJson.data.paypalConnected),
-          });
-        } else {
-          setWorkspaceUpi(null);
-        }
-      } else {
-        setWorkspaceUpi(null);
-      }
-    } catch (err) {
-      console.error("Error loading tenant payments data:", err);
-      setWorkspaceUpi(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    if (tenantMe) setTenant(tenantMe);
+  }, [tenantMe]);
 
   useEffect(() => {
-    loadTenantData();
-    if (typeof window !== "undefined") {
-      const searchParams = new URLSearchParams(window.location.search);
-      if (searchParams.get("openModal") === "true" || searchParams.get("pay") === "true") {
-        setShowPaymentModal(true);
-      }
+    if (!workspace) {
+      setWorkspaceUpi(null);
+      return;
     }
-  }, []);
+    if (workspace.currency) {
+      setCurrency(workspace.currency);
+    }
+    setWorkspaceUpi({
+      upiId: workspace.upiId || "",
+      upiPhoneNumber: workspace.upiPhoneNumber || "",
+      upiAccountName: workspace.upiAccountName || "",
+      upiQrCodeUrl: workspace.upiQrCodeUrl || "",
+      upiAppsSupported: workspace.upiAppsSupported || "",
+      upiConnected: Boolean(workspace.upiConnected),
+
+      gpayUpiId: workspace.gpayUpiId || "",
+      gpayPhoneNumber: workspace.gpayPhoneNumber || "",
+      gpayQrCodeUrl: workspace.gpayQrCodeUrl || "",
+      gpayConnected: Boolean(workspace.gpayConnected),
+
+      phonepeUpiId: workspace.phonepeUpiId || "",
+      phonepePhoneNumber: workspace.phonepePhoneNumber || "",
+      phonepeQrCodeUrl: workspace.phonepeQrCodeUrl || "",
+      phonepeConnected: Boolean(workspace.phonepeConnected),
+
+      paytmUpiId: workspace.paytmUpiId || "",
+      paytmPhoneNumber: workspace.paytmPhoneNumber || "",
+      paytmQrCodeUrl: workspace.paytmQrCodeUrl || "",
+      paytmConnected: Boolean(workspace.paytmConnected),
+
+      razorpayKeyId: workspace.razorpayKeyId || "",
+      razorpayConnected: Boolean(workspace.razorpayConnected),
+      stripeConnected: Boolean(workspace.stripeConnected),
+      paypalConnected: Boolean(workspace.paypalConnected),
+    });
+  }, [workspace, setCurrency]);
+
+  const refreshTenantData = () =>
+    queryClient.invalidateQueries({ queryKey: ["tenant-me"] });
 
   const rentVal = tenant?.monthlyRent || 3200;
 
@@ -368,7 +340,7 @@ export default function TenantPaymentsPage() {
       setPaid(true);
       setShowPaymentModal(false);
       setTimeout(() => setPaid(false), 6000);
-      await loadTenantData();
+      await refreshTenantData();
     } catch (err) {
       console.error("Payment submit error:", err);
     } finally {
@@ -838,7 +810,22 @@ export default function TenantPaymentsPage() {
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-xs font-bold text-slate-500">Loading payment receipts...</div>
+          <div className="animate-pulse space-y-0">
+            <div className="h-10 bg-slate-50 border-b border-slate-100 rounded-t-xl" />
+            {[...Array(5)].map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 px-2 py-3.5 border-b border-slate-100 last:border-b-0"
+              >
+                <div className="h-3.5 w-20 bg-slate-200 rounded" />
+                <div className="h-3.5 w-36 bg-slate-100 rounded flex-1 max-w-[180px]" />
+                <div className="h-3.5 w-16 bg-slate-200 rounded" />
+                <div className="h-3.5 w-24 bg-slate-100 rounded hidden sm:block" />
+                <div className="h-5 w-16 bg-slate-100 rounded" />
+                <div className="h-3.5 w-14 bg-slate-100 rounded ml-auto" />
+              </div>
+            ))}
+          </div>
         ) : history.length === 0 ? (
           <div className="p-12 text-center space-y-3 bg-slate-50/70 border border-slate-200/80 rounded-xl">
             <Receipt className="w-8 h-8 text-slate-400 mx-auto" />
@@ -934,5 +921,19 @@ export default function TenantPaymentsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function TenantPaymentsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[40vh]">
+          <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin" />
+        </div>
+      }
+    >
+      <TenantPaymentsContent />
+    </Suspense>
   );
 }

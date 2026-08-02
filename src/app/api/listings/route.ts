@@ -120,6 +120,7 @@ export async function POST(request: Request) {
       title,
       description,
       propertyType,
+      sqft,
       rent,
       deposit,
       tenantTypes = [],
@@ -154,6 +155,7 @@ export async function POST(request: Request) {
 
     const parsedRent = typeof rent === "number" ? rent : parseFloat(String(rent).replace(/[^0-9.]/g, "")) || 0;
     const parsedDeposit = deposit ? (typeof deposit === "number" ? deposit : parseFloat(String(deposit).replace(/[^0-9.]/g, ""))) : null;
+    const parsedSqft = sqft != null && sqft !== "" ? (typeof sqft === "number" ? sqft : parseFloat(String(sqft).replace(/[^0-9.]/g, ""))) : null;
 
     const parsedWid = wid != null ? parseInt(String(wid), 10) : NaN;
     if (!wid || isNaN(parsedWid) || parsedWid <= 0) {
@@ -169,6 +171,7 @@ export async function POST(request: Request) {
         title,
         description,
         propertyType,
+        sqft: parsedSqft,
         rent: parsedRent,
         deposit: parsedDeposit,
         tenantTypes,
@@ -245,6 +248,7 @@ export async function PATCH(request: Request) {
     if (body.title) updateData.title = body.title;
     if (body.description !== undefined) updateData.description = body.description;
     if (body.propertyType) updateData.propertyType = body.propertyType;
+    if (body.sqft !== undefined) updateData.sqft = body.sqft != null && body.sqft !== "" ? (typeof body.sqft === "number" ? body.sqft : parseFloat(String(body.sqft).replace(/[^0-9.]/g, ""))) : null;
     if (body.rent !== undefined) updateData.rent = typeof body.rent === "number" ? body.rent : parseFloat(String(body.rent).replace(/[^0-9.]/g, "")) || 0;
     if (body.deposit !== undefined) updateData.deposit = body.deposit ? (typeof body.deposit === "number" ? body.deposit : parseFloat(String(body.deposit).replace(/[^0-9.]/g, ""))) : null;
     if (Array.isArray(body.tenantTypes)) updateData.tenantTypes = body.tenantTypes;

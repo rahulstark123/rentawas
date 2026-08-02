@@ -287,7 +287,7 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
           </div>
 
           <div className="flex items-center gap-2 text-[10px]">
-            <span>Press <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-slate-700 shadow-2xs">Ctrl K</kbd> to toggle anytime</span>
+            <span>Press <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-slate-700 shadow-2xs">Ctrl / ⌘ K</kbd> to toggle anytime</span>
           </div>
         </div>
 

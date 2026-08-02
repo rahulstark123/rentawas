@@ -2,35 +2,36 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { 
-  Building2, 
-  Users, 
-  Wrench, 
-  DollarSign, 
-  TrendingUp, 
-  CheckCircle2, 
-  Search,
-  Bell
-} from "lucide-react";
-import ComingSoonModal from "@/components/ui/ComingSoonModal";
+import { useState, useEffect, useEffectEvent } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Building2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
+
+const LANDING_SLIDES = [
+  { src: "/landing 1.png", alt: "RentAwas property management dashboard" },
+  { src: "/landing 2.png", alt: "RentAwas listings and portfolio view" },
+  { src: "/landign 3.png", alt: "RentAwas tenant and operations view" },
+  { src: "/landing 5.png", alt: "RentAwas analytics and growth view" },
+] as const;
 
 interface HeroSectionProps {
   onOpenEarlyAccess?: () => void;
 }
 
 export default function HeroSection({ onOpenEarlyAccess }: HeroSectionProps = {}) {
-  const [activeTab, setActiveTab] = useState<"preview" | "interactive">("preview");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalTitle, setModalTitle] = useState("Feature Coming Soon!");
   const [isEarlyAccessModalOpen, setIsEarlyAccessModalOpen] = useState(false);
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
 
-  const openComingSoon = (title = "Feature Coming Soon!") => {
-    setModalTitle(title);
-    setIsModalOpen(true);
-  };
+  const goNext = useEffectEvent(() => {
+    setSlideIndex((i) => (i + 1) % LANDING_SLIDES.length);
+  });
+
+  useEffect(() => {
+    if (paused) return;
+    const id = window.setInterval(() => goNext(), 3500);
+    return () => window.clearInterval(id);
+  }, [paused]);
 
   const handleOpenEarlyAccess = () => {
     if (onOpenEarlyAccess) {
@@ -40,14 +41,14 @@ export default function HeroSection({ onOpenEarlyAccess }: HeroSectionProps = {}
     }
   };
 
+  const currentSlide = LANDING_SLIDES[slideIndex];
+
   return (
     <section id="platform" className="relative pt-28 md:pt-36 pb-20 md:pb-28 overflow-hidden bg-gradient-to-b from-[#0B132B] via-[#141E38] to-[#F8FAFC]">
-      {/* Radial Glow Accents */}
       <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-[#FF6B00]/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute top-1/3 left-1/4 w-[500px] h-[500px] bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-6 sm:px-8 text-center relative z-10">
-        {/* 100% Free Property Listing Badge */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -59,8 +60,7 @@ export default function HeroSection({ onOpenEarlyAccess }: HeroSectionProps = {}
           <span>100% Free Property Listing • Zero Broker Fees</span>
         </motion.div>
 
-        {/* Main Headline (List. Manage. Grow. in Cormorant Garamond font) */}
-        <motion.h1 
+        <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
@@ -73,8 +73,7 @@ export default function HeroSection({ onOpenEarlyAccess }: HeroSectionProps = {}
           </span>
         </motion.h1>
 
-        {/* Subheadline (Clean Inter font) */}
-        <motion.p 
+        <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
@@ -83,8 +82,7 @@ export default function HeroSection({ onOpenEarlyAccess }: HeroSectionProps = {}
           The complete property management & free property listing platform. List vacant properties for free, find tenants, collect rent, track expenses, manage maintenance, and run your rentals—all in one place.
         </motion.p>
 
-        {/* Action Buttons */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
@@ -105,199 +103,86 @@ export default function HeroSection({ onOpenEarlyAccess }: HeroSectionProps = {}
             <Search className="w-4 h-4 shrink-0 text-[#FF6B00]" />
             <span>Find Property</span>
           </Link>
-          <a
-            href="https://anshapps.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full sm:w-auto text-xs font-bold text-slate-900 bg-white hover:bg-slate-100 border border-white active:scale-[0.98] transition-all px-5 py-3.5 rounded-xl shadow-md text-center cursor-pointer uppercase tracking-wider inline-flex items-center justify-center whitespace-nowrap"
-          >
-            ANSH Apps
-          </a>
         </motion.div>
 
-        {/* Dashboard Mockup Frame */}
-        <motion.div 
-          id="demo" 
+        <motion.div
+          id="demo"
           initial={{ opacity: 0, y: 40, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.7, delay: 0.45, ease: "easeOut" }}
           className="max-w-5xl mx-auto mt-14 md:mt-16 bg-white rounded-xl md:rounded-2xl p-2.5 sm:p-3 window-shadow relative group"
         >
-          {/* Top Window Dots Header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 mb-2.5 bg-slate-50/80 rounded-t-lg">
+          <div className="flex items-center px-3 py-2 border-b border-slate-100 mb-2.5 bg-slate-50/80 rounded-t-lg">
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span>
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span>
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span>
-            </div>
-            
-            {/* View Switcher Toggle */}
-            <div className="flex items-center gap-1 bg-slate-200/70 p-1 rounded-md text-xs font-medium">
-              <button
-                onClick={() => setActiveTab("preview")}
-                className={`px-3 py-0.5 rounded-md text-[11px] transition-all ${
-                  activeTab === "preview"
-                    ? "bg-white text-slate-900 shadow-2xs font-bold"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Mockup View
-              </button>
-              <button
-                onClick={() => setActiveTab("interactive")}
-                className={`px-3 py-0.5 rounded-md text-[11px] transition-all ${
-                  activeTab === "interactive"
-                    ? "bg-white text-slate-900 shadow-2xs font-bold"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Live Interactive UI
-              </button>
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block" />
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block" />
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block" />
             </div>
           </div>
 
-          {/* Window Content */}
           <div className="relative rounded-lg overflow-hidden bg-slate-50 border border-slate-100">
-            {activeTab === "preview" ? (
-              /* Photo Mockup matching reference image */
-              <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] overflow-hidden bg-slate-100 flex items-center justify-center">
-                <Image
-                  src="/hero-dashboard.png"
-                  alt="RentAwas Dashboard Laptop Mockup"
-                  fill
-                  priority
-                  className="object-cover object-center transform group-hover:scale-[1.005] transition-transform duration-500"
-                />
+            <div
+              className="relative w-full aspect-[16/10] sm:aspect-[16/9] overflow-hidden bg-slate-100"
+              onMouseEnter={() => setPaused(true)}
+              onMouseLeave={() => setPaused(false)}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={currentSlide.src}
+                  initial={{ opacity: 0, x: 28 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -28 }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                  className="absolute inset-0"
+                >
+                  <Image
+                    src={currentSlide.src}
+                    alt={currentSlide.alt}
+                    fill
+                    priority={slideIndex === 0}
+                    sizes="(max-width: 1024px) 100vw, 1024px"
+                    className="object-contain object-center bg-slate-100"
+                  />
+                </motion.div>
+              </AnimatePresence>
+
+              <button
+                type="button"
+                aria-label="Previous screenshot"
+                onClick={() =>
+                  setSlideIndex((i) => (i - 1 + LANDING_SLIDES.length) % LANDING_SLIDES.length)
+                }
+                className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-10 p-1.5 sm:p-2 rounded-full bg-white/90 text-slate-800 shadow-md border border-slate-200/80 hover:bg-white transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                aria-label="Next screenshot"
+                onClick={() => setSlideIndex((i) => (i + 1) % LANDING_SLIDES.length)}
+                className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-10 p-1.5 sm:p-2 rounded-full bg-white/90 text-slate-800 shadow-md border border-slate-200/80 hover:bg-white transition-colors cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/35 backdrop-blur-sm">
+                {LANDING_SLIDES.map((slide, i) => (
+                  <button
+                    key={slide.src}
+                    type="button"
+                    aria-label={`Show slide ${i + 1}`}
+                    onClick={() => setSlideIndex(i)}
+                    className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                      i === slideIndex ? "w-5 bg-white" : "w-1.5 bg-white/50 hover:bg-white/80"
+                    }`}
+                  />
+                ))}
               </div>
-            ) : (
-              /* Interactive Rendered UI Dashboard */
-              <div className="w-full text-left p-4 sm:p-6 bg-white min-h-[420px] font-sans">
-                {/* Top Nav inside dashboard */}
-                <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md bg-[#FF6B00] text-white font-bold flex items-center justify-center text-xs">
-                      RA
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-900">Good Morning, Sarah!</h3>
-                      <p className="text-[11px] text-slate-500">Here is your property overview</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="relative hidden sm:block">
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                      <input
-                        type="text"
-                        placeholder="Search properties..."
-                        className="pl-8 pr-3 py-1.5 text-xs bg-slate-100 rounded-md border-0 focus:ring-1 focus:ring-slate-300 w-44"
-                        readOnly
-                      />
-                    </div>
-                    <button className="p-1.5 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200">
-                      <Bell className="w-3.5 h-3.5" />
-                    </button>
-                    <button 
-                      onClick={() => openComingSoon("Dashboard Analytics Detail")}
-                      className="text-[11px] font-bold px-3 py-1.5 rounded-md bg-[#0B132B] text-white uppercase tracking-wider"
-                    >
-                      View Details
-                    </button>
-                  </div>
-                </div>
-
-                {/* Grid Metric Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
-                  <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-100">
-                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Revenue</p>
-                    <div className="flex items-baseline justify-between mt-1">
-                      <p className="text-lg font-extrabold text-slate-900">$45,800</p>
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                        +5.2%
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-100">
-                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Units Occupied</p>
-                    <div className="flex items-baseline justify-between mt-1">
-                      <p className="text-lg font-extrabold text-slate-900">96.4%</p>
-                      <span className="text-[11px] text-slate-500 font-medium">217 / 225</span>
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-100">
-                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pending Maintenance</p>
-                    <div className="flex items-baseline justify-between mt-1">
-                      <p className="text-lg font-extrabold text-slate-900">14</p>
-                      <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-bold">
-                        Action Needed
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-100">
-                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Rent Arrears</p>
-                    <div className="flex items-baseline justify-between mt-1">
-                      <p className="text-lg font-extrabold text-slate-900">2.1%</p>
-                      <span className="text-[11px] text-slate-500 font-medium">$3,400</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Table Snippet */}
-                <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 sm:p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
-                      Active Maintenance Tickets
-                    </h4>
-                    <span 
-                      onClick={() => openComingSoon("Maintenance Tickets Control")}
-                      className="text-[11px] text-[#FF6B00] font-bold uppercase tracking-wider cursor-pointer"
-                    >
-                      View All
-                    </span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2.5 rounded-md bg-white border border-slate-100 text-xs">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-slate-900">AM-0789</span>
-                        <span className="text-slate-600">45 Riverdale Apt.</span>
-                        <span className="text-slate-500 hidden sm:inline">Roof Leak</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-600">High Priority</span>
-                        <span className="text-slate-400 text-[11px]">May 15</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 rounded-md bg-white border border-slate-100 text-xs">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-slate-900">AM-0756</span>
-                        <span className="text-slate-600">12 Oak St</span>
-                        <span className="text-slate-500 hidden sm:inline">HVAC Repair</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-600">Medium</span>
-                        <span className="text-slate-400 text-[11px]">May 14</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         </motion.div>
       </div>
 
-      {/* Coming Soon Modal */}
-      <ComingSoonModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={modalTitle}
-      />
-
-      {/* Early Access Lead Capture Modal */}
       <EarlyAccessModal
         isOpen={isEarlyAccessModalOpen}
         onClose={() => setIsEarlyAccessModalOpen(false)}

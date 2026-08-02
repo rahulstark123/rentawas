@@ -199,6 +199,10 @@ export default function PricingAndFAQ() {
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>14-day full-feature trial on signup</span>
                 </li>
+                <li className="flex items-center gap-2.5 font-bold text-orange-700">
+                  <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
+                  <span>20 AI Credits for RentAwas Buddy</span>
+                </li>
                 <li className="flex items-center gap-2.5 font-extrabold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>100% Free Property Listing</span>
@@ -260,6 +264,10 @@ export default function PricingAndFAQ() {
                 <li className="flex items-center gap-2.5 font-bold text-amber-700 bg-amber-50/80 px-2.5 py-1 rounded-lg border border-amber-200/60">
                   <Check className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>Free Access to RentAwas Expert Service (Coming Soon)</span>
+                </li>
+                <li className="flex items-center gap-2.5 font-bold text-orange-700">
+                  <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
+                  <span>50 AI Credits / month for RentAwas Buddy</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -358,7 +366,7 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5 font-bold text-orange-700">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>100 AI Credits / month</span>
+                  <span>200 AI Credits / month for RentAwas Buddy</span>
                 </li>
               </ul>
             </div>
@@ -430,7 +438,7 @@ export default function PricingAndFAQ() {
                 </li>
                 <li className="flex items-center gap-2.5 font-bold text-orange-700">
                   <Check className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                  <span>500 AI Credits / month</span>
+                  <span>500 AI Credits / month for RentAwas Buddy</span>
                 </li>
               </ul>
             </div>

@@ -3007,8 +3007,12 @@ export default function WorkspaceSettingsPage() {
                         <option value="REIT (Real Estate Investment Trust)">REIT (Real Estate Investment Trust)</option>
                         <option value="Property Management Agency (PMA / Brokerage)">Property Management Agency (PMA / Brokerage)</option>
                         <option value="Co-Living & PG / Student Housing Operator">Co-Living & PG / Student Housing Operator</option>
+                        <option value="Commercial Real Estate Manager / Asset Manager">Commercial Real Estate Manager / Asset Manager</option>
+                        <option value="Real Estate Broker / Channel Partner">Real Estate Broker / Channel Partner</option>
+                        <option value="Builder / Developer (Inventory Leasing)">Builder / Developer (Inventory Leasing)</option>
                         <option value="HUF (Hindu Undivided Family / Family Trust)">HUF (Hindu Undivided Family / Family Trust)</option>
                         <option value="Non-Profit / Trust / Cooperative Housing Society">Non-Profit / Trust / Cooperative Housing Society</option>
+                        <option value="Other / Mixed Portfolio Operator">Other / Mixed Portfolio Operator</option>
                       </select>
                       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>

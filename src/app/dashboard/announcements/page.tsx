@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { 
   Megaphone, 
   Plus, 
@@ -54,10 +55,57 @@ interface AnnouncementItem {
 export default function LandlordAnnouncementsPage() {
   const { toast } = useToast();
 
-  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
-  const [properties, setProperties] = useState<PropertyOption[]>([]);
-  const [tenants, setTenants] = useState<TenantOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  // ─── Workspace ID ──────────────────────────────────────────────────────────
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    resolveActiveWid().then((wid) => { if (wid) setWorkspaceId(wid); });
+  }, []);
+
+  // ─── TanStack Query hooks ───────────────────────────────────────────────────
+  const { data: announcements = [], isLoading: annLoading } = useQuery({
+    queryKey: ["announcements", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/announcements?workspaceId=${encodeURIComponent(workspaceId!)}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.data || []) as AnnouncementItem[];
+    },
+  });
+
+  // Shares the same cache key as properties/page.tsx — no duplicate DB hit
+  const { data: properties = [] } = useQuery({
+    queryKey: ["properties", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/properties?wid=${encodeURIComponent(workspaceId!)}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.data || []) as PropertyOption[];
+    },
+  });
+
+  // Shares the same cache key as dashboard/page.tsx — no duplicate DB hit
+  const { data: tenants = [] } = useQuery({
+    queryKey: ["tenants", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/tenants?workspaceId=${encodeURIComponent(workspaceId!)}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.data || []) as TenantOption[];
+    },
+  });
+
+  const loading = annLoading;
+
+  // Called after create/delete mutations to refresh the announcements list
+  const fetchData = () => {
+    queryClient.invalidateQueries({ queryKey: ["announcements"] });
+    queryClient.invalidateQueries({ queryKey: ["tenant-announcements"] });
+  };
 
   // Filter state
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -66,6 +114,10 @@ export default function LandlordAnnouncementsPage() {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Custom Delete Modal State
+  const [deletingAnnouncement, setDeletingAnnouncement] = useState<{ id: string; title: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form State
   const [title, setTitle] = useState("");
@@ -80,56 +132,7 @@ export default function LandlordAnnouncementsPage() {
   const [showPropDropdown, setShowPropDropdown] = useState(false);
   const [showTenantDropdown, setShowTenantDropdown] = useState(false);
 
-  // Fetch announcements, properties, and tenants for the active workspace only
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const activeWid = await resolveActiveWid();
-      if (!activeWid) {
-        setAnnouncements([]);
-        setProperties([]);
-        setTenants([]);
-        return;
-      }
 
-      const [annRes, propRes, tenantRes] = await Promise.all([
-        fetch(`/api/announcements?workspaceId=${encodeURIComponent(activeWid)}`),
-        fetch(`/api/properties?wid=${encodeURIComponent(activeWid)}`),
-        fetch(`/api/tenants?workspaceId=${encodeURIComponent(activeWid)}`),
-      ]);
-
-      if (annRes.ok) {
-        const annJson = await annRes.json();
-        setAnnouncements(annJson.data || []);
-      } else {
-        setAnnouncements([]);
-      }
-
-      if (propRes.ok) {
-        const propJson = await propRes.json();
-        setProperties(propJson.data || []);
-      } else {
-        setProperties([]);
-      }
-
-      if (tenantRes.ok) {
-        const tenantJson = await tenantRes.json();
-        setTenants(tenantJson.data || []);
-      } else {
-        setTenants([]);
-      }
-    } catch (err) {
-      console.error("Error fetching announcements data:", err);
-      toast("Failed to load announcements data", "error");
-      setAnnouncements([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const handleOpenModal = () => {
     setTitle("");
@@ -214,25 +217,29 @@ export default function LandlordAnnouncementsPage() {
     }
   };
 
-  const handleDeleteAnnouncement = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this announcement?")) return;
-
+  const handleConfirmDelete = async () => {
+    if (!deletingAnnouncement) return;
+    setIsDeleting(true);
     try {
       const activeWid = await resolveActiveWid();
       const res = await fetch(
-        `/api/announcements/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(activeWid)}`,
+        `/api/announcements/${encodeURIComponent(deletingAnnouncement.id)}?workspaceId=${encodeURIComponent(activeWid)}`,
         { method: "DELETE" }
       );
 
       if (res.ok) {
-        toast("Announcement removed.", "warning");
+        toast(`Announcement "${deletingAnnouncement.title}" deleted successfully.`, "warning");
+        setDeletingAnnouncement(null);
         fetchData();
       } else {
-        toast("Failed to delete announcement.", "error");
+        const errJson = await res.json().catch(() => null);
+        toast(errJson?.error || "Failed to delete announcement.", "error");
       }
     } catch (err) {
       console.error("Delete announcement error:", err);
       toast("Error deleting announcement", "error");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -367,9 +374,46 @@ export default function LandlordAnnouncementsPage() {
 
       {/* Announcements Stream - COMPACT CARD GRID VIEW */}
       {loading ? (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center shadow-2xs space-y-3">
-          <Loader2 className="w-7 h-7 text-[#FF6B00] animate-spin mx-auto" />
-          <p className="text-xs font-bold text-slate-600">Loading portfolio announcements...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3 animate-pulse">
+              {/* Badge row + delete button skeleton */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-4 w-20 bg-purple-100 rounded" />
+                  <div className="h-4 w-14 bg-slate-100 rounded" />
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="h-6 w-6 bg-slate-100 rounded-lg" />
+                  <div className="h-6 w-6 bg-slate-100 rounded-lg" />
+                </div>
+              </div>
+
+              {/* Title skeleton */}
+              <div className="space-y-1.5">
+                <div className="h-5 w-3/4 bg-slate-200 rounded-lg" />
+              </div>
+
+              {/* Body text lines skeleton */}
+              <div className="space-y-2">
+                <div className="h-3 w-full bg-slate-100 rounded" />
+                <div className="h-3 w-5/6 bg-slate-100 rounded" />
+                <div className="h-3 w-2/3 bg-slate-100 rounded" />
+              </div>
+
+              {/* Target scope badge skeleton */}
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                <div className="h-4 w-4 bg-slate-200 rounded" />
+                <div className="h-3.5 w-32 bg-slate-100 rounded" />
+              </div>
+
+              {/* Footer — creator + date skeleton */}
+              <div className="flex items-center justify-between pt-1">
+                <div className="h-3.5 w-28 bg-slate-100 rounded" />
+                <div className="h-3.5 w-20 bg-slate-100 rounded" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : filteredAnnouncements.length === 0 ? (
         <div className="bg-white border border-slate-200/90 rounded-3xl p-12 text-center space-y-4 shadow-2xs">
@@ -444,7 +488,7 @@ export default function LandlordAnnouncementsPage() {
                     </button>
 
                     <button
-                      onClick={() => handleDeleteAnnouncement(item.id)}
+                      onClick={() => setDeletingAnnouncement({ id: item.id, title: item.title })}
                       className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                       title="Delete Announcement"
                     >
@@ -814,6 +858,57 @@ export default function LandlordAnnouncementsPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* CUSTOM CONFIRM DELETE MODAL */}
+      {deletingAnnouncement && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-red-50 text-red-600 rounded-2xl shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 leading-tight">Delete Announcement?</h3>
+                <p className="text-xs text-slate-500 mt-0.5">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-xs text-slate-700 font-semibold">
+              Notice: <span className="font-bold text-slate-900">&quot;{deletingAnnouncement.title}&quot;</span>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeletingAnnouncement(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="px-4.5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-extrabold shadow-md shadow-red-500/20 transition-all flex items-center gap-2 cursor-pointer"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Notice</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

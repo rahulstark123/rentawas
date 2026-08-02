@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { 
   TrendingUp, 
   DollarSign, 
@@ -20,52 +21,36 @@ import {
   ChevronDown
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { useWorkspaceId } from "@/hooks/useWorkspaceId";
 
 export default function AnalyticsPage() {
   const { toast } = useToast();
   const [timeframe, setTimeframe] = useState<"YTD" | "6M" | "12M" | "ALL">("YTD");
+  const workspaceId = useWorkspaceId();
 
-  // Real-time analytics loaded from PostgreSQL API
-  const [analyticsData, setAnalyticsData] = useState<any>(null);
-  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+  const { data: analyticsData = null, isLoading: analyticsLoading } = useQuery({
+    queryKey: ["analytics", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/analytics?wid=${workspaceId}`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data ?? null;
+    },
+  });
 
-  const fetchAnalytics = async () => {
-    try {
-      setLoadingAnalytics(true);
-      const res = await fetch("/api/analytics?wid=1");
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data) {
-          setAnalyticsData(json.data);
-        }
-      }
-    } catch (err) {
-      console.warn("Could not fetch analytics from DB:", err);
-    } finally {
-      setLoadingAnalytics(false);
-    }
-  };
+  const { data: channelsData = null, isLoading: channelsLoading } = useQuery({
+    queryKey: ["analytics-channels", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/analytics/channels?wid=${workspaceId}`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data ?? null;
+    },
+  });
 
-  const [channelsData, setChannelsData] = useState<any>(null);
-
-  const fetchChannelsAnalytics = async () => {
-    try {
-      const res = await fetch("/api/analytics/channels?wid=1");
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data) {
-          setChannelsData(json.data);
-        }
-      }
-    } catch (err) {
-      console.warn("Could not fetch channels analytics:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchAnalytics();
-    fetchChannelsAnalytics();
-  }, []);
+  const loadingAnalytics = !workspaceId || analyticsLoading || channelsLoading;
 
   const monthlyData = analyticsData?.monthlyData || [
     { month: "Jan", rev: 85, exp: 20, net: 65 },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { 
@@ -49,103 +50,97 @@ export default function DashboardOverviewPage() {
   const [showAddPropertyModal, setShowAddPropertyModal] = useState(false);
   const [showEmptyStateCard, setShowEmptyStateCard] = useState(false);
   const [filterPeriod, setFilterPeriod] = useState<"this_month" | "last_month" | "ytd">("this_month");
-  const [loading, setLoading] = useState(true);
 
-  // Live PostgreSQL Data States
-  const [transactionsList, setTransactionsList] = useState<DashboardTransaction[]>([]);
-  const [liveProperties, setLiveProperties] = useState<any[]>([]);
-  const [liveTenants, setLiveTenants] = useState<any[]>([]);
-  const [liveMaintenanceCount, setLiveMaintenanceCount] = useState<number>(0);
-  const [urgentMaintenanceCount, setUrgentMaintenanceCount] = useState<number>(0);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
-  // Load Real Database Telemetry
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
-      if (!activeWid) {
-        setLoading(false);
-        return;
-      }
-
-      // 1. Fetch Real Transactions
-      const txRes = await fetch(`/api/transactions?wid=${activeWid}`);
-      if (txRes.ok) {
-        const json = await txRes.json();
-        if (json.success && Array.isArray(json.data)) {
-          const mapped: DashboardTransaction[] = json.data.map((t: any) => {
-            const desc = t.description || "Workspace Resident";
-            const parts = desc.split("—").map((s: string) => s.trim());
-            const tenantName = parts[0] || desc;
-            const unitName = parts[1] || "Primary Unit";
-
-            let rawNum = 0;
-            if (typeof t.amount === "string") {
-              rawNum = parseFloat(t.amount.replace(/[^0-9.]/g, "")) || 0;
-            } else if (typeof t.amount === "number") {
-              rawNum = t.amount;
-            }
-
-            const stStr = String(t.status || "").toLowerCase();
-            let st: "paid" | "pending" | "overdue" = "paid";
-            if (stStr === "overdue") st = "overdue";
-            else if (stStr === "processing" || stStr === "pending") st = "pending";
-            else st = "paid";
-
-            return {
-              id: t.transactionNumber || t.id,
-              tenant: tenantName,
-              unit: unitName,
-              amount: typeof t.amount === "string" ? t.amount : `$${rawNum.toLocaleString("en-US")}`,
-              rawAmount: rawNum,
-              dueDate: t.createdAt ? new Date(t.createdAt).toISOString().split("T")[0] : "2026-07-28",
-              status: st,
-              channel: t.paymentMethod || "Razorpay Auto-Debit",
-              paymentId: t.paymentId || "pay_direct_bank",
-            };
-          });
-          setTransactionsList(mapped);
-        }
-      }
-
-      // 2. Fetch Live Properties
-      const propRes = await fetch(`/api/properties?wid=${activeWid}`);
-      if (propRes.ok) {
-        const json = await propRes.json();
-        if (json.success && Array.isArray(json.data)) {
-          setLiveProperties(json.data);
-        }
-      }
-
-      // 3. Fetch Live Tenants
-      const tenantRes = await fetch(`/api/tenants?wid=${activeWid}`);
-      if (tenantRes.ok) {
-        const json = await tenantRes.json();
-        if (json.success && Array.isArray(json.data)) {
-          setLiveTenants(json.data);
-        }
-      }
-
-      // 4. Fetch Live Maintenance Tickets
-      const maintRes = await fetch(`/api/maintenance?wid=${activeWid}`);
-      if (maintRes.ok) {
-        const json = await maintRes.json();
-        if (json.success && Array.isArray(json.data)) {
-          setLiveMaintenanceCount(json.data.length);
-          const urgent = json.data.filter((m: any) => m.priority === "High" || m.priority === "Urgent" || m.status === "Open").length;
-          setUrgentMaintenanceCount(urgent);
-        }
-      }
-    } catch (err) {
-      console.warn("Could not load dashboard overview telemetry:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Resolve workspace ID once on mount
   useEffect(() => {
-    fetchDashboardData();
+    (async () => {
+      const wid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (wid) setWorkspaceId(wid);
+    })();
   }, []);
+
+  // ─── TanStack Query hooks — cached for 60s, shared across all dashboard pages ──
+
+  const { data: txData, isLoading: txLoading } = useQuery({
+    queryKey: ["transactions", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/transactions?wid=${workspaceId}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      if (!json.success || !Array.isArray(json.data)) return [];
+      return json.data.map((t: any) => {
+        const desc = t.description || "Workspace Resident";
+        const parts = desc.split("—").map((s: string) => s.trim());
+        const tenantName = parts[0] || desc;
+        const unitName = parts[1] || "Primary Unit";
+        let rawNum = 0;
+        if (typeof t.amount === "string") rawNum = parseFloat(t.amount.replace(/[^0-9.]/g, "")) || 0;
+        else if (typeof t.amount === "number") rawNum = t.amount;
+        const stStr = String(t.status || "").toLowerCase();
+        let st: "paid" | "pending" | "overdue" = "paid";
+        if (stStr === "overdue") st = "overdue";
+        else if (stStr === "processing" || stStr === "pending") st = "pending";
+        return {
+          id: t.transactionNumber || t.id,
+          tenant: tenantName,
+          unit: unitName,
+          amount: typeof t.amount === "string" ? t.amount : `$${rawNum.toLocaleString("en-US")}`,
+          rawAmount: rawNum,
+          dueDate: t.createdAt ? new Date(t.createdAt).toISOString().split("T")[0] : "2026-07-28",
+          status: st,
+          channel: t.paymentMethod || "Razorpay Auto-Debit",
+          paymentId: t.paymentId || "pay_direct_bank",
+        } as DashboardTransaction;
+      });
+    },
+  });
+
+  const { data: propData, isLoading: propLoading } = useQuery({
+    queryKey: ["properties", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/properties?wid=${workspaceId}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.success && Array.isArray(json.data) ? json.data : [];
+    },
+  });
+
+  const { data: tenantData, isLoading: tenantLoading } = useQuery({
+    queryKey: ["tenants", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/tenants?wid=${workspaceId}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.success && Array.isArray(json.data) ? json.data : [];
+    },
+  });
+
+  const { data: maintData, isLoading: maintLoading } = useQuery({
+    queryKey: ["maintenance", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/maintenance?wid=${workspaceId}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.success && Array.isArray(json.data) ? json.data : [];
+    },
+  });
+
+  const transactionsList: DashboardTransaction[] = txData || [];
+  const liveProperties: any[] = propData || [];
+  const liveTenants: any[] = tenantData || [];
+  const maintList: any[] = maintData || [];
+  const liveMaintenanceCount = maintList.length;
+  const urgentMaintenanceCount = maintList.filter(
+    (m: any) => m.priority === "High" || m.priority === "Urgent" || m.status === "Open"
+  ).length;
+
+  const loading = !workspaceId || txLoading || propLoading || tenantLoading || maintLoading;
 
   const filteredTransactions = transactionsList.filter((t) => {
     if (filter === "all") return true;
@@ -156,9 +151,15 @@ export default function DashboardOverviewPage() {
   const paidTxns = transactionsList.filter((t) => t.status === "paid");
   const totalMonthlyYield = paidTxns.reduce((acc, t) => acc + (t.rawAmount || 0), 0);
 
-  // Property units & accurate occupancy calculation strictly from PostgreSQL
-  const totalUnitsInPortfolio = liveProperties.reduce((acc, p) => acc + (p.totalUnits || 0), 0);
-  const totalOccupiedUnits = liveProperties.reduce((acc, p) => acc + (p.occupiedUnits || 0), 0);
+  // Property units & accurate occupancy — support raw API fields and any legacy mapped cache
+  const totalUnitsInPortfolio = liveProperties.reduce(
+    (acc, p) => acc + (p.totalUnits ?? p.units ?? 0),
+    0
+  );
+  const totalOccupiedUnits = liveProperties.reduce(
+    (acc, p) => acc + (p.occupiedUnits ?? p.occupied ?? 0),
+    0
+  );
   const occupancyPct = totalUnitsInPortfolio > 0 
     ? ((totalOccupiedUnits / totalUnitsInPortfolio) * 100).toFixed(1)
     : "0.0";
@@ -207,14 +208,6 @@ export default function DashboardOverviewPage() {
             <Plus className="w-4 h-4 text-orange-400" />
             <span>Add Property</span>
           </button>
-
-          <Link
-            href="/dashboard/payments"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs transition-all uppercase tracking-wider"
-          >
-            <Download className="w-4 h-4 text-slate-500" />
-            <span>Export Financials</span>
-          </Link>
 
           <Link
             href="/dashboard/leases"

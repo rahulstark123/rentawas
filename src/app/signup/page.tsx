@@ -186,17 +186,18 @@ export default function SignupPage() {
                 Elevate Your Rental Ecosystem
               </h2>
               <p className="text-slate-300 text-sm font-normal leading-relaxed mb-6">
-                Join thousands of property owners and residents streamlining property management with intelligent automation.
+                Join property owners and residents managing portfolios, messaging, maintenance, and RentAwas Buddy AI in one place.
               </p>
 
               {/* Feature Checklist */}
               <div className="space-y-3 pt-2">
                 {[
-                  "Automated Rent Reminders & Collection",
-                  "AI Localized Lease Generator",
-                  "Real-time Maintenance Dispatch",
-                  "Tenant Credit & Health Analytics",
-                  "No Hidden Setup Fees or Long Contracts"
+                  "Property & Unit Portfolio Dashboard",
+                  "In-App Landlord–Tenant Messaging",
+                  "RentAwas Buddy AI Insights",
+                  "Maintenance Request Tracking",
+                  "Tenant Health Scores & Documents",
+                  "No Hidden Setup Fees or Long Contracts",
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center gap-2.5 text-xs text-slate-200">
                     <div className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
@@ -216,7 +217,7 @@ export default function SignupPage() {
                 ))}
               </div>
               <p className="text-xs text-slate-300 italic mb-2">
-                &ldquo;RentAwas reduced our rent processing overhead by 70%. It&apos;s hands down the best property OS out there.&rdquo;
+                &ldquo;RentAwas keeps our properties, tenants, and maintenance in one dashboard. Messaging and Buddy AI save us hours every week.&rdquo;
               </p>
               <div className="text-[11px] font-bold text-slate-400">
                 — Marcus Vance, Portfolio Director (85+ Units)
@@ -235,11 +236,11 @@ export default function SignupPage() {
                 </h1>
                 <span className="px-2.5 py-1 rounded-full bg-orange-50 border border-orange-200 text-[#FF6B00] text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1">
                   <Sparkles className="w-3 h-3" />
-                  <span>7 Days Free Trial</span>
+                  <span>14 Days Free Trial</span>
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                Start managing spaces with 7 days full access — no credit card required.
+                Get 14 days of full access to properties, messaging, maintenance &amp; Buddy AI — no credit card required.
               </p>
             </div>
 

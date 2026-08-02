@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+const DEFAULT_PORTFOLIO_FOCUS =
+  "🏢 Residential Apartment (Flat / Condo / Penthouse)";
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -36,10 +39,10 @@ export async function POST(req: Request) {
       where: { wid: targetWid },
       data: {
         name: companyName || workspace.name,
-        businessType: businessType || "Landlord / Individual Owner",
+        businessType: businessType || "Individual Landlord / Homeowner (Individual)",
         operatingCity: operatingCity || "Not Specified",
         currency: currency || "USD ($)",
-        portfolioFocus: portfolioFocus || "Residential Apartments",
+        portfolioFocus: portfolioFocus || DEFAULT_PORTFOLIO_FOCUS,
         dueDay: dueDay ? Number(dueDay) : 1,
         isOnboarded: true,
       },

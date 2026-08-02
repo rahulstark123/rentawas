@@ -72,6 +72,8 @@ interface PropertyItem {
   title: string;
   description?: string;
   deposit?: number | null;
+  sqft?: number | null;
+  availableFrom?: string | null;
   location: string;
   city: string;
   price: string;
@@ -518,7 +520,11 @@ export default function PropertyDetailPage() {
           price: typeof item.rent === "number" ? `₹${item.rent.toLocaleString("en-IN")}` : item.rent || "₹0",
           type: item.propertyType || "Apartment",
           bhk: item.propertyType || "Apartment",
-          size: item.deposit ? `Deposit: ₹${item.deposit.toLocaleString("en-IN")}` : item.availableFrom || "Ready to Move",
+          sqft: item.sqft ?? null,
+          availableFrom: item.availableFrom || null,
+          size: item.sqft
+            ? `${Number(item.sqft).toLocaleString("en-IN")} sq. ft.`
+            : item.availableFrom || "Ready to Move",
           rating: item.avgRating || 4.9,
           reviewsCount: item.reviewCount || 14,
           image: uploadedPhotos[0] || mergedImages[0],
@@ -910,7 +916,11 @@ export default function PropertyDetailPage() {
                     <Maximize2 className="w-4 h-4 text-[#FF6B00]" />
                     Built-Up Area
                   </div>
-                  <div className="font-extrabold text-slate-900 text-sm">{property.size}</div>
+                  <div className="font-extrabold text-slate-900 text-sm">
+                    {property.sqft
+                      ? `${Number(property.sqft).toLocaleString("en-IN")} sq. ft.`
+                      : "—"}
+                  </div>
                 </div>
 
                 <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1">
@@ -926,7 +936,9 @@ export default function PropertyDetailPage() {
                     <Calendar className="w-4 h-4 text-emerald-500" />
                     Availability
                   </div>
-                  <div className="font-extrabold text-emerald-600 text-sm">Immediate Move-In</div>
+                  <div className="font-extrabold text-emerald-600 text-sm">
+                    {property.availableFrom || "Immediate Move-In"}
+                  </div>
                 </div>
               </div>
             </div>

@@ -75,6 +75,8 @@ model Workspace {
   propertyListings PropertyListing[]
   tenantInquiries  TenantInquiry[]
   chatRooms        ChatRoom[]
+  aiBills          AiBill[]
+  aiUsageLogs      AiUsageLog[]
   
   // Razorpay Payment Gateway Config
   razorpayKeyId         String?
@@ -142,6 +144,7 @@ model Property {
   unitsPerFloor Int       @default(4)
   totalUnits    Int       @default(4)
   avgRent       Float     @default(0)
+  sqft          Float?
 
   // AI Summary Cache — stores the most recent AI-generated property summary
   aiSummary            String?   // The last generated AI summary text
@@ -168,6 +171,7 @@ model Unit {
   unitNumber  String   // e.g. "Unit 101"
   floorNumber Int      @default(1)
   rent        Float    @default(0)
+  sqft        Float?
   isOccupied  Boolean  @default(false)
   
   propertyId  String
@@ -536,6 +540,7 @@ model PropertyListing {
   title              String
   description        String?
   propertyType       String
+  sqft               Float?
   rent               Float
   deposit            Float?
   tenantTypes        String[]
@@ -667,3 +672,38 @@ model ChatMessage {
   @@index([roomId])
 }
 
+model AiBill {
+  id            String    @id @default(cuid())
+  invoiceNumber String    @unique
+  amount        Float
+  credits       Int
+  packName      String
+  paymentId     String?
+  paymentMethod String    @default("Razorpay Live Gateway")
+  status        String    @default("SUCCESS")
+
+  workspaceId   Int
+  workspace     Workspace @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([workspaceId])
+  @@index([status])
+}
+
+model AiUsageLog {
+  id          String    @id @default(cuid())
+  feature     String
+  targetItem  String
+  question    String
+  creditsCost Int       @default(2)
+  status      String    @default("Completed")
+
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, createdAt])
+}

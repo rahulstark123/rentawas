@@ -81,6 +81,8 @@ interface PropertyItem {
   type: string;
   bhk: string;
   size: string;
+  sqft?: number | null;
+  deposit?: number | null;
   rating: number;
   reviewsCount: number;
   image: string;
@@ -177,7 +179,11 @@ export default function FindPropertyPage() {
           price: typeof item.rent === "number" ? `₹${item.rent.toLocaleString("en-IN")}` : item.rent || "₹0",
           type: item.propertyType || "Apartment",
           bhk: item.propertyType || "Apartment",
-          size: item.deposit ? `Deposit: ₹${item.deposit.toLocaleString("en-IN")}` : item.availableFrom || "Ready to Move",
+          sqft: item.sqft ?? null,
+          deposit: item.deposit ?? null,
+          size: item.sqft
+            ? `${Number(item.sqft).toLocaleString("en-IN")} sq. ft.`
+            : item.availableFrom || "Ready to Move",
           rating: item.avgRating ? Number(item.avgRating).toFixed(1) : 4.8,
           reviewsCount: item.reviewCount !== undefined ? item.reviewCount : 0,
           image: item.mainImage || item.image || item.coverImage || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80",
@@ -1170,7 +1176,11 @@ export default function FindPropertyPage() {
                 </div>
                 <div className="space-y-0.5">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Security Deposit</div>
-                  <div className="text-sm font-extrabold text-emerald-600">₹2,000 (Refundable)</div>
+                  <div className="text-sm font-extrabold text-emerald-600">
+                    {viewingPropertyDetail.deposit
+                      ? `₹${Number(viewingPropertyDetail.deposit).toLocaleString("en-IN")} (Refundable)`
+                      : "₹0 Deposit"}
+                  </div>
                 </div>
                 <div className="space-y-0.5 col-span-2 sm:col-span-1">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Brokerage Fee</div>
@@ -1194,7 +1204,11 @@ export default function FindPropertyPage() {
                       <Maximize2 className="w-3.5 h-3.5" />
                       Built-Up Area
                     </div>
-                    <div className="font-extrabold text-slate-900">{viewingPropertyDetail.size}</div>
+                    <div className="font-extrabold text-slate-900">
+                      {viewingPropertyDetail.sqft
+                        ? `${Number(viewingPropertyDetail.sqft).toLocaleString("en-IN")} sq. ft.`
+                        : "—"}
+                    </div>
                   </div>
                   <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1">
                     <div className="text-slate-400 font-bold flex items-center gap-1">
@@ -1208,7 +1222,9 @@ export default function FindPropertyPage() {
                       <Calendar className="w-3.5 h-3.5" />
                       Available From
                     </div>
-                    <div className="font-extrabold text-emerald-600">Immediate Move-In</div>
+                    <div className="font-extrabold text-emerald-600">
+                      {(viewingPropertyDetail as any).availableFrom || "Immediate Move-In"}
+                    </div>
                   </div>
                 </div>
               </div>

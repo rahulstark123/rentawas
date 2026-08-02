@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { 
   Users, 
   Search, 
@@ -47,6 +48,7 @@ import {
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
 import { getActiveWorkspaceId, ensureActiveWorkspaceId } from "@/lib/workspace";
+import { invalidateLandlordPortfolio } from "@/lib/queryInvalidation";
 import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
 import { uploadFile, validateFile } from "@/lib/upload";
 
@@ -74,13 +76,74 @@ export interface TenantItem {
   currentStatus?: string;
 }
 
+/** Normalize raw API tenant (or already-mapped cache) for tenants UI. Shared query cache may hold nested `unit` objects. */
+function mapApiTenantToItem(t: any): TenantItem {
+  const unitLabel =
+    typeof t.unit === "string"
+      ? t.unit
+      : `${t.unit?.property?.name || t.property?.name || "Property"} - ${t.unit?.unitNumber || "Unit 101"}`;
+
+  let score = typeof t.healthScore === "number" ? t.healthScore : 80;
+  if (!t.healthScore || t.healthScore === 95) {
+    score = 75;
+    if (t.govIdUrl) score += 10;
+    if (t.leaseDocUrl) score += 10;
+    if (t.phone && String(t.phone).trim()) score += 5;
+  }
+
+  const status: TenantItem["status"] =
+    t.status === "Excellent" || t.status === "Good" || t.status === "Fair" || t.status === "Attention"
+      ? t.status
+      : score >= 85
+        ? "Excellent"
+        : score >= 75
+          ? "Good"
+          : score >= 50
+            ? "Fair"
+            : "Attention";
+
+  return {
+    id: t.id,
+    name: t.name || "",
+    unit: unitLabel,
+    phone: t.phone || "",
+    email: t.email || "",
+    leaseStart: t.leaseStart
+      ? (typeof t.leaseStart === "string" && t.leaseStart.includes("T")
+          ? t.leaseStart.split("T")[0]
+          : String(t.leaseStart).slice(0, 10))
+      : "2026-01-01",
+    leaseEnd: t.leaseEnd
+      ? (typeof t.leaseEnd === "string" && t.leaseEnd.includes("T")
+          ? t.leaseEnd.split("T")[0]
+          : String(t.leaseEnd).slice(0, 10))
+      : "2026-12-31",
+    monthlyRent: t.monthlyRent || 0,
+    securityDeposit: t.securityDeposit || 0,
+    healthScore: score,
+    status,
+    onTimeRate: t.onTimeRate || "100%",
+    govIdAttached: t.govIdAttached ?? Boolean(t.govIdUrl),
+    govIdUrl: t.govIdUrl,
+    leaseDocAttached: t.leaseDocAttached ?? Boolean(t.leaseDocUrl),
+    leaseDocUrl: t.leaseDocUrl,
+    unitId: t.unitId,
+    propertyId: t.propertyId || (typeof t.unit === "object" ? t.unit?.propertyId : undefined),
+    workspaceId:
+      t.workspaceId ||
+      (typeof t.unit === "object" ? t.unit?.workspaceId || t.unit?.property?.workspaceId : undefined) ||
+      t.property?.workspaceId,
+    floorNumber: t.floorNumber || (typeof t.unit === "object" ? t.unit?.floorNumber : undefined) || 1,
+    currentStatus: t.currentStatus || (t.unitId ? "Current" : "Past"),
+  };
+}
+
 const ITEMS_PER_PAGE = 10;
 
 export default function TenantsPage() {
   const { toast } = useToast();
   const { formatCurrency, currencySymbol } = useCurrency();
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
 
   // View mode state (Card vs Table)
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
@@ -98,7 +161,6 @@ export default function TenantsPage() {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   // API Metadata lists for cascading selects
-  const [propertiesList, setPropertiesList] = useState<any[]>([]);
   const [propertyUnits, setPropertyUnits] = useState<any[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
 
@@ -161,9 +223,6 @@ export default function TenantsPage() {
   const [removeHealthScore, setRemoveHealthScore] = useState<number>(45);
   const [incidentNotes, setIncidentNotes] = useState("");
   const [flagTenant, setFlagTenant] = useState(true);
-
-  // Main Tenants State
-  const [tenants, setTenants] = useState<TenantItem[]>([]);
 
   // ─── RentAwas Buddy Tenant AI Assistant State ────────────────────────────
   const [selectedBuddyTenant, setSelectedBuddyTenant] = useState<TenantItem | null>(null);
@@ -241,96 +300,58 @@ export default function TenantsPage() {
   };
   // ─────────────────────────────────────────────────────────────────────────
 
-  // Fetch real tenants from database (workspace-scoped)
-  const fetchTenants = async () => {
-    try {
-      setLoading(true);
-      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
-      if (!activeWid) {
-        setTenants([]);
-        return;
-      }
-      const res = await fetch(`/api/tenants?workspaceId=${activeWid}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && Array.isArray(json.data)) {
-          const loaded: TenantItem[] = json.data.map((t: any) => {
-            const propName = t.unit?.property?.name || t.property?.name || "Property";
-            const unitNo = t.unit?.unitNumber || "Unit 101";
-            
-            let score = t.healthScore || 80;
-            if (!t.healthScore || t.healthScore === 95) {
-              score = 75;
-              if (t.govIdUrl) score += 10;
-              if (t.leaseDocUrl) score += 10;
-              if (t.phone && t.phone.trim()) score += 5;
-            }
-
-            return {
-              id: t.id,
-              name: t.name,
-              unit: `${propName} - ${unitNo}`,
-              phone: t.phone || "",
-              email: t.email || "",
-              leaseStart: t.leaseStart ? new Date(t.leaseStart).toISOString().split("T")[0] : "2026-01-01",
-              leaseEnd: t.leaseEnd ? new Date(t.leaseEnd).toISOString().split("T")[0] : "2026-12-31",
-              monthlyRent: t.monthlyRent || 0,
-              securityDeposit: t.securityDeposit || 0,
-              healthScore: score,
-              status: score >= 75 ? "Good" : score >= 30 ? "Fair" : "Critical",
-              onTimeRate: "100%",
-              govIdAttached: Boolean(t.govIdUrl),
-              govIdUrl: t.govIdUrl,
-              leaseDocAttached: Boolean(t.leaseDocUrl),
-              leaseDocUrl: t.leaseDocUrl,
-              unitId: t.unitId,
-              propertyId: t.propertyId || t.unit?.propertyId,
-              workspaceId: t.workspaceId || t.unit?.workspaceId || t.unit?.property?.workspaceId || t.property?.workspaceId,
-              floorNumber: t.floorNumber || t.unit?.floorNumber || 1,
-              currentStatus: t.currentStatus || (t.unitId ? "Current" : "Past"),
-            };
-          });
-          setTenants(loaded);
-        }
-      }
-    } catch (err) {
-      console.warn("Could not fetch tenants from database:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch live properties from API (workspace-scoped, no fake fallbacks)
-  const fetchPropertiesList = async () => {
-    try {
-      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
-      if (!activeWid) {
-        setPropertiesList([]);
-        return;
-      }
-      const res = await fetch(`/api/properties?wid=${activeWid}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && Array.isArray(json.data)) {
-          setPropertiesList(json.data);
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn("Could not fetch properties list from API:", err);
-    }
-    setPropertiesList([]);
-  };
+  // ─── Workspace ID ──────────────────────────────────────────────────────────
+  const [tenantsWorkspaceId, setTenantsWorkspaceId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    fetchTenants();
-    fetchPropertiesList();
+    (async () => {
+      const wid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (wid) setTenantsWorkspaceId(wid);
+    })();
   }, []);
 
-  const filteredTenants = tenants.filter((t) => {
+  // ─── TanStack Query Hooks ──────────────────────────────────────────────────
+  // Cache stores raw API tenants (shared with dashboard/prefetch). Map in `select` for UI.
+  const { data: tenants = [], isLoading: loading } = useQuery({
+    queryKey: ["tenants", tenantsWorkspaceId],
+    enabled: !!tenantsWorkspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/tenants?workspaceId=${tenantsWorkspaceId}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      if (!json.data || !Array.isArray(json.data)) return [];
+      return json.data;
+    },
+    select: (data) => (Array.isArray(data) ? data : []).map(mapApiTenantToItem),
+  });
+
+  const { data: propertiesList = [] } = useQuery({
+    queryKey: ["properties", tenantsWorkspaceId],
+    enabled: !!tenantsWorkspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/properties?wid=${tenantsWorkspaceId}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.data && Array.isArray(json.data)) ? json.data : [];
+    },
+  });
+
+  const fetchTenants = () => {
+    queryClient.invalidateQueries({ queryKey: ["tenants"] });
+    invalidateLandlordPortfolio(queryClient);
+  };
+  const fetchPropertiesList = () => queryClient.invalidateQueries({ queryKey: ["properties"] });
+
+  // Include !tenantsWorkspaceId: query is disabled until wid resolves, so isLoading is false otherwise
+  const isLoading = !tenantsWorkspaceId || loading;
+
+
+  const filteredTenants = tenants.filter((t: any) => {
+    const unitText = typeof t.unit === "string" ? t.unit : String(t.unit?.unitNumber || "");
     const matchesSearch =
-      t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.unit.toLowerCase().includes(searchTerm.toLowerCase());
+      String(t.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      unitText.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (!matchesSearch) return false;
 
@@ -394,7 +415,7 @@ export default function TenantsPage() {
   };
 
   // Compute available floors for the selected property
-  const selectedPropertyObj = propertiesList.find((p) => p.id === selectedPropertyId);
+  const selectedPropertyObj = propertiesList.find((p: any) => p.id === selectedPropertyId);
   const derivedFloorsFromUnits = Array.from(
     new Set(propertyUnits.map((u) => u.floorNumber || 1))
   ).sort((a, b) => (a as number) - (b as number));
@@ -473,6 +494,102 @@ export default function TenantsPage() {
     setGovIdUrl(t.govIdUrl || null);
     setLeaseUrl(t.leaseDocUrl || null);
     setCurrentStep(1);
+
+    // Ensure properties list is loaded
+    let currentProps = propertiesList;
+    if (currentProps.length === 0) {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (activeWid) {
+        try {
+          const res = await fetch(`/api/properties?wid=${activeWid}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.data && Array.isArray(json.data)) {
+              currentProps = json.data;
+            }
+          }
+        } catch {}
+      }
+    }
+
+    // 1. Determine Property ID
+    let propId = t.propertyId || "";
+    if (!propId && t.unit) {
+      const parsedPropName = t.unit.split(" - ")[0]?.trim();
+      const matchedProp = currentProps.find((p: any) => p.name.toLowerCase() === parsedPropName?.toLowerCase());
+      if (matchedProp) {
+        propId = matchedProp.id;
+      }
+    }
+
+    if (!propId && currentProps.length > 0) {
+      propId = currentProps[0].id;
+    }
+
+    if (propId) {
+      setSelectedPropertyId(propId);
+      setLoadingUnits(true);
+      let fetchedUnits: any[] = [];
+      try {
+        const res = await fetch(`/api/properties/${encodeURIComponent(propId)}/units`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+            fetchedUnits = json.data;
+          }
+        }
+      } catch (err) {
+        console.warn("Could not fetch units for property in edit modal:", err);
+      }
+
+      if (fetchedUnits.length === 0) {
+        // Fallback units generator
+        for (let f = 1; f <= 5; f++) {
+          fetchedUnits.push(
+            { id: `${propId}-u${f}01`, unitNumber: `Unit ${f}01`, floorNumber: f, rent: t.monthlyRent || 1500, isOccupied: false },
+            { id: `${propId}-u${f}02`, unitNumber: `Unit ${f}02`, floorNumber: f, rent: t.monthlyRent || 1600, isOccupied: true },
+            { id: `${propId}-u${f}03`, unitNumber: `Unit ${f}03`, floorNumber: f, rent: t.monthlyRent || 1700, isOccupied: false },
+            { id: `${propId}-u${f}04`, unitNumber: `Unit ${f}04`, floorNumber: f, rent: t.monthlyRent || 1800, isOccupied: true }
+          );
+        }
+      }
+
+      setPropertyUnits(fetchedUnits);
+      setLoadingUnits(false);
+
+      // 2. Pre-fill Floor
+      const targetFloor = t.floorNumber ? String(t.floorNumber) : "1";
+      setSelectedFloor(targetFloor);
+
+      // 3. Pre-fill Unit ID
+      let targetUnitId = t.unitId || "";
+      if (!targetUnitId && t.unit) {
+        const parsedUnitNo = t.unit.split(" - ")[1]?.trim();
+        if (parsedUnitNo) {
+          const matchedUnit = fetchedUnits.find(
+            (u) => u.unitNumber?.toLowerCase() === parsedUnitNo.toLowerCase() || u.id === parsedUnitNo
+          );
+          if (matchedUnit) {
+            targetUnitId = matchedUnit.id;
+          }
+        }
+      }
+
+      if (!targetUnitId && fetchedUnits.length > 0) {
+        const firstUnitOnFloor = fetchedUnits.find((u) => String(u.floorNumber || 1) === targetFloor) || fetchedUnits[0];
+        if (firstUnitOnFloor) {
+          targetUnitId = firstUnitOnFloor.id;
+        }
+      }
+
+      setSelectedUnitId(targetUnitId);
+    } else {
+      setSelectedPropertyId("");
+      setSelectedFloor("");
+      setSelectedUnitId("");
+      setPropertyUnits([]);
+    }
+
     setShowAddModal(true);
   };
 
@@ -742,10 +859,10 @@ export default function TenantsPage() {
             className="px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer shadow-2xs"
           >
             <option value="Current">
-              Current Residents ({tenants.filter(t => t.currentStatus === "Current" || (Boolean(t.unitId) && t.currentStatus !== "Exited" && t.currentStatus !== "Evicted")).length})
+              Current Residents ({tenants.filter((t: any) => t.currentStatus === "Current" || (Boolean(t.unitId) && t.currentStatus !== "Exited" && t.currentStatus !== "Evicted")).length})
             </option>
             <option value="Past">
-              Past Residents ({tenants.filter(t => t.currentStatus === "Past" || t.currentStatus === "Exited" || t.currentStatus === "Evicted" || !t.unitId).length})
+              Past Residents ({tenants.filter((t: any) => t.currentStatus === "Past" || t.currentStatus === "Exited" || t.currentStatus === "Evicted" || !t.unitId).length})
             </option>
             <option value="All">
               All Residents ({tenants.length})
@@ -799,12 +916,72 @@ export default function TenantsPage() {
         </div>
       </div>
 
-      {/* Loading state */}
-      {loading ? (
-        <div className="p-12 text-center space-y-3 bg-white border border-slate-200 rounded-3xl">
-          <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin mx-auto" />
-          <p className="text-sm font-bold text-slate-700">Loading live tenant telemetry records...</p>
-        </div>
+      {/* Loading state — skeleton cards / table rows */}
+      {isLoading ? (
+        viewMode === "card" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4 animate-pulse"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 shrink-0" />
+                    <div className="space-y-2">
+                      <div className="h-4 w-32 bg-slate-200 rounded-md" />
+                      <div className="h-3 w-44 bg-slate-100 rounded-md" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="space-y-1.5 text-right">
+                      <div className="h-6 w-20 bg-slate-100 rounded-full ml-auto" />
+                      <div className="h-2.5 w-16 bg-slate-100 rounded ml-auto" />
+                    </div>
+                    <div className="flex items-center gap-1 pl-2 border-l border-slate-100">
+                      <div className="h-7 w-7 bg-slate-100 rounded-lg" />
+                      <div className="h-7 w-7 bg-slate-100 rounded-lg" />
+                      <div className="h-7 w-7 bg-slate-100 rounded-lg" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                  <div className="space-y-1.5">
+                    <div className="h-2.5 w-20 bg-slate-200 rounded" />
+                    <div className="h-4 w-24 bg-slate-200 rounded" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="h-2.5 w-20 bg-slate-200 rounded" />
+                    <div className="h-4 w-20 bg-slate-200 rounded" />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div className="h-3.5 w-28 bg-slate-100 rounded" />
+                  <div className="h-8 w-28 bg-slate-100 rounded-xl" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs animate-pulse">
+            <div className="h-11 bg-slate-50 border-b border-slate-100" />
+            {[...Array(5)].map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 px-5 py-4 border-b border-slate-100 last:border-b-0"
+              >
+                <div className="w-8 h-8 rounded-full bg-slate-200 shrink-0" />
+                <div className="h-3.5 w-28 bg-slate-200 rounded flex-1 max-w-[140px]" />
+                <div className="h-3.5 w-36 bg-slate-100 rounded hidden sm:block" />
+                <div className="h-3.5 w-20 bg-slate-100 rounded hidden md:block" />
+                <div className="h-6 w-16 bg-slate-100 rounded-full" />
+                <div className="h-7 w-20 bg-slate-100 rounded-lg ml-auto" />
+              </div>
+            ))}
+          </div>
+        )
       ) : filteredTenants.length === 0 ? (
         <div className="p-12 text-center space-y-3 bg-white border border-slate-200 rounded-3xl">
           <Users className="w-10 h-10 text-slate-300 mx-auto" />
@@ -816,12 +993,12 @@ export default function TenantsPage() {
           {/* VIEW MODE 1: GRID CARD VIEW (Max 10 per page) */}
           {viewMode === "card" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {paginatedTenants.map((t) => (
+              {paginatedTenants.map((t: any) => (
                 <div key={t.id} className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4 hover:shadow-md transition-shadow relative">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-[#0B132B] text-white font-bold text-sm flex items-center justify-center shrink-0">
-                        {t.name.split(" ").map(n => n[0]).join("")}
+                        {t.name.split(" ").map((n: any) => n[0]).join("")}
                       </div>
                       <div>
                         <h3 className="text-base font-bold text-slate-900">{t.name}</h3>
@@ -957,12 +1134,12 @@ export default function TenantsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-semibold text-slate-900">
-                    {paginatedTenants.map((t) => (
+                    {paginatedTenants.map((t: any) => (
                       <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-[#0B132B] text-white font-bold text-xs flex items-center justify-center shrink-0">
-                              {t.name.split(" ").map(n => n[0]).join("")}
+                              {t.name.split(" ").map((n: any) => n[0]).join("")}
                             </div>
                             <div>
                               <span className="font-extrabold block text-slate-900">{t.name}</span>
@@ -1465,7 +1642,7 @@ export default function TenantsPage() {
                           className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                         >
                           <option value="">-- Select Property --</option>
-                          {propertiesList.map((p) => (
+                          {propertiesList.map((p: any) => (
                             <option key={p.id} value={p.id}>{p.name}</option>
                           ))}
                         </select>

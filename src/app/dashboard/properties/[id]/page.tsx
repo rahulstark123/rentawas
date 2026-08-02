@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   Building2, 
   ArrowLeft, 
@@ -56,12 +57,16 @@ import {
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
 import { getActiveWorkspaceId, ensureActiveWorkspaceId } from "@/lib/workspace";
+import { invalidateLandlordPortfolio } from "@/lib/queryInvalidation";
 import { getActivePaymentMethods, type ActivePaymentMethod } from "@/lib/paymentMethods";
+import { RENT_DUE_DAY_OPTIONS } from "@/lib/rentDueDay";
 import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
 import AiCreditsExhaustedModal from "@/components/AiCreditsExhaustedModal";
+import { usePropertyDetail } from "@/hooks/usePropertyDetail";
 
 // Interface for unit item
 export interface UnitItem {
+  id?: string;
   unitNo: string;
   type: string;
   sqft: string;
@@ -146,8 +151,12 @@ export default function PropertyFloorPlanPage() {
 
   const propId = (params?.id as string) || "PROP-1";
   const propertyMock = PROPERTIES_DB[propId] || PROPERTIES_DB["PROP-1"];
-
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const {
+    data: propertyDetail,
+    isLoading: loading,
+    workspaceId: propertyWorkspaceId,
+  } = usePropertyDetail(propId);
 
   const [propertyData, setPropertyData] = useState({
     id: propId,
@@ -324,81 +333,14 @@ export default function PropertyFloorPlanPage() {
   // Dynamic Units State indexed by Floor Number
   const [floorUnitsMap, setFloorUnitsMap] = useState<Record<number, UnitItem[]>>({});
 
-  // Fetch live property details & unit matrix from API
+  // Sync TanStack Query cache → local state (keeps existing mutation UX working)
   useEffect(() => {
     fetchAiCredits();
-    async function loadPropertyDetails() {
-      setLoading(true);
-      try {
-        const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
-        if (!activeWid) return;
-        const res = await fetch(`/api/properties/${propId}?wid=${activeWid}`);
-        if (!res.ok) return;
-        const json = await res.json();
-        if (json.success && json.data) {
-          const apiProp = json.data;
-          const totalUnitsCount = apiProp.units ? apiProp.units.length : (apiProp.totalUnits || 0);
-          const occupiedCount = apiProp.units ? apiProp.units.filter((u: any) => u.isOccupied).length : 0;
-          const totalYield = apiProp.units 
-            ? apiProp.units.filter((u: any) => u.isOccupied).reduce((acc: number, u: any) => acc + (u.rent || 0), 0) 
-            : 0;
-          const occPercent = totalUnitsCount > 0 ? Math.round((occupiedCount / totalUnitsCount) * 100) : 0;
-
-          setPropertyData({
-            id: apiProp.id,
-            name: apiProp.name,
-            address: apiProp.address,
-            floors: apiProp.floors || 1,
-            units: totalUnitsCount,
-            occupied: occupiedCount,
-            rawMonthlyYield: totalYield,
-            monthlyYield: `$${totalYield.toLocaleString()}`,
-            status: `${occPercent}% Occupied`,
-            tag: apiProp.category || "Property",
-          });
-
-          setFloorsCount(apiProp.floors || 1);
-
-          // Build floorUnitsMap from API units
-          if (apiProp.units && apiProp.units.length > 0) {
-            const apiFloorMap: Record<number, UnitItem[]> = {};
-            apiProp.units.forEach((u: any) => {
-              const fl = u.floorNumber || 1;
-              if (!apiFloorMap[fl]) apiFloorMap[fl] = [];
-
-              const primaryTenant = u.tenants && u.tenants.length > 0 ? u.tenants[0] : null;
-
-              apiFloorMap[fl].push({
-                unitNo: u.unitNumber,
-                type: u.type || "Standard Suite",
-                sqft: u.sqft || "850 sq ft",
-                rooms: u.rooms || "2 Bedrooms • 2 Baths • Living • Kitchen",
-                rawRent: u.rent || 0,
-                rent: `$${(u.rent || 0).toLocaleString()}/mo`,
-                status: u.isOccupied ? "Occupied" : "Vacant",
-                tenant: primaryTenant ? {
-                  name: primaryTenant.fullName || primaryTenant.name || "Resident",
-                  contact: "Primary Resident",
-                  phone: primaryTenant.phone || "+1 (555) 000-0000",
-                  email: primaryTenant.email || "resident@rentawas.com",
-                  moveIn: primaryTenant.moveInDate ? new Date(primaryTenant.moveInDate).toISOString().split("T")[0] : "2025-01-01",
-                  leaseEnd: primaryTenant.leaseEndDate ? new Date(primaryTenant.leaseEndDate).toISOString().split("T")[0] : "2026-01-01",
-                  health: "Active Tenant",
-                } : null,
-              });
-            });
-            setFloorUnitsMap(apiFloorMap);
-          }
-        }
-      } catch (err) {
-        console.warn("Could not fetch property detail API:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadPropertyDetails();
-  }, [propId]);
+    if (!propertyDetail) return;
+    setPropertyData(propertyDetail.property);
+    setFloorsCount(propertyDetail.floorsCount);
+    setFloorUnitsMap(propertyDetail.floorUnitsMap as Record<number, UnitItem[]>);
+  }, [propertyDetail]);
 
   // Modals state
   const [showAddFloorModal, setShowAddFloorModal] = useState(false);
@@ -434,6 +376,7 @@ export default function PropertyFloorPlanPage() {
   const [confirmUnitNameInput, setConfirmUnitNameInput] = useState("");
   const [isUnitCopied, setIsUnitCopied] = useState(false);
   const [isDeletingUnit, setIsDeletingUnit] = useState(false);
+  const [isSavingUnit, setIsSavingUnit] = useState(false);
 
   // Assign Tenant 4-Step Modal State
   const [assigningUnitNo, setAssigningUnitNo] = useState<string | null>(null);
@@ -620,6 +563,7 @@ export default function PropertyFloorPlanPage() {
       "success"
     );
     setAssigningUnitNo(null);
+    invalidateLandlordPortfolio(queryClient, { propId });
   };
 
   const floorsList = Array.from({ length: floorsCount }, (_, i) => floorsCount - i);
@@ -676,6 +620,7 @@ export default function PropertyFloorPlanPage() {
     }
 
     const rentVal = parseFloat(newRent) || 0;
+    let createdUnitId: string | undefined;
 
     try {
       const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
@@ -695,6 +640,7 @@ export default function PropertyFloorPlanPage() {
         toast(json.error || "Failed to create unit.", "error");
         return;
       }
+      createdUnitId = json.data?.id;
     } catch (err) {
       console.warn("Could not save unit via API:", err);
       toast("Could not save unit to server. Please try again.", "error");
@@ -702,6 +648,7 @@ export default function PropertyFloorPlanPage() {
     }
 
     const newUnitObj: UnitItem = {
+      id: createdUnitId,
       unitNo: finalUnitNo,
       type: newUnitType,
       sqft: newSqft || "950 sq ft",
@@ -746,19 +693,217 @@ export default function PropertyFloorPlanPage() {
     setNewTenantName("");
     setShowAddUnitModal(false);
     toast(`${finalUnitNo} created on Floor ${targetFl}!`, "success");
+    queryClient.invalidateQueries({ queryKey: ["property", propId] });
+    queryClient.invalidateQueries({ queryKey: ["properties"] });
+  };
+
+  // Handler: Edit Unit (PATCH API)
+  const handleSaveEditedUnit = async () => {
+    if (!editingUnit || !propertyData?.id) return;
+
+    const targetFl = editFloorTarget || selectedFloor;
+    const cleanNum = editUnitNo.replace(/\D/g, "");
+    const updatedUnitNo = cleanNum ? `Unit ${cleanNum}` : editingUnit.unitNo;
+    const rentVal = parseFloat(editRent) || 0;
+
+    if (rentVal <= 0) {
+      toast("Please enter a valid monthly rent amount.", "info");
+      return;
+    }
+
+    if (
+      updatedUnitNo.toLowerCase() !== editingUnit.unitNo.toLowerCase() &&
+      (getFloorUnits(targetFl) || []).some(
+        (u) => u.unitNo.toLowerCase() === updatedUnitNo.toLowerCase()
+      )
+    ) {
+      toast(`Unit "${updatedUnitNo}" already exists on Floor ${targetFl}!`, "error");
+      return;
+    }
+
+    const unitKey = editingUnit.id || editingUnit.unitNo;
+    setIsSavingUnit(true);
+    try {
+      const res = await fetch(
+        `/api/properties/${propertyData.id}/units/${encodeURIComponent(unitKey)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            unitNumber: updatedUnitNo,
+            floorNumber: targetFl,
+            rent: rentVal,
+            isOccupied: editStatus === "Occupied",
+          }),
+        }
+      );
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        toast(json.error || "Failed to update unit.", "error");
+        return;
+      }
+
+      const oldRent =
+        editingUnit.rawRent != null
+          ? Number(editingUnit.rawRent)
+          : parseFloat(String(editingUnit.rent || "").replace(/[^0-9.]/g, "")) || 0;
+      const wasOccupied = editingUnit.status === "Occupied";
+      const isOccupiedNow = editStatus === "Occupied";
+
+      const updatedUnitObj: UnitItem = {
+        ...editingUnit,
+        id: json.data?.id || editingUnit.id,
+        unitNo: updatedUnitNo,
+        rawRent: rentVal,
+        rent: `${currencySymbol}${rentVal.toLocaleString()}/mo`,
+        status: editStatus,
+        tenant:
+          editStatus === "Occupied"
+            ? {
+                name: editTenantName.trim() || editingUnit.tenant?.name || "Resident",
+                contact: "Primary Resident",
+                phone: editingUnit.tenant?.phone || "+1 (555) 000-0000",
+                email: editingUnit.tenant?.email || "resident@rentawas.com",
+                moveIn: editingUnit.tenant?.moveIn || "2026-08-01",
+                leaseEnd: editingUnit.tenant?.leaseEnd || "2027-07-31",
+                health: "Active Tenant",
+              }
+            : null,
+      };
+
+      const sourceFloor = selectedFloor;
+      if (targetFl !== sourceFloor) {
+        setFloorUnitsMap((prev) => ({
+          ...prev,
+          [sourceFloor]: (prev[sourceFloor] || []).filter((u) => u.unitNo !== editingUnit.unitNo),
+          [targetFl]: [updatedUnitObj, ...(prev[targetFl] || [])],
+        }));
+        setSelectedFloor(targetFl);
+      } else {
+        setFloorUnitsMap((prev) => ({
+          ...prev,
+          [sourceFloor]: (prev[sourceFloor] || []).map((u) =>
+            u.unitNo === editingUnit.unitNo ? updatedUnitObj : u
+          ),
+        }));
+      }
+
+      setPropertyData((prev) => {
+        let nextYield = prev.rawMonthlyYield;
+        if (wasOccupied) nextYield -= oldRent;
+        if (isOccupiedNow) nextYield += rentVal;
+        let nextOccupied = prev.occupied;
+        if (wasOccupied && !isOccupiedNow) nextOccupied -= 1;
+        if (!wasOccupied && isOccupiedNow) nextOccupied += 1;
+        const occPercent =
+          prev.units > 0 ? Math.round((nextOccupied / prev.units) * 100) : 0;
+        return {
+          ...prev,
+          occupied: nextOccupied,
+          rawMonthlyYield: Math.max(0, nextYield),
+          monthlyYield: `${currencySymbol}${Math.max(0, nextYield).toLocaleString()}`,
+          status: `${occPercent}% Occupied`,
+        };
+      });
+
+      toast(`${updatedUnitNo} updated successfully!`, "success");
+      setEditingUnit(null);
+      queryClient.invalidateQueries({ queryKey: ["property", propId] });
+      queryClient.invalidateQueries({ queryKey: ["properties"] });
+      queryClient.invalidateQueries({ queryKey: ["unit-detail"] });
+    } catch (err) {
+      console.warn("Could not update unit via API:", err);
+      toast("Could not save unit to server. Please try again.", "error");
+    } finally {
+      setIsSavingUnit(false);
+    }
   };
 
   if (loading) {
     return (
-      <div className="space-y-8 font-sans animate-in fade-in duration-200 min-h-[60vh] flex flex-col justify-center items-center py-24">
-        <div className="p-4 rounded-2xl bg-orange-50 text-[#FF6B00] border border-orange-200/80 shadow-md animate-bounce mb-4">
-          <Building2 className="w-8 h-8" />
+      <div className="space-y-8 font-sans animate-pulse">
+        {/* Header skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-3">
+            <div className="h-3.5 w-40 bg-slate-100 rounded-md" />
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-56 sm:w-72 bg-slate-200 rounded-lg" />
+              <div className="h-5 w-16 bg-slate-100 rounded-md" />
+            </div>
+            <div className="h-3.5 w-64 bg-slate-100 rounded-md" />
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-36 bg-slate-100 rounded-xl" />
+            <div className="h-10 w-36 bg-slate-100 rounded-xl" />
+            <div className="h-10 w-32 bg-slate-200 rounded-xl" />
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-slate-900 font-extrabold text-lg">
-          <Loader2 className="w-5 h-5 text-[#FF6B00] animate-spin" />
-          <span>Fetching Property & Inventory Data...</span>
+
+        {/* Stats ribbon skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="h-2.5 w-20 bg-slate-100 rounded" />
+              <div className="h-6 w-24 bg-slate-200 rounded-md" />
+            </div>
+          ))}
         </div>
-        <p className="text-xs font-semibold text-slate-400 mt-1">Loading real building specs and unit floor maps</p>
+
+        {/* Floor nav + units skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="h-4 w-36 bg-slate-200 rounded-md" />
+              <div className="h-3 w-20 bg-slate-100 rounded" />
+            </div>
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <div
+                  key={i}
+                  className="w-full p-3.5 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between"
+                >
+                  <div className="space-y-1.5">
+                    <div className="h-3.5 w-20 bg-slate-200 rounded" />
+                    <div className="h-2.5 w-28 bg-slate-100 rounded" />
+                  </div>
+                  <div className="h-5 w-12 bg-slate-100 rounded-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="lg:col-span-8 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="h-5 w-40 bg-slate-200 rounded-md" />
+              <div className="h-8 w-28 bg-slate-100 rounded-xl" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-4"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <div className="h-4 w-24 bg-slate-200 rounded-md" />
+                      <div className="h-3 w-32 bg-slate-100 rounded" />
+                    </div>
+                    <div className="h-6 w-16 bg-slate-100 rounded-full" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                    {[...Array(3)].map((_, j) => (
+                      <div key={j} className="space-y-1.5">
+                        <div className="h-2.5 w-10 bg-slate-200 rounded" />
+                        <div className="h-3.5 w-12 bg-slate-200 rounded" />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="h-9 w-full bg-slate-100 rounded-xl" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1058,7 +1203,13 @@ export default function PropertyFloorPlanPage() {
                                 setEditingUnit(u);
                                 setEditFloorTarget(selectedFloor);
                                 setEditUnitNo(u.unitNo.replace(/\D/g, ""));
-                                setEditRent(u.rent ? u.rent.replace(/\D/g, "") : "");
+                                const rentSeed =
+                                  u.rawRent !== undefined && u.rawRent !== null
+                                    ? String(u.rawRent)
+                                    : u.rent
+                                      ? u.rent.replace(/[^0-9.]/g, "")
+                                      : "";
+                                setEditRent(rentSeed);
                                 setEditStatus(u.status as any);
                                 setEditTenantName(u.tenant?.name || "");
                                 setActiveUnitMenuNo(null);
@@ -1704,58 +1855,7 @@ export default function PropertyFloorPlanPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const targetFl = editFloorTarget || selectedFloor;
-              const cleanNum = editUnitNo.replace(/\D/g, "");
-              const updatedUnitNo = cleanNum ? `Unit ${cleanNum}` : editingUnit.unitNo;
-
-              // Check if duplicate on target floor (unless unchanged)
-              if (
-                updatedUnitNo.toLowerCase() !== editingUnit.unitNo.toLowerCase() &&
-                (getFloorUnits(targetFl) || []).some(
-                  (u) => u.unitNo.toLowerCase() === updatedUnitNo.toLowerCase()
-                )
-              ) {
-                toast(`Unit "${updatedUnitNo}" already exists on Floor ${targetFl}!`, "error");
-                return;
-              }
-
-              const updatedUnitObj: UnitItem = {
-                ...editingUnit,
-                unitNo: updatedUnitNo,
-                rent: editRent ? `$${editRent}/mo` : "$0/mo",
-                status: editStatus,
-                tenant:
-                  editStatus === "Occupied"
-                    ? {
-                        name: editTenantName.trim() || editingUnit.tenant?.name || "Resident",
-                        contact: "Primary Resident",
-                        phone: editingUnit.tenant?.phone || "+1 (555) 000-0000",
-                        email: editingUnit.tenant?.email || "resident@rentawas.com",
-                        moveIn: editingUnit.tenant?.moveIn || "2026-08-01",
-                        leaseEnd: editingUnit.tenant?.leaseEnd || "2027-07-31",
-                        health: "Active Tenant",
-                      }
-                    : null,
-              };
-
-              // If floor changed, remove from old floor and add to new floor
-              if (targetFl !== selectedFloor) {
-                const oldFlUnits = getFloorUnits(selectedFloor).filter((u) => u.unitNo !== editingUnit.unitNo);
-                const newFlUnits = [updatedUnitObj, ...getFloorUnits(targetFl)];
-                setFloorUnitsMap((prev) => ({
-                  ...prev,
-                  [selectedFloor]: oldFlUnits,
-                  [targetFl]: newFlUnits,
-                }));
-              } else {
-                const updatedUnitsOnFl = getFloorUnits(selectedFloor).map((u) =>
-                  u.unitNo === editingUnit.unitNo ? updatedUnitObj : u
-                );
-                setFloorUnitsMap((prev) => ({ ...prev, [selectedFloor]: updatedUnitsOnFl }));
-              }
-
-              toast(`${updatedUnitNo} updated successfully!`, "success");
-              setEditingUnit(null);
+              if (!isSavingUnit) void handleSaveEditedUnit();
             }}
             className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative font-sans max-h-[90vh] overflow-y-auto"
           >
@@ -1849,9 +1949,13 @@ export default function PropertyFloorPlanPage() {
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+                disabled={isSavingUnit}
+                className="px-5 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] rounded-xl shadow-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>Save Unit Changes</span>
+                {isSavingUnit ? (
+                  <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : null}
+                <span>{isSavingUnit ? "Saving..." : "Save Unit Changes"}</span>
               </button>
             </div>
           </form>
@@ -1951,14 +2055,68 @@ export default function PropertyFloorPlanPage() {
                   isDeletingUnit
                 }
                 onClick={async () => {
+                  if (!deletingUnit || !propertyData?.id) return;
                   setIsDeletingUnit(true);
-                  const currentUnitsOnFl = getFloorUnits(selectedFloor);
-                  const updatedFlUnits = currentUnitsOnFl.filter((u) => u.unitNo !== deletingUnit.unitNo);
-                  setFloorUnitsMap((prev) => ({ ...prev, [selectedFloor]: updatedFlUnits }));
-                  toast(`${deletingUnit.unitNo} permanently deleted from Floor ${selectedFloor}!`, "info");
-                  setIsDeletingUnit(false);
-                  setDeletingUnit(null);
-                  setConfirmUnitNameInput("");
+                  const unitKey = deletingUnit.id || deletingUnit.unitNo;
+                  try {
+                    const res = await fetch(
+                      `/api/properties/${propertyData.id}/units/${encodeURIComponent(unitKey)}`,
+                      { method: "DELETE" }
+                    );
+                    const json = await res.json().catch(() => ({}));
+                    if (!res.ok || json.error) {
+                      toast(json.error || "Failed to delete unit.", "error");
+                      return;
+                    }
+
+                    const rentVal =
+                      deletingUnit.rawRent != null
+                        ? Number(deletingUnit.rawRent)
+                        : parseFloat(String(deletingUnit.rent || "").replace(/[^0-9.]/g, "")) || 0;
+                    const wasOccupied = deletingUnit.status === "Occupied";
+
+                    setFloorUnitsMap((prev) => ({
+                      ...prev,
+                      [selectedFloor]: (prev[selectedFloor] || []).filter(
+                        (u) => u.unitNo !== deletingUnit.unitNo
+                      ),
+                    }));
+
+                    setPropertyData((prev) => {
+                      const nextUnits = Math.max(0, prev.units - 1);
+                      const nextOccupied = wasOccupied
+                        ? Math.max(0, prev.occupied - 1)
+                        : prev.occupied;
+                      const nextYield = wasOccupied
+                        ? Math.max(0, prev.rawMonthlyYield - rentVal)
+                        : prev.rawMonthlyYield;
+                      const occPercent =
+                        nextUnits > 0 ? Math.round((nextOccupied / nextUnits) * 100) : 0;
+                      return {
+                        ...prev,
+                        units: nextUnits,
+                        occupied: nextOccupied,
+                        rawMonthlyYield: nextYield,
+                        monthlyYield: `${currencySymbol}${nextYield.toLocaleString()}`,
+                        status: `${occPercent}% Occupied`,
+                      };
+                    });
+
+                    toast(
+                      `${deletingUnit.unitNo} permanently deleted from Floor ${selectedFloor}!`,
+                      "info"
+                    );
+                    setDeletingUnit(null);
+                    setConfirmUnitNameInput("");
+                    queryClient.invalidateQueries({ queryKey: ["property", propId] });
+                    queryClient.invalidateQueries({ queryKey: ["properties"] });
+                    queryClient.invalidateQueries({ queryKey: ["unit-detail"] });
+                  } catch (err) {
+                    console.warn("Could not delete unit via API:", err);
+                    toast("Could not delete unit on server. Please try again.", "error");
+                  } finally {
+                    setIsDeletingUnit(false);
+                  }
                 }}
                 className="px-5 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 active:scale-[0.98] rounded-xl shadow-md shadow-red-500/20 uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
               >
@@ -2091,9 +2249,9 @@ export default function PropertyFloorPlanPage() {
                       onChange={(e) => setTenantRentDueDay(e.target.value)}
                       className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                     >
-                      {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
-                        <option key={day} value={String(day)}>
-                          Day {day} of every month
+                      {RENT_DUE_DAY_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={String(opt.value)}>
+                          {opt.label}
                         </option>
                       ))}
                     </select>
@@ -2531,7 +2689,7 @@ export default function PropertyFloorPlanPage() {
               {(aiCreditsUsed >= aiCreditLimit || aiError.toLowerCase().includes("exhausted")) && (
                 <div className="p-5 bg-gradient-to-br from-rose-50 to-amber-50 border-2 border-rose-300 rounded-2xl text-center space-y-3 shadow-md animate-in zoom-in-95 duration-200">
                   <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
-                    <Zap className="w-6 h-6 text-rose-600 animate-bounce" />
+                    <Zap className="w-6 h-6 text-rose-600" />
                   </div>
                   <div>
                     <h4 className="text-base font-black text-rose-950 uppercase tracking-wide">
@@ -2772,7 +2930,7 @@ export default function PropertyFloorPlanPage() {
               {(aiCreditsUsed >= aiCreditLimit || unitBuddyError.toLowerCase().includes("exhausted")) && (
                 <div className="p-5 bg-gradient-to-br from-rose-50 to-amber-50 border-2 border-rose-300 rounded-2xl text-center space-y-3 shadow-md animate-in zoom-in-95 duration-200">
                   <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
-                    <Zap className="w-6 h-6 text-rose-600 animate-bounce" />
+                    <Zap className="w-6 h-6 text-rose-600" />
                   </div>
                   <div>
                     <h4 className="text-base font-black text-rose-950 uppercase tracking-wide">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { 
   Sparkles, 
   FileText, 
@@ -166,13 +167,9 @@ export default function AILeaseArchitectPage() {
   const [isSavingToVault, setIsSavingToVault] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // ---------------- MY DOCUMENTS VAULT STATE ----------------
-  const [savedDocs, setSavedDocs] = useState<any[]>([]);
-  const [loadingDocs, setLoadingDocs] = useState(false);
+  // Modal 1: Upload Custom Document State
   const [docSearch, setDocSearch] = useState("");
   const [docCategoryFilter, setDocCategoryFilter] = useState("all");
-
-  // Modal 1: Upload Custom Document
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadCategory, setUploadCategory] = useState("Lease Agreement");
@@ -184,37 +181,8 @@ export default function AILeaseArchitectPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isSavingCustomDoc, setIsSavingCustomDoc] = useState(false);
   const [docPropertyFilter, setDocPropertyFilter] = useState("all");
-  // Properties list for dropdowns (fetched strictly from backend database)
-  const [propertiesList, setPropertiesList] = useState<any[]>([]);
 
-  // Database Tenants list for dropdowns
-  const [tenantsList, setTenantsList] = useState<any[]>([]);
-
-  // Fetch Real Database Properties List for dropdowns (workspace-scoped)
-  const fetchPropertiesList = async () => {
-    try {
-      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
-      if (!activeWid) {
-        setPropertiesList([]);
-        return;
-      }
-      const res = await fetch(`/api/properties?wid=${activeWid}`);
-      if (res.ok) {
-        const json = await res.json();
-        const list = json.data || json.properties || (Array.isArray(json) ? json : []);
-        if (Array.isArray(list)) {
-          setPropertiesList(list);
-          if (list.length > 0 && list[0]?.id) {
-            setUploadPropertyId((prev) => prev || list[0].id);
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("Could not fetch properties list from API:", err);
-    }
-  };
-
-  // Modal 2: Send Document to Tenant
+  // Modal 2: Send Document to Tenant State
   const [showSendModal, setShowSendModal] = useState(false);
   const [targetSendDoc, setTargetSendDoc] = useState<any | null>(null);
   const [sendMethod, setSendMethod] = useState<"whatsapp" | "email" | "sms" | "portal">("whatsapp");
@@ -224,64 +192,84 @@ export default function AILeaseArchitectPage() {
   const [sendFullText, setSendFullText] = useState(true);
   const [isSendingToTenant, setIsSendingToTenant] = useState(false);
 
-  // Fetch Saved Documents & Resident Submissions scoped to active workspace
-  const fetchSavedDocs = async () => {
-    try {
-      setLoadingDocs(true);
-      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
-      if (!activeWid) {
-        setSavedDocs([]);
-        return;
-      }
+  // ─── Workspace ID ──────────────────────────────────────────────────────────
+  const [leasesWorkspaceId, setLeasesWorkspaceId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
+  useEffect(() => {
+    (async () => {
+      const wid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (wid) setLeasesWorkspaceId(wid);
+    })();
+  }, []);
+
+  // ─── TanStack Query Hooks ──────────────────────────────────────────────────
+  const { data: savedDocs = [], isLoading: loadingDocs } = useQuery({
+    queryKey: ["documents", leasesWorkspaceId],
+    enabled: !!leasesWorkspaceId,
+    queryFn: async () => {
       const [resDocs, resTenantDocs] = await Promise.all([
-        fetch(`/api/documents?workspaceId=${activeWid}`),
-        fetch(`/api/tenant/documents?workspaceId=${activeWid}`),
+        fetch(`/api/documents?workspaceId=${leasesWorkspaceId}`),
+        fetch(`/api/tenant/documents?workspaceId=${leasesWorkspaceId}`),
       ]);
-
       let allDocs: any[] = [];
-
       if (resDocs.ok) {
         const json = await resDocs.json();
-        if (json.data && Array.isArray(json.data)) {
-          allDocs = [...json.data];
-        }
+        if (json.data && Array.isArray(json.data)) allDocs = [...json.data];
       }
-
       if (resTenantDocs.ok) {
         const jsonTenant = await resTenantDocs.json();
         if (jsonTenant.data && Array.isArray(jsonTenant.data)) {
           jsonTenant.data.forEach((td: any) => {
-            if (!allDocs.some((d) => d.id === td.id)) {
-              allDocs.push(td);
-            }
+            if (!allDocs.some((d) => d.id === td.id)) allDocs.push(td);
           });
         }
       }
+      return allDocs;
+    },
+  });
 
-      setSavedDocs(allDocs);
-    } catch (err) {
-      console.warn("Could not fetch saved documents:", err);
-    } finally {
-      setLoadingDocs(false);
+  const { data: tenantsList = [] } = useQuery({
+    queryKey: ["tenants", leasesWorkspaceId],
+    enabled: !!leasesWorkspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/tenants?workspaceId=${leasesWorkspaceId}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.data && Array.isArray(json.data)) ? json.data : [];
+    },
+  });
+
+  useEffect(() => {
+    if (tenantsList.length > 0 && tenantsList[0]?.email && !sendTenantEmail) {
+      setSendTenantEmail(tenantsList[0].email);
     }
-  };
+  }, [tenantsList]);
+
+  const { data: propertiesList = [] } = useQuery({
+    queryKey: ["properties", leasesWorkspaceId],
+    enabled: !!leasesWorkspaceId,
+    queryFn: async () => {
+      const res = await fetch(`/api/properties?wid=${leasesWorkspaceId}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      const list = json.data || json.properties || (Array.isArray(json) ? json : []);
+      return Array.isArray(list) ? list : [];
+    },
+  });
+
+  useEffect(() => {
+    if (propertiesList.length > 0 && propertiesList[0]?.id && !uploadPropertyId) {
+      setUploadPropertyId(propertiesList[0].id);
+    }
+  }, [propertiesList]);
+
+  const fetchSavedDocs = () => queryClient.invalidateQueries({ queryKey: ["documents", leasesWorkspaceId] });
+  const fetchTenantsList = () => queryClient.invalidateQueries({ queryKey: ["tenants", leasesWorkspaceId] });
+  const fetchPropertiesList = () => queryClient.invalidateQueries({ queryKey: ["properties", leasesWorkspaceId] });
 
   const handleVerifyDoc = async (docId: string, action: "Verified" | "Rejected") => {
     try {
-      setSavedDocs((prev) =>
-        prev.map((d) =>
-          d.id === docId
-            ? {
-                ...d,
-                verified: action === "Verified",
-                status: action,
-                docType: action === "Verified" ? "Verified Resident Record" : d.docType,
-              }
-            : d
-        )
-      );
-
       toast(
         action === "Verified"
           ? "Resident document verified & approved successfully!"
@@ -294,37 +282,13 @@ export default function AILeaseArchitectPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: docId, status: action }),
       });
+      fetchSavedDocs();
     } catch (err) {
       console.error("Doc verification error:", err);
     }
   };
 
-  // Fetch Tenants for Send Modal (workspace-scoped)
-  const fetchTenantsList = async () => {
-    try {
-      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
-      if (!activeWid) {
-        setTenantsList([]);
-        return;
-      }
-      const res = await fetch(`/api/tenants?workspaceId=${activeWid}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && Array.isArray(json.data)) {
-          setTenantsList(json.data);
-          if (json.data[0]?.email) setSendTenantEmail(json.data[0].email);
-        }
-      }
-    } catch (err) {
-      console.warn("Could not fetch tenants for dropdown:", err);
-    }
-  };
 
-  useEffect(() => {
-    fetchSavedDocs();
-    fetchTenantsList();
-    fetchPropertiesList();
-  }, []);
 
   const handleDocChange = (doc: LegalDocumentTemplate) => {
     setSelectedDoc(doc);
@@ -637,15 +601,14 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
           </button>
 
           <button
-            onClick={() => setActiveMainTab("ai_documents")}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
-              activeMainTab === "ai_documents"
-                ? "bg-[#FF6B00] text-white shadow-md shadow-orange-500/20"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="Template Documents coming soon"
+            className="px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 text-slate-400 cursor-not-allowed opacity-70"
           >
             <Sparkles className="w-4 h-4" />
-            <span>Template Documents</span>
+            <span>Template Documents (soon)</span>
           </button>
         </div>
       </div>
@@ -668,7 +631,7 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 pt-1">
               {LEGAL_DOCUMENTS.map((doc) => {
                 const Icon = doc.icon;
                 const isSelected = selectedDoc.id === doc.id;
@@ -677,25 +640,25 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
                     key={doc.id}
                     type="button"
                     onClick={() => handleDocChange(doc)}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                       isSelected
-                        ? "bg-slate-900 text-white border-slate-900 shadow-md scale-[1.02]"
-                        : "bg-slate-50/80 hover:bg-slate-100 border-slate-200/80 text-slate-800"
+                        ? "bg-slate-900 text-white border-slate-900 shadow-md scale-[1.02] ring-2 ring-slate-900/30"
+                        : "bg-slate-50/80 hover:bg-slate-100 border-slate-200/90 text-slate-800"
                     }`}
                   >
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className={`p-1.5 rounded-lg ${isSelected ? "bg-[#FF6B00] text-white" : "bg-white text-slate-700 border border-slate-200"}`}>
-                          <Icon className="w-4 h-4" />
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className={`p-2 rounded-xl ${isSelected ? "bg-[#FF6B00] text-white" : "bg-white text-slate-700 border border-slate-200 shadow-2xs"}`}>
+                          <Icon className="w-5 h-5" />
                         </div>
-                        <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
-                          isSelected ? "bg-white/20 text-white" : "bg-slate-200/80 text-slate-600"
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider ${
+                          isSelected ? "bg-white/20 text-white" : "bg-slate-200/90 text-slate-700"
                         }`}>
                           {doc.category === "India Specific" ? "INDIA" : doc.category === "Global & US/UK" ? "GLOBAL" : "RULES"}
                         </span>
                       </div>
-                      <h3 className="font-bold text-xs leading-tight mb-1">{doc.title}</h3>
-                      <p className={`text-[10px] line-clamp-2 ${isSelected ? "text-slate-300" : "text-slate-500"}`}>
+                      <h3 className="font-extrabold text-sm sm:text-base leading-snug">{doc.title}</h3>
+                      <p className={`text-xs sm:text-[12.5px] font-medium leading-normal line-clamp-3 ${isSelected ? "text-slate-300" : "text-slate-600"}`}>
                         {doc.description}
                       </p>
                     </div>
@@ -1210,7 +1173,7 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
             
             {/* Search & Category Filter */}
             <div className="flex items-center gap-3 flex-1 flex-wrap">
-              <div className="relative flex-1 min-w-[200px]">
+              <div className="relative flex-1 max-w-md min-w-[200px]">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
@@ -1281,9 +1244,22 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
 
           {/* Documents Grid / Vault List */}
           {loadingDocs ? (
-            <div className="p-12 text-center bg-white border border-slate-200/90 rounded-2xl space-y-3">
-              <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin mx-auto" />
-              <p className="font-bold text-slate-800 text-sm">Loading your saved documents vault...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-white border border-slate-200/90 rounded-2xl p-5 space-y-4 min-h-[160px] flex flex-col justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-200 shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-36 bg-slate-200 rounded-md" />
+                      <div className="h-3 w-24 bg-slate-200/60 rounded-md" />
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <div className="h-8 w-28 bg-slate-200 rounded-xl" />
+                    <div className="h-8 w-20 bg-slate-200 rounded-xl" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : filteredSavedDocs.length === 0 ? (
             <div className="p-12 bg-white border border-slate-200/90 rounded-2xl text-center space-y-3 shadow-2xs">
@@ -1459,7 +1435,7 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
           <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             
             {/* Search Input */}
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative flex-1 max-w-md min-w-[200px]">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -1513,9 +1489,22 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
 
           {/* Tenant Documents Cards List */}
           {loadingDocs ? (
-            <div className="p-12 text-center bg-white border border-slate-200/90 rounded-2xl space-y-3">
-              <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin mx-auto" />
-              <p className="font-bold text-slate-800 text-sm">Loading resident tenant documents...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-white border border-slate-200/90 rounded-2xl p-5 space-y-4 min-h-[160px] flex flex-col justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-200 shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-36 bg-slate-200 rounded-md" />
+                      <div className="h-3 w-24 bg-slate-200/60 rounded-md" />
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <div className="h-8 w-28 bg-slate-200 rounded-xl" />
+                    <div className="h-8 w-20 bg-slate-200 rounded-xl" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : tenantDocsList.length === 0 ? (
             <div className="p-12 bg-white border border-slate-200/90 rounded-2xl text-center space-y-3 shadow-2xs">
@@ -1740,9 +1729,9 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
                   ) : (
                     <>
                       <Upload className="w-6 h-6 text-[#FF6B00] mx-auto" />
-                      <div className="text-xs font-bold text-slate-800">Select PDF, JPG, or PNG document file</div>
+                      <div className="text-xs font-bold text-slate-800">Select PDF (max 2MB), JPG, or PNG</div>
                       <div className="text-[10px] text-emerald-600 font-bold flex items-center justify-center gap-1">
-                        <span>⚡ Auto-compressed for fast upload & instant storage</span>
+                        <span>⚡ PDFs & images auto-compressed before upload</span>
                       </div>
                     </>
                   )}
@@ -1757,6 +1746,14 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
                         onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
+
+                          const validation = validateFile(file);
+                          if (!validation.valid) {
+                            toast(validation.error || "Invalid file", "error");
+                            e.target.value = "";
+                            return;
+                          }
+
                           setUploadFileObj(file);
                           setUploadFileName(file.name);
 
@@ -1915,7 +1912,7 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
                     {tenantsList.length === 0 ? (
                       <option value="tenant@rentawas.com">demo Raj (tenant@rentawas.com)</option>
                     ) : (
-                      tenantsList.map((t) => (
+                      tenantsList.map((t: any) => (
                         <option key={t.id} value={t.email || "tenant@rentawas.com"}>
                           {t.name} ({t.email || "no-email"})
                         </option>
