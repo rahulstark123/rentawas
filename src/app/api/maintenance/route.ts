@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parsePagination, paginationMeta } from "@/lib/apiPagination";
 
 function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): number | null {
   const raw =
@@ -22,6 +23,28 @@ function workspaceScope(workspaceId: number) {
   };
 }
 
+const maintenanceListSelect = {
+  id: true,
+  ticketNumber: true,
+  issue: true,
+  category: true,
+  priority: true,
+  status: true,
+  cost: true,
+  notes: true,
+  loggedBy: true,
+  floorNumber: true,
+  workspaceId: true,
+  tenantId: true,
+  unitId: true,
+  propertyId: true,
+  createdAt: true,
+  updatedAt: true,
+  tenant: { select: { id: true, name: true } },
+  unit: { select: { id: true, unitNumber: true, floorNumber: true } },
+  property: { select: { id: true, name: true } },
+} as const;
+
 // GET /api/maintenance?workspaceId=3 — tickets for this workspace only
 export async function GET(request: Request) {
   try {
@@ -30,6 +53,7 @@ export async function GET(request: Request) {
     const propertyId = searchParams.get("propertyId");
     const unitId = searchParams.get("unitId");
     const tenantId = searchParams.get("tenantId");
+    const pagination = parsePagination(searchParams);
 
     if (!workspaceId) {
       return NextResponse.json(
@@ -45,19 +69,22 @@ export async function GET(request: Request) {
     if (unitId) whereClause.AND.push({ unitId });
     if (tenantId) whereClause.AND.push({ tenantId });
 
-    const tickets = await prisma.maintenance.findMany({
-      where: whereClause,
-      include: {
-        tenant: true,
-        unit: true,
-        property: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [total, tickets] = await Promise.all([
+      prisma.maintenance.count({ where: whereClause }),
+      prisma.maintenance.findMany({
+        where: whereClause,
+        select: maintenanceListSelect,
+        orderBy: { createdAt: "desc" },
+        ...(pagination.take != null
+          ? { take: pagination.take, skip: pagination.skip }
+          : {}),
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
       count: tickets.length,
+      pagination: paginationMeta(total, pagination, tickets.length),
       data: tickets,
     });
   } catch (error: any) {
@@ -174,11 +201,7 @@ export async function POST(request: Request) {
 
     const ticket = await prisma.maintenance.create({
       data: maintenanceData,
-      include: {
-        tenant: true,
-        unit: true,
-        property: true,
-      },
+      select: maintenanceListSelect,
     });
 
     return NextResponse.json(

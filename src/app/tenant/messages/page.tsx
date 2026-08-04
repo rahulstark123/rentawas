@@ -15,8 +15,12 @@ import {
   Trash2,
   Plus,
   UserPlus,
+  Lock,
+  Crown,
 } from "lucide-react";
-import { useTenantMe } from "@/hooks/useTenantMe";
+import { useTenantMe, useTenantWorkspace } from "@/hooks/useTenantMe";
+import { canAccessMessages, MESSAGES_UPGRADE_MESSAGE } from "@/lib/planLimits";
+import Link from "next/link";
 
 interface ChatMessage {
   id: string;
@@ -199,6 +203,11 @@ function RoomItem({
 
 export default function TenantMessagesPage() {
   const { data: tenantMe, isLoading: meLoading } = useTenantMe();
+  const { data: workspaceData, isLoading: wsLoading } = useTenantWorkspace(tenantMe?.workspaceId);
+  const messagesAllowed = canAccessMessages({
+    plan: workspaceData?.plan,
+    isTrialActive: Boolean(workspaceData?.isTrialActive),
+  });
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<string>("");
   const [inputText, setInputText] = useState("");
@@ -225,8 +234,6 @@ export default function TenantMessagesPage() {
     const oName = ctx?.owner?.name || "Property Owner";
     const oInitials = ctx?.owner?.initials || "PM";
     const oRole = ctx?.owner?.role || "Property Owner & Landlord";
-    const tName = ctx?.name || "Resident";
-    const tInitials = ctx?.initials || "TN";
     const propertyLabel = ctx ? `${ctx.propertyName} — ${ctx.unitNumber}` : undefined;
 
     return data.map((r: any) => {
@@ -244,34 +251,7 @@ export default function TenantMessagesPage() {
         lastTime: r.lastTime || "Just now",
         unreadCount: r.unreadCount || 0,
         online: true,
-        messages: (r.messages || []).map((m: any) => {
-          const isFromLandlord =
-            m.senderId === "owner" ||
-            m.senderId === ctx?.owner?.id ||
-            m.isMe === true;
-          const isFromTenant =
-            m.senderId === "tenant" ||
-            m.senderId === ctx?.id ||
-            m.senderId === ctx?.profileId;
-          const mine = isFromTenant || (!isFromLandlord && m.isMe === false);
-          return {
-            id: m.id,
-            senderId: m.senderId,
-            senderName: mine
-              ? `${tName} (You)`
-              : isFromLandlord
-                ? `${oName} (${oRole})`
-                : m.senderName || oName,
-            senderInitials: mine
-              ? tInitials
-              : isFromLandlord
-                ? oInitials
-                : m.senderInitials || oInitials,
-            text: m.text,
-            timestamp: new Date(m.createdAt),
-            isMe: !!mine,
-          };
-        }),
+        messages: [], // loaded on demand via /api/chat/messages
       };
     });
   };
@@ -326,18 +306,7 @@ export default function TenantMessagesPage() {
           lastTime: r.lastTime || "Just now",
           unreadCount: 0,
           online: teammate.online,
-          messages: (r.messages || []).map((m: any) => ({
-            id: m.id,
-            senderId: m.senderId,
-            senderName: m.senderName,
-            senderInitials: m.senderInitials,
-            text: m.text,
-            timestamp: new Date(m.createdAt),
-            isMe:
-              m.senderId === "tenant" ||
-              m.senderId === tenantCtx.id ||
-              m.senderId === tenantCtx.profileId,
-          })),
+          messages: [],
         };
 
         setRooms((prev) => {
@@ -405,7 +374,8 @@ export default function TenantMessagesPage() {
   const roomsEnabled =
     !!tenantCtx?.workspaceId &&
     !!tenantCtx?.id &&
-    tenantCtx.id !== "demo-tenant-id";
+    tenantCtx.id !== "demo-tenant-id" &&
+    messagesAllowed;
 
   const { data: roomsData, isLoading: roomsLoading } = useQuery({
     queryKey: ["tenant-chat-rooms", tenantCtx?.workspaceId, tenantCtx?.id, tenantCtx?.profileId],
@@ -432,14 +402,78 @@ export default function TenantMessagesPage() {
     }
     if (roomsData && Array.isArray(roomsData) && roomsData.length > 0) {
       const loadedRooms = mapRooms(roomsData, tenantCtx);
-      setRooms(loadedRooms);
+      setRooms((prev) => {
+        const prevById = new Map(prev.map((r) => [r.id, r]));
+        return loadedRooms.map((r) => {
+          const existing = prevById.get(r.id);
+          return existing?.messages?.length ? { ...r, messages: existing.messages } : r;
+        });
+      });
       setSelectedRoomId((prev) => prev || loadedRooms[0].id);
     } else if (!roomsLoading) {
       setRooms([]);
     }
   }, [roomsData, roomsLoading, roomsEnabled, tenantCtx, meLoading]);
 
-  const isLoading = meLoading || (roomsEnabled && roomsLoading);
+  // Load messages only for the selected room
+  const { data: roomMessages, isLoading: loadingMessages } = useQuery({
+    queryKey: ["tenant-chat-messages", tenantCtx?.workspaceId, selectedRoomId],
+    enabled: roomsEnabled && !!selectedRoomId,
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/chat/messages?roomId=${encodeURIComponent(selectedRoomId)}&workspaceId=${tenantCtx!.workspaceId}&limit=50`
+      );
+      if (!res.ok) return [];
+      const json = await res.json();
+      if (!Array.isArray(json.data)) return [];
+
+      const oName = tenantCtx?.owner?.name || "Property Owner";
+      const oInitials = tenantCtx?.owner?.initials || "PM";
+      const oRole = tenantCtx?.owner?.role || "Property Owner & Landlord";
+      const tName = tenantCtx?.name || "Resident";
+      const tInitials = tenantCtx?.initials || "TN";
+
+      return json.data.map((m: any): ChatMessage => {
+        const isFromLandlord =
+          m.senderId === "owner" ||
+          m.senderId === tenantCtx?.owner?.id ||
+          m.isMe === true;
+        const isFromTenant =
+          m.senderId === "tenant" ||
+          m.senderId === tenantCtx?.id ||
+          m.senderId === tenantCtx?.profileId;
+        const mine = isFromTenant || (!isFromLandlord && m.isMe === false);
+        return {
+          id: m.id,
+          senderId: m.senderId,
+          senderName: mine
+            ? `${tName} (You)`
+            : isFromLandlord
+              ? `${oName} (${oRole})`
+              : m.senderName || oName,
+          senderInitials: mine
+            ? tInitials
+            : isFromLandlord
+              ? oInitials
+              : m.senderInitials || oInitials,
+          text: m.text,
+          timestamp: new Date(m.createdAt),
+          isMe: !!mine,
+        };
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (!selectedRoomId || !roomMessages) return;
+    setRooms((prev) =>
+      prev.map((r) =>
+        r.id === selectedRoomId ? { ...r, messages: roomMessages } : r
+      )
+    );
+  }, [selectedRoomId, roomMessages]);
+
+  const isLoading = meLoading || (!!tenantMe?.workspaceId && wsLoading) || (roomsEnabled && roomsLoading);
 
   const filteredRooms = rooms.filter((r) =>
     r.name.toLowerCase().includes(search.toLowerCase())
@@ -509,6 +543,35 @@ export default function TenantMessagesPage() {
       console.error("Error sending resident chat message:", err);
     }
   };
+
+  if (!meLoading && !wsLoading && tenantMe && !messagesAllowed) {
+    return (
+      <div className="h-full flex-1 flex items-center justify-center bg-[#F8FAFC] p-6">
+        <div className="max-w-md w-full bg-white border border-slate-200 rounded-3xl p-8 text-center shadow-sm space-y-4">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-500 text-white flex items-center justify-center shadow-md">
+            <Crown className="w-7 h-7" />
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-purple-100 text-purple-700 font-extrabold text-[10px] uppercase tracking-wider rounded-full">
+            <Lock className="w-3 h-3" />
+            Unavailable
+          </div>
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+            Messaging isn&apos;t available
+          </h2>
+          <p className="text-sm text-slate-600 leading-relaxed">
+            Your landlord&apos;s workspace needs a Pro or Pro Plus plan for in-app Messages.
+            Please contact your property manager.
+          </p>
+          <Link
+            href="/tenant/dashboard"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-xl shadow-sm transition-colors"
+          >
+            Back to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex-1 flex bg-white font-sans overflow-hidden">
@@ -628,7 +691,11 @@ export default function TenantMessagesPage() {
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 py-5 space-y-4 bg-[#F8FAFC]">
-              {selectedRoom.messages.length === 0 ? (
+              {loadingMessages && selectedRoom.messages.length === 0 ? (
+                <div className="h-full flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                </div>
+              ) : selectedRoom.messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400">
                   <div
                     className={`w-14 h-14 rounded-2xl ${selectedRoom.color} text-white text-lg font-extrabold flex items-center justify-center shadow-sm`}

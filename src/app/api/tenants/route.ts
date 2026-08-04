@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { supabase } from "@/lib/supabase";
 import { Role } from "@/generated/prisma/client";
+import { parsePagination, paginationMeta, isDataUrl } from "@/lib/apiPagination";
 
 function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): number | null {
   const raw =
@@ -13,13 +14,56 @@ function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): num
   return !isNaN(n) && n > 0 ? n : null;
 }
 
-// GET /api/tenants?workspaceId=3  (or ?wid=3)
+const tenantListSelect = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  healthScore: true,
+  monthlyRent: true,
+  securityDeposit: true,
+  leaseStart: true,
+  leaseEnd: true,
+  floorNumber: true,
+  bedSlot: true,
+  govIdType: true,
+  govIdNumber: true,
+  govIdUrl: true,
+  leaseDocUrl: true,
+  currentStatus: true,
+  workspaceId: true,
+  unitId: true,
+  propertyId: true,
+  profileId: true,
+  createdAt: true,
+  unit: {
+    select: {
+      id: true,
+      unitNumber: true,
+      floorNumber: true,
+      rent: true,
+      isOccupied: true,
+      propertyId: true,
+      property: {
+        select: { id: true, name: true, address: true, workspaceId: true },
+      },
+    },
+  },
+  property: {
+    select: { id: true, name: true, address: true, workspaceId: true },
+  },
+  _count: { select: { documents: true } },
+} as const;
+
+// GET /api/tenants?workspaceId=3&page=1&limit=50  (or limit=all for dropdowns)
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const workspaceId = parseWorkspaceId(searchParams);
     const propertyId = searchParams.get("propertyId");
     const status = searchParams.get("status"); // "Current" | "Past" | "Exited" | "Evicted" | "all"
+    const pagination = parsePagination(searchParams);
+    const includeDocs = searchParams.get("includeDocs") === "true";
 
     if (!workspaceId) {
       return NextResponse.json(
@@ -45,19 +89,33 @@ export async function GET(request: Request) {
       where.AND.push({ currentStatus: status });
     }
 
-    const tenants = await prisma.tenant.findMany({
-      where,
-      include: {
-        unit: {
-          include: {
-            property: true,
-          },
-        },
-        property: true,
-        documents: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [total, tenants] = await Promise.all([
+      prisma.tenant.count({ where }),
+      prisma.tenant.findMany({
+        where,
+        select: includeDocs
+          ? {
+              ...tenantListSelect,
+              documents: {
+                select: {
+                  id: true,
+                  title: true,
+                  docType: true,
+                  fileUrl: true,
+                  fileName: true,
+                  createdAt: true,
+                },
+                orderBy: { createdAt: "desc" },
+                take: 20,
+              },
+            }
+          : tenantListSelect,
+        orderBy: { createdAt: "desc" },
+        ...(pagination.take != null
+          ? { take: pagination.take, skip: pagination.skip }
+          : {}),
+      }),
+    ]);
 
     // Hard filter: never leak tenants whose property belongs to another workspace
     const scoped = tenants.filter((t) => {
@@ -71,6 +129,7 @@ export async function GET(request: Request) {
       success: true,
       workspaceId,
       count: scoped.length,
+      pagination: paginationMeta(total, pagination, scoped.length),
       data: scoped,
     });
   } catch (error: any) {
@@ -108,6 +167,19 @@ export async function POST(request: Request) {
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: "Tenant name is required." }, { status: 400 });
+    }
+
+    if (isDataUrl(govIdUrl) || isDataUrl(leaseDocUrl)) {
+      return NextResponse.json(
+        { error: "Document fields must be storage URLs, not base64 data URLs." },
+        { status: 400 }
+      );
+    }
+    if (Array.isArray(documents) && documents.some((d: any) => isDataUrl(d?.fileUrl))) {
+      return NextResponse.json(
+        { error: "Document fileUrl must be a storage URL, not a base64 data URL." },
+        { status: 400 }
+      );
     }
 
     let targetUnitId = unitId;
@@ -260,13 +332,7 @@ export async function POST(request: Request) {
 
     const tenant = await prisma.tenant.create({
       data: tenantData,
-      include: {
-        unit: {
-          include: {
-            property: true,
-          },
-        },
-      },
+      select: tenantListSelect,
     });
 
     // Auto-create TenantDocument records in DB for all uploaded documents
@@ -289,7 +355,7 @@ export async function POST(request: Request) {
     }
 
     for (const doc of allDocsToCreate) {
-      if (!doc.fileUrl) continue;
+      if (!doc.fileUrl || isDataUrl(doc.fileUrl)) continue;
       await prisma.tenantDocument.create({
         data: {
           title: doc.title || `${doc.type || "Government ID"} (${doc.name || "Scan"}) — ${tenant.name}`,

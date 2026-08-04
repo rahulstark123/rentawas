@@ -7,6 +7,8 @@ export type PlanLimits = {
   propertiesCap: number; // Infinity = unlimited
   aiCredits: number;
   canMutate: boolean; // false = free view-only
+  /** In-app Messages (DMs + groups) — Pro / Pro Plus only (trial unlocked). */
+  canUseMessages: boolean;
 };
 
 const PLAN_LIMITS: Record<PlanKey, PlanLimits> = {
@@ -15,30 +17,35 @@ const PLAN_LIMITS: Record<PlanKey, PlanLimits> = {
     propertiesCap: Number.POSITIVE_INFINITY,
     aiCredits: getPlanCreditLimit("trial"),
     canMutate: true,
+    canUseMessages: true,
   },
   free: {
     unitsCap: 0,
     propertiesCap: 0,
     aiCredits: getPlanCreditLimit("free"),
     canMutate: false,
+    canUseMessages: false,
   },
   starter: {
     unitsCap: 15,
     propertiesCap: 3,
     aiCredits: getPlanCreditLimit("starter"),
     canMutate: true,
+    canUseMessages: false,
   },
   pro: {
     unitsCap: 75,
     propertiesCap: Number.POSITIVE_INFINITY,
     aiCredits: getPlanCreditLimit("pro"),
     canMutate: true,
+    canUseMessages: true,
   },
   pro_plus: {
     unitsCap: Number.POSITIVE_INFINITY,
     propertiesCap: Number.POSITIVE_INFINITY,
     aiCredits: getPlanCreditLimit("pro_plus"),
     canMutate: true,
+    canUseMessages: true,
   },
 };
 
@@ -63,9 +70,21 @@ export function resolveEffectivePlan(opts: {
   return normalizePlanKey(opts.plan);
 }
 
+/** Messages is Pro / Pro Plus only; active trial still has full access. */
+export function canAccessMessages(opts: {
+  plan: string | null | undefined;
+  isTrialActive?: boolean;
+}): boolean {
+  const effective = resolveEffectivePlan(opts);
+  return getPlanLimits(effective).canUseMessages;
+}
+
+export const MESSAGES_UPGRADE_MESSAGE =
+  "In-app Messages (tenant DMs & group channels) is available on Pro and Pro Plus. Upgrade to unlock messaging.";
+
 export type QuotaCheckResult =
   | { ok: true }
-  | { ok: false; code: "PLAN_LOCKED" | "UNITS_CAP" | "PROPERTIES_CAP"; message: string };
+  | { ok: false; code: "PLAN_LOCKED" | "UNITS_CAP" | "PROPERTIES_CAP" | "MESSAGES_LOCKED"; message: string };
 
 /** Server/client shared gate for creating properties or units. */
 export function checkPlanQuota(opts: {

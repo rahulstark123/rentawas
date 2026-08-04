@@ -1,5 +1,28 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parsePagination, paginationMeta } from "@/lib/apiPagination";
+
+const billListSelect = {
+  id: true,
+  invoiceNumber: true,
+  title: true,
+  amount: true,
+  status: true,
+  category: true,
+  paymentMethod: true,
+  notes: true,
+  floorNumber: true,
+  paidDate: true,
+  dueDate: true,
+  workspaceId: true,
+  tenantId: true,
+  unitId: true,
+  propertyId: true,
+  createdAt: true,
+  tenant: { select: { id: true, name: true, email: true } },
+  unit: { select: { id: true, unitNumber: true, floorNumber: true } },
+  property: { select: { id: true, name: true } },
+} as const;
 
 // GET /api/bills - Fetch bills filtered by workspaceId, propertyId, unitId, or tenantId
 export async function GET(request: Request) {
@@ -9,6 +32,7 @@ export async function GET(request: Request) {
     const propertyId = searchParams.get("propertyId");
     const unitId = searchParams.get("unitId");
     const tenantId = searchParams.get("tenantId");
+    const pagination = parsePagination(searchParams);
 
     const whereClause: any = {};
     if (workspaceId) whereClause.workspaceId = Number(workspaceId);
@@ -16,19 +40,22 @@ export async function GET(request: Request) {
     if (unitId) whereClause.unitId = unitId;
     if (tenantId) whereClause.tenantId = tenantId;
 
-    const bills = await prisma.bill.findMany({
-      where: whereClause,
-      include: {
-        tenant: true,
-        unit: true,
-        property: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [total, bills] = await Promise.all([
+      prisma.bill.count({ where: whereClause }),
+      prisma.bill.findMany({
+        where: whereClause,
+        select: billListSelect,
+        orderBy: { createdAt: "desc" },
+        ...(pagination.take != null
+          ? { take: pagination.take, skip: pagination.skip }
+          : {}),
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
       count: bills.length,
+      pagination: paginationMeta(total, pagination, bills.length),
       data: bills,
     });
   } catch (error: any) {
@@ -86,11 +113,7 @@ export async function POST(request: Request) {
 
     const bill = await prisma.bill.create({
       data: billData,
-      include: {
-        tenant: true,
-        unit: true,
-        property: true,
-      },
+      select: billListSelect,
     });
 
     return NextResponse.json(

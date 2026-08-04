@@ -37,7 +37,24 @@ export type UploadContext =
   | "profile"
   | "maintenance"
   | "property-images"
+  | "property-listings"
+  | "payment-qr"
   | "misc";
+
+const VALID_CONTEXTS: UploadContext[] = [
+  "gov-id",
+  "lease-docs",
+  "profile",
+  "maintenance",
+  "property-images",
+  "property-listings",
+  "payment-qr",
+  "misc",
+];
+
+export function isValidUploadContext(value: string): value is UploadContext {
+  return (VALID_CONTEXTS as string[]).includes(value);
+}
 
 /**
  * Build the R2 object key:
@@ -93,6 +110,24 @@ export async function getSignedDownloadUrl(key: string, expiresInSeconds = 86400
   const command = new GetObjectCommand({
     Bucket: R2_BUCKET,
     Key: key,
+  });
+
+  return getSignedUrl(r2Client, command, { expiresIn: expiresInSeconds });
+}
+
+/**
+ * Presigned PUT so the browser uploads directly to R2 (skips Vercel body proxy).
+ */
+export async function getSignedUploadUrl(
+  key: string,
+  contentType: string,
+  expiresInSeconds = 600
+): Promise<string> {
+  const command = new PutObjectCommand({
+    Bucket: R2_BUCKET,
+    Key: key,
+    ContentType: contentType,
+    CacheControl: "public, max-age=31536000, immutable",
   });
 
   return getSignedUrl(r2Client, command, { expiresIn: expiresInSeconds });

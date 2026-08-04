@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPlanCreditLimit } from "@/lib/aiCredits";
+import { rejectDataUrls, scrubDataUrlField } from "@/lib/apiPagination";
 
 export const TRIAL_DURATION_DAYS = 14;
 
@@ -157,21 +158,21 @@ export async function GET(request: Request) {
         paypalConnected: workspace.paypalConnected ?? false,
         upiId: workspace.upiId || "",
         upiPhoneNumber: workspace.upiPhoneNumber || "",
-        upiQrCodeUrl: workspace.upiQrCodeUrl || "",
+        upiQrCodeUrl: scrubDataUrlField(workspace.upiQrCodeUrl),
         upiAccountName: workspace.upiAccountName || "",
         upiAppsSupported: workspace.upiAppsSupported || "",
         upiConnected: workspace.upiConnected ?? false,
         gpayUpiId: workspace.gpayUpiId || "",
         gpayPhoneNumber: workspace.gpayPhoneNumber || "",
-        gpayQrCodeUrl: workspace.gpayQrCodeUrl || "",
+        gpayQrCodeUrl: scrubDataUrlField(workspace.gpayQrCodeUrl),
         gpayConnected: workspace.gpayConnected ?? false,
         phonepeUpiId: workspace.phonepeUpiId || "",
         phonepePhoneNumber: workspace.phonepePhoneNumber || "",
-        phonepeQrCodeUrl: workspace.phonepeQrCodeUrl || "",
+        phonepeQrCodeUrl: scrubDataUrlField(workspace.phonepeQrCodeUrl),
         phonepeConnected: workspace.phonepeConnected ?? false,
         paytmUpiId: workspace.paytmUpiId || "",
         paytmPhoneNumber: workspace.paytmPhoneNumber || "",
-        paytmQrCodeUrl: workspace.paytmQrCodeUrl || "",
+        paytmQrCodeUrl: scrubDataUrlField(workspace.paytmQrCodeUrl),
         paytmConnected: workspace.paytmConnected ?? false,
       },
     });
@@ -250,6 +251,16 @@ export async function PATCH(request: Request) {
         { error: "Workspace ID (wid) is required." },
         { status: 400 }
       );
+    }
+
+    const dataUrlError = rejectDataUrls({
+      upiQrCodeUrl,
+      gpayQrCodeUrl,
+      phonepeQrCodeUrl,
+      paytmQrCodeUrl,
+    });
+    if (dataUrlError) {
+      return NextResponse.json({ error: dataUrlError }, { status: 400 });
     }
 
     const emptyToNull = (v: unknown) => {

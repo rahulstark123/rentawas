@@ -1,5 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parsePagination, paginationMeta, isDataUrl } from "@/lib/apiPagination";
+
+const expenseListSelect = {
+  id: true,
+  expenseNumber: true,
+  title: true,
+  category: true,
+  amount: true,
+  date: true,
+  vendor: true,
+  paymentMethod: true,
+  receiptName: true,
+  receiptUrl: true,
+  status: true,
+  propertyId: true,
+  unitId: true,
+  workspaceId: true,
+  createdAt: true,
+  property: { select: { id: true, name: true } },
+  unit: { select: { id: true, unitNumber: true, floorNumber: true } },
+} as const;
 
 // GET /api/expenses - Fetch property expenses from database (supports optional ?wid= workspace filter)
 export async function GET(request: Request) {
@@ -7,6 +28,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const widParam = searchParams.get("wid");
     const wid = widParam ? parseInt(widParam, 10) : undefined;
+    const pagination = parsePagination(searchParams);
 
     const whereClause: any = {};
     if (wid) {
@@ -17,16 +39,24 @@ export async function GET(request: Request) {
       ];
     }
 
-    const expenses = await prisma.propertyExpense.findMany({
-      where: whereClause,
-      include: {
-        property: true,
-        unit: true,
-      },
-      orderBy: { date: "desc" },
-    });
+    const [total, expenses] = await Promise.all([
+      prisma.propertyExpense.count({ where: whereClause }),
+      prisma.propertyExpense.findMany({
+        where: whereClause,
+        select: expenseListSelect,
+        orderBy: { date: "desc" },
+        ...(pagination.take != null
+          ? { take: pagination.take, skip: pagination.skip }
+          : {}),
+      }),
+    ]);
 
-    return NextResponse.json({ success: true, data: expenses });
+    return NextResponse.json({
+      success: true,
+      count: expenses.length,
+      pagination: paginationMeta(total, pagination, expenses.length),
+      data: expenses,
+    });
   } catch (error: any) {
     return NextResponse.json(
       { error: "Failed to fetch property expenses", details: error?.message },
@@ -56,6 +86,13 @@ export async function POST(request: Request) {
     if (!title || !amount) {
       return NextResponse.json(
         { error: "Title and amount are required fields." },
+        { status: 400 }
+      );
+    }
+
+    if (isDataUrl(receiptUrl)) {
+      return NextResponse.json(
+        { error: "receiptUrl must be a storage URL, not a base64 data URL." },
         { status: 400 }
       );
     }
@@ -97,10 +134,7 @@ export async function POST(request: Request) {
         unitId: unitId || null,
         workspaceId: targetWorkspaceId || 1,
       },
-      include: {
-        property: true,
-        unit: true,
-      },
+      select: expenseListSelect,
     });
 
     return NextResponse.json({

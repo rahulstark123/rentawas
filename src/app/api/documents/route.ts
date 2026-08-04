@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parsePagination, paginationMeta, isDataUrl } from "@/lib/apiPagination";
 
 function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): number | null {
   const raw =
@@ -11,7 +12,29 @@ function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): num
   return !isNaN(n) && n > 0 ? n : null;
 }
 
-// GET /api/documents?workspaceId=3&landlordOnly=true
+const docListSelect = {
+  id: true,
+  title: true,
+  docType: true,
+  fileUrl: true,
+  fileName: true,
+  fileSize: true,
+  mimeType: true,
+  floorNumber: true,
+  isDocs: true,
+  workspaceId: true,
+  tenantId: true,
+  unitId: true,
+  propertyId: true,
+  profileId: true,
+  createdAt: true,
+  tenant: { select: { id: true, name: true, workspaceId: true } },
+  unit: { select: { id: true, unitNumber: true, floorNumber: true } },
+  property: { select: { id: true, name: true, workspaceId: true } },
+  profile: { select: { id: true, fullName: true, email: true } },
+} as const;
+
+// GET /api/documents?workspaceId=3&landlordOnly=true&page=1&limit=50
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -22,6 +45,7 @@ export async function GET(request: Request) {
     const profileId = searchParams.get("profileId");
     const landlordOnly = searchParams.get("landlordOnly");
     const isDocsParam = searchParams.get("isDocs");
+    const pagination = parsePagination(searchParams);
 
     if (!workspaceId) {
       return NextResponse.json(
@@ -70,23 +94,23 @@ export async function GET(request: Request) {
       });
     }
 
-    const docs = await prisma.tenantDocument.findMany({
-      where: whereClause,
-      include: {
-        tenant: true,
-        unit: true,
-        property: true,
-        profile: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [total, docs] = await Promise.all([
+      prisma.tenantDocument.count({ where: whereClause }),
+      prisma.tenantDocument.findMany({
+        where: whereClause,
+        select: docListSelect,
+        orderBy: { createdAt: "desc" },
+        ...(pagination.take != null
+          ? { take: pagination.take, skip: pagination.skip }
+          : {}),
+      }),
+    ]);
 
     // Extra safety: drop docs whose property/tenant clearly belongs to another workspace
     const scoped = docs.filter((d) => {
       if (d.workspaceId === workspaceId) return true;
       if (d.property?.workspaceId === workspaceId) return true;
       if (d.tenant?.workspaceId === workspaceId) return true;
-      // Allow workspace-scoped docs with no property/tenant yet (landlord vault uploads)
       if (d.workspaceId == null && !d.propertyId && !d.tenantId) return false;
       return false;
     });
@@ -95,6 +119,7 @@ export async function GET(request: Request) {
       success: true,
       workspaceId,
       count: scoped.length,
+      pagination: paginationMeta(total, pagination, scoped.length),
       data: scoped,
     });
   } catch (error: any) {
@@ -139,6 +164,13 @@ export async function POST(request: Request) {
     if (!fileUrl || !title) {
       return NextResponse.json(
         { error: "Document title and R2 fileUrl are required." },
+        { status: 400 }
+      );
+    }
+
+    if (isDataUrl(fileUrl)) {
+      return NextResponse.json(
+        { error: "fileUrl must be a storage URL, not a base64 data URL." },
         { status: 400 }
       );
     }
@@ -196,24 +228,14 @@ export async function POST(request: Request) {
     try {
       doc = await prisma.tenantDocument.create({
         data: docData,
-        include: {
-          tenant: true,
-          unit: true,
-          property: true,
-          profile: true,
-        },
+        select: docListSelect,
       });
     } catch (createErr: any) {
       console.warn("Retrying document creation without isDocs field fallback...", createErr?.message);
       delete docData.isDocs;
       doc = await prisma.tenantDocument.create({
         data: docData,
-        include: {
-          tenant: true,
-          unit: true,
-          property: true,
-          profile: true,
-        },
+        select: docListSelect,
       });
     }
 

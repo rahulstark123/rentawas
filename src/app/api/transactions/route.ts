@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parsePagination, paginationMeta } from "@/lib/apiPagination";
 
 // GET /api/transactions - Fetch workspace transaction history
 export async function GET(request: Request) {
@@ -7,24 +8,29 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const widParam = searchParams.get("wid");
     const wid = widParam ? parseInt(widParam, 10) : 1;
+    const pagination = parsePagination(searchParams);
 
-    // Purge legacy seeded dummy records if any exist
-    await prisma.transaction.deleteMany({
-      where: {
-        transactionNumber: {
-          in: ["PAY-801", "PAY-802", "PAY-803", "PAY-804", "PAY-805"],
-        },
-      },
+    const where = {
+      OR: [{ workspaceId: wid }, { workspaceId: null }],
+    };
+
+    const [total, transactions] = await Promise.all([
+      prisma.transaction.count({ where }),
+      prisma.transaction.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        ...(pagination.take != null
+          ? { take: pagination.take, skip: pagination.skip }
+          : {}),
+      }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      count: transactions.length,
+      pagination: paginationMeta(total, pagination, transactions.length),
+      data: transactions,
     });
-
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        OR: [{ workspaceId: wid }, { workspaceId: null }],
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return NextResponse.json({ success: true, data: transactions });
   } catch (error: any) {
     return NextResponse.json(
       { error: "Failed to fetch transaction history", details: error?.message },
@@ -58,11 +64,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: `Transaction ${newTxn.transactionNumber} recorded successfully!`,
-      data: newTxn,
-    });
+    return NextResponse.json({ success: true, data: newTxn }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(
       { error: "Failed to create transaction", details: error?.message },

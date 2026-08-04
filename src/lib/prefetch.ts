@@ -6,8 +6,11 @@ import { getActiveWorkspaceId } from "@/lib/workspace";
  * When the user hovers over a menu item for even 100ms before clicking,
  * the data is already fetched or fetching in memory — achieving 0ms perceived latency
  * with 0 extra egress (since staleTime prevents duplicate calls if already cached).
+ *
+ * Note: chat "rooms" is intentionally omitted — rooms are lightweight, but
+ * messages must load only when a conversation is opened.
  */
-export function prefetchSection(section: "properties" | "tenants" | "maintenance" | "transactions" | "announcements" | "documents" | "rooms" | "billing") {
+export function prefetchSection(section: "properties" | "tenants" | "maintenance" | "transactions" | "announcements" | "documents" | "billing") {
   const wid = getActiveWorkspaceId();
   if (!wid) return;
   const queryClient = getQueryClient();
@@ -19,7 +22,6 @@ export function prefetchSection(section: "properties" | "tenants" | "maintenance
     transactions: { key: ["transactions", wid], url: `/api/transactions?wid=${wid}` },
     announcements: { key: ["announcements", wid], url: `/api/announcements?workspaceId=${wid}` },
     documents: { key: ["documents", wid], url: `/api/documents?workspaceId=${wid}` },
-    rooms: { key: ["rooms", wid], url: `/api/chat/rooms?workspaceId=${wid}&userRole=landlord` },
     billing: { key: ["billing", wid], url: `/api/subscriptions?wid=${wid}` },
   };
 

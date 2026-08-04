@@ -62,7 +62,8 @@ import { useCurrency } from "@/context/CurrencyContext";
 import GlobalSearchModal from "@/components/ui/GlobalSearchModal";
 import ListPropertyModal from "@/components/ui/ListPropertyModal";
 import PaywallModal from "@/components/ui/PaywallModal";
-import { checkPlanQuota } from "@/lib/planLimits";
+import { checkPlanQuota, canAccessMessages, MESSAGES_UPGRADE_MESSAGE } from "@/lib/planLimits";
+import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal";
 import { invalidateAiUsage } from "@/lib/queryInvalidation";
 
 export default function DashboardLayout({
@@ -77,6 +78,10 @@ export default function DashboardLayout({
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  // Confirm-delete modal state for listing cards
+  const [showDeleteListingModal, setShowDeleteListingModal] = useState(false);
+  const [deletingListingId, setDeletingListingId] = useState<string | null>(null);
+  const [isDeletingListing, setIsDeletingListing] = useState(false);
   const [isScreenTooSmall, setIsScreenTooSmall] = useState(false);
 
   const [activeProperty, setActiveProperty] = useState("The Regent - Wing A (24 Units)");
@@ -105,6 +110,17 @@ export default function DashboardLayout({
   const [showPaywallModal, setShowPaywallModal] = useState<boolean>(false);
   const [paywallFeatureName, setPaywallFeatureName] = useState<string>("Add New Item");
   const [paywallCustomMessage, setPaywallCustomMessage] = useState<string | null>(null);
+
+  const messagesUnlocked = canAccessMessages({
+    plan: workspacePlanKey,
+    isTrialActive,
+  });
+
+  const openMessagesPaywall = () => {
+    setPaywallFeatureName("Messages");
+    setPaywallCustomMessage(MESSAGES_UPGRADE_MESSAGE);
+    setShowPaywallModal(true);
+  };
 
   const checkCanAddAction = (featureName: string = "Add New Item"): boolean => {
     const lower = featureName.toLowerCase();
@@ -363,13 +379,19 @@ export default function DashboardLayout({
     }
   };
 
-  const deleteListingItem = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this property listing?")) return;
+  const openDeleteListingModal = (id: string) => {
+    setDeletingListingId(id);
+    setShowDeleteListingModal(true);
+  };
+
+  const confirmDeleteListing = async () => {
+    if (!deletingListingId) return;
+    setIsDeletingListing(true);
     try {
       const { ensureActiveWorkspaceId, getActiveWorkspaceId } = await import("@/lib/workspace");
       const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
       const res = await fetch(
-        `/api/listings?id=${encodeURIComponent(id)}&wid=${encodeURIComponent(activeWid)}`,
+        `/api/listings?id=${encodeURIComponent(deletingListingId)}&wid=${encodeURIComponent(activeWid)}`,
         { method: "DELETE" }
       );
       const json = await res.json();
@@ -381,6 +403,10 @@ export default function DashboardLayout({
       }
     } catch (err) {
       toast("Failed to delete listing", "error");
+    } finally {
+      setIsDeletingListing(false);
+      setShowDeleteListingModal(false);
+      setDeletingListingId(null);
     }
   };
 
@@ -532,7 +558,7 @@ export default function DashboardLayout({
     { id: "overview", name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { id: "properties", name: "Properties & Units", href: "/dashboard/properties", icon: Building2 },
     { id: "payments", name: "Rent Payments", href: "/dashboard/payments", icon: CreditCard },
-    { id: "messages", name: "Messages", href: "/dashboard/messages", icon: MessageSquare },
+    { id: "messages", name: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "PRO", requiresPro: true },
     { id: "leases", name: "Documents", href: "/dashboard/leases", icon: FileText },
     { id: "tenants", name: "Tenants & Health", href: "/dashboard/tenants", icon: Users },
     { id: "maintenance", name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench },
@@ -762,9 +788,16 @@ export default function DashboardLayout({
               return (
                 <Link
                   key={item.id || item.name}
-                  href={item.href || "#"}
+                  href={item.requiresPro && !messagesUnlocked ? "#" : (item.href || "#")}
                   target={item.external ? "_blank" : undefined}
-                  onClick={() => setSidebarOpen(false)}
+                  onClick={(e) => {
+                    if (item.requiresPro && !messagesUnlocked) {
+                      e.preventDefault();
+                      openMessagesPaywall();
+                      return;
+                    }
+                    setSidebarOpen(false);
+                  }}
                   title={isCollapsed ? item.name : undefined}
                   className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all relative group cursor-pointer ${
                     isActive
@@ -787,9 +820,17 @@ export default function DashboardLayout({
 
                   {!isCollapsed && item.badge && (
                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
-                      item.badge === "AUTO" ? "bg-emerald-500/20 text-emerald-400" : "bg-blue-500/20 text-blue-400"
+                      item.badge === "AUTO"
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : item.badge === "PRO"
+                          ? "bg-[#FF6B00]/20 text-[#FF6B00]"
+                          : "bg-blue-500/20 text-blue-400"
                     }`}>
-                      {item.badge}
+                      {item.requiresPro && !messagesUnlocked ? (
+                        <span className="inline-flex items-center gap-0.5"><Lock className="w-2.5 h-2.5" /> PRO</span>
+                      ) : (
+                        item.badge
+                      )}
                     </span>
                   )}
                 </Link>
@@ -1305,7 +1346,7 @@ export default function DashboardLayout({
                                             type="button"
                                             onClick={() => {
                                               setActiveMenuListingId(null);
-                                              deleteListingItem(item.id);
+                                              openDeleteListingModal(item.id);
                                             }}
                                             className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer"
                                           >
@@ -1995,6 +2036,18 @@ export default function DashboardLayout({
           </div>
         </div>
       )}
+      {/* Confirm Delete Listing Modal */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteListingModal}
+        onClose={() => {
+          if (!isDeletingListing) {
+            setShowDeleteListingModal(false);
+            setDeletingListingId(null);
+          }
+        }}
+        onConfirm={confirmDeleteListing}
+        isLoading={isDeletingListing}
+      />
     </div>
   );
 }

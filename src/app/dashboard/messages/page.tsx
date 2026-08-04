@@ -25,9 +25,13 @@ import {
   Calendar,
   Sparkles,
   Trash2,
+  Lock,
+  Crown,
 } from "lucide-react";
 import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
 import { supabase } from "@/lib/supabase";
+import { canAccessMessages, MESSAGES_UPGRADE_MESSAGE } from "@/lib/planLimits";
+import Link from "next/link";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -848,6 +852,7 @@ export default function MessagesPage() {
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [messagesAllowed, setMessagesAllowed] = useState<boolean | null>(null);
   const [landlordProfile, setLandlordProfile] = useState<{
     id: string;
     name: string;
@@ -866,6 +871,21 @@ export default function MessagesPage() {
     const initChat = async () => {
       const workspaceId = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
       if (workspaceId) setChatWorkspaceId(workspaceId);
+
+      // Plan gate: Messages is Pro / Pro Plus (trial unlocked)
+      try {
+        const planRes = await fetch(`/api/workspace?wid=${workspaceId}`);
+        if (planRes.ok) {
+          const planJson = await planRes.json();
+          const plan = planJson?.data?.plan || "free";
+          const isTrialActive = Boolean(planJson?.data?.isTrialActive);
+          setMessagesAllowed(canAccessMessages({ plan, isTrialActive }));
+        } else {
+          setMessagesAllowed(false);
+        }
+      } catch {
+        setMessagesAllowed(false);
+      }
 
       // Load landlord profile (profile-wise identity for sends / groups)
       const { data: { user } } = await supabase.auth.getUser();
@@ -894,7 +914,7 @@ export default function MessagesPage() {
   // ─── Cache chat rooms with TanStack Query ─────────────────────────────────────────
   const { data: fetchedRooms = [], isLoading: loadingRooms } = useQuery({
     queryKey: ["rooms", chatWorkspaceId],
-    enabled: !!chatWorkspaceId,
+    enabled: !!chatWorkspaceId && messagesAllowed === true,
     queryFn: async () => {
       const res = await fetch(`/api/chat/rooms?workspaceId=${chatWorkspaceId}&userRole=landlord`);
       if (!res.ok) return [];
@@ -918,15 +938,7 @@ export default function MessagesPage() {
         rentStatus: r.tenant?.currentStatus === "Current" || r.tenant?.currentStatus === "Active" ? "Paid" : r.tenant ? "Due" : undefined,
         leaseEndDate: r.tenant?.leaseEnd ? new Date(r.tenant.leaseEnd).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : undefined,
         members: r.membersJson ? JSON.parse(r.membersJson) : undefined,
-        messages: (r.messages || []).map((m: any) => ({
-          id: m.id,
-          senderId: m.senderId,
-          senderName: m.senderName,
-          senderInitials: m.senderInitials,
-          text: m.text,
-          timestamp: new Date(m.createdAt),
-          isMe: m.isMe,
-        })),
+        messages: [], // loaded on demand via /api/chat/messages
       }));
     },
   });
@@ -934,12 +946,58 @@ export default function MessagesPage() {
   // Sync rooms state when query data changes
   useEffect(() => {
     if (fetchedRooms.length > 0) {
-      setRooms(fetchedRooms);
+      setRooms((prev) => {
+        // Preserve already-loaded message threads when rooms list refreshes
+        const prevById = new Map(prev.map((r) => [r.id, r]));
+        return fetchedRooms.map((r: ChatRoom) => {
+          const existing = prevById.get(r.id);
+          return existing?.messages?.length ? { ...r, messages: existing.messages } : r;
+        });
+      });
       if (!selectedRoomId) {
         setSelectedRoomId(fetchedRooms[0].id);
       }
     }
   }, [fetchedRooms]);
+
+  // Load messages only for the selected room (latest 50)
+  const { data: roomMessages, isLoading: loadingMessages } = useQuery({
+    queryKey: ["chat-messages", chatWorkspaceId, selectedRoomId],
+    enabled: !!chatWorkspaceId && !!selectedRoomId && messagesAllowed === true,
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/chat/messages?roomId=${encodeURIComponent(selectedRoomId)}&workspaceId=${chatWorkspaceId}&limit=50`
+      );
+      if (!res.ok) return [];
+      const json = await res.json();
+      if (!Array.isArray(json.data)) return [];
+      const meId = landlordProfile?.id;
+      return json.data.map((m: any): ChatMessage => {
+        const isMe =
+          m.senderId === meId ||
+          m.senderId === "owner" ||
+          (m.isMe === true && (!meId || m.senderId === meId));
+        return {
+          id: m.id,
+          senderId: m.senderId,
+          senderName: isMe ? "You" : m.senderName,
+          senderInitials: isMe ? (landlordProfile?.initials || "ME") : m.senderInitials,
+          text: m.text,
+          timestamp: new Date(m.createdAt),
+          isMe,
+        };
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (!selectedRoomId || !roomMessages) return;
+    setRooms((prev) =>
+      prev.map((r) =>
+        r.id === selectedRoomId ? { ...r, messages: roomMessages } : r
+      )
+    );
+  }, [selectedRoomId, roomMessages]);
 
 
 
@@ -1168,6 +1226,40 @@ export default function MessagesPage() {
 
   return (
     <>
+      {messagesAllowed === null && (
+        <div className="h-full flex items-center justify-center bg-white">
+          <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+        </div>
+      )}
+
+      {messagesAllowed === false && (
+        <div className="h-full flex items-center justify-center bg-[#F8FAFC] p-6">
+          <div className="max-w-md w-full bg-white border border-slate-200 rounded-3xl p-8 text-center shadow-sm space-y-4">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-[#FF6B00] to-amber-500 text-white flex items-center justify-center shadow-md">
+              <Crown className="w-7 h-7" />
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-orange-100 text-[#FF6B00] font-extrabold text-[10px] uppercase tracking-wider rounded-full">
+              <Lock className="w-3 h-3" />
+              Pro Feature
+            </div>
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+              Messages is on Pro &amp; Pro Plus
+            </h2>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              {MESSAGES_UPGRADE_MESSAGE}
+            </p>
+            <Link
+              href="/dashboard/billing"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-sm font-bold rounded-xl shadow-sm transition-colors"
+            >
+              Upgrade Plan
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {messagesAllowed === true && (
+      <>
       {showNewDMModal && (
         <NewDMModal onClose={() => setShowNewDMModal(false)} onStartDM={handleStartDM} />
       )}
@@ -1321,7 +1413,11 @@ export default function MessagesPage() {
 
               {/* Messages Feed */}
               <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 py-5 space-y-4 bg-[#F8FAFC]">
-                {selectedRoom.messages.length === 0 ? (
+                {loadingMessages && selectedRoom.messages.length === 0 ? (
+                  <div className="h-full flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                  </div>
+                ) : selectedRoom.messages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400">
                     <div className={`w-14 h-14 rounded-2xl ${selectedRoom.color} text-white text-lg font-extrabold flex items-center justify-center shadow-sm`}>
                       {selectedRoom.initials}
@@ -1389,6 +1485,8 @@ export default function MessagesPage() {
           />
         )}
       </div>
+      </>
+      )}
     </>
   );
 }

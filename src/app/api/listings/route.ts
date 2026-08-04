@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isDataUrl } from "@/lib/apiPagination";
 
 // GET /api/listings?isLive=true&page=1&limit=12&search=Indiranagar&propertyType=Apartment&bhk=2+BHK&maxRent=30000
 export async function GET(request: Request) {
@@ -153,6 +154,17 @@ export async function POST(request: Request) {
       );
     }
 
+    if (
+      isDataUrl(mainImage) ||
+      isDataUrl(coverImage) ||
+      (Array.isArray(galleryImages) && galleryImages.some(isDataUrl))
+    ) {
+      return NextResponse.json(
+        { error: "Listing images must be storage URLs, not base64 data URLs." },
+        { status: 400 }
+      );
+    }
+
     const parsedRent = typeof rent === "number" ? rent : parseFloat(String(rent).replace(/[^0-9.]/g, "")) || 0;
     const parsedDeposit = deposit ? (typeof deposit === "number" ? deposit : parseFloat(String(deposit).replace(/[^0-9.]/g, ""))) : null;
     const parsedSqft = sqft != null && sqft !== "" ? (typeof sqft === "number" ? sqft : parseFloat(String(sqft).replace(/[^0-9.]/g, ""))) : null;
@@ -263,6 +275,16 @@ export async function PATCH(request: Request) {
     if (body.pinnedLat !== undefined) updateData.pinnedLat = body.pinnedLat ? parseFloat(String(body.pinnedLat)) : null;
     if (body.pinnedLng !== undefined) updateData.pinnedLng = body.pinnedLng ? parseFloat(String(body.pinnedLng)) : null;
     if (Array.isArray(body.amenities)) updateData.amenities = body.amenities;
+    if (
+      isDataUrl(body.mainImage) ||
+      isDataUrl(body.coverImage) ||
+      (Array.isArray(body.galleryImages) && body.galleryImages.some(isDataUrl))
+    ) {
+      return NextResponse.json(
+        { error: "Listing images must be storage URLs, not base64 data URLs." },
+        { status: 400 }
+      );
+    }
     if (body.mainImage) updateData.mainImage = body.mainImage;
     if (body.coverImage) updateData.coverImage = body.coverImage;
     if (Array.isArray(body.galleryImages)) updateData.galleryImages = body.galleryImages;

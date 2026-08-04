@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertWorkspaceMessagesAccess } from "@/lib/planQuotaServer";
 
 function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): number | null {
   const raw =
@@ -31,7 +32,48 @@ const DEMO_SEED_GROUP_NAMES = new Set([
   "Maintenance Team",
 ]);
 
-// GET /api/chat/rooms?workspaceId=1  (or ?wid=1)
+/** Slim room payload — never include message history (load via /api/chat/messages). */
+const roomListSelect = {
+  id: true,
+  type: true,
+  name: true,
+  initials: true,
+  color: true,
+  property: true,
+  description: true,
+  lastMessage: true,
+  lastTime: true,
+  unreadCount: true,
+  membersJson: true,
+  tenantId: true,
+  workspaceId: true,
+  createdAt: true,
+  updatedAt: true,
+  tenant: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      monthlyRent: true,
+      currentStatus: true,
+      leaseEnd: true,
+      workspaceId: true,
+      profileId: true,
+      profile: { select: { id: true, email: true, fullName: true } },
+      property: { select: { id: true, name: true, workspaceId: true } },
+      unit: {
+        select: {
+          id: true,
+          unitNumber: true,
+          property: { select: { id: true, name: true, workspaceId: true } },
+        },
+      },
+    },
+  },
+} as const;
+
+// GET /api/chat/rooms?workspaceId=1 — room metadata + lastMessage only (no message history)
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -41,6 +83,14 @@ export async function GET(request: Request) {
       return NextResponse.json(
         { error: "Workspace ID (workspaceId / wid) is required." },
         { status: 400 }
+      );
+    }
+
+    const access = await assertWorkspaceMessagesAccess(workspaceId);
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.message, code: access.code },
+        { status: 403 }
       );
     }
 
@@ -80,22 +130,7 @@ export async function GET(request: Request) {
 
     let rooms = await prisma.chatRoom.findMany({
       where: { workspaceId },
-      include: {
-        messages: {
-          orderBy: { createdAt: "asc" },
-        },
-        tenant: {
-          include: {
-            unit: {
-              include: {
-                property: true,
-              },
-            },
-            profile: true,
-            property: true,
-          },
-        },
-      },
+      select: roomListSelect,
       orderBy: { updatedAt: "desc" },
     });
 
@@ -216,6 +251,14 @@ export async function POST(request: Request) {
       );
     }
 
+    const access = await assertWorkspaceMessagesAccess(workspaceId);
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.message, code: access.code },
+        { status: 403 }
+      );
+    }
+
     if (!name) {
       return NextResponse.json(
         { error: "Chat room name is required" },
@@ -248,15 +291,7 @@ export async function POST(request: Request) {
           type: "dm",
           tenantId: String(tenantId),
         },
-        include: {
-          messages: true,
-          tenant: {
-            include: {
-              unit: { include: { property: true } },
-              profile: true,
-            },
-          },
-        },
+        select: roomListSelect,
       });
       if (existingDm) {
         return NextResponse.json({ success: true, data: existingDm });
@@ -287,15 +322,7 @@ export async function POST(request: Request) {
         lastMessage: type === "group" ? "Group created" : "Start a conversation...",
         lastTime: "Just now",
       },
-      include: {
-        messages: true,
-        tenant: {
-          include: {
-            unit: { include: { property: true } },
-            profile: true,
-          },
-        },
-      },
+      select: roomListSelect,
     });
 
     return NextResponse.json({
@@ -332,6 +359,17 @@ export async function DELETE(request: Request) {
         { error: "Forbidden: Chat room does not belong to this workspace." },
         { status: 403 }
       );
+    }
+
+    const gateWid = workspaceId || room.workspaceId;
+    if (gateWid) {
+      const access = await assertWorkspaceMessagesAccess(gateWid);
+      if (!access.ok) {
+        return NextResponse.json(
+          { error: access.message, code: access.code },
+          { status: 403 }
+        );
+      }
     }
 
     await prisma.chatMessage.deleteMany({

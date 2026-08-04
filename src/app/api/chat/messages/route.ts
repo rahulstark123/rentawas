@@ -1,41 +1,92 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { assertWorkspaceMessagesAccess } from "@/lib/planQuotaServer";
 
-// GET /api/chat/messages?roomId=xxx&workspaceId=1
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 100;
+
+// GET /api/chat/messages?roomId=xxx&workspaceId=1&limit=50&before=<ISO date>
+// Returns the latest N messages (ascending). Pass `before` to page older history.
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const roomId = searchParams.get("roomId");
     const widParam = searchParams.get("workspaceId") || searchParams.get("wid");
     const workspaceId = widParam ? parseInt(widParam, 10) : NaN;
+    const before = searchParams.get("before");
+    const limitRaw = parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT), 10);
+    const limit = !isNaN(limitRaw) && limitRaw > 0
+      ? Math.min(limitRaw, MAX_LIMIT)
+      : DEFAULT_LIMIT;
 
     if (!roomId) {
       return NextResponse.json({ error: "roomId is required" }, { status: 400 });
     }
 
-    if (!isNaN(workspaceId) && workspaceId > 0) {
-      const room = await prisma.chatRoom.findUnique({
-        where: { id: roomId },
-        select: { workspaceId: true },
-      });
-      if (!room) {
-        return NextResponse.json({ error: "Chat room not found" }, { status: 404 });
-      }
-      if (room.workspaceId != null && room.workspaceId !== workspaceId) {
+    const room = await prisma.chatRoom.findUnique({
+      where: { id: roomId },
+      select: { workspaceId: true },
+    });
+    if (!room) {
+      return NextResponse.json({ error: "Chat room not found" }, { status: 404 });
+    }
+
+    if (!isNaN(workspaceId) && workspaceId > 0 && room.workspaceId != null && room.workspaceId !== workspaceId) {
+      return NextResponse.json(
+        { error: "Forbidden: Messages do not belong to this workspace." },
+        { status: 403 }
+      );
+    }
+
+    const gateWid = (!isNaN(workspaceId) && workspaceId > 0 ? workspaceId : room.workspaceId) ?? null;
+    if (gateWid) {
+      const access = await assertWorkspaceMessagesAccess(gateWid);
+      if (!access.ok) {
         return NextResponse.json(
-          { error: "Forbidden: Messages do not belong to this workspace." },
+          { error: access.message, code: access.code },
           { status: 403 }
         );
       }
     }
 
-    const messages = await prisma.chatMessage.findMany({
-      where: { roomId },
-      orderBy: { createdAt: "asc" },
-    });
+    const where: any = { roomId };
+    if (before) {
+      const beforeDate = new Date(before);
+      if (!isNaN(beforeDate.getTime())) {
+        where.createdAt = { lt: beforeDate };
+      }
+    }
+
+    const [total, newestFirst] = await Promise.all([
+      prisma.chatMessage.count({ where: { roomId } }),
+      prisma.chatMessage.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: {
+          id: true,
+          senderId: true,
+          senderName: true,
+          senderInitials: true,
+          text: true,
+          isMe: true,
+          createdAt: true,
+          roomId: true,
+        },
+      }),
+    ]);
+
+    // Chronological order for the UI
+    const messages = newestFirst.reverse();
+    const hasMore = before
+      ? newestFirst.length === limit
+      : total > messages.length;
 
     return NextResponse.json({
       success: true,
+      count: messages.length,
+      total,
+      hasMore,
       data: messages,
     });
   } catch (error: any) {
@@ -88,6 +139,17 @@ export async function POST(request: Request) {
         { error: "Forbidden: Chat room does not belong to this workspace." },
         { status: 403 }
       );
+    }
+
+    const gateWid = (!isNaN(workspaceId) && workspaceId > 0 ? workspaceId : room.workspaceId) ?? null;
+    if (gateWid) {
+      const access = await assertWorkspaceMessagesAccess(gateWid);
+      if (!access.ok) {
+        return NextResponse.json(
+          { error: access.message, code: access.code },
+          { status: 403 }
+        );
+      }
     }
 
     const resolvedSenderId = profileId || senderId;

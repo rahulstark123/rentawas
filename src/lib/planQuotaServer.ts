@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { checkPlanQuota, type QuotaCheckResult } from "@/lib/planLimits";
+import {
+  checkPlanQuota,
+  canAccessMessages,
+  MESSAGES_UPGRADE_MESSAGE,
+  type QuotaCheckResult,
+} from "@/lib/planLimits";
 
 const TRIAL_DURATION_DAYS = 14;
 
@@ -14,31 +19,57 @@ function computeTrialDaysLeft(
   return Math.max(0, TRIAL_DURATION_DAYS - elapsedDays);
 }
 
-export async function assertWorkspaceQuota(opts: {
-  workspaceId: number;
-  action: "property" | "unit" | "mutate";
-  unitsToAdd?: number;
-}): Promise<QuotaCheckResult> {
+async function resolveWorkspacePlan(workspaceId: number): Promise<{
+  plan: string;
+  isTrialActive: boolean;
+} | null> {
   const workspace = await prisma.workspace.findUnique({
-    where: { wid: opts.workspaceId },
+    where: { wid: workspaceId },
     select: {
       plan: true,
       trialStartedAt: true,
       createdAt: true,
     },
   });
-
-  if (!workspace) {
-    return { ok: false, code: "PLAN_LOCKED", message: "Workspace not found." };
-  }
+  if (!workspace) return null;
 
   let plan = workspace.plan || "trial";
   const trialDaysLeft = computeTrialDaysLeft(workspace.trialStartedAt, workspace.createdAt);
   const isTrialActive = plan === "trial" && trialDaysLeft > 0;
-
   if (plan === "trial" && !isTrialActive) {
     plan = "free";
   }
+  return { plan, isTrialActive };
+}
+
+/** Gate chat APIs — Pro / Pro Plus (or active trial) only. */
+export async function assertWorkspaceMessagesAccess(
+  workspaceId: number
+): Promise<QuotaCheckResult> {
+  const resolved = await resolveWorkspacePlan(workspaceId);
+  if (!resolved) {
+    return { ok: false, code: "PLAN_LOCKED", message: "Workspace not found." };
+  }
+  if (!canAccessMessages(resolved)) {
+    return {
+      ok: false,
+      code: "MESSAGES_LOCKED",
+      message: MESSAGES_UPGRADE_MESSAGE,
+    };
+  }
+  return { ok: true };
+}
+
+export async function assertWorkspaceQuota(opts: {
+  workspaceId: number;
+  action: "property" | "unit" | "mutate";
+  unitsToAdd?: number;
+}): Promise<QuotaCheckResult> {
+  const resolved = await resolveWorkspacePlan(opts.workspaceId);
+  if (!resolved) {
+    return { ok: false, code: "PLAN_LOCKED", message: "Workspace not found." };
+  }
+  const { plan, isTrialActive } = resolved;
 
   const [unitsCount, propertiesCount] = await Promise.all([
     prisma.unit.count({

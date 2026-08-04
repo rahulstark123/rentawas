@@ -26,7 +26,7 @@
 
 import { NextResponse } from "next/server";
 import sharp from "sharp";
-import { buildR2Key, uploadToR2, UploadContext } from "@/lib/r2";
+import { buildR2Key, uploadToR2, UploadContext, isValidUploadContext } from "@/lib/r2";
 import { compressPdfBuffer } from "@/lib/compressPdf";
 
 const IMAGE_MIME_TYPES = [
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
     const file = formData.get("file") as File | null;
     const workspaceId = (formData.get("workspaceId") as string | null)?.trim();
-    const context = (formData.get("context") as UploadContext | null) || "misc";
+    const contextRaw = ((formData.get("context") as string | null) || "misc").trim();
     const overrideName = (formData.get("filename") as string | null)?.trim();
 
     if (!file) {
@@ -64,6 +64,11 @@ export async function POST(request: Request) {
     if (!workspaceId) {
       return NextResponse.json({ error: "workspaceId is required." }, { status: 400 });
     }
+
+    if (!isValidUploadContext(contextRaw)) {
+      return NextResponse.json({ error: `Invalid context "${contextRaw}".` }, { status: 400 });
+    }
+    const context: UploadContext = contextRaw;
 
     const mimeType = file.type || "application/octet-stream";
     const originalName = overrideName || file.name || "upload";

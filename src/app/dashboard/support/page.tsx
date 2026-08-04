@@ -33,6 +33,7 @@ import { useToast } from "@/components/ui/Toast";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
 import { invalidateSupportTickets } from "@/lib/queryInvalidation";
+import { uploadFile } from "@/lib/upload";
 
 export interface SupportTicketRecord {
   id: string;
@@ -130,76 +131,18 @@ export default function LandlordSupportPage() {
   }, []);
 
 
-  // Attachment File Upload & WebP Image Compression
-  const compressImageFile = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = document.createElement("img");
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let width = img.width;
-          let height = img.height;
-
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            const compressedDataUrl = canvas.toDataURL("image/webp", quality);
-            resolve(compressedDataUrl);
-          } else {
-            resolve(event.target?.result as string);
-          }
-        };
-        img.onerror = () => resolve(event.target?.result as string);
-      };
-    });
-  };
-
+  // Attachment upload — R2 URLs only (never base64 into tickets)
   const uploadAttachmentToStorage = async (file: File): Promise<string> => {
-    try {
-      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId() || "support";
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("workspaceId", String(activeWid));
-      formData.append("context", "misc");
-
-      const res = await fetch("/api/storage/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const json = await res.json();
-      if (json.success && json.url) {
-        return json.url;
-      }
-      if (file.type.startsWith("image/")) {
-        return await compressImageFile(file, 1200, 0.8);
-      }
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target?.result as string);
-        reader.readAsDataURL(file);
-      });
-    } catch (err) {
-      if (file.type.startsWith("image/")) {
-        return await compressImageFile(file, 1200, 0.8);
-      }
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target?.result as string);
-        reader.readAsDataURL(file);
-      });
+    const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId() || "support";
+    const result = await uploadFile(file, {
+      workspaceId: String(activeWid),
+      context: "misc",
+      compress: true,
+    });
+    if (!result.success || !result.url) {
+      throw new Error(result.error || "Attachment upload failed");
     }
+    return result.url;
   };
 
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,15 +176,18 @@ export default function LandlordSupportPage() {
       }
 
       toast(`Compressing & uploading "${file.name}"...`, "info");
-      const uploadedUrl = await uploadAttachmentToStorage(file);
-      
-      newAttachments.push({
-        id: `ATT-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        name: file.name,
-        size: `${(file.size / 1024).toFixed(1)} KB`,
-        url: uploadedUrl,
-        type: file.type,
-      });
+      try {
+        const uploadedUrl = await uploadAttachmentToStorage(file);
+        newAttachments.push({
+          id: `ATT-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          name: file.name,
+          size: `${(file.size / 1024).toFixed(1)} KB`,
+          url: uploadedUrl,
+          type: file.type,
+        });
+      } catch (err: any) {
+        toast(err?.message || `Failed to upload "${file.name}"`, "error");
+      }
     }
 
     if (newAttachments.length > 0) {

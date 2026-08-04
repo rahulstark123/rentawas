@@ -44,6 +44,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
+import { uploadFile } from "@/lib/upload";
 
 
 async function resolveActiveWid(): Promise<string> {
@@ -187,44 +188,23 @@ export default function WorkspaceSettingsPage() {
   const [tempTimezone, setTempTimezone] = useState(timezone);
   const [tempFiscalYearStart, setTempFiscalYearStart] = useState(fiscalYearStart);
 
-  // Client-side Canvas Image Compression for QR Code Uploads
-  const compressQrImage = (file: File, callback: (compressedDataUrl: string) => void) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new window.Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let width = img.width;
-        let height = img.height;
-        const maxDim = 800; // max 800px width/height for crisp QR scan
-
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL("image/jpeg", 0.85);
-          callback(compressed);
-        } else {
-          callback(e.target?.result as string);
-        }
-      };
-      img.onerror = () => {
-        callback(e.target?.result as string);
-      };
-      img.src = e.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+  // Upload QR images to R2 (never store base64 in Postgres)
+  const uploadQrToStorage = async (file: File): Promise<string | null> => {
+    if (file.size > 5 * 1024 * 1024) {
+      toast("QR Code image must be less than 5MB.", "error");
+      return null;
+    }
+    const wid = await resolveActiveWid();
+    const result = await uploadFile(file, {
+      workspaceId: wid || "workspace",
+      context: "payment-qr",
+      compress: true,
+    });
+    if (!result.success || !result.url) {
+      toast(result.error || "Failed to upload QR code.", "error");
+      return null;
+    }
+    return result.url;
   };
 
   const [selectedPhoneCountry, setSelectedPhoneCountry] = useState<Country>(
@@ -951,21 +931,15 @@ export default function WorkspaceSettingsPage() {
     }
   };
 
-  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast("QR Code image must be less than 5MB.", "error");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        const base64 = uploadEvent.target?.result as string;
-        setUpiQrCodeUrl(base64);
-        toast("QR Code image attached successfully!", "success");
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    const url = await uploadQrToStorage(file);
+    if (url) {
+      setUpiQrCodeUrl(url);
+      toast("QR Code image uploaded successfully!", "success");
     }
+    e.target.value = "";
   };
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -2582,14 +2556,15 @@ export default function WorkspaceSettingsPage() {
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
-                        if (file) {
-                          compressQrImage(file, (dataUrl) => {
-                            setGpayQrCodeUrl(dataUrl);
-                            toast("GPay QR Code compressed & attached!", "success");
-                          });
+                        if (!file) return;
+                        const url = await uploadQrToStorage(file);
+                        if (url) {
+                          setGpayQrCodeUrl(url);
+                          toast("GPay QR Code uploaded!", "success");
                         }
+                        e.target.value = "";
                       }}
                       className="hidden"
                     />
@@ -2723,14 +2698,15 @@ export default function WorkspaceSettingsPage() {
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
-                        if (file) {
-                          compressQrImage(file, (dataUrl) => {
-                            setPhonepeQrCodeUrl(dataUrl);
-                            toast("PhonePe QR Code compressed & attached!", "success");
-                          });
+                        if (!file) return;
+                        const url = await uploadQrToStorage(file);
+                        if (url) {
+                          setPhonepeQrCodeUrl(url);
+                          toast("PhonePe QR Code uploaded!", "success");
                         }
+                        e.target.value = "";
                       }}
                       className="hidden"
                     />
@@ -2864,14 +2840,15 @@ export default function WorkspaceSettingsPage() {
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
-                        if (file) {
-                          compressQrImage(file, (dataUrl) => {
-                            setPaytmQrCodeUrl(dataUrl);
-                            toast("Paytm QR Code compressed & attached!", "success");
-                          });
+                        if (!file) return;
+                        const url = await uploadQrToStorage(file);
+                        if (url) {
+                          setPaytmQrCodeUrl(url);
+                          toast("Paytm QR Code uploaded!", "success");
                         }
+                        e.target.value = "";
                       }}
                       className="hidden"
                     />

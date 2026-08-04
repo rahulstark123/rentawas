@@ -1,14 +1,8 @@
 /**
  * Client-side file upload helper for Cloudflare R2.
  *
- * Sends file to POST /api/storage/upload which:
- *  - Compresses images to WebP via Sharp (server-side)
- *  - Compresses PDFs via pdf-lib + unpdf (PDF.js) + sharp
- *  - Stores in: rentawas/{workspaceId}/{context}/{timestamp}_{name}.{ext}
- *
- * Usage:
- *   const result = await uploadFile(file, { workspaceId: "prop_abc123", context: "gov-id" });
- *   if (result.success) console.log(result.url); // public CDN URL
+ * Prefer direct-to-R2 via presigned PUT (skips Vercel body egress).
+ * Falls back to POST /api/storage/upload if direct upload fails (e.g. CORS).
  */
 
 export type UploadContext =
@@ -17,6 +11,8 @@ export type UploadContext =
   | "profile"
   | "maintenance"
   | "property-images"
+  | "property-listings"
+  | "payment-qr"
   | "misc";
 
 export interface UploadResult {
@@ -44,7 +40,7 @@ export interface UploadOptions {
 }
 
 /**
- * Compress image client-side via HTML5 canvas before uploading to server
+ * Compress image client-side via HTML5 canvas before uploading
  */
 export async function compressImageClientSide(
   file: File,
@@ -102,67 +98,155 @@ export async function compressImageClientSide(
   });
 }
 
+async function uploadViaProxy(
+  file: File,
+  options: UploadOptions
+): Promise<UploadResult> {
+  const { workspaceId, context, filename, onProgress } = options;
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("workspaceId", workspaceId);
+  formData.append("context", context);
+  if (filename) formData.append("filename", filename);
+
+  return await new Promise<UploadResult>((resolve) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onProgress(Math.min(percent, 95));
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          onProgress?.(100);
+          resolve({ success: true, ...data });
+        } catch {
+          resolve({ success: false, error: "Invalid server response" });
+        }
+      } else {
+        try {
+          const err = JSON.parse(xhr.responseText);
+          resolve({ success: false, error: err.error || "Upload failed" });
+        } catch {
+          resolve({ success: false, error: `HTTP ${xhr.status}` });
+        }
+      }
+    };
+
+    xhr.onerror = () => resolve({ success: false, error: "Network error during upload" });
+    xhr.ontimeout = () => resolve({ success: false, error: "Upload timed out" });
+
+    xhr.open("POST", "/api/storage/upload");
+    xhr.timeout = 60000;
+    xhr.send(formData);
+  });
+}
+
+async function uploadDirectToR2(
+  file: File,
+  options: UploadOptions
+): Promise<UploadResult> {
+  const { workspaceId, context, filename, onProgress } = options;
+
+  const presignRes = await fetch("/api/storage/presign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      workspaceId,
+      context,
+      filename: filename || file.name,
+      contentType: file.type || "application/octet-stream",
+      contentLength: file.size,
+    }),
+  });
+
+  if (!presignRes.ok) {
+    const err = await presignRes.json().catch(() => ({}));
+    throw new Error(err.error || `Presign failed (${presignRes.status})`);
+  }
+
+  const presign = await presignRes.json();
+  if (!presign.uploadUrl || !presign.publicUrl) {
+    throw new Error("Invalid presign response");
+  }
+
+  onProgress?.(10);
+
+  const putRes = await new Promise<Response>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", presign.uploadUrl);
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.timeout = 60000;
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        const percent = 10 + Math.round((event.loaded / event.total) * 85);
+        onProgress(Math.min(percent, 95));
+      }
+    };
+
+    xhr.onload = () => {
+      resolve(new Response(null, { status: xhr.status, statusText: xhr.statusText }));
+    };
+    xhr.onerror = () => reject(new Error("Direct R2 upload network error"));
+    xhr.ontimeout = () => reject(new Error("Direct R2 upload timed out"));
+    xhr.send(file);
+  });
+
+  if (!putRes.ok) {
+    throw new Error(`Direct R2 upload failed (HTTP ${putRes.status})`);
+  }
+
+  onProgress?.(100);
+  return {
+    success: true,
+    url: presign.publicUrl,
+    key: presign.key,
+    filename: presign.filename,
+    originalSizeKB: Math.round(file.size / 1024),
+    uploadedSizeKB: Math.round(file.size / 1024),
+    compressionPct: 0,
+  };
+}
+
 export async function uploadFile(
   file: File,
   options: UploadOptions
 ): Promise<UploadResult> {
   try {
-    const { workspaceId, context, filename, onProgress, compress = true } = options;
+    const { compress = true } = options;
 
     const validation = validateFile(file);
     if (!validation.valid) {
       return { success: false, error: validation.error || "Invalid file" };
     }
 
-    // Compress images client-side before sending over network
+    const isPdf = file.type === "application/pdf";
+
+    // PDFs: always use the server proxy so pdf-lib / sharp compression still runs.
+    // (Browser can't reliably recompress PDFs; direct R2 would store the raw file.)
+    if (isPdf) {
+      return await uploadViaProxy(file, options);
+    }
+
+    // Images: compress in the browser, then upload direct to R2 (skips Vercel body).
     let fileToUpload = file;
     if (compress && file.type.startsWith("image/")) {
       fileToUpload = await compressImageClientSide(file);
     }
 
-    const formData = new FormData();
-    formData.append("file", fileToUpload);
-    formData.append("workspaceId", workspaceId);
-    formData.append("context", context);
-    if (filename) formData.append("filename", filename);
-
-    // Use XMLHttpRequest to track upload progress
-    return await new Promise<UploadResult>((resolve) => {
-      const xhr = new XMLHttpRequest();
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable && onProgress) {
-          const percent = Math.round((event.loaded / event.total) * 100);
-          onProgress(Math.min(percent, 95)); // cap at 95% until server processes
-        }
-      };
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const data = JSON.parse(xhr.responseText);
-            onProgress?.(100);
-            resolve({ success: true, ...data });
-          } catch {
-            resolve({ success: false, error: "Invalid server response" });
-          }
-        } else {
-          try {
-            const err = JSON.parse(xhr.responseText);
-            resolve({ success: false, error: err.error || "Upload failed" });
-          } catch {
-            resolve({ success: false, error: `HTTP ${xhr.status}` });
-          }
-        }
-      };
-
-      xhr.onerror = () => resolve({ success: false, error: "Network error during upload" });
-      xhr.ontimeout = () => resolve({ success: false, error: "Upload timed out" });
-
-      xhr.open("POST", "/api/storage/upload");
-      xhr.timeout = 60000; // 60 second timeout
-      xhr.send(formData);
-    });
+    try {
+      return await uploadDirectToR2(fileToUpload, options);
+    } catch (directErr) {
+      console.warn("Direct R2 upload failed, falling back to proxy:", directErr);
+      // Proxy path re-compresses with Sharp — send original so we don't double-WebP poorly
+      return await uploadViaProxy(file, options);
+    }
   } catch (error: any) {
     return { success: false, error: error?.message || "Upload failed" };
   }

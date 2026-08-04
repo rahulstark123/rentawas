@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parsePagination, paginationMeta } from "@/lib/apiPagination";
 
-// GET /api/properties?wid=1
+// GET /api/properties?wid=1&page=1&limit=50
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const widParam = searchParams.get("wid");
     const wid = widParam ? parseInt(widParam, 10) : NaN;
+    const pagination = parsePagination(searchParams);
 
     // Require wid so properties never leak across workspaces
     if (!widParam || isNaN(wid) || wid <= 0) {
@@ -16,19 +18,39 @@ export async function GET(request: Request) {
       );
     }
 
-    const properties = await prisma.property.findMany({
-      where: { workspaceId: wid },
-      include: {
-        units: {
-          include: {
-            tenants: true,
+    const where = { workspaceId: wid };
+
+    const [total, properties] = await Promise.all([
+      prisma.property.count({ where }),
+      prisma.property.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          pincode: true,
+          address: true,
+          floors: true,
+          unitsPerFloor: true,
+          totalUnits: true,
+          workspaceId: true,
+          createdAt: true,
+          units: {
+            select: {
+              id: true,
+              isOccupied: true,
+              rent: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+        ...(pagination.take != null
+          ? { take: pagination.take, skip: pagination.skip }
+          : {}),
+      }),
+    ]);
 
-    // Compute live metrics for each property
+    // Compute live metrics for each property (no tenant blobs)
     const formattedProperties = properties.map((prop) => {
       const occupiedUnits = prop.units.filter((u) => u.isOccupied).length;
       const totalUnits = prop.units.length || prop.totalUnits;
@@ -61,6 +83,7 @@ export async function GET(request: Request) {
       success: true,
       workspaceId: wid,
       count: formattedProperties.length,
+      pagination: paginationMeta(total, pagination, formattedProperties.length),
       data: formattedProperties,
     });
   } catch (error: any) {

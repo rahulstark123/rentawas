@@ -48,6 +48,7 @@ import {
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
+import { uploadFile } from "@/lib/upload";
 
 interface ListPropertyModalProps {
   isOpen: boolean;
@@ -237,103 +238,60 @@ export default function ListPropertyModal({
   const [coverImage, setCoverImage] = useState<string>("");
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
 
-  // Cloudflare R2 Storage Upload Helper
+  // Cloudflare R2 Storage Upload Helper — no base64 DB fallback
   const uploadImageToR2 = async (file: File): Promise<string> => {
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("workspaceId", "public-listings");
-      formData.append("context", "property-listings");
-
-      const res = await fetch("/api/storage/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const json = await res.json();
-      if (json.success && json.url) {
-        return json.url;
-      }
-      // If R2 upload returns error or credentials missing, fallback to WebP compression DataURL
-      console.warn("R2 storage notice:", json.error);
-      return await compressImageFile(file, 1200, 0.8);
-    } catch (err) {
-      console.warn("R2 upload exception, using client fallback:", err);
-      return await compressImageFile(file, 1200, 0.8);
-    }
-  };
-
-  // Client-Side Canvas Image Compression Fallback
-  const compressImageFile = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = document.createElement("img");
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let width = img.width;
-          let height = img.height;
-
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            const compressedDataUrl = canvas.toDataURL("image/webp", quality);
-            resolve(compressedDataUrl);
-          } else {
-            resolve(event.target?.result as string);
-          }
-        };
-        img.onerror = () => resolve(event.target?.result as string);
-      };
+    const result = await uploadFile(file, {
+      workspaceId: "public-listings",
+      context: "property-listings",
+      compress: true,
     });
+    if (!result.success || !result.url) {
+      throw new Error(result.error || "Image upload failed. Please try again.");
+    }
+    return result.url;
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: "main" | "cover" | "gallery") => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    if (target === "main") {
-      const file = files[0];
-      toast("Uploading main image to Cloudflare R2...", "info");
-      const r2Url = await uploadImageToR2(file);
-      setMainImage(r2Url);
-      setImageUrl(r2Url);
-      toast("Main image uploaded to Cloudflare R2!", "success");
-    } else if (target === "cover") {
-      const file = files[0];
-      toast("Uploading cover banner to Cloudflare R2...", "info");
-      const r2Url = await uploadImageToR2(file);
-      setCoverImage(r2Url);
-      toast("Cover banner uploaded to Cloudflare R2!", "success");
-    } else if (target === "gallery") {
-      const remainingSlots = 5 - galleryImages.length;
-      if (remainingSlots <= 0) {
-        toast("Maximum 5 gallery photos allowed!", "error");
-        return;
-      }
-      const filesToProcess = Array.from(files).slice(0, remainingSlots);
-      toast(`Uploading ${filesToProcess.length} gallery image(s) to Cloudflare R2...`, "info");
-      
-      const r2Urls = await Promise.all(
-        filesToProcess.map((file) => uploadImageToR2(file))
-      );
+    try {
+      if (target === "main") {
+        const file = files[0];
+        toast("Uploading main image to Cloudflare R2...", "info");
+        const r2Url = await uploadImageToR2(file);
+        setMainImage(r2Url);
+        setImageUrl(r2Url);
+        toast("Main image uploaded to Cloudflare R2!", "success");
+      } else if (target === "cover") {
+        const file = files[0];
+        toast("Uploading cover banner to Cloudflare R2...", "info");
+        const r2Url = await uploadImageToR2(file);
+        setCoverImage(r2Url);
+        toast("Cover banner uploaded to Cloudflare R2!", "success");
+      } else if (target === "gallery") {
+        const remainingSlots = 5 - galleryImages.length;
+        if (remainingSlots <= 0) {
+          toast("Maximum 5 gallery photos allowed!", "error");
+          return;
+        }
+        const filesToProcess = Array.from(files).slice(0, remainingSlots);
+        toast(`Uploading ${filesToProcess.length} gallery image(s) to Cloudflare R2...`, "info");
 
-      setGalleryImages((prev) => {
-        const next = [...prev, ...r2Urls];
-        return next.slice(0, 5);
-      });
-      toast(`Uploaded ${r2Urls.length} gallery photo(s) to Cloudflare R2!`, "success");
+        const r2Urls = await Promise.all(
+          filesToProcess.map((file) => uploadImageToR2(file))
+        );
+
+        setGalleryImages((prev) => {
+          const next = [...prev, ...r2Urls];
+          return next.slice(0, 5);
+        });
+        toast(`Uploaded ${r2Urls.length} gallery photo(s) to Cloudflare R2!`, "success");
+      }
+    } catch (err: any) {
+      toast(err?.message || "Image upload failed. Please try again.", "error");
     }
+    e.target.value = "";
   };
 
   const [contactPersonName, setContactPersonName] = useState("");

@@ -1,20 +1,23 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/analytics - Dynamic PostgreSQL Aggregation API for Yield & Portfolio Charts
+// GET /api/analytics - Aggregated chart payload (no full-row dumps)
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const widParam = searchParams.get("wid");
     const wid = widParam ? parseInt(widParam, 10) : 1;
-    const timeframe = searchParams.get("timeframe") || "YTD";
 
     // -------------------------------------------------------------
-    // CHART 1: Real-time Property Yield Share by Asset Category
+    // CHART 1: Property Yield Share by Asset Category (slim unit fields)
     // -------------------------------------------------------------
     const properties = await prisma.property.findMany({
       where: { workspaceId: wid },
-      include: { units: true },
+      select: {
+        id: true,
+        category: true,
+        units: { select: { rent: true, isOccupied: true } },
+      },
     });
     const totalProperties = properties.length;
 
@@ -60,18 +63,43 @@ export async function GET(request: Request) {
         ];
 
     // -------------------------------------------------------------
-    // CHART 2: Monthly Rent Collection vs Operating Expenses Aggregation
+    // CHART 2: Monthly aggregation — only amount/status/date fields
     // -------------------------------------------------------------
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const monthlyRev: number[] = new Array(12).fill(0);
     const monthlyExp: number[] = new Array(12).fill(0);
 
-    // Fetch Bills for revenue
-    const bills = await prisma.bill.findMany({
-      where: { workspaceId: wid },
-    });
+    const yearStart = new Date(new Date().getFullYear(), 0, 1);
 
-    bills.forEach((b) => {
+    const [billsSlim, expensesSlim, txnGroups, totalUnits, occupiedUnits, totalTenants, billStatusCounts] =
+      await Promise.all([
+        prisma.bill.findMany({
+          where: { workspaceId: wid, createdAt: { gte: yearStart } },
+          select: { amount: true, status: true, createdAt: true },
+        }),
+        prisma.propertyExpense.findMany({
+          where: {
+            OR: [{ workspaceId: wid }, { workspaceId: null }],
+            createdAt: { gte: yearStart },
+          },
+          select: { amount: true, category: true, createdAt: true },
+        }),
+        prisma.transaction.groupBy({
+          by: ["paymentMethod"],
+          where: { OR: [{ workspaceId: wid }, { workspaceId: null }] },
+          _count: { _all: true },
+        }),
+        prisma.unit.count({ where: { workspaceId: wid } }),
+        prisma.unit.count({ where: { workspaceId: wid, isOccupied: true } }),
+        prisma.tenant.count({ where: { workspaceId: wid } }),
+        prisma.bill.groupBy({
+          by: ["status"],
+          where: { workspaceId: wid },
+          _count: { _all: true },
+        }),
+      ]);
+
+    billsSlim.forEach((b) => {
       const amt = parseFloat(String(b.amount).replace(/[^0-9.]/g, "")) || 0;
       const mIdx = new Date(b.createdAt).getMonth();
       if (b.status === "Paid" || b.status === "SUCCESS") {
@@ -79,18 +107,12 @@ export async function GET(request: Request) {
       }
     });
 
-    // Fetch Expenses for overhead
-    const expenses = await prisma.propertyExpense.findMany({
-      where: { OR: [{ workspaceId: wid }, { workspaceId: null }] },
-    });
-
-    expenses.forEach((e) => {
+    expensesSlim.forEach((e) => {
       const amt = parseFloat(String(e.amount).replace(/[^0-9.]/g, "")) || 0;
       const mIdx = new Date(e.createdAt).getMonth();
       monthlyExp[mIdx] += amt;
     });
 
-    // Check if real database bills or expenses exist
     const hasRealBills = monthlyRev.some((r) => r > 0);
     const hasRealExpenses = monthlyExp.some((e) => e > 0);
 
@@ -115,24 +137,14 @@ export async function GET(request: Request) {
     });
 
     // -------------------------------------------------------------
-    // CHART 3: Payment Collection Channels Matrix
+    // CHART 3: Payment channels via groupBy
     // -------------------------------------------------------------
-    const transactions = await prisma.transaction.findMany({
-      where: { OR: [{ workspaceId: wid }, { workspaceId: null }] },
-    });
-
-    const channelCounts: Record<string, number> = {};
-    transactions.forEach((t) => {
-      const method = t.paymentMethod || "Razorpay Auto-Debit";
-      channelCounts[method] = (channelCounts[method] || 0) + 1;
-    });
-
-    const totalTxns = transactions.length;
+    const totalTxns = txnGroups.reduce((acc, g) => acc + g._count._all, 0);
     const collectionMethodMatrix = totalTxns > 0
-      ? Object.entries(channelCounts).map(([channel, count]) => ({
-          channel,
-          pct: Math.round((count / totalTxns) * 100),
-          count: `${count} Payments`,
+      ? txnGroups.map((g) => ({
+          channel: g.paymentMethod || "Razorpay Auto-Debit",
+          pct: Math.round((g._count._all / totalTxns) * 100),
+          count: `${g._count._all} Payments`,
           status: "Processed via Gateway",
         }))
       : [
@@ -142,15 +154,14 @@ export async function GET(request: Request) {
         ];
 
     // -------------------------------------------------------------
-    // CHART 4: Maintenance & Property Expense Breakdown
+    // CHART 4: Expense breakdown from slim rows
     // -------------------------------------------------------------
     let totalExpenseAmount = 0;
     const categoryTotals: Record<string, number> = {};
 
-    expenses.forEach((exp) => {
+    expensesSlim.forEach((exp) => {
       const numericAmt = parseFloat(String(exp.amount).replace(/[^0-9.]/g, "")) || 0;
       totalExpenseAmount += numericAmt;
-
       const cat = exp.category || "General Maintenance";
       categoryTotals[cat] = (categoryTotals[cat] || 0) + numericAmt;
     });
@@ -172,11 +183,7 @@ export async function GET(request: Request) {
       .sort((a, b) => b.pct - a.pct)
       .slice(0, 5);
 
-    // KPI Summary Metrics
-    const totalUnits = await prisma.unit.count({ where: { workspaceId: wid } });
-    const occupiedUnits = await prisma.unit.count({ where: { workspaceId: wid, isOccupied: true } });
     const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 100;
-    const totalTenants = await prisma.tenant.count({ where: { workspaceId: wid } });
 
     const totalGrossRev = monthlyRev.reduce((a, b) => a + b, 0) || 1180000;
     const totalGrossExp = monthlyExp.reduce((a, b) => a + b, 0) || 246000;
@@ -186,6 +193,11 @@ export async function GET(request: Request) {
     const capRate = 0.055;
     const annualNOI = netOperatingIncome;
     const estimatedPortfolioValuation = annualNOI > 0 ? Math.round(annualNOI / capRate) : 25700000;
+
+    const totalBills = billStatusCounts.reduce((a, s) => a + s._count._all, 0);
+    const paidBills = billStatusCounts
+      .filter((s) => s.status === "Paid" || s.status === "SUCCESS")
+      .reduce((a, s) => a + s._count._all, 0);
 
     return NextResponse.json({
       success: true,
@@ -202,7 +214,7 @@ export async function GET(request: Request) {
           annualizedNOI: `$${annualNOI.toLocaleString()}`,
           avgRentPerUnit: `$${avgRentPerUnit.toLocaleString()} / mo`,
           portfolioValuation: `$${(estimatedPortfolioValuation / 1000000).toFixed(1)}M USD`,
-          collectionEfficiency: `${bills.length > 0 ? ((bills.filter(b => b.status === 'Paid' || b.status === 'SUCCESS').length / bills.length) * 100).toFixed(1) : "98.6"} / 100`,
+          collectionEfficiency: `${totalBills > 0 ? ((paidBills / totalBills) * 100).toFixed(1) : "98.6"} / 100`,
         },
         monthlyData,
         propertyYieldDistribution,

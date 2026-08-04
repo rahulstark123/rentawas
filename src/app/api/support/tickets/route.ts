@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isDataUrl } from "@/lib/apiPagination";
 
 function parseWid(raw: unknown): number | null {
   if (raw == null || raw === "") return null;
@@ -75,6 +76,13 @@ export async function POST(request: Request) {
     if (!subject || !message) {
       return NextResponse.json(
         { error: "Subject and Message are required" },
+        { status: 400 }
+      );
+    }
+
+    if (Array.isArray(attachments) && attachments.some(isDataUrl)) {
+      return NextResponse.json(
+        { error: "Attachments must be storage URLs, not base64 data URLs. Upload files first." },
         { status: 400 }
       );
     }
