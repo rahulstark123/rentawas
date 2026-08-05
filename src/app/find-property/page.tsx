@@ -42,6 +42,7 @@ import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/Count
 import { useToast } from "@/components/ui/Toast";
 import { supabase } from "@/lib/supabase";
 import { createUserProfileAndWorkspace } from "@/app/actions/authActions";
+import { useWishlist } from "@/hooks/useWishlist";
 
 const AMENITY_LABELS: Record<string, string> = {
   wifi: "High-Speed WiFi",
@@ -144,8 +145,7 @@ export default function FindPropertyPage() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Saved / Liked Properties
-  const [likedProperties, setLikedProperties] = useState<Record<string, boolean>>({});
+  const { likedProperties, toggleWishlist, addToWishlist } = useWishlist(!!userSession);
 
   // API & Pagination States
   const [apiListings, setApiListings] = useState<PropertyItem[]>([]);
@@ -385,56 +385,13 @@ export default function FindPropertyPage() {
     return matchesLocation && matchesType && matchesBhk && matchesPrice;
   });
 
-  // Initial Wishlist Load from LocalStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("rentawas_wishlist_items");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        const likesMap: Record<string, boolean> = {};
-        if (Array.isArray(parsed)) {
-          parsed.forEach((item: any) => {
-            if (item.id) likesMap[item.id] = true;
-          });
-        }
-        setLikedProperties(likesMap);
-      }
-    } catch (e) {
-      console.error("Failed loading wishlist from localStorage", e);
-    }
-  }, []);
-
-  const performWishlistSave = (property: PropertyItem) => {
-    const isCurrentlyLiked = !!likedProperties[property.id];
-    const isLiked = !isCurrentlyLiked;
-
-    setLikedProperties((prev) => ({ ...prev, [property.id]: isLiked }));
-
-    try {
-      const stored = localStorage.getItem("rentawas_wishlist_items");
-      let itemsArr: any[] = stored ? JSON.parse(stored) : [];
-      if (isLiked) {
-        if (!itemsArr.some((item) => item.id === property.id)) {
-          itemsArr.push(property);
-        }
-        toast(`Saved "${property.title}" to your wishlist!`, "success");
-      } else {
-        itemsArr = itemsArr.filter((item) => item.id !== property.id);
-        toast("Removed property from wishlist", "info");
-      }
-      localStorage.setItem("rentawas_wishlist_items", JSON.stringify(itemsArr));
-    } catch (err) {
-      console.error("Error updating localStorage wishlist:", err);
-    }
-  };
-
   const toggleLike = (property: PropertyItem) => {
     if (!userSession) {
       setPendingWishlistProperty(property);
       setIsLoginModalOpen(true);
       return;
     }
-    performWishlistSave(property);
+    void toggleWishlist(property);
   };
 
   const handleInPlaceAuth = async (e: React.FormEvent) => {
@@ -488,7 +445,7 @@ export default function FindPropertyPage() {
       }
 
       if (pendingWishlistProperty) {
-        performWishlistSave(pendingWishlistProperty);
+        void addToWishlist(pendingWishlistProperty);
         setPendingWishlistProperty(null);
       }
 
@@ -502,7 +459,7 @@ export default function FindPropertyPage() {
       // Fallback auth completion
       setUserSession({ user: { email: authEmail.trim() || "tenant@rentawas.com" } });
       if (pendingWishlistProperty) {
-        performWishlistSave(pendingWishlistProperty);
+        void addToWishlist(pendingWishlistProperty);
         setPendingWishlistProperty(null);
       }
       setIsLoginModalOpen(false);
@@ -514,7 +471,7 @@ export default function FindPropertyPage() {
   const handleInPlaceDemoLogin = () => {
     setUserSession({ user: { email: "tenant@rentawas.com" } });
     if (pendingWishlistProperty) {
-      performWishlistSave(pendingWishlistProperty);
+      void addToWishlist(pendingWishlistProperty);
       setPendingWishlistProperty(null);
     }
     setIsLoginModalOpen(false);
@@ -862,6 +819,28 @@ export default function FindPropertyPage() {
                           {p.type}
                         </span>
                       </div>
+
+                      {/* Wishlist Heart — visible on hover when logged in; stays visible when saved */}
+                      {userSession && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleLike(p);
+                          }}
+                          className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-md shadow-md transition-all duration-300 cursor-pointer ${
+                            likedProperties[p.id]
+                              ? "bg-red-500 text-white opacity-100"
+                              : "bg-white/90 text-slate-600 hover:bg-white hover:text-red-500 opacity-0 group-hover:opacity-100"
+                          }`}
+                          title={likedProperties[p.id] ? "Remove from Wishlist" : "Save to Wishlist"}
+                          aria-label={likedProperties[p.id] ? "Remove from Wishlist" : "Save to Wishlist"}
+                        >
+                          <Heart
+                            className={`w-4 h-4 ${likedProperties[p.id] ? "fill-white" : ""}`}
+                          />
+                        </button>
+                      )}
 
                       {/* Price Tag Overlay */}
                       <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1 rounded-xl shadow-md border border-slate-200">

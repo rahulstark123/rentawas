@@ -51,7 +51,8 @@ import {
   MessageSquare,
   Bot,
   Send,
-  Loader2
+  Loader2,
+  Heart,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import LogoutAnimation from "@/components/LogoutAnimation";
@@ -914,6 +915,20 @@ export default function DashboardLayout({
           {/* Actions & Notifications */}
           <div className="flex items-center gap-3">
 
+            {/* Wishlist — visible in both Manage & Listing view */}
+            <Link
+              href="/dashboard/wishlist"
+              className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer uppercase tracking-wider border shrink-0 ${
+                pathname === "/dashboard/wishlist"
+                  ? "bg-red-500 text-white border-red-500 shadow-xs"
+                  : "bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:border-red-300"
+              }`}
+              title="View saved marketplace properties"
+            >
+              <Heart className={`w-3.5 h-3.5 ${pathname === "/dashboard/wishlist" ? "fill-white" : ""}`} />
+              <span>Wishlist</span>
+            </Link>
+
             {/* View Mode Switcher Toggle: Manage View vs Listing View (Positioned right before STARTER PLAN badge) */}
             <div className="bg-slate-100 p-1 rounded-xl border border-slate-200/90 flex items-center gap-1 shrink-0 font-sans">
               <button
@@ -1083,6 +1098,13 @@ export default function DashboardLayout({
                 </div>
 
                 <div className="relative z-10 flex items-center gap-3 shrink-0">
+                  <Link
+                    href="/dashboard/wishlist"
+                    className="px-4 py-3 bg-red-500/20 hover:bg-red-500/30 border border-red-400/40 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 uppercase tracking-wider"
+                  >
+                    <Heart className="w-4 h-4 fill-red-300 text-red-300" />
+                    <span>My Wishlist</span>
+                  </Link>
                   <button
                     onClick={() => setShowAddPropertyWizard(true)}
                     className="px-5 py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer"

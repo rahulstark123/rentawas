@@ -25,6 +25,7 @@ model Profile {
   workspaces   Workspace[] @relation("WorkspaceOwner")
   tenancies    Tenant[]
   documents    TenantDocument[]
+  wishlistItems WishlistItem[]
 }
 
 model Workspace {
@@ -574,6 +575,7 @@ model PropertyListing {
 
   inquiries          TenantInquiry[]
   reviews            PropertyReview[]
+  wishlistItems      WishlistItem[]
 
   workspaceId        Int?
   workspace          Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
@@ -628,6 +630,19 @@ model TenantInquiry {
   @@index([workspaceId])
   @@index([listingId])
   @@index([status])
+}
+
+model WishlistItem {
+  id        String          @id @default(cuid())
+  profileId String
+  profile   Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  listingId String
+  listing   PropertyListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+
+  @@unique([profileId, listingId])
+  @@index([profileId])
+  @@index([listingId])
 }
 
 model ChatRoom {

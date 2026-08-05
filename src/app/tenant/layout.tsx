@@ -111,6 +111,7 @@ export default function TenantLayout({
   const navItems = [
     { name: "My Resident Overview", href: "/tenant/dashboard", icon: LayoutDashboard },
     { name: "Pay Rent & Receipts", href: "/tenant/payments", icon: CreditCard, badge: "DUE SOON" },
+    { name: "My Wishlist", href: "/tenant/wishlist", icon: Heart },
     { name: "Messages", href: "/tenant/messages", icon: MessageSquare },
     { name: "Maintenance Requests", href: "/tenant/maintenance", icon: Wrench },
     { name: "My Documents", href: "/tenant/documents", icon: FileText },

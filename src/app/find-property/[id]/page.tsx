@@ -33,10 +33,13 @@ import {
   WifiOff,
   RotateCcw,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Heart,
 } from "lucide-react";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { useToast } from "@/components/ui/Toast";
+import { supabase } from "@/lib/supabase";
+import { useWishlist } from "@/hooks/useWishlist";
 
 const AMENITY_LABELS: Record<string, string> = {
   wifi: "High-Speed WiFi",
@@ -293,6 +296,48 @@ export default function PropertyDetailPage() {
   const [moveInDate, setMoveInDate] = useState("");
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
   const [leadSubmitted, setLeadSubmitted] = useState(false);
+
+  // User Session & Wishlist
+  const [userSession, setUserSession] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const { likedProperties, toggleWishlist } = useWishlist(!!userSession);
+
+  const toggleLike = () => {
+    if (!userSession) {
+      router.push(`/login?redirect=${encodeURIComponent(`/find-property/${propertyId}`)}`);
+      return;
+    }
+    if (!property) return;
+    void toggleWishlist({
+      id: property.id,
+      title: property.title,
+      location: property.location,
+      city: property.city,
+      price: property.price,
+      type: property.type,
+      bhk: property.bhk,
+      size: property.size,
+      rating: property.rating,
+      reviewsCount: property.reviewsCount,
+      image: property.image,
+      tags: property.tags,
+      ownerName: property.ownerName,
+      ownerPhone: property.ownerPhone,
+      badge: property.badge,
+    });
+  };
 
   // Review System State & Rating Categories
   interface ReviewItem {
@@ -727,6 +772,26 @@ export default function PropertyDetailPage() {
 
         {/* Hero Gallery Grid (Airbnb / MagicBricks Style) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 rounded-3xl overflow-hidden shadow-md bg-white border border-slate-200/90 relative group">
+          {/* Wishlist Heart — top-right of gallery */}
+          {userSession && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleLike();
+              }}
+              className={`absolute top-4 right-4 z-20 p-2.5 rounded-full backdrop-blur-md shadow-lg transition-all duration-300 cursor-pointer ${
+                likedProperties[property.id]
+                  ? "bg-red-500 text-white"
+                  : "bg-white/90 text-slate-600 hover:bg-white hover:text-red-500"
+              }`}
+              title={likedProperties[property.id] ? "Remove from Wishlist" : "Save to Wishlist"}
+              aria-label={likedProperties[property.id] ? "Remove from Wishlist" : "Save to Wishlist"}
+            >
+              <Heart className={`w-5 h-5 ${likedProperties[property.id] ? "fill-white" : ""}`} />
+            </button>
+          )}
+
           {/* Main Primary Cover Container (Photo 1) */}
           <div
             onClick={() => { setLightboxIndex(0); setIsLightboxOpen(true); }}
@@ -1153,21 +1218,47 @@ export default function PropertyDetailPage() {
                   </div>
                 </div>
 
-                {/* Google Maps Exact Pin Location Option Button (Matches Top-Right Red Box in Prompt Screenshot) */}
-                <button
-                  type="button"
-                  onClick={() => setIsMapModalOpen(true)}
-                  title="Open exact pin location map on page"
-                  className="flex items-center gap-1.5 px-3 py-2 bg-[#FF6B00]/10 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white border border-[#FF6B00]/30 hover:border-[#FF6B00] rounded-2xl text-xs font-extrabold shadow-xs transition-all hover:scale-105 shrink-0 group cursor-pointer"
-                >
-                  <MapPin className="w-4 h-4 text-[#FF6B00] group-hover:text-white transition-colors" />
-                  <div className="text-left leading-tight">
-                    <div className="text-[11px] font-black uppercase tracking-wider">Map Pin</div>
-                    <div className="text-[9px] opacity-80 font-semibold flex items-center gap-0.5">
-                      View Map
+                <div className="flex flex-col gap-2 shrink-0">
+                  {/* Google Maps Exact Pin Location Option Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsMapModalOpen(true)}
+                    title="Open exact pin location map on page"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[#FF6B00]/10 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white border border-[#FF6B00]/30 hover:border-[#FF6B00] rounded-2xl text-xs font-extrabold shadow-xs transition-all hover:scale-105 group cursor-pointer"
+                  >
+                    <MapPin className="w-4 h-4 text-[#FF6B00] group-hover:text-white transition-colors" />
+                    <div className="text-left leading-tight">
+                      <div className="text-[11px] font-black uppercase tracking-wider">Map Pin</div>
+                      <div className="text-[9px] opacity-80 font-semibold flex items-center gap-0.5">
+                        View Map
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+
+                  {/* Wishlist Save Button */}
+                  {userSession && (
+                    <button
+                      type="button"
+                      onClick={toggleLike}
+                      title={likedProperties[property.id] ? "Remove from Wishlist" : "Save to Wishlist"}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-extrabold shadow-xs transition-all hover:scale-105 cursor-pointer border ${
+                        likedProperties[property.id]
+                          ? "bg-red-500 hover:bg-red-600 text-white border-red-500"
+                          : "bg-red-50 hover:bg-red-100 text-red-600 border-red-200 hover:border-red-300"
+                      }`}
+                    >
+                      <Heart className={`w-4 h-4 ${likedProperties[property.id] ? "fill-white" : ""}`} />
+                      <div className="text-left leading-tight">
+                        <div className="text-[11px] font-black uppercase tracking-wider">
+                          {likedProperties[property.id] ? "Saved" : "Wishlist"}
+                        </div>
+                        <div className="text-[9px] opacity-80 font-semibold">
+                          {likedProperties[property.id] ? "In My List" : "Save Home"}
+                        </div>
+                      </div>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Landlord Profile Box */}
@@ -1199,6 +1290,33 @@ export default function PropertyDetailPage() {
                 <Share2 className="w-4 h-4 text-slate-500" />
                 <span>{copiedLink ? "Link Copied!" : "Share Property"}</span>
               </button>
+
+              {/* Wishlist Action — full-width when logged in */}
+              {userSession && (
+                <button
+                  type="button"
+                  onClick={toggleLike}
+                  className={`w-full py-3 font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer border ${
+                    likedProperties[property.id]
+                      ? "bg-red-50 hover:bg-red-100 text-red-600 border-red-200"
+                      : "bg-white hover:bg-red-50 text-red-500 border-red-200 hover:border-red-300"
+                  }`}
+                >
+                  <Heart className={`w-4 h-4 ${likedProperties[property.id] ? "fill-red-500" : ""}`} />
+                  <span>
+                    {likedProperties[property.id] ? "Saved to Wishlist" : "Save to Wishlist"}
+                  </span>
+                </button>
+              )}
+
+              {userSession && (
+                <Link
+                  href="/tenant/wishlist"
+                  className="w-full py-2.5 text-center text-[10px] font-bold text-purple-600 hover:text-purple-800 uppercase tracking-wider transition-colors"
+                >
+                  View My Wishlist →
+                </Link>
+              )}
 
               {/* See All Reviews Section */}
               <div className="pt-3 border-t border-slate-100">

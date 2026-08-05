@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Menu, X, MessageSquareHeart, Sparkles, User } from "lucide-react";
+import { Menu, X, MessageSquareHeart, Sparkles, User, Heart } from "lucide-react";
 import ComingSoonModal from "@/components/ui/ComingSoonModal";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import EarlyAccessModal from "@/components/ui/EarlyAccessModal";
@@ -202,6 +202,21 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
               Feedback
             </button>
 
+            {/* Wishlist — logged-in tenants */}
+            {userSession?.user?.user_metadata?.role === "tenant" && (
+              <Link
+                href="/tenant/wishlist"
+                className={`flex items-center gap-1.5 text-xs font-bold active:scale-[0.97] transition-all px-3.5 py-2 rounded-xl cursor-pointer uppercase tracking-wider ${
+                  isDark
+                    ? "text-red-300 border border-red-500/40 hover:bg-red-950/40 hover:text-white"
+                    : "text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 hover:bg-red-50"
+                }`}
+              >
+                <Heart size={14} className={pathname === "/tenant/wishlist" ? "fill-current" : ""} />
+                Wishlist
+              </Link>
+            )}
+
             {/* Log In or Profile Icon */}
             {userSession ? (
               <Link
@@ -290,6 +305,16 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
                 <MessageSquareHeart size={14} />
                 Feedback
               </button>
+              {userSession?.user?.user_metadata?.role === "tenant" && (
+                <Link
+                  href="/tenant/wishlist"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-red-300 border border-red-500/40 py-2.5 rounded-xl cursor-pointer uppercase tracking-wider hover:bg-red-950/40 transition-all text-center"
+                >
+                  <Heart size={14} />
+                  My Wishlist
+                </Link>
+              )}
               {userSession ? (
                 <Link
                   href={userSession.user?.user_metadata?.role === "tenant" ? "/tenant/dashboard" : "/dashboard"}
