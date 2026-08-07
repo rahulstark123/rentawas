@@ -146,6 +146,19 @@ export async function POST(req: Request) {
       billingMonth ||
       new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
 
+    let autoReceipt = true;
+    if (propertyId) {
+      const prop = await prisma.property.findUnique({
+        where: { id: String(propertyId) },
+        select: { autoReceiptEnabled: true },
+      });
+      autoReceipt = prop?.autoReceiptEnabled ?? true;
+    }
+
+    const gatewayNotes = autoReceipt
+      ? `gateway_verified;receipt_issued;Razorpay order ${razorpay_order_id}`
+      : `gateway_verified;Razorpay order ${razorpay_order_id}`;
+
     const billData: any = {
       invoiceNumber,
       title: `Rent Payment — ${monthLabel} — ${propertyName || "Residence"} (${unitNumber || "Unit"})`,
@@ -153,7 +166,7 @@ export async function POST(req: Request) {
       status: "Paid",
       category: "Rent",
       paymentMethod,
-      notes: `Razorpay order ${razorpay_order_id}`,
+      notes: gatewayNotes,
       floorNumber: 1,
       paidDate: new Date(),
       dueDate: new Date(),

@@ -78,6 +78,8 @@ model Workspace {
   chatRooms        ChatRoom[]
   aiBills          AiBill[]
   aiUsageLogs      AiUsageLog[]
+  rentReceiptTemplates RentReceiptTemplate[]
+  rentReceiptSignatures RentReceiptSignature[]
   
   // Razorpay Payment Gateway Config
   razorpayKeyId         String?
@@ -146,8 +148,9 @@ model Property {
   totalUnits    Int       @default(4)
   avgRent       Float     @default(0)
   sqft          Float?
+  autoReceiptEnabled Boolean @default(true)
 
-  // AI Summary Cache — stores the most recent AI-generated property summary
+  // AI Summary Cache
   aiSummary            String?   // The last generated AI summary text
   aiSummaryGeneratedAt DateTime? // When the summary was last generated
   
@@ -161,6 +164,7 @@ model Property {
   roomHistories RoomHistory[]
   documents     TenantDocument[]
   expenses      PropertyExpense[]
+  rentReceiptTemplates RentReceiptTemplate[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -263,6 +267,8 @@ model Bill {
   dueDate       DateTime  @default(now())
   paidDate      DateTime?
   notes         String?
+  receiptUrl    String?
+  receiptName   String?
   floorNumber   Int?
 
   tenantId      String?
@@ -283,6 +289,46 @@ model Bill {
   @@index([tenantId])
   @@index([unitId])
   @@index([propertyId])
+  @@index([workspaceId])
+}
+
+model RentReceiptTemplate {
+  id            String    @id @default(cuid())
+  brandName     String
+  tagline       String?
+  address       String?
+  taxId         String?
+  contactEmail  String?
+  contactPhone  String?
+  footerNote    String?
+  accentColor   String?   @default("#FF6B00")
+  signatureId   String?
+
+  workspaceId   Int
+  workspace     Workspace @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+
+  propertyId    String?
+  property      Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([workspaceId, propertyId])
+  @@index([workspaceId])
+}
+
+model RentReceiptSignature {
+  id          String    @id @default(cuid())
+  label       String
+  signerName  String?
+  imageData   String    @db.Text
+
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
   @@index([workspaceId])
 }
 

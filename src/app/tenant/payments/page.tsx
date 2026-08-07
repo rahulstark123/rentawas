@@ -33,12 +33,14 @@ import {
 import { useCurrency } from "@/context/CurrencyContext";
 import { useTenantMe, useTenantWorkspace } from "@/hooks/useTenantMe";
 import { isMethodActive } from "@/lib/paymentMethods";
+import { isTenantRentReceiptDownloadable, getTenantMonthRentStatus, DEFAULT_RENT_RECEIPT_TEMPLATE, resolveSignatureForReceipt } from "@/lib/rentReceipts";
+import { generateRentPaymentReceiptHtml, triggerPrintOrDownload } from "@/lib/pdfGenerator";
 
 function TenantPaymentsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { formatCurrency, currencySymbol, setCurrency } = useCurrency();
+  const { formatCurrency, currencySymbol, currencyCode, setCurrency } = useCurrency();
   const { data: tenantMe, isLoading: meLoading } = useTenantMe();
   const { data: workspace, isLoading: wsLoading } = useTenantWorkspace(tenantMe?.workspaceId);
   const [paid, setPaid] = useState(false);
@@ -145,12 +147,16 @@ function TenantPaymentsContent() {
     month: "long",
     year: "numeric",
   });
+  const currentMonthRentStatus = getTenantMonthRentStatus(tenant?.bills, dueMonthLabel);
+  const noPaymentDueThisMonth = currentMonthRentStatus !== "due";
 
   const history = Array.isArray(tenant?.bills)
     ? tenant.bills.map((b: any, idx: number) => ({
-        id: b.invoiceNumber || b.billNumber || `REC-${900 + idx + 1}`,
+        billId: b.id,
+        id: b.id,
         period: b.title || "Monthly Rent Payment",
         amount: formatCurrency(b.amount || rentVal),
+        rawAmount: b.amount || rentVal,
         paidOn: b.paidDate
           ? new Date(b.paidDate).toISOString().split("T")[0]
           : b.createdAt
@@ -158,8 +164,84 @@ function TenantPaymentsContent() {
           : new Date().toISOString().split("T")[0],
         status: b.status || "Paid",
         method: b.paymentMethod || "Direct UPI",
+        notes: b.notes || "",
+        propertyId: b.propertyId || tenant?.propertyId,
+        receiptUrl: b.receiptUrl || undefined,
+        propertyAutoReceipt:
+          tenant?.property?.autoReceiptEnabled ??
+          tenant?.unit?.property?.autoReceiptEnabled ??
+          true,
+        canDownload: isTenantRentReceiptDownloadable({
+          status: b.status,
+          paymentMethod: b.paymentMethod,
+          notes: b.notes,
+          receiptUrl: b.receiptUrl,
+          property: {
+            autoReceiptEnabled:
+              tenant?.property?.autoReceiptEnabled ??
+              tenant?.unit?.property?.autoReceiptEnabled ??
+              true,
+          },
+        }),
       }))
     : [];
+
+  const handleDownloadReceipt = async (entry: (typeof history)[number]) => {
+    try {
+      if (entry.receiptUrl) {
+        window.open(entry.receiptUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      let branding = { ...DEFAULT_RENT_RECEIPT_TEMPLATE };
+      let signature = undefined;
+      if (tenant?.workspaceId) {
+        const params = new URLSearchParams({ workspaceId: String(tenant.workspaceId) });
+        if (entry.propertyId) params.set("propertyId", entry.propertyId);
+        const res = await fetch(`/api/receipt-templates?${params.toString()}`);
+        const json = await res.json();
+        if (res.ok && json.data) {
+          branding = {
+            brandName: json.data.brandName || tenant?.propertyName || branding.brandName,
+            tagline: json.data.tagline || branding.tagline,
+            address: json.data.address || "",
+            taxId: json.data.taxId || "",
+            contactEmail: json.data.contactEmail || "",
+            contactPhone: json.data.contactPhone || "",
+            footerNote: json.data.footerNote || branding.footerNote,
+            accentColor: json.data.accentColor || branding.accentColor,
+            signatureId: json.data.signatureId || null,
+          };
+          if (json.data.signatureId) {
+            const sigRes = await fetch(`/api/receipt-signatures?workspaceId=${tenant.workspaceId}`);
+            const sigJson = await sigRes.json();
+            if (sigRes.ok && Array.isArray(sigJson.data)) {
+              signature = resolveSignatureForReceipt(sigJson.data, json.data.signatureId);
+            }
+          }
+        }
+      }
+
+      const html = generateRentPaymentReceiptHtml({
+        receiptNumber: `RCPT-${entry.paidOn}-${entry.billId.slice(-6).toUpperCase()}`,
+        date: entry.paidOn,
+        tenantName: tenant?.name || "Resident",
+        tenantEmail: tenant?.email,
+        propertyName: tenant?.propertyName || "Residence",
+        unitNumber: tenant?.unitNumber,
+        title: entry.period,
+        amount: formatCurrency(entry.rawAmount),
+        rawAmount: entry.rawAmount,
+        paymentMethod: entry.method,
+        status: "PAID",
+        branding,
+        signature,
+      });
+      triggerPrintOrDownload(html, `Rent_Receipt_${entry.billId.slice(-8)}`);
+    } catch {
+      alert("Could not generate receipt PDF.");
+    }
+  };
 
   // All potential landlord channels — only truly connected ones are shown
   const allLandlordMethods = [
@@ -287,7 +369,7 @@ function TenantPaymentsContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: rentVal,
-          currency: "INR",
+          currency: currencyCode || "INR",
           propertyName: tenant?.propertyName || "Residence",
           unitNumber: tenant?.unitNumber || "Unit",
           tenantId: tenant?.id,
@@ -305,7 +387,7 @@ function TenantPaymentsContent() {
       const options = {
         key: orderData.keyId,
         amount: orderData.amount,
-        currency: orderData.currency || "INR",
+        currency: orderData.currency || currencyCode || "INR",
         order_id: orderData.orderId,
         name: workspaceUpi?.upiAccountName || "Rentawas Property Management",
         description: `Monthly Rent — ${tenant?.propertyName || "Residence"} (${tenant?.unitNumber || "Unit"})`,
@@ -382,10 +464,11 @@ function TenantPaymentsContent() {
     }
   };
 
-  const handlePay = async (methodName = "Direct Payment") => {
+  const handlePay = async (methodName = "Direct Payment", pendingVerification = false) => {
     setIsSubmitting(true);
     try {
       if (tenant && tenant.id && tenant.id !== "demo-tenant-id") {
+        const isGateway = /razorpay|stripe|paypal/i.test(methodName);
         const res = await fetch("/api/bills", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -393,8 +476,13 @@ function TenantPaymentsContent() {
             title: `Rent Payment — ${dueMonthLabel} — ${tenant.propertyName || "Residence"} (${tenant.unitNumber || "Unit"})`,
             amount: rentVal,
             category: "Rent",
-            status: "Paid",
+            status: pendingVerification ? "Pending" : "Paid",
             paymentMethod: methodName,
+            notes: pendingVerification
+              ? "awaiting_landlord_verification"
+              : isGateway
+              ? "gateway_verified;receipt_issued"
+              : null,
             tenantId: tenant.id,
             unitId: tenant.unitId || undefined,
             propertyId: tenant.propertyId || undefined,
@@ -434,7 +522,7 @@ function TenantPaymentsContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: rentVal,
-          currency: workspace?.currency || "USD",
+          currency: (currencyCode || "USD").toLowerCase(),
           propertyName: tenant?.propertyName || "Residence",
           unitNumber: tenant?.unitNumber || "Unit",
           tenantEmail: tenant?.email || "tenant@example.com",
@@ -532,21 +620,44 @@ function TenantPaymentsContent() {
         {/* Outstanding Balance Banner */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-100">
           <div className="space-y-1">
-            <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">
-              {dueMonthLabel} Rent Due
-            </span>
-            <div className="text-3xl sm:text-4xl font-black text-slate-900">
-              {formatCurrency(rentVal)}
-            </div>
-            <div className="text-xs text-slate-500 flex items-center gap-1.5 pt-1">
-              <Building2 className="w-3.5 h-3.5 text-[#FF6B00]" />
-              <span>
-                {dueMonthLabel} rent for {tenant?.propertyName || "Property"} — {tenant?.unitNumber || "Unit"}
-              </span>
-            </div>
+            {noPaymentDueThisMonth ? (
+              <>
+                <span className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider block">
+                  {dueMonthLabel}
+                </span>
+                <div className="text-2xl sm:text-3xl font-black text-emerald-700 flex items-center gap-2">
+                  <CheckCircle2 className="w-7 h-7 shrink-0" />
+                  <span>No payment due for this month</span>
+                </div>
+                <div className="text-xs text-slate-500 flex items-center gap-1.5 pt-1">
+                  <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>
+                    {currentMonthRentStatus === "pending_verification"
+                      ? `Your ${dueMonthLabel} rent payment has been submitted and is awaiting landlord verification.`
+                      : `Your ${dueMonthLabel} rent for ${tenant?.propertyName || "Property"} — ${tenant?.unitNumber || "Unit"} is already recorded.`}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">
+                  {dueMonthLabel} Rent Due
+                </span>
+                <div className="text-3xl sm:text-4xl font-black text-slate-900">
+                  {formatCurrency(rentVal)}
+                </div>
+                <div className="text-xs text-slate-500 flex items-center gap-1.5 pt-1">
+                  <Building2 className="w-3.5 h-3.5 text-[#FF6B00]" />
+                  <span>
+                    {dueMonthLabel} rent for {tenant?.propertyName || "Property"} — {tenant?.unitNumber || "Unit"}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Active Landlord Payment Logos & Action Button */}
+          {!noPaymentDueThisMonth && (
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="space-y-1.5">
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
@@ -585,9 +696,11 @@ function TenantPaymentsContent() {
               <span>Pay Rent Now ({formatCurrency(rentVal)})</span>
             </button>
           </div>
+          )}
         </div>
 
         {/* Active Payment Channels Display Grid */}
+        {!noPaymentDueThisMonth && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
@@ -646,6 +759,7 @@ function TenantPaymentsContent() {
           </div>
           )}
         </div>
+        )}
 
         {/* Success Confirmation Toast Banner */}
         {paid && (
@@ -943,7 +1057,7 @@ function TenantPaymentsContent() {
                   } else if (activeSelected?.id === "stripe") {
                     handleStripeCheckout();
                   } else if (activeSelected?.type === "upi") {
-                    handlePay(`Manual Verification (${activeSelected.name})`);
+                    handlePay(`Manual Verification (${activeSelected.name})`, true);
                   } else {
                     handlePay(activeSelected?.name || "Direct Payment");
                   }
@@ -1016,7 +1130,6 @@ function TenantPaymentsContent() {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-bold">
-                  <th className="pb-3 px-2">Receipt ID</th>
                   <th className="pb-3 px-2">Billing Period</th>
                   <th className="pb-3 px-2">Amount Paid</th>
                   <th className="pb-3 px-2">Payment Date</th>
@@ -1026,8 +1139,7 @@ function TenantPaymentsContent() {
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
                 {history.map((h: any) => (
-                  <tr key={h.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3 px-2 font-mono font-bold text-slate-700">{h.id}</td>
+                  <tr key={h.billId} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3 px-2 font-bold text-slate-900">{h.period}</td>
                     <td className="py-3 px-2 font-black text-slate-900">{h.amount}</td>
                     <td className="py-3 px-2 text-slate-600">{h.paidOn}</td>
@@ -1037,13 +1149,20 @@ function TenantPaymentsContent() {
                       </span>
                     </td>
                     <td className="py-3 px-2 text-right">
-                      <button
-                        onClick={() => alert(`Downloading PDF receipt for ${h.id}...`)}
-                        className="text-purple-700 hover:underline font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Download PDF</span>
-                      </button>
+                      {h.canDownload ? (
+                        <button
+                          onClick={() => handleDownloadReceipt(h)}
+                          className="text-purple-700 hover:underline font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download PDF</span>
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
+                          <Clock className="w-3.5 h-3.5 shrink-0" />
+                          <span>In Verification</span>
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

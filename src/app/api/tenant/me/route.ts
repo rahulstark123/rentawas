@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { supabase } from "@/lib/supabase";
+import { hasActiveRentPaymentChannels } from "@/lib/paymentMethods";
+import { resolveTenantWorkspaceId } from "@/lib/tenantWorkspace";
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -95,12 +97,9 @@ export async function GET(request: Request) {
       "1420 5th Ave, Seattle WA";
     const rentAmount = tenant?.monthlyRent || tenant?.unit?.rent || 3200;
 
-    // Resolve workspace from tenant, unit property, or property
-    const workspaceId =
-      tenant?.workspaceId ||
-      tenant?.unit?.property?.workspaceId ||
-      tenant?.property?.workspaceId ||
-      null;
+    const workspaceId = resolveTenantWorkspaceId(tenant);
+
+    let paymentChannelsActive = false;
 
     let owner: {
       id: string;
@@ -127,6 +126,8 @@ export async function GET(request: Request) {
         where: { wid: workspaceId },
         include: { owner: true },
       });
+
+      paymentChannelsActive = hasActiveRentPaymentChannels(workspace);
 
       const teamMembers = await prisma.teamMember.findMany({
         where: { workspaceId, status: "Active" },
@@ -210,6 +211,7 @@ export async function GET(request: Request) {
         unitId: tenant?.unitId || null,
         propertyId: tenant?.propertyId || tenant?.unit?.propertyId || null,
         workspaceId,
+        paymentChannelsActive,
         profileId: tenant?.profileId || tenant?.profile?.id || user?.id || null,
         unitNumber,
         propertyName,

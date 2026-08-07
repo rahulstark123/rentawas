@@ -44,6 +44,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
 import CountryPhoneInput, { ALL_COUNTRIES, Country } from "@/components/ui/CountryPhoneInput";
 import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
+import { isMethodActive } from "@/lib/paymentMethods";
 import { uploadFile } from "@/lib/upload";
 
 
@@ -309,6 +310,9 @@ export default function WorkspaceSettingsPage() {
           setCompanyEmail(clean(d.companyEmail));
           setCompanyPhone(clean(d.companyPhone));
           setCurrency(clean(d.currency));
+          if (clean(d.currency)) {
+            setGlobalCurrency(clean(d.currency));
+          }
           setJurisdiction(clean(d.jurisdiction));
           setPincode(clean(d.pincode));
           setTimezone(clean(d.timezone));
@@ -819,18 +823,23 @@ export default function WorkspaceSettingsPage() {
           if (json.data.razorpayMerchantVpa) setRazorpayMerchantVpa(json.data.razorpayMerchantVpa);
           if (json.data.razorpayWebhookSecret) setRazorpayWebhookSecret(json.data.razorpayWebhookSecret);
           if (json.data.razorpayEnvMode) setRazorpayEnvMode(json.data.razorpayEnvMode as any);
-          const isRazorpayActive = Boolean(json.data.razorpayConnected || json.data.razorpayKeyId);
-          const isStripeActive = Boolean(json.data.stripeConnected || json.data.stripePublishableKey);
-          const isPaypalActive = Boolean(json.data.paypalConnected || json.data.paypalClientId);
-          const isUpiActive = Boolean(json.data.upiId || json.data.upiPhoneNumber || json.data.upiQrCodeUrl);
+          const isRazorpayActive = isMethodActive("razorpay", json.data);
+          const isStripeActive = isMethodActive("stripe", json.data);
+          const isPaypalActive = isMethodActive("paypal", json.data);
+          const isGpayActive = isMethodActive("gpay", json.data);
+          const isPhonepeActive = isMethodActive("phonepe", json.data);
+          const isPaytmActive = isMethodActive("paytm", json.data);
+          const isUpiActive = isMethodActive("upi", json.data);
 
           setConnectedMap((prev) => ({
             ...prev,
             razorpay: isRazorpayActive,
             stripe: isStripeActive,
             paypal: isPaypalActive,
-            gpay: isUpiActive,
-            phonepe: isUpiActive,
+            gpay: isGpayActive,
+            phonepe: isPhonepeActive,
+            paytm: isPaytmActive,
+            upi_qr: isUpiActive,
           }));
 
           if (json.data.upiId) setUpiId(json.data.upiId);
@@ -840,7 +849,6 @@ export default function WorkspaceSettingsPage() {
           if (json.data.upiAppsSupported) setUpiAppsSupported(json.data.upiAppsSupported);
           if (json.data.upiConnected !== undefined) {
             setUpiConnected(json.data.upiConnected);
-            setConnectedMap((prev) => ({ ...prev, upi_qr: json.data.upiConnected }));
           }
 
           if (json.data.gpayUpiId) setGpayUpiId(json.data.gpayUpiId);
@@ -848,7 +856,6 @@ export default function WorkspaceSettingsPage() {
           if (json.data.gpayQrCodeUrl) setGpayQrCodeUrl(json.data.gpayQrCodeUrl);
           if (json.data.gpayConnected !== undefined) {
             setGpayConnected(json.data.gpayConnected);
-            setConnectedMap((prev) => ({ ...prev, gpay: json.data.gpayConnected }));
           }
 
           if (json.data.phonepeUpiId) setPhonepeUpiId(json.data.phonepeUpiId);
@@ -856,7 +863,6 @@ export default function WorkspaceSettingsPage() {
           if (json.data.phonepeQrCodeUrl) setPhonepeQrCodeUrl(json.data.phonepeQrCodeUrl);
           if (json.data.phonepeConnected !== undefined) {
             setPhonepeConnected(json.data.phonepeConnected);
-            setConnectedMap((prev) => ({ ...prev, phonepe: json.data.phonepeConnected }));
           }
 
           if (json.data.paytmUpiId) setPaytmUpiId(json.data.paytmUpiId);
@@ -864,7 +870,6 @@ export default function WorkspaceSettingsPage() {
           if (json.data.paytmQrCodeUrl) setPaytmQrCodeUrl(json.data.paytmQrCodeUrl);
           if (json.data.paytmConnected !== undefined) {
             setPaytmConnected(json.data.paytmConnected);
-            setConnectedMap((prev) => ({ ...prev, paytm: json.data.paytmConnected }));
           }
         }
       }

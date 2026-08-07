@@ -75,7 +75,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
-  const { currencySymbol } = useCurrency();
+  const { currencySymbol, setCurrency } = useCurrency();
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -453,6 +453,10 @@ export default function DashboardLayout({
             setUnitsCount(Number(json.data.unitsCount ?? 0));
             setPropertiesCount(Number(json.data.propertiesCount ?? 0));
 
+            if (json.data.currency) {
+              setCurrency(json.data.currency);
+            }
+
             if (pKey === "starter" || pKey === "pro" || pKey === "pro_plus" || pKey === "enterprise") {
               const labels: Record<string, string> = {
                 starter: "Starter Plan",
@@ -565,6 +569,7 @@ export default function DashboardLayout({
     { id: "maintenance", name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench },
     { id: "announcements", name: "Announcements", href: "/dashboard/announcements", icon: Megaphone },
     { id: "expenses", name: "Property Expenses", href: "/dashboard/expenses", icon: Receipt },
+    { id: "experts", name: "RentAwas Experts", href: "/dashboard/experts", icon: Sparkles, badge: "SOON" },
     { id: "settings", name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
     { id: "billing", name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },
     { id: "ai", name: "RentAwas AI", href: "/dashboard/ai", icon: Bot, badge: "AI" },

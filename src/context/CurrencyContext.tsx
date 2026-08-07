@@ -108,7 +108,11 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 
   const refetchCurrency = useCallback(async () => {
     try {
-      const res = await fetch("/api/workspace?wid=1");
+      const { ensureActiveWorkspaceId, getActiveWorkspaceId } = await import("@/lib/workspace");
+      const wid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!wid) return;
+
+      const res = await fetch(`/api/workspace?wid=${encodeURIComponent(wid)}`);
       if (res.ok) {
         const json = await res.json();
         if (json?.data?.currency) {

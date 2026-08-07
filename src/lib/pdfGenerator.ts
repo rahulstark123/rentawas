@@ -314,7 +314,6 @@ export function generatePaymentReceiptHtml(record: BillingDocRecord): string {
   `;
 }
 
-// Download HTML file helper function
 export function triggerPrintOrDownload(htmlContent: string, title: string) {
   const printWindow = window.open("", "_blank");
   if (printWindow) {
@@ -322,4 +321,305 @@ export function triggerPrintOrDownload(htmlContent: string, title: string) {
     printWindow.document.write(htmlContent);
     printWindow.document.close();
   }
+}
+
+export interface RentReceiptBranding {
+  brandName: string;
+  tagline?: string | null;
+  address?: string | null;
+  taxId?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  footerNote?: string | null;
+  accentColor?: string | null;
+}
+
+export interface RentPaymentReceiptRecord {
+  receiptNumber?: string;
+  date?: string;
+  tenantName: string;
+  tenantEmail?: string;
+  propertyName: string;
+  unitNumber?: string;
+  title: string;
+  amount: string;
+  rawAmount?: number;
+  paymentMethod?: string;
+  paymentId?: string;
+  status?: string;
+  branding?: RentReceiptBranding;
+  signature?: {
+    imageData: string;
+    label?: string | null;
+    signerName?: string | null;
+  };
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function getBillingPeriod(dateStr?: string) {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  if (isNaN(d.getTime())) return { start: "—", end: "—" };
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  const fmt = (dt: Date) =>
+    dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return { start: fmt(start), end: fmt(end) };
+}
+
+function getPaymentModeFlags(method?: string) {
+  const m = (method || "").toLowerCase();
+  return {
+    cash: /\bcash\b/i.test(m),
+    cheque: /cheque|check/i.test(m),
+    moneyOrder: /money order/i.test(m),
+    online:
+      /razorpay|stripe|paypal|upi|gpay|phonepe|paytm|transfer|neft|imps|bank|card|manual verification/i.test(m) ||
+      (!/\bcash\b|cheque|check|money order/i.test(m) && m.length > 0),
+  };
+}
+
+export function generateRentPaymentReceiptHtml(record: RentPaymentReceiptRecord): string {
+  const branding = record.branding;
+  const brandName = escapeHtml(branding?.brandName || record.propertyName || "Property Management");
+  const tagline = escapeHtml(branding?.tagline || "House Rent Receipt");
+  const accent = branding?.accentColor || "#1e3a5f";
+  const rcptNum = escapeHtml(
+    record.receiptNumber ||
+      `RCPT-${(record.date || new Date().toISOString().slice(0, 10)).replace(/-/g, "")}`
+  );
+  const dateStr = escapeHtml(
+    record.date
+      ? new Date(record.date).toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+  );
+  const tenantName = escapeHtml(record.tenantName);
+  const amount = escapeHtml(record.amount);
+  const paymentFor = escapeHtml(
+    record.title || `Monthly rent — ${record.propertyName}${record.unitNumber ? ` (${record.unitNumber})` : ""}`
+  );
+  const period = getBillingPeriod(record.date);
+  const modes = getPaymentModeFlags(record.paymentMethod);
+  const receivedByName = escapeHtml(
+    record.signature?.signerName || branding?.brandName || "Authorized Signatory"
+  );
+  const receivedByAddress = escapeHtml(branding?.address || "");
+  const receivedByPhone = escapeHtml(branding?.contactPhone || "");
+  const footerNote = escapeHtml(
+    branding?.footerNote || "This receipt acknowledges rent received for the stated period."
+  );
+  const signatureBlock = record.signature?.imageData
+    ? `<img src="${record.signature.imageData}" alt="Signature" style="max-height:56px; max-width:180px; object-fit:contain;" />`
+    : `<div style="height:48px; border-bottom:1px solid #334155; width:180px;"></div>`;
+
+  const check = (on: boolean) => (on ? "☑" : "☐");
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>House Rent Receipt - ${rcptNum}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      color: #1a1a1a;
+      margin: 0;
+      padding: 32px;
+      background: linear-gradient(180deg, #f8f4ec 0%, #efe8da 100%);
+    }
+    .sheet {
+      max-width: 760px;
+      margin: 0 auto;
+      background: #fffef9;
+      border: 2px dotted #222;
+      padding: 28px 32px 24px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    }
+    .title {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin: 0 0 18px;
+      color: ${accent};
+      text-transform: uppercase;
+    }
+    .meta {
+      display: flex;
+      justify-content: flex-end;
+      gap: 28px;
+      font-size: 13px;
+      margin-bottom: 22px;
+      font-weight: 600;
+    }
+    .line {
+      font-size: 14px;
+      line-height: 2.1;
+      margin-bottom: 6px;
+    }
+    .fill {
+      display: inline-block;
+      min-width: 120px;
+      border-bottom: 1px solid #334155;
+      padding: 0 6px 2px;
+      font-weight: 700;
+    }
+    .fill-wide {
+      min-width: 280px;
+    }
+    .fill-amount {
+      min-width: 100px;
+      font-size: 16px;
+      color: ${accent};
+    }
+    .period {
+      text-align: center;
+      margin: 18px 0 24px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .bottom {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+      margin-top: 28px;
+      align-items: start;
+    }
+    .modes {
+      font-size: 13px;
+      line-height: 1.9;
+      font-weight: 600;
+    }
+    .summary {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .summary td {
+      border: 1px solid #334155;
+      padding: 8px 10px;
+    }
+    .summary td:first-child {
+      font-weight: 600;
+      background: #f8fafc;
+      width: 58%;
+    }
+    .summary td:last-child {
+      text-align: right;
+      font-weight: 700;
+    }
+    .received {
+      margin-top: 28px;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .signature-wrap {
+      margin-top: 8px;
+      min-height: 60px;
+    }
+    .footer-row {
+      margin-top: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+    }
+    .rentawas-credit {
+      font-size: 10px;
+      color: #94a3b8;
+      font-weight: 600;
+      font-style: normal;
+      white-space: nowrap;
+    }
+    .footer {
+      text-align: right;
+      font-size: 11px;
+      color: #64748b;
+      font-style: italic;
+    }
+    .sub-brand {
+      text-align: center;
+      font-size: 12px;
+      color: #475569;
+      margin-top: -8px;
+      margin-bottom: 14px;
+    }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .sheet { box-shadow: none; border: 2px dotted #222; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <h1 class="title">${tagline || "House Rent Receipt"}</h1>
+    <div class="sub-brand">${brandName}${branding?.taxId ? ` · Tax ID: ${escapeHtml(branding.taxId)}` : ""}</div>
+
+    <div class="meta">
+      <div>Date: <span class="fill">${dateStr}</span></div>
+      <div>Receipt No: <span class="fill">${rcptNum}</span></div>
+    </div>
+
+    <div class="line">
+      Received From: <span class="fill fill-wide">${tenantName}</span>
+      the amount of <span class="fill fill-amount">${amount}</span>
+    </div>
+
+    <div class="line">
+      For Payment of <span class="fill" style="min-width:420px;">${paymentFor}</span>
+    </div>
+
+    <div class="period">
+      From <span class="fill">${escapeHtml(period.start)}</span>
+      &nbsp;to&nbsp;
+      <span class="fill">${escapeHtml(period.end)}</span>
+    </div>
+
+    <div class="bottom">
+      <div class="modes">
+        <div>${check(modes.cash)} Cash</div>
+        <div>${check(modes.cheque)} Cheque No: <span class="fill" style="min-width:140px;">${modes.cheque ? escapeHtml(record.paymentId || "") : ""}</span></div>
+        <div>${check(modes.moneyOrder)} Money Order</div>
+        <div>${check(modes.online)} Online / UPI / Bank Transfer</div>
+        ${record.paymentMethod ? `<div style="margin-top:8px; font-size:12px; color:#475569;">Mode: ${escapeHtml(record.paymentMethod)}</div>` : ""}
+      </div>
+
+      <table class="summary">
+        <tr><td>Total Amount to be Received</td><td>${amount}</td></tr>
+        <tr><td>Amount Received</td><td>${amount}</td></tr>
+        <tr><td>Balance Due</td><td>0.00</td></tr>
+      </table>
+    </div>
+
+    <div class="received">
+      <div><strong>Received By:</strong> <span class="fill fill-wide">${receivedByName}</span></div>
+      ${receivedByAddress ? `<div><strong>Address:</strong> <span class="fill fill-wide">${receivedByAddress}</span></div>` : ""}
+      ${receivedByPhone ? `<div><strong>Phone:</strong> <span class="fill">${receivedByPhone}</span></div>` : ""}
+      <div class="signature-wrap">${signatureBlock}</div>
+      <div style="font-size:11px; color:#64748b; margin-top:4px;">Authorized Signature</div>
+    </div>
+
+    <div class="footer-row">
+      <div class="rentawas-credit">Created with RentAwas</div>
+      <div>
+        <div class="footer">${footerNote}</div>
+      </div>
+    </div>
+  </div>
+  <script>window.onload = function() { window.print(); };</script>
+</body>
+</html>
+  `;
 }

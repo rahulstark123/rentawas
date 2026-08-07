@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
   Zap, 
@@ -21,23 +22,44 @@ import {
   Calendar,
   Building2,
   User,
-  Sparkles
+  Sparkles,
+  ClipboardCheck,
+  Receipt,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
-import { generatePaymentReceiptHtml, triggerPrintOrDownload } from "@/lib/pdfGenerator";
+import { generateRentPaymentReceiptHtml, triggerPrintOrDownload } from "@/lib/pdfGenerator";
 import EmptyStateIllustration from "@/components/ui/EmptyStateIllustration";
+import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
+import { uploadFile } from "@/lib/upload";
+import AutoReceiptSettingsModal from "@/components/receipts/AutoReceiptSettingsModal";
+import {
+  getRentBillReceiptState,
+  type RentBillReceiptState,
+  type RentReceiptTemplateData,
+  DEFAULT_RENT_RECEIPT_TEMPLATE,
+  resolveSignatureForReceipt,
+} from "@/lib/rentReceipts";
 
 export interface TransactionRecord {
-  id: string;
+  billId: string;
   tenant: string;
+  tenantEmail?: string;
   property: string;
+  propertyId?: string;
   amount: string;
   rawAmount: number;
   date: string;
   status: string;
   method: string;
   paymentId?: string;
+  receiptState: RentBillReceiptState;
+  title: string;
+  receiptUrl?: string;
+  receiptName?: string;
+  propertyAutoReceipt: boolean;
 }
 
 export default function RentPaymentsPage() {
@@ -49,6 +71,13 @@ export default function RentPaymentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [actionBillId, setActionBillId] = useState<string | null>(null);
+  const [showAutoReceiptModal, setShowAutoReceiptModal] = useState(false);
+  const [showManualReceiptModal, setShowManualReceiptModal] = useState(false);
+  const [uploadTarget, setUploadTarget] = useState<TransactionRecord | null>(null);
+  const [manualReceiptFile, setManualReceiptFile] = useState<File | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const ITEMS_PER_PAGE = 10;
 
   // Reset to page 1 when search or filter changes
@@ -66,58 +95,96 @@ export default function RentPaymentsPage() {
   const [customTenantName, setCustomTenantName] = useState("");
   const [customUnit, setCustomUnit] = useState("");
   const [amountInput, setAmountInput] = useState("");
-  const [paymentMethodInput, setPaymentMethodInput] = useState("Razorpay Auto-Debit");
-  const [statusInput, setStatusInput] = useState("Completed");
+  const [paymentMethodInput, setPaymentMethodInput] = useState("Cash / Offline");
+  const [rentMonthInput, setRentMonthInput] = useState(() => new Date().toISOString().slice(0, 7));
   const [dateInput, setDateInput] = useState(new Date().toISOString().split("T")[0]);
 
-  // 1. Fetch Live Transactions & Tenants from PostgreSQL
-  const loadTransactions = async () => {
+  const formatRentMonthLabel = (yearMonth: string) => {
+    const [year, month] = yearMonth.split("-").map(Number);
+    if (!year || !month) return yearMonth;
+    return new Date(year, month - 1, 1).toLocaleString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const parseAmountInput = (value: string) => {
+    const cleaned = value.replace(/[^0-9.]/g, "");
+    return parseFloat(cleaned) || 0;
+  };
+
+  // 1. Fetch tenant rent bills for this workspace
+  const loadTransactions = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/transactions?wid=1");
+      const wid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!wid) {
+        setTransactionsList([]);
+        return;
+      }
+      setWorkspaceId(String(wid));
+
+      const res = await fetch(`/api/bills?workspaceId=${encodeURIComponent(String(wid))}`);
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
-          const mapped: TransactionRecord[] = json.data.map((t: any) => {
-            const desc = t.description || "Workspace Resident";
-            const parts = desc.split("—").map((s: string) => s.trim());
-            const tenantName = parts[0] || desc;
-            const propertyName = parts[1] || "Primary Unit";
-
-            // Parse numerical amount for summaries
-            let rawNum = 0;
-            if (typeof t.amount === "string") {
-              const cleaned = t.amount.replace(/[^0-9.]/g, "");
-              rawNum = parseFloat(cleaned) || 0;
-            } else if (typeof t.amount === "number") {
-              rawNum = t.amount;
-            }
+          const mapped: TransactionRecord[] = json.data.map((b: any) => {
+            const receiptState = getRentBillReceiptState({
+              status: b.status,
+              paymentMethod: b.paymentMethod,
+              notes: b.notes,
+              receiptUrl: b.receiptUrl,
+              property: b.property,
+            });
+            const tenantName = b.tenant?.name || "Resident";
+            const propertyName = b.property?.name || "Property";
+            const unitNo = b.unit?.unitNumber ? ` — ${b.unit.unitNumber}` : "";
+            const rawAmount = Number(b.amount) || 0;
+            const displayStatus =
+              receiptState === "pending_verification"
+                ? "Pending Verification"
+                : receiptState === "verified_awaiting_receipt"
+                ? "Verified"
+                : "Completed";
 
             return {
-              id: t.transactionNumber || t.id,
+              billId: b.id,
               tenant: tenantName,
-              property: propertyName,
-              amount: typeof t.amount === "string" ? t.amount : `$${rawNum.toLocaleString("en-US")}`,
-              rawAmount: rawNum,
-              date: t.createdAt ? new Date(t.createdAt).toISOString().split("T")[0] : "2026-07-28",
-              status: t.status === "Success" ? "Completed" : t.status || "Completed",
-              method: t.paymentMethod || "Razorpay Auto-Debit",
-              paymentId: t.paymentId || `pay_${Math.random().toString(36).substring(2, 10)}`,
+              tenantEmail: b.tenant?.email || "",
+              property: `${propertyName}${unitNo}`,
+              propertyId: b.propertyId || b.property?.id,
+              amount: formatCurrency(rawAmount),
+              rawAmount,
+              date: b.paidDate
+                ? new Date(b.paidDate).toISOString().split("T")[0]
+                : b.createdAt
+                ? new Date(b.createdAt).toISOString().split("T")[0]
+                : new Date().toISOString().split("T")[0],
+              status: displayStatus,
+              method: b.paymentMethod || "Direct Payment",
+              paymentId: b.notes?.match(/pay_[\w]+|cs_[\w]+/i)?.[0],
+              receiptState,
+              title: b.title || "Monthly Rent Payment",
+              receiptUrl: b.receiptUrl || undefined,
+              receiptName: b.receiptName || undefined,
+              propertyAutoReceipt: b.property?.autoReceiptEnabled ?? true,
             };
           });
           setTransactionsList(mapped);
         }
       }
     } catch (err) {
-      console.warn("Could not fetch PostgreSQL transactions:", err);
+      console.warn("Could not fetch rent bills:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [formatCurrency]);
 
   const loadLiveTenants = async () => {
     try {
-      const res = await fetch("/api/tenants?wid=1");
+      const wid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!wid) return;
+      const res = await fetch(`/api/tenants?wid=${encodeURIComponent(String(wid))}`);
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
@@ -132,7 +199,123 @@ export default function RentPaymentsPage() {
   useEffect(() => {
     loadTransactions();
     loadLiveTenants();
-  }, []);
+  }, [loadTransactions]);
+
+  const fetchReceiptTemplate = async (propertyId?: string): Promise<RentReceiptTemplateData> => {
+    if (!workspaceId) return DEFAULT_RENT_RECEIPT_TEMPLATE;
+    const params = new URLSearchParams({ workspaceId });
+    if (propertyId) params.set("propertyId", propertyId);
+    const res = await fetch(`/api/receipt-templates?${params.toString()}`);
+    const json = await res.json();
+    if (!res.ok || !json.data) return DEFAULT_RENT_RECEIPT_TEMPLATE;
+    return {
+      brandName: json.data.brandName || DEFAULT_RENT_RECEIPT_TEMPLATE.brandName,
+      tagline: json.data.tagline || DEFAULT_RENT_RECEIPT_TEMPLATE.tagline,
+      address: json.data.address || "",
+      taxId: json.data.taxId || "",
+      contactEmail: json.data.contactEmail || "",
+      contactPhone: json.data.contactPhone || "",
+      footerNote: json.data.footerNote || DEFAULT_RENT_RECEIPT_TEMPLATE.footerNote,
+      accentColor: json.data.accentColor || DEFAULT_RENT_RECEIPT_TEMPLATE.accentColor,
+      signatureId: json.data.signatureId || null,
+    };
+  };
+
+  const fetchReceiptSignature = async (signatureId?: string | null) => {
+    if (!workspaceId || !signatureId) return undefined;
+    const res = await fetch(`/api/receipt-signatures?workspaceId=${workspaceId}`);
+    const json = await res.json();
+    if (!res.ok || !Array.isArray(json.data)) return undefined;
+    return resolveSignatureForReceipt(json.data, signatureId);
+  };
+
+  const handleVerifyPayment = async (record: TransactionRecord) => {
+    setActionBillId(record.billId);
+    try {
+      const res = await fetch(`/api/bills/${record.billId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Verification failed");
+      toast(
+        json.autoReceiptIssued
+          ? `Payment from ${record.tenant} verified. RentAwas receipt issued automatically.`
+          : `Payment from ${record.tenant} verified. Upload a receipt when ready.`,
+        "success"
+      );
+      await loadTransactions();
+    } catch (err: any) {
+      toast(err.message || "Could not verify payment.", "error");
+    } finally {
+      setActionBillId(null);
+    }
+  };
+
+  const handleIssueReceipt = async (record: TransactionRecord) => {
+    if (!record.propertyAutoReceipt) {
+      setUploadTarget(record);
+      setManualReceiptFile(null);
+      setShowManualReceiptModal(true);
+      return;
+    }
+
+    setActionBillId(record.billId);
+    try {
+      const res = await fetch(`/api/bills/${record.billId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "issue_receipt" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not issue receipt");
+      toast(`RentAwas receipt issued for ${record.tenant}.`, "success");
+      await loadTransactions();
+      await handlePrintReceipt({ ...record, receiptState: "receipt_ready" });
+    } catch (err: any) {
+      toast(err.message || "Could not issue receipt.", "error");
+    } finally {
+      setActionBillId(null);
+    }
+  };
+
+  const handleUploadManualReceipt = async () => {
+    if (!uploadTarget || !manualReceiptFile || !workspaceId) return;
+    setUploadingReceipt(true);
+    try {
+      const upload = await uploadFile(manualReceiptFile, {
+        workspaceId,
+        context: "misc",
+        filename: `rent-receipt-${uploadTarget.billId}-${Date.now()}`,
+      });
+      if (!upload.success || !upload.url) {
+        throw new Error(upload.error || "File upload failed");
+      }
+
+      const res = await fetch(`/api/bills/${uploadTarget.billId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "upload_manual_receipt",
+          receiptUrl: upload.url,
+          receiptName: upload.filename || manualReceiptFile.name,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not save receipt");
+
+      toast(`Manual receipt uploaded for ${uploadTarget.tenant}.`, "success");
+      setShowManualReceiptModal(false);
+      setUploadTarget(null);
+      setManualReceiptFile(null);
+      await loadTransactions();
+    } catch (err: any) {
+      toast(err.message || "Could not upload receipt.", "error");
+    } finally {
+      setUploadingReceipt(false);
+    }
+  };
 
   // 2. Handle Tenant Selection Change
   const handleTenantSelect = (tenantId: string) => {
@@ -149,7 +332,7 @@ export default function RentPaymentsPage() {
       const propName = found.unit?.property?.name || found.property?.name || "The Regent";
       const uNo = found.unit?.unitNumber || "Unit #101";
       setCustomUnit(`${propName} - ${uNo}`);
-      setAmountInput(found.monthlyRent ? `$${found.monthlyRent.toLocaleString()}` : "$3,200");
+      setAmountInput(found.monthlyRent ? String(found.monthlyRent) : "");
     }
   };
 
@@ -158,37 +341,59 @@ export default function RentPaymentsPage() {
     e.preventDefault();
     const finalTenant = customTenantName.trim() || "Tenant Resident";
     const finalUnit = customUnit.trim() || "Primary Rental Unit";
-    const finalAmount = amountInput.trim() || "$3,200";
+    const numericAmount = parseAmountInput(amountInput);
+
+    if (!numericAmount) {
+      toast("Please enter a valid monthly rent amount.", "error");
+      return;
+    }
+
+    const selectedTenant = selectedTenantId
+      ? liveTenants.find((t) => t.id === selectedTenantId)
+      : null;
+    const rentMonthLabel = formatRentMonthLabel(rentMonthInput);
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/transactions", {
+      const wid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      const res = await fetch("/api/bills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tenantName: finalTenant,
-          propertyUnit: finalUnit,
-          amount: finalAmount,
-          status: statusInput,
+          title: `Rent Payment — ${rentMonthLabel} — ${finalUnit}`,
+          amount: numericAmount,
+          category: "Rent",
+          status: "Pending",
           paymentMethod: paymentMethodInput,
-          type: "Rent Collection",
-          wid: 1,
+          notes: "awaiting_landlord_verification",
+          paidDate: dateInput,
+          tenantId: selectedTenant?.id,
+          unitId: selectedTenant?.unitId || selectedTenant?.unit?.id,
+          propertyId:
+            selectedTenant?.propertyId ||
+            selectedTenant?.unit?.propertyId ||
+            selectedTenant?.unit?.property?.id,
+          workspaceId: wid ? Number(wid) : undefined,
         }),
       });
 
       const json = await res.json();
       if (res.ok && json.success) {
-        toast(`Monthly rent payment of ${finalAmount} recorded for ${finalTenant}!`, "success");
+        toast(
+          `Rent for ${rentMonthLabel} recorded for ${finalTenant}. Verify to confirm payment.`,
+          "success"
+        );
         setShowAddModal(false);
-        // Reset Form
         setSelectedTenantId("");
         setCustomTenantName("");
         setCustomUnit("");
         setAmountInput("");
+        setRentMonthInput(new Date().toISOString().slice(0, 7));
+        setDateInput(new Date().toISOString().split("T")[0]);
         loadTransactions();
         queryClient.invalidateQueries({ queryKey: ["transactions"] });
       } else {
-        toast("Failed to record rent payment", "error");
+        toast(json.error || "Failed to record rent payment", "error");
       }
     } catch (err) {
       console.error("Error submitting transaction:", err);
@@ -198,56 +403,41 @@ export default function RentPaymentsPage() {
     }
   };
 
-  // 4. Print / View Receipt
-  const handlePrintReceipt = (record: TransactionRecord) => {
-    const html = generatePaymentReceiptHtml({
-      invoiceNumber: record.id,
-      receiptNumber: `RCPT-${record.id}`,
-      date: record.date,
-      planName: `Monthly Rent — ${record.property}`,
-      amount: record.amount,
-      paymentMethod: record.method,
-      paymentId: record.paymentId || "pay_direct_bank",
-      status: record.status,
-    });
-    triggerPrintOrDownload(html, `Payment_Receipt_${record.id}`);
-  };
-
-  // 5. CSV Export Ledger
-  const handleExportCSV = () => {
-    if (transactionsList.length === 0) {
-      toast("No transactions to export.", "info");
+  // 4. Print / View Receipt with property template
+  const handlePrintReceipt = async (record: TransactionRecord) => {
+    if (record.receiptUrl) {
+      window.open(record.receiptUrl, "_blank", "noopener,noreferrer");
       return;
     }
-    const headers = ["Transaction ID", "Tenant Name", "Property & Unit", "Amount", "Date", "Payment Method", "Status"];
-    const rows = transactionsList.map((t) => [
-      t.id,
-      `"${t.tenant}"`,
-      `"${t.property}"`,
-      `"${t.amount}"`,
-      t.date,
-      `"${t.method}"`,
-      t.status,
-    ]);
 
-    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `Rent_Payments_Ledger_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast("Rent Payments Ledger exported as CSV!", "success");
+    const branding = await fetchReceiptTemplate(record.propertyId);
+    const signature = await fetchReceiptSignature(branding.signatureId);
+    const html = generateRentPaymentReceiptHtml({
+      receiptNumber: `RCPT-${record.date}-${record.billId.slice(-6).toUpperCase()}`,
+      date: record.date,
+      tenantName: record.tenant,
+      tenantEmail: record.tenantEmail,
+      propertyName: record.property.split(" — ")[0] || record.property,
+      unitNumber: record.property.includes(" — ") ? record.property.split(" — ")[1] : undefined,
+      title: record.title,
+      amount: formatCurrency(record.rawAmount),
+      rawAmount: record.rawAmount,
+      paymentMethod: record.method,
+      paymentId: record.paymentId,
+      status: "PAID",
+      branding,
+      signature,
+    });
+    triggerPrintOrDownload(html, `Rent_Receipt_${record.billId.slice(-8)}`);
   };
 
   // Filtered Ledger List
   const filteredTransactions = transactionsList.filter((t) => {
     const matchesSearch =
-      t.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.tenant.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.property.toLowerCase().includes(searchTerm.toLowerCase());
+      t.property.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.method.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "All" || t.status.toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   });
@@ -260,9 +450,9 @@ export default function RentPaymentsPage() {
   const paginatedTransactions = filteredTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // Dynamic Summaries
-  const completedTxns = transactionsList.filter((t) => t.status === "Completed");
+  const completedTxns = transactionsList.filter((t) => t.receiptState === "receipt_ready");
   const totalCollectedSum = completedTxns.reduce((acc, t) => acc + (t.rawAmount || 0), 0);
-  const pendingTxns = transactionsList.filter((t) => t.status === "Processing" || t.status === "Overdue");
+  const pendingTxns = transactionsList.filter((t) => t.receiptState === "pending_verification");
   const totalPendingSum = pendingTxns.reduce((acc, t) => acc + (t.rawAmount || 0), 0);
   const onTimeRate = transactionsList.length > 0 
     ? ((completedTxns.length / transactionsList.length) * 100).toFixed(1)
@@ -293,7 +483,24 @@ export default function RentPaymentsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setShowAutoReceiptModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 shadow-2xs transition-all uppercase tracking-wider whitespace-nowrap cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-emerald-600" />
+            <span>Auto Receipt Active</span>
+          </button>
+
+          <Link
+            href="/dashboard/payments/receipts"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs transition-all uppercase tracking-wider whitespace-nowrap"
+          >
+            <Receipt className="w-4 h-4 text-[#FF6B00]" />
+            <span>My Receipts</span>
+          </Link>
+
           <button
             onClick={() => {
               if (typeof window !== "undefined" && (window as any).checkCanAddAction) {
@@ -305,14 +512,6 @@ export default function RentPaymentsPage() {
           >
             <Plus className="w-4 h-4" />
             <span>Record Rent Payment</span>
-          </button>
-
-          <button
-            onClick={handleExportCSV}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs transition-all uppercase tracking-wider cursor-pointer whitespace-nowrap"
-          >
-            <Download className="w-4 h-4 text-slate-500" />
-            <span className="hidden sm:inline">Export Ledger</span>
           </button>
         </div>
       </div>
@@ -381,9 +580,9 @@ export default function RentPaymentsPage() {
               className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none cursor-pointer"
             >
               <option value="All">All Statuses ({transactionsList.length})</option>
-              <option value="Completed">Completed</option>
-              <option value="Processing">Processing</option>
-              <option value="Overdue">Overdue</option>
+              <option value="Completed">Completed / Receipt Issued</option>
+              <option value="Verified">Verified — Awaiting Receipt</option>
+              <option value="Pending Verification">Pending Verification</option>
             </select>
           </div>
         </div>
@@ -393,7 +592,6 @@ export default function RentPaymentsPage() {
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-bold">
-                <th className="pb-3 px-2">Transaction ID</th>
                 <th className="pb-3 px-2">Tenant &amp; Property</th>
                 <th className="pb-3 px-2">Amount</th>
                 <th className="pb-3 px-2">Date</th>
@@ -405,13 +603,13 @@ export default function RentPaymentsPage() {
             <tbody className="divide-y divide-slate-100 font-medium">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400 font-bold">
-                    Loading PostgreSQL rent payment records...
+                  <td colSpan={6} className="py-8 text-center text-slate-400 font-bold">
+                    Loading tenant rent payment records...
                   </td>
                 </tr>
               ) : filteredTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-4 border-0">
+                  <td colSpan={6} className="py-4 border-0">
                     <EmptyStateIllustration
                       title="No Rent Payments Logged Yet"
                       description="When tenants pay monthly rent or when you log payment collections, live financial telemetry will automatically appear here."
@@ -427,8 +625,7 @@ export default function RentPaymentsPage() {
                 </tr>
               ) : (
                 paginatedTransactions.map((t) => (
-                  <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-2 font-mono font-bold text-slate-700">{t.id}</td>
+                  <tr key={t.billId} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-2">
                       <div className="font-extrabold text-slate-900">{t.tenant}</div>
                       <div className="text-[11px] text-slate-500 font-semibold">{t.property}</div>
@@ -444,25 +641,57 @@ export default function RentPaymentsPage() {
                           Completed
                         </span>
                       )}
-                      {t.status === "Processing" && (
-                        <span className="px-2.5 py-1 rounded text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200/80 uppercase">
-                          Processing
+                      {t.status === "Verified" && (
+                        <span className="px-2.5 py-1 rounded text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200/80 uppercase">
+                          Verified
                         </span>
                       )}
-                      {t.status === "Overdue" && (
-                        <span className="px-2.5 py-1 rounded text-[10px] font-extrabold bg-red-50 text-red-700 border border-red-200/80 uppercase">
-                          Overdue
+                      {t.status === "Pending Verification" && (
+                        <span className="px-2.5 py-1 rounded text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200/80 uppercase">
+                          Pending Verification
                         </span>
                       )}
                     </td>
                     <td className="py-3.5 px-2 text-right">
-                      <button
-                        onClick={() => handlePrintReceipt(t)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer inline-flex items-center gap-1"
-                        title="Print / View Receipt PDF"
-                      >
-                        <Printer className="w-4 h-4" />
-                      </button>
+                      {t.receiptState === "pending_verification" && (
+                        <button
+                          type="button"
+                          onClick={() => handleVerifyPayment(t)}
+                          disabled={actionBillId === t.billId}
+                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-extrabold text-[10px] uppercase tracking-wider inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <ClipboardCheck className="w-3.5 h-3.5" />
+                          <span>{actionBillId === t.billId ? "..." : "Verify"}</span>
+                        </button>
+                      )}
+                      {t.receiptState === "verified_awaiting_receipt" && (
+                        <button
+                          type="button"
+                          onClick={() => handleIssueReceipt(t)}
+                          disabled={actionBillId === t.billId}
+                          className="px-3 py-1.5 rounded-lg bg-[#FF6B00] hover:bg-[#E56000] disabled:opacity-50 text-white font-extrabold text-[10px] uppercase tracking-wider inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>
+                            {actionBillId === t.billId
+                              ? "..."
+                              : t.propertyAutoReceipt
+                              ? "Issue Receipt"
+                              : "Upload Receipt"}
+                          </span>
+                        </button>
+                      )}
+                      {t.receiptState === "receipt_ready" && (
+                        <button
+                          type="button"
+                          onClick={() => handlePrintReceipt(t)}
+                          className="p-1.5 rounded-lg text-purple-700 hover:text-purple-900 hover:bg-purple-50 transition-colors cursor-pointer inline-flex items-center gap-1 font-bold text-[10px] uppercase"
+                          title={t.receiptUrl ? "View uploaded receipt" : "Download RentAwas receipt PDF"}
+                        >
+                          <Download className="w-4 h-4" />
+                          <span className="hidden sm:inline">{t.receiptUrl ? "View" : "PDF"}</span>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -585,18 +814,17 @@ export default function RentPaymentsPage() {
                 />
               </div>
 
-              {/* Amount & Date Grid */}
+              {/* Rent Month & Payment Date */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Monthly Rent Amount *
+                    Rent For Month *
                   </label>
                   <input
-                    type="text"
+                    type="month"
                     required
-                    value={amountInput}
-                    onChange={(e) => setAmountInput(e.target.value)}
-                    placeholder="e.g. $3,200 or ₹25,000"
+                    value={rentMonthInput}
+                    onChange={(e) => setRentMonthInput(e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
@@ -615,8 +843,22 @@ export default function RentPaymentsPage() {
                 </div>
               </div>
 
-              {/* Payment Method & Status Grid */}
+              {/* Amount & Payment Method */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Monthly Rent Amount *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={amountInput}
+                    onChange={(e) => setAmountInput(e.target.value)}
+                    placeholder="e.g. 3200 or 25000"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Payment Method *
@@ -626,29 +868,18 @@ export default function RentPaymentsPage() {
                     onChange={(e) => setPaymentMethodInput(e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
                   >
-                    <option value="Razorpay Auto-Debit">Razorpay Auto-Debit</option>
-                    <option value="Razorpay UPI / QR">Razorpay UPI / QR</option>
-                    <option value="Direct Card">Direct Card</option>
-                    <option value="Bank Payout / NEFT">Bank Payout / NEFT</option>
                     <option value="Cash / Offline">Cash / Offline</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Collection Status *
-                  </label>
-                  <select
-                    value={statusInput}
-                    onChange={(e) => setStatusInput(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    <option value="Completed">Completed</option>
-                    <option value="Processing">Processing</option>
-                    <option value="Overdue">Overdue</option>
+                    <option value="Bank Payout / NEFT">Bank Payout / NEFT</option>
+                    <option value="Razorpay UPI / QR">Razorpay UPI / QR</option>
+                    <option value="Razorpay Auto-Debit">Razorpay Auto-Debit</option>
+                    <option value="Direct Card">Direct Card</option>
                   </select>
                 </div>
               </div>
+
+              <p className="text-[11px] text-slate-500 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
+                Recorded payments are saved as <strong>Pending Verification</strong>. Use Verify on the ledger row to confirm and issue a receipt.
+              </p>
 
               {/* Action Buttons */}
               <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 mt-6">
@@ -668,6 +899,95 @@ export default function RentPaymentsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      <AutoReceiptSettingsModal
+        open={showAutoReceiptModal}
+        onClose={() => setShowAutoReceiptModal(false)}
+        workspaceId={workspaceId}
+      />
+
+      {showManualReceiptModal && uploadTarget && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-900">Upload Receipt</h3>
+                <p className="text-xs text-slate-500">
+                  {uploadTarget.tenant} · {uploadTarget.property}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowManualReceiptModal(false);
+                  setUploadTarget(null);
+                  setManualReceiptFile(null);
+                }}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl p-3">
+                Auto Receipt is off for this property. Upload your own receipt file (PDF or image) for the tenant to download.
+              </p>
+
+              <label className="block">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+                  Receipt File *
+                </span>
+                <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-[#FF6B00]/40 transition-colors">
+                  <input
+                    type="file"
+                    accept=".pdf,image/*"
+                    className="hidden"
+                    id="manual-receipt-upload"
+                    onChange={(e) => setManualReceiptFile(e.target.files?.[0] || null)}
+                  />
+                  <label htmlFor="manual-receipt-upload" className="cursor-pointer flex flex-col items-center gap-2">
+                    <Upload className="w-8 h-8 text-slate-400" />
+                    <span className="text-sm font-bold text-slate-700">
+                      {manualReceiptFile ? manualReceiptFile.name : "Choose PDF or image"}
+                    </span>
+                    <span className="text-[11px] text-slate-500">Max recommended 10MB</span>
+                  </label>
+                </div>
+              </label>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowManualReceiptModal(false);
+                    setUploadTarget(null);
+                    setManualReceiptFile(null);
+                  }}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!manualReceiptFile || uploadingReceipt}
+                  onClick={() => void handleUploadManualReceipt()}
+                  className="px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  {uploadingReceipt ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    "Upload & Issue"
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

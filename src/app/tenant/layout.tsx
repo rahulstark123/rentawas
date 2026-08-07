@@ -27,6 +27,7 @@ import { supabase } from "@/lib/supabase";
 import LogoutAnimation from "@/components/LogoutAnimation";
 import { hasActiveRentPaymentChannels } from "@/lib/paymentMethods";
 import { useTenantMe, useTenantWorkspace } from "@/hooks/useTenantMe";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export default function TenantLayout({
   children,
@@ -42,6 +43,7 @@ export default function TenantLayout({
 
   const { data: tenantMe } = useTenantMe();
   const { data: workspace } = useTenantWorkspace(tenantMe?.workspaceId);
+  const { setCurrency } = useCurrency();
 
   const [tenantProfile, setTenantProfile] = useState<{
     name: string;
@@ -105,8 +107,16 @@ export default function TenantLayout({
   }, [tenantMe]);
 
   useEffect(() => {
-    setCanPayRent(hasActiveRentPaymentChannels(workspace));
-  }, [workspace]);
+    const fromWorkspace = hasActiveRentPaymentChannels(workspace);
+    const fromProfile = Boolean(tenantMe?.paymentChannelsActive);
+    setCanPayRent(fromProfile || fromWorkspace);
+  }, [workspace, tenantMe?.paymentChannelsActive]);
+
+  useEffect(() => {
+    if (workspace?.currency) {
+      setCurrency(workspace.currency);
+    }
+  }, [workspace?.currency, setCurrency]);
 
   const navItems = [
     { name: "My Resident Overview", href: "/tenant/dashboard", icon: LayoutDashboard },

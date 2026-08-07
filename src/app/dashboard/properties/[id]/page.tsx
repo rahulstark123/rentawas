@@ -34,6 +34,8 @@ import {
   Receipt,
   Paperclip,
   Eye,
+  EyeOff,
+  Key,
   History,
   Wrench,
   FileCheck,
@@ -388,6 +390,8 @@ export default function PropertyFloorPlanPage() {
   const [tenantPhone, setTenantPhone] = useState("");
   const [tenantSelectedCountry, setTenantSelectedCountry] = useState<Country>(() => getDefaultCountryByLocale(ALL_COUNTRIES));
   const [tenantEmail, setTenantEmail] = useState("");
+  const [tenantPassword, setTenantPassword] = useState("");
+  const [showTenantPassword, setShowTenantPassword] = useState(false);
   const [tenantLeaseStart, setTenantLeaseStart] = useState("");
   const [tenantIdType, setTenantIdType] = useState("Passport / Travel Document");
   const [tenantIdNumber, setTenantIdNumber] = useState("");
@@ -445,6 +449,8 @@ export default function PropertyFloorPlanPage() {
     setTenantRentDueDay("1");
     setTenantPhone("");
     setTenantEmail("");
+    setTenantPassword("");
+    setShowTenantPassword(false);
     setTenantLeaseStart(new Date().toISOString().split("T")[0]);
     setTenantIdNumber("");
     setTenantIdType("Passport / Travel Document");
@@ -464,6 +470,10 @@ export default function PropertyFloorPlanPage() {
       if (currentTenantStep === 1) {
         if (!tenantName.trim() || !tenantEmail.trim()) {
           toast("Please fill in Resident Name and Email before proceeding.", "info");
+          return;
+        }
+        if (!tenantPassword.trim()) {
+          toast("Please set a Tenant Portal password before proceeding.", "info");
           return;
         }
         if (!tenantMonthlyRent || Number(tenantMonthlyRent) <= 0) {
@@ -510,6 +520,7 @@ export default function PropertyFloorPlanPage() {
         body: JSON.stringify({
           name: tenantName,
           email: tenantEmail,
+          password: tenantPassword.trim() || undefined,
           phone: fullPhoneNumber,
           monthlyRent: rentVal,
           rentDueDay: dueDay,
@@ -2286,14 +2297,40 @@ export default function PropertyFloorPlanPage() {
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">Move-in / Lease Start</label>
-                    <input
-                      type="date"
-                      value={tenantLeaseStart}
-                      onChange={(e) => setTenantLeaseStart(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                    />
+                    <label className="block font-bold text-slate-700 uppercase mb-1">Tenant Portal Password *</label>
+                    <div className="relative">
+                      <input
+                        type={showTenantPassword ? "text" : "password"}
+                        required
+                        value={tenantPassword}
+                        onChange={(e) => setTenantPassword(e.target.value)}
+                        placeholder="e.g. Tenant@123"
+                        className="w-full px-3 py-2 pr-9 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowTenantPassword(!showTenantPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        {showTenantPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
+                </div>
+
+                <p className="text-[11px] text-slate-500 flex items-center gap-1.5 font-medium bg-orange-50/70 border border-orange-100 p-2 rounded-xl text-orange-950">
+                  <Key className="w-3.5 h-3.5 text-[#FF6B00] shrink-0" />
+                  <span>Resident can log in to the <strong>Tenant Portal</strong> using this email and password.</span>
+                </p>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase mb-1">Move-in / Lease Start</label>
+                  <input
+                    type="date"
+                    value={tenantLeaseStart}
+                    onChange={(e) => setTenantLeaseStart(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
                 </div>
               </div>
             )}

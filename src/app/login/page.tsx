@@ -35,9 +35,11 @@ function LoginForm() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const getTargetRedirect = () => {
+  const getTargetRedirect = (sessionRole?: string | null) => {
     if (redirectParam) return redirectParam;
-    return role === "tenant" ? "/tenant/dashboard" : "/dashboard";
+    const isTenant =
+      sessionRole === "tenant" || role === "tenant" || roleParam === "tenant";
+    return isTenant ? "/tenant/dashboard" : "/dashboard";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,7 +79,8 @@ function LoginForm() {
         // Non-blocking — dashboard will re-resolve wid
       }
 
-      router.push(getTargetRedirect());
+      router.push(getTargetRedirect(data?.user?.user_metadata?.role));
+      setIsLoading(false);
     } catch (err: any) {
       setErrorMessage(err?.message || "An unexpected error occurred. Please try again.");
       setIsLoading(false);

@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { 
-  CreditCard, 
   Wrench, 
   FileText, 
   CheckCircle2, 
@@ -15,15 +13,12 @@ import {
   Pin,
 } from "lucide-react";
 import { useCurrency } from "@/context/CurrencyContext";
-import { hasActiveRentPaymentChannels } from "@/lib/paymentMethods";
-import { useTenantMe, useTenantWorkspace } from "@/hooks/useTenantMe";
+import { useTenantMe } from "@/hooks/useTenantMe";
+import { getTenantMonthRentStatus } from "@/lib/rentReceipts";
 
 export default function TenantDashboardPage() {
-  const router = useRouter();
   const { formatCurrency } = useCurrency();
   const { data: tenantMe, isLoading: meLoading } = useTenantMe();
-  const { data: workspace, isLoading: wsLoading } = useTenantWorkspace(tenantMe?.workspaceId);
-  const [canPayRent, setCanPayRent] = useState(false);
   const [notices, setNotices] = useState<any[]>([]);
   const [tenant, setTenant] = useState<any>({
     name: "Resident",
@@ -67,10 +62,6 @@ export default function TenantDashboardPage() {
   }, [tenantMe]);
 
   useEffect(() => {
-    setCanPayRent(hasActiveRentPaymentChannels(workspace));
-  }, [workspace]);
-
-  useEffect(() => {
     if (announcementsData) {
       setNotices(announcementsData);
     } else if (!annLoading && tenantMe && (isNaN(wid) || wid <= 0)) {
@@ -78,22 +69,15 @@ export default function TenantDashboardPage() {
     }
   }, [announcementsData, annLoading, tenantMe, wid]);
 
-  const loading = meLoading || (!!tenantMe?.workspaceId && wsLoading) || (!!tenantMe && annLoading);
-
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-
-  const handlePayRent = () => {
-    if (!canPayRent) return;
-    setPaymentSuccess(true);
-    setTimeout(() => setPaymentSuccess(false), 5000);
-    router.push("/tenant/payments?pay=1");
-  };
+  const loading = meLoading || (!!tenantMe && annLoading);
 
   const rentVal = tenant.monthlyRent || 3200;
   const dueMonthLabel = new Date().toLocaleString("en-US", {
     month: "long",
     year: "numeric",
   });
+  const currentMonthRentStatus = getTenantMonthRentStatus(tenant?.bills, dueMonthLabel);
+  const noPaymentDueThisMonth = currentMonthRentStatus !== "due";
 
   if (loading) {
     return (
@@ -114,9 +98,8 @@ export default function TenantDashboardPage() {
               <div className="h-10 w-40 bg-slate-600 rounded-lg" />
               <div className="h-3 w-56 bg-slate-700 rounded" />
             </div>
-            <div className="pt-4 border-t border-slate-700 flex gap-4">
-              <div className="h-11 w-40 bg-slate-600 rounded-xl" />
-              <div className="h-4 w-32 bg-slate-700 rounded self-center" />
+            <div className="pt-4 border-t border-slate-700 flex justify-end">
+              <div className="h-4 w-32 bg-slate-700 rounded" />
             </div>
           </div>
           <div className="md:col-span-5 bg-white border border-slate-200/90 rounded-2xl p-6 space-y-4">
@@ -186,48 +169,56 @@ export default function TenantDashboardPage() {
 
           <div className="relative z-10 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="px-3 py-1 rounded-full bg-amber-400/20 border border-amber-400/30 text-amber-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                <span>{dueMonthLabel} Due</span>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                noPaymentDueThisMonth
+                  ? "bg-emerald-400/20 border border-emerald-400/30 text-emerald-200"
+                  : "bg-amber-400/20 border border-amber-400/30 text-amber-300"
+              }`}>
+                {noPaymentDueThisMonth ? (
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                ) : (
+                  <Clock className="w-3.5 h-3.5" />
+                )}
+                <span>
+                  {noPaymentDueThisMonth ? `${dueMonthLabel} Paid` : `${dueMonthLabel} Due`}
+                </span>
               </span>
 
               <span className="text-xs font-bold text-slate-300">Monthly Billing</span>
             </div>
 
             <div>
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                {dueMonthLabel} Rent Due
-              </div>
-              <div className="text-3xl sm:text-4xl font-black text-white mt-1">{formatCurrency(rentVal)}</div>
-              <div className="text-xs text-slate-300 mt-1">
-                <span>Includes Base Rent &amp; Assigned Premises</span>
-              </div>
+              {noPaymentDueThisMonth ? (
+                <>
+                  <div className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                    No payment due for this month
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-white mt-1">
+                    {formatCurrency(rentVal)} recorded
+                  </div>
+                  <div className="text-xs text-slate-300 mt-1">
+                    <span>
+                      {currentMonthRentStatus === "pending_verification"
+                        ? "Awaiting landlord verification"
+                        : `${dueMonthLabel} rent is already on file`}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    {dueMonthLabel} Rent Due
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-black text-white mt-1">{formatCurrency(rentVal)}</div>
+                  <div className="text-xs text-slate-300 mt-1">
+                    <span>Includes Base Rent &amp; Assigned Premises</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
-          <div className="relative z-10 pt-4 border-t border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1.5">
-              <button
-                type="button"
-                onClick={handlePayRent}
-                disabled={!canPayRent}
-                title={
-                  canPayRent
-                    ? "Open pay rent portal"
-                    : "No payment channels enabled by your landlord yet"
-                }
-                className="px-6 py-3 bg-[#FF6B00] hover:bg-[#E56000] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#FF6B00] active:scale-[0.99] text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer"
-              >
-                <CreditCard className="w-4 h-4" />
-                <span>Pay Rent Now ({formatCurrency(rentVal)})</span>
-              </button>
-              {!canPayRent && (
-                <p className="text-[10px] text-slate-400 font-medium max-w-xs">
-                  No payment channels enabled by your landlord yet. Contact them to pay online.
-                </p>
-              )}
-            </div>
-
+          <div className="relative z-10 pt-4 border-t border-slate-700/80 flex justify-end">
             <Link
               href="/tenant/payments"
               className="text-xs font-bold text-slate-300 hover:text-white underline"
@@ -235,13 +226,6 @@ export default function TenantDashboardPage() {
               View Payment Receipts
             </Link>
           </div>
-
-          {paymentSuccess && (
-            <div className="absolute bottom-4 left-6 right-6 bg-emerald-500 text-white text-xs font-bold p-3 rounded-xl shadow-lg flex items-center gap-2 justify-center z-20">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Rent payment of ${rentVal.toLocaleString()}.00 processed successfully! Instant receipt issued.</span>
-            </div>
-          )}
         </div>
 
         {/* Active Lease Overview Card (5 Cols) */}

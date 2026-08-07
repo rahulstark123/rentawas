@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isGatewayPayment } from "@/lib/rentReceipts";
 import { parsePagination, paginationMeta } from "@/lib/apiPagination";
 
 const billListSelect = {
@@ -11,6 +12,8 @@ const billListSelect = {
   category: true,
   paymentMethod: true,
   notes: true,
+  receiptUrl: true,
+  receiptName: true,
   floorNumber: true,
   paidDate: true,
   dueDate: true,
@@ -21,7 +24,7 @@ const billListSelect = {
   createdAt: true,
   tenant: { select: { id: true, name: true, email: true } },
   unit: { select: { id: true, unitNumber: true, floorNumber: true } },
-  property: { select: { id: true, name: true } },
+  property: { select: { id: true, name: true, autoReceiptEnabled: true } },
 } as const;
 
 // GET /api/bills - Fetch bills filtered by workspaceId, propertyId, unitId, or tenantId
@@ -83,6 +86,7 @@ export async function POST(request: Request) {
       notes,
       paymentMethod,
       floorNumber,
+      paidDate,
     } = body;
 
     if (!title || !amount) {
@@ -93,16 +97,33 @@ export async function POST(request: Request) {
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     const invoiceNumber = `INV-${monthCode}-${randomNum}`;
 
+    let finalNotes = notes || null;
+    if (propertyId && paymentMethod && isGatewayPayment(String(paymentMethod))) {
+      const prop = await prisma.property.findUnique({
+        where: { id: String(propertyId) },
+        select: { autoReceiptEnabled: true },
+      });
+      const autoReceipt = prop?.autoReceiptEnabled ?? true;
+      if (!autoReceipt && finalNotes) {
+        finalNotes = finalNotes.replace(/;?receipt_issued/gi, "").replace(/^;+|;+$/g, "") || null;
+      }
+    }
+
+    const billStatus = status || "Paid";
     const billData: any = {
       invoiceNumber,
       title,
       amount: parseFloat(amount),
-      status: status || "Paid",
+      status: billStatus,
       category: category || "Rent",
       paymentMethod: paymentMethod || "Manual Invoice",
-      notes: notes || null,
+      notes: finalNotes,
       floorNumber: floorNumber ? Number(floorNumber) : 1,
-      paidDate: status === "Paid" ? new Date() : null,
+      paidDate: paidDate
+        ? new Date(paidDate)
+        : billStatus === "Paid"
+        ? new Date()
+        : null,
       dueDate: new Date(),
     };
 
