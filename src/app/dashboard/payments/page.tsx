@@ -392,6 +392,7 @@ export default function RentPaymentsPage() {
         setDateInput(new Date().toISOString().split("T")[0]);
         loadTransactions();
         queryClient.invalidateQueries({ queryKey: ["transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["rent-bills"] });
       } else {
         toast(json.error || "Failed to record rent payment", "error");
       }

@@ -19,7 +19,7 @@ export function prefetchSection(section: "properties" | "tenants" | "maintenance
     properties: { key: ["properties", wid], url: `/api/properties?wid=${wid}` },
     tenants: { key: ["tenants", wid], url: `/api/tenants?workspaceId=${wid}` },
     maintenance: { key: ["maintenance", wid], url: `/api/maintenance?workspaceId=${wid}` },
-    transactions: { key: ["transactions", wid], url: `/api/transactions?wid=${wid}` },
+    transactions: { key: ["rent-bills", wid], url: `/api/bills?workspaceId=${wid}` },
     announcements: { key: ["announcements", wid], url: `/api/announcements?workspaceId=${wid}` },
     documents: { key: ["documents", wid], url: `/api/documents?workspaceId=${wid}` },
     billing: { key: ["billing", wid], url: `/api/subscriptions?wid=${wid}` },

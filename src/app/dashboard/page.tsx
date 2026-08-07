@@ -64,37 +64,41 @@ export default function DashboardOverviewPage() {
   // ─── TanStack Query hooks — cached for 60s, shared across all dashboard pages ──
 
   const { data: txData, isLoading: txLoading } = useQuery({
-    queryKey: ["transactions", workspaceId],
+    queryKey: ["rent-bills", workspaceId],
     enabled: !!workspaceId,
     queryFn: async () => {
-      const res = await fetch(`/api/transactions?wid=${workspaceId}`);
+      const res = await fetch(`/api/bills?workspaceId=${encodeURIComponent(String(workspaceId))}`);
       if (!res.ok) return [];
       const json = await res.json();
       if (!json.success || !Array.isArray(json.data)) return [];
-      return json.data.map((t: any) => {
-        const desc = t.description || "Workspace Resident";
-        const parts = desc.split("—").map((s: string) => s.trim());
-        const tenantName = parts[0] || desc;
-        const unitName = parts[1] || "Primary Unit";
-        let rawNum = 0;
-        if (typeof t.amount === "string") rawNum = parseFloat(t.amount.replace(/[^0-9.]/g, "")) || 0;
-        else if (typeof t.amount === "number") rawNum = t.amount;
-        const stStr = String(t.status || "").toLowerCase();
-        let st: "paid" | "pending" | "overdue" = "paid";
-        if (stStr === "overdue") st = "overdue";
-        else if (stStr === "processing" || stStr === "pending") st = "pending";
-        return {
-          id: t.transactionNumber || t.id,
-          tenant: tenantName,
-          unit: unitName,
-          amount: typeof t.amount === "string" ? t.amount : `$${rawNum.toLocaleString("en-US")}`,
-          rawAmount: rawNum,
-          dueDate: t.createdAt ? new Date(t.createdAt).toISOString().split("T")[0] : "2026-07-28",
-          status: st,
-          channel: t.paymentMethod || "Razorpay Auto-Debit",
-          paymentId: t.paymentId || "pay_direct_bank",
-        } as DashboardTransaction;
-      });
+      return json.data
+        .filter((b: any) => !b.category || String(b.category).toLowerCase() === "rent")
+        .map((b: any) => {
+          const tenantName = b.tenant?.name || "Resident";
+          const propertyName = b.property?.name || "Property";
+          const unitNo = b.unit?.unitNumber ? ` — ${b.unit.unitNumber}` : "";
+          const rawNum = Number(b.amount) || 0;
+          const stStr = String(b.status || "").trim().toLowerCase();
+          let st: "paid" | "pending" | "overdue" = "pending";
+          if (stStr === "paid" || stStr === "success" || stStr === "completed") st = "paid";
+          else if (stStr === "overdue") st = "overdue";
+
+          return {
+            id: b.id,
+            tenant: tenantName,
+            unit: `${propertyName}${unitNo}`,
+            amount: "",
+            rawAmount: rawNum,
+            dueDate: b.paidDate
+              ? new Date(b.paidDate).toISOString().split("T")[0]
+              : b.createdAt
+              ? new Date(b.createdAt).toISOString().split("T")[0]
+              : new Date().toISOString().split("T")[0],
+            status: st,
+            channel: b.paymentMethod || "Direct Payment",
+            paymentId: b.notes?.match(/pay_[\w]+|cs_[\w]+/i)?.[0],
+          } as DashboardTransaction;
+        });
     },
   });
 
@@ -146,6 +150,8 @@ export default function DashboardOverviewPage() {
     if (filter === "all") return true;
     return t.status === filter;
   });
+
+  const recentTransactions = filteredTransactions.slice(0, 8);
 
   // Dynamic Metrics Computations
   const paidTxns = transactionsList.filter((t) => t.status === "paid");
@@ -368,13 +374,13 @@ export default function DashboardOverviewPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredTransactions.map((tx) => (
+                  recentTransactions.map((tx) => (
                     <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-2">
                         <div className="font-extrabold text-slate-900">{tx.tenant}</div>
                         <div className="text-[11px] text-slate-500 font-medium">{tx.unit}</div>
                       </td>
-                      <td className="py-3.5 px-2 font-black text-slate-900">{tx.amount}</td>
+                      <td className="py-3.5 px-2 font-black text-slate-900">{formatCurrency(tx.rawAmount)}</td>
                       <td className="py-3.5 px-2 text-slate-600 font-medium">{tx.dueDate}</td>
                       <td className="py-3.5 px-2 text-slate-600">{tx.channel}</td>
                       <td className="py-3.5 px-2">

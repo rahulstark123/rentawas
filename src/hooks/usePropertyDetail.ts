@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@/hooks/useWorkspaceId";
+import { formatDisplayDate } from "@/lib/dates";
 
 export type PropertyDetailMapped = {
   property: {
@@ -55,12 +56,7 @@ function mapPropertyDetail(apiProp: any): PropertyDetailMapped {
               contact: "Primary Resident",
               phone: primaryTenant.phone || "+1 (555) 000-0000",
               email: primaryTenant.email || "resident@rentawas.com",
-              moveIn: primaryTenant.moveInDate
-                ? new Date(primaryTenant.moveInDate).toISOString().split("T")[0]
-                : "2025-01-01",
-              leaseEnd: primaryTenant.leaseEndDate
-                ? new Date(primaryTenant.leaseEndDate).toISOString().split("T")[0]
-                : "2026-01-01",
+              moveIn: formatDisplayDate(primaryTenant.leaseStart),
               health: "Active Tenant",
             }
           : null,

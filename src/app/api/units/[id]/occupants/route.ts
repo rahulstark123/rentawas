@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { formatDisplayDate } from "@/lib/dates";
 import { supabase } from "@/lib/supabase";
 import { Role } from "@/generated/prisma/client";
 
@@ -55,8 +56,7 @@ export async function GET(request: Request, { params }: Params) {
       individualRent: t.monthlyRent || unit.rent || 0,
       phone: t.phone || "+1 (555) 000-0000",
       email: t.email || "resident@rentawas.com",
-      moveIn: t.leaseStart ? new Date(t.leaseStart).toISOString().split("T")[0] : "2026-01-01",
-      leaseEnd: t.leaseEnd ? new Date(t.leaseEnd).toISOString().split("T")[0] : "2026-12-31",
+      moveIn: formatDisplayDate(t.leaseStart),
       paymentStatus: "Auto Paid (ACH)",
       rentDueDay: t.rentDueDay ?? 1,
       govIdType: t.govIdType || undefined,

@@ -2,54 +2,127 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { 
-  Building2, 
-  ArrowLeft, 
-  TrendingUp, 
-  Coins, 
-  Users, 
-  UserCheck, 
-  Calendar, 
-  Download, 
-  Sparkles, 
-  Layers, 
-  Wrench, 
-  CheckCircle2, 
-  ShieldCheck, 
-  MapPin, 
-  ChevronDown, 
-  BarChart3, 
-  ArrowUpRight, 
-  ArrowDownRight,
-  PieChart,
-  Clock,
-  AlertCircle
+import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  TrendingUp,
+  Coins,
+  Users,
+  UserCheck,
+  Download,
+  Sparkles,
+  Wrench,
+  ShieldCheck,
+  MapPin,
+  ChevronDown,
+  BarChart3,
+  ArrowUpRight,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { useWorkspaceId } from "@/hooks/useWorkspaceId";
+import { useCurrency } from "@/context/CurrencyContext";
 
-// Mock property data repository
-const PROPERTIES_DB: Record<string, { id: string; name: string; address: string; tag: string; totalUnits: number; floors: number; monthlyYield: string }> = {
-  "PROP-1": { id: "PROP-1", name: "The Regent - Wing A", address: "1420 5th Ave, Seattle, WA 98101", tag: "Residential Tower", totalUnits: 24, floors: 6, monthlyYield: "$72,500" },
-  "PROP-2": { id: "PROP-2", name: "Downtown Horizon Suites", address: "800 Bellevue Way NE, Bellevue, WA 98004", tag: "Luxury Apartments", totalUnits: 16, floors: 4, monthlyYield: "$48,000" },
-  "PROP-3": { id: "PROP-3", name: "Oakwood Executive Residency", address: "2100 Westlake Ave, Seattle, WA 98121", tag: "Executive Suites", totalUnits: 12, floors: 3, monthlyYield: "$38,400" },
-  "PROP-4": { id: "PROP-4", name: "Skyline Manor", address: "1100 Mercer St, Seattle, WA 98109", tag: "Boutique Housing", totalUnits: 8, floors: 2, monthlyYield: "$26,000" },
+type PropertyAnalytics = {
+  property: {
+    id: string;
+    name: string;
+    address: string;
+    category: string;
+    floors: number;
+    totalUnits: number;
+    occupiedUnits: number;
+    occupancyRate: number;
+    monthlyGrossYield: number;
+    avgRentPerUnit: number;
+  };
+  summary: {
+    monthlyGrossYield: number;
+    netOperatingMargin: number;
+    occupancyRate: number;
+    occupiedUnits: number;
+    totalUnits: number;
+    avgRentPerUnit: number;
+    totalExpensesYtd: number;
+    onTimePaymentRate: number;
+    avgTenancyMonths: number;
+  };
+  monthlyTrend: { month: string; income: number; expense: number }[];
+  paymentChannels: { channel: string; share: string; amount: number; color: string }[];
+  floorMatrix: {
+    floor: number;
+    floorLabel: string;
+    yield: number;
+    occupancyPct: number;
+    occupiedUnits: number;
+    totalUnits: number;
+    status: string;
+    occupancyLabel: string;
+  }[];
+  expenseBreakdown: { category: string; cost: number; share: number }[];
+  upcomingLeases: { unit: string; tenant: string; date: string; status: string }[];
 };
 
 export default function PropertyDedicatedAnalyticsPage() {
   const params = useParams();
-  const router = useRouter();
   const { toast } = useToast();
+  const { formatCurrency } = useCurrency();
+  const workspaceId = useWorkspaceId();
 
-  const propId = (params?.id as string) || "PROP-1";
-  const property = PROPERTIES_DB[propId] || PROPERTIES_DB["PROP-1"];
+  const propId = (params?.id as string) || "";
+  const [dateRange, setDateRange] = useState("FY 2026 – 2027 (Current FY)");
 
-  const [dateRange, setDateRange] = useState("Fiscal Year 2026");
+  const { data: analytics, isLoading } = useQuery({
+    queryKey: ["property-analytics", propId, workspaceId],
+    enabled: !!propId && !!workspaceId,
+    queryFn: async (): Promise<PropertyAnalytics | null> => {
+      const res = await fetch(
+        `/api/properties/${encodeURIComponent(propId)}/analytics?wid=${workspaceId}`
+      );
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data ?? null;
+    },
+  });
+
+  const property = analytics?.property;
+  const summary = analytics?.summary;
+  const monthlyTrend = analytics?.monthlyTrend ?? [];
+  const paymentChannels = analytics?.paymentChannels ?? [];
+  const floorMatrix = analytics?.floorMatrix ?? [];
+  const expenseBreakdown = analytics?.expenseBreakdown ?? [];
+  const upcomingLeases = analytics?.upcomingLeases ?? [];
+
+  const maxMonthlyValue = Math.max(
+    ...monthlyTrend.map((m) => Math.max(m.income, m.expense)),
+    1
+  );
+
+  if (!workspaceId || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh] text-slate-500 font-bold text-sm">
+        Loading property analytics…
+      </div>
+    );
+  }
+
+  if (!analytics || !property) {
+    return (
+      <div className="space-y-4">
+        <Link
+          href={`/dashboard/properties/${propId}`}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#FF6B00] hover:underline"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Property</span>
+        </Link>
+        <p className="text-slate-600 font-medium">Could not load analytics for this property.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 font-sans pb-12">
-      
-      {/* Top Breadcrumb Nav & Actions */}
       <div>
         <Link
           href={`/dashboard/properties/${propId}`}
@@ -66,24 +139,25 @@ export default function PropertyDedicatedAnalyticsPage() {
                 <BarChart3 className="w-6 h-6" />
               </div>
               <div>
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 flex-wrap">
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                     {property.name} Analytics
                   </h1>
                   <span className="px-3 py-1 rounded-full text-xs font-black bg-[#FF6B00] text-white">
-                    {property.monthlyYield}/mo Gross
+                    {formatCurrency(property.monthlyGrossYield)}/mo Gross
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1 flex items-center gap-2">
                   <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                  <span>{property.address} • {property.floors} Floors • {property.totalUnits} Units</span>
+                  <span>
+                    {property.address} • {property.floors} Floors • {property.totalUnits} Units
+                  </span>
                 </p>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Fiscal Year & Time Horizon Filter Selector */}
             <div className="relative">
               <select
                 value={dateRange}
@@ -96,23 +170,10 @@ export default function PropertyDedicatedAnalyticsPage() {
                 <optgroup label="Fiscal Years (April – March)">
                   <option value="FY 2026 – 2027 (Current FY)">FY 2026 – 2027 (Current FY)</option>
                   <option value="FY 2025 – 2026 (Previous FY)">FY 2025 – 2026 (Previous FY)</option>
-                  <option value="FY 2024 – 2025 (Historical FY)">FY 2024 – 2025 (Historical FY)</option>
                 </optgroup>
-
-                <optgroup label="Fiscal Quarters (FY 2026-27)">
-                  <option value="FY 2026-27 Q1 (Apr – Jun 2026)">FY 2026-27 Q1 (Apr – Jun 2026)</option>
-                  <option value="FY 2026-27 Q2 (Jul – Sep 2026)">FY 2026-27 Q2 (Jul – Sep 2026)</option>
-                  <option value="FY 2026-27 Q3 (Oct – Dec 2026)">FY 2026-27 Q3 (Oct – Dec 2026)</option>
-                  <option value="FY 2026-27 Q4 (Jan – Mar 2027)">FY 2026-27 Q4 (Jan – Mar 2027)</option>
-                </optgroup>
-
-                <optgroup label="Calendar Years & Trailing Periods">
+                <optgroup label="Calendar Years">
                   <option value="Calendar Year 2026">Calendar Year 2026 (Jan – Dec)</option>
-                  <option value="Calendar Year 2025">Calendar Year 2025 (Jan – Dec)</option>
-                  <option value="Trailing 12 Months (T12M)">Trailing 12 Months (T12M)</option>
-                  <option value="Trailing 6 Months (T6M)">Trailing 6 Months (T6M)</option>
-                  <option value="Trailing 30 Days">Trailing 30 Days (Current Month)</option>
-                  <option value="All-Time Historical">All-Time Historical (Since Inception)</option>
+                  <option value="Trailing 6 Months">Trailing 6 Months</option>
                 </optgroup>
               </select>
               <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
@@ -121,7 +182,9 @@ export default function PropertyDedicatedAnalyticsPage() {
             </div>
 
             <button
-              onClick={() => toast(`Downloading dedicated analytics report PDF for ${property.name}...`, "success")}
+              onClick={() =>
+                toast(`Downloading analytics report for ${property.name}…`, "success")
+              }
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all uppercase tracking-wider cursor-pointer"
             >
               <Download className="w-4 h-4 text-orange-400" />
@@ -131,17 +194,17 @@ export default function PropertyDedicatedAnalyticsPage() {
         </div>
       </div>
 
-      {/* KPI Overview Ribbon */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-2">
           <div className="flex items-center justify-between text-slate-500">
             <span className="font-bold uppercase text-[10px] tracking-wider">Monthly Gross Yield</span>
             <TrendingUp className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="text-2xl font-black text-slate-900">{property.monthlyYield}</div>
-          <div className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>+14.2% Year-over-Year</span>
+          <div className="text-2xl font-black text-slate-900">
+            {formatCurrency(summary?.monthlyGrossYield ?? 0)}
+          </div>
+          <div className="text-[11px] text-slate-500 font-medium">
+            From {summary?.occupiedUnits ?? 0} occupied units
           </div>
         </div>
 
@@ -150,8 +213,12 @@ export default function PropertyDedicatedAnalyticsPage() {
             <span className="font-bold uppercase text-[10px] tracking-wider">Net Operating Margin</span>
             <Coins className="w-4 h-4 text-purple-500" />
           </div>
-          <div className="text-2xl font-black text-purple-600">94.8%</div>
-          <div className="text-[11px] text-slate-500 font-medium">Low maintenance overhead ($1,870 YTD)</div>
+          <div className="text-2xl font-black text-purple-600">
+            {summary?.netOperatingMargin ?? 0}%
+          </div>
+          <div className="text-[11px] text-slate-500 font-medium">
+            Maintenance overhead {formatCurrency(summary?.totalExpensesYtd ?? 0)} YTD
+          </div>
         </div>
 
         <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-2">
@@ -159,8 +226,12 @@ export default function PropertyDedicatedAnalyticsPage() {
             <span className="font-bold uppercase text-[10px] tracking-wider">Occupancy Rate</span>
             <UserCheck className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="text-2xl font-black text-emerald-600">96% Occupied</div>
-          <div className="text-[11px] text-emerald-700 font-bold">23 of 24 Units Rented</div>
+          <div className="text-2xl font-black text-emerald-600">
+            {summary?.occupancyRate ?? 0}% Occupied
+          </div>
+          <div className="text-[11px] text-emerald-700 font-bold">
+            {summary?.occupiedUnits ?? 0} of {summary?.totalUnits ?? 0} Units Rented
+          </div>
         </div>
 
         <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-2">
@@ -168,15 +239,15 @@ export default function PropertyDedicatedAnalyticsPage() {
             <span className="font-bold uppercase text-[10px] tracking-wider">Avg Rent Per Unit</span>
             <Users className="w-4 h-4 text-blue-500" />
           </div>
-          <div className="text-2xl font-black text-slate-900">$3,020<span className="text-xs font-bold text-slate-400">/unit</span></div>
-          <div className="text-[11px] text-slate-500 font-medium">Average across all floors</div>
+          <div className="text-2xl font-black text-slate-900">
+            {formatCurrency(summary?.avgRentPerUnit ?? 0)}
+            <span className="text-xs font-bold text-slate-400">/unit</span>
+          </div>
+          <div className="text-[11px] text-slate-500 font-medium">Average across occupied units</div>
         </div>
       </div>
 
-      {/* SECTION 1: REVENUE VS EXPENSE TREND & PAYMENT CHANNEL SHARE */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Monthly Revenue vs Expense 6-Month Chart (2 cols) */}
         <div className="lg:col-span-2 bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-2xs space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
@@ -199,207 +270,275 @@ export default function PropertyDedicatedAnalyticsPage() {
             </div>
           </div>
 
-          <div className="space-y-4 text-xs">
-            {[
-              { month: "Feb 2026", income: 72500, expense: 1200 },
-              { month: "Mar 2026", income: 72500, expense: 450 },
-              { month: "Apr 2026", income: 72500, expense: 2100 },
-              { month: "May 2026", income: 72500, expense: 320 },
-              { month: "Jun 2026", income: 72500, expense: 980 },
-              { month: "Jul 2026", income: 72500, expense: 1870 },
-            ].map((m) => (
-              <div key={m.month} className="space-y-1">
-                <div className="flex items-center justify-between text-slate-700 font-bold">
-                  <span>{m.month}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[#FF6B00] font-extrabold">${m.income.toLocaleString()}</span>
-                    <span className="text-rose-600 font-semibold text-[11px]">${m.expense.toLocaleString()}</span>
+          {monthlyTrend.length === 0 ? (
+            <p className="text-sm text-slate-500 font-medium">No payment or expense data yet.</p>
+          ) : (
+            <div className="space-y-4 text-xs">
+              {monthlyTrend.map((m) => (
+                <div key={m.month} className="space-y-1">
+                  <div className="flex items-center justify-between text-slate-700 font-bold">
+                    <span>{m.month}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[#FF6B00] font-extrabold">
+                        {formatCurrency(m.income)}
+                      </span>
+                      <span className="text-rose-600 font-semibold text-[11px]">
+                        {formatCurrency(m.expense)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div
+                      className="h-4 bg-gradient-to-r from-[#FF6B00] to-amber-500 rounded-lg flex items-center justify-end px-2 text-[10px] font-black text-white min-w-[8%]"
+                      style={{
+                        width: `${Math.max(8, Math.round((m.income / maxMonthlyValue) * 88))}%`,
+                      }}
+                    >
+                      {m.income > 0 ? formatCurrency(m.income) : ""}
+                    </div>
+                    {m.expense > 0 && (
+                      <div
+                        className="h-4 bg-rose-500 rounded-lg flex items-center justify-center px-1 text-[9px] font-bold text-white"
+                        style={{
+                          width: `${Math.max(5, Math.round((m.expense / maxMonthlyValue) * 100 * 5))}%`,
+                        }}
+                      >
+                        {formatCurrency(m.expense)}
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1.5">
-                  <div className="h-4 bg-gradient-to-r from-[#FF6B00] to-amber-500 rounded-lg flex items-center justify-end px-2 text-[10px] font-black text-white" style={{ width: "88%" }}>
-                    ${m.income.toLocaleString()}
-                  </div>
-                  <div className="h-4 bg-rose-500 rounded-lg flex items-center justify-center px-1 text-[9px] font-bold text-white" style={{ width: `${Math.max(5, (m.expense / m.income) * 100 * 5)}%` }}>
-                    ${m.expense}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Payment Collection Channels Share (1 col) */}
         <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-2xs space-y-6">
           <div className="border-b border-slate-100 pb-4">
             <h3 className="text-base font-extrabold text-slate-900">Payment Collection Channels</h3>
             <p className="text-xs text-slate-500 mt-0.5">How residents pay rent at {property.name}</p>
           </div>
 
-          <div className="space-y-5 text-xs">
-            {[
-              { channel: "Autopilot ACH Direct (Auto-Debit)", share: "68%", amount: "$49,300/mo", color: "bg-[#FF6B00]" },
-              { channel: "Razorpay UPI Gateway", share: "24%", amount: "$17,400/mo", color: "bg-purple-600" },
-              { channel: "Credit / Debit Card", share: "8%", amount: "$5,800/mo", color: "bg-blue-600" },
-            ].map((c) => (
-              <div key={c.channel} className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800">{c.channel}</span>
-                  <span className="font-black text-slate-900">{c.share}</span>
+          {paymentChannels.length === 0 ? (
+            <p className="text-sm text-slate-500 font-medium">No paid rent records yet.</p>
+          ) : (
+            <div className="space-y-5 text-xs">
+              {paymentChannels.map((c) => (
+                <div key={c.channel} className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800">{c.channel}</span>
+                    <span className="font-black text-slate-900">{c.share}</span>
+                  </div>
+                  <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${c.color} rounded-full`}
+                      style={{ width: c.share }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-bold block">
+                    {formatCurrency(c.amount)} collected
+                  </span>
                 </div>
-                <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${c.color} rounded-full`} style={{ width: c.share }} />
-                </div>
-                <span className="text-[10px] text-slate-400 font-bold block">{c.amount} collected monthly</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-1 text-emerald-900">
             <div className="flex items-center gap-2 font-bold text-xs">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>100% Digital Reconciliation</span>
+              <span>
+                {summary?.onTimePaymentRate
+                  ? `${summary.onTimePaymentRate}% On-Time Payments`
+                  : "Payment tracking active"}
+              </span>
             </div>
             <p className="text-[11px] text-emerald-800">
-              Zero manual cash collections. All payments are verified automatically.
+              Rent collections are tracked per bill for this property.
             </p>
           </div>
         </div>
-
       </div>
 
-      {/* SECTION 2: FLOOR-BY-FLOOR YIELD & OCCUPANCY MATRIX */}
       <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-2xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
-            <h3 className="text-base font-extrabold text-slate-900">Floor-by-Floor Yield & Occupancy Matrix</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Granular performance breakdown across each level</p>
+            <h3 className="text-base font-extrabold text-slate-900">
+              Floor-by-Floor Yield & Occupancy Matrix
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Granular performance breakdown across each level
+            </p>
           </div>
-
           <span className="px-3.5 py-1 bg-slate-900 text-white rounded-full font-bold text-xs">
-            {property.floors} Total Floor Levels
+            {floorMatrix.length} Floor Levels
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-          {[
-            { floor: "Floor 6 (Penthouse Suite)", yield: "$15,200/mo", occ: "100% Occupied", units: "4 Units", status: "Optimal Yield" },
-            { floor: "Floor 5 (Sky Suites)", yield: "$12,800/mo", occ: "100% Occupied", units: "4 Units", status: "Optimal Yield" },
-            { floor: "Floor 4 (Deluxe Units)", yield: "$11,900/mo", occ: "100% Occupied", units: "4 Units", status: "Optimal Yield" },
-            { floor: "Floor 3 (Corner Suites)", yield: "$11,400/mo", occ: "75% Occupied (1 Vacant)", units: "4 Units", status: "Action Needed" },
-            { floor: "Floor 2 (Executive)", yield: "$10,800/mo", occ: "100% Occupied", units: "4 Units", status: "Optimal Yield" },
-            { floor: "Floor 1 (Ground Retail/Apts)", yield: "$10,400/mo", occ: "100% Occupied", units: "4 Units", status: "Optimal Yield" },
-          ].map((f, idx) => (
-            <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-extrabold text-slate-900 text-xs">{f.floor}</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  f.status === "Optimal Yield" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                }`}>
-                  {f.status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-slate-600 font-medium">
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-bold uppercase">Monthly Yield</span>
-                  <span className="font-extrabold text-[#FF6B00] text-sm">{f.yield}</span>
+        {floorMatrix.length === 0 ? (
+          <p className="text-sm text-slate-500 font-medium">No units configured for this property.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+            {floorMatrix.map((f) => (
+              <div
+                key={f.floor}
+                className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-slate-900 text-xs">{f.floorLabel}</span>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      f.status === "Optimal Yield"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-amber-100 text-amber-800"
+                    }`}
+                  >
+                    {f.status}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-bold uppercase">Occupancy</span>
-                  <span className="font-bold text-slate-900">{f.occ}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* SECTION 3: MAINTENANCE OVERHEAD & TENANT HEALTH SUMMARY */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Maintenance Expenses by Category */}
-        <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-2xs space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div>
-              <h3 className="font-extrabold text-slate-900 text-sm">Maintenance Expenses by Category</h3>
-              <p className="text-xs text-slate-500 mt-0.5">YTD repair outlay breakdown for {property.name}</p>
-            </div>
-            <span className="font-black text-rose-600 text-sm">$1,870 YTD</span>
-          </div>
-
-          <div className="space-y-4 text-xs">
-            {[
-              { category: "HVAC & Air Conditioning Servicing", cost: "$840.00", share: 45, icon: Wrench },
-              { category: "Plumbing & Water Sub-meter Repair", cost: "$560.00", share: 30, icon: Wrench },
-              { category: "Electrical & Corridor Lighting", cost: "$280.00", share: 15, icon: Wrench },
-              { category: "Locks & Smart Card Access Repair", cost: "$190.00", share: 10, icon: Wrench },
-            ].map((item, idx) => (
-              <div key={idx} className="space-y-1">
-                <div className="flex items-center justify-between font-bold text-slate-800">
-                  <span>{item.category}</span>
-                  <span className="text-slate-900 font-extrabold">{item.cost} ({item.share}%)</span>
-                </div>
-                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-rose-500 rounded-full" style={{ width: `${item.share}%` }} />
+                <div className="grid grid-cols-2 gap-2 text-slate-600 font-medium">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-bold uppercase">
+                      Monthly Yield
+                    </span>
+                    <span className="font-extrabold text-[#FF6B00] text-sm">
+                      {formatCurrency(f.yield)}/mo
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-bold uppercase">
+                      Occupancy
+                    </span>
+                    <span className="font-bold text-slate-900">{f.occupancyLabel}</span>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-2xs space-y-5">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 className="font-extrabold text-slate-900 text-sm">
+                Maintenance Expenses by Category
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                YTD repair outlay breakdown for {property.name}
+              </p>
+            </div>
+            <span className="font-black text-rose-600 text-sm">
+              {formatCurrency(summary?.totalExpensesYtd ?? 0)} YTD
+            </span>
+          </div>
+
+          {expenseBreakdown.length === 0 ? (
+            <p className="text-sm text-slate-500 font-medium">No expenses recorded this year.</p>
+          ) : (
+            <div className="space-y-4 text-xs">
+              {expenseBreakdown.map((item) => (
+                <div key={item.category} className="space-y-1">
+                  <div className="flex items-center justify-between font-bold text-slate-800">
+                    <span>{item.category}</span>
+                    <span className="text-slate-900 font-extrabold">
+                      {formatCurrency(item.cost)} ({item.share}%)
+                    </span>
+                  </div>
+                  <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-rose-500 rounded-full"
+                      style={{ width: `${item.share}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Tenant Retention & Lease Renewal Forecast */}
         <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-2xs space-y-5">
           <div className="border-b border-slate-100 pb-3">
-            <h3 className="font-extrabold text-slate-900 text-sm">Tenancy Health & Upcoming Lease Expirations</h3>
+            <h3 className="font-extrabold text-slate-900 text-sm">
+              Tenancy Health & Upcoming Lease Expirations
+            </h3>
             <p className="text-xs text-slate-500 mt-0.5">Retain tenants and manage renewal timelines</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-1">
-              <span className="text-[10px] text-emerald-700 uppercase font-bold block">Avg Tenancy Duration</span>
-              <span className="text-lg font-black text-emerald-900">19.6 Months</span>
+              <span className="text-[10px] text-emerald-700 uppercase font-bold block">
+                Avg Tenancy Duration
+              </span>
+              <span className="text-lg font-black text-emerald-900">
+                {summary?.avgTenancyMonths ?? 0} Months
+              </span>
             </div>
-
             <div className="p-3.5 bg-purple-50 border border-purple-200 rounded-2xl space-y-1">
-              <span className="text-[10px] text-purple-700 uppercase font-bold block">On-Time Payment Score</span>
-              <span className="text-lg font-black text-purple-900">98.5% Rate</span>
+              <span className="text-[10px] text-purple-700 uppercase font-bold block">
+                On-Time Payment Score
+              </span>
+              <span className="text-lg font-black text-purple-900">
+                {summary?.onTimePaymentRate ?? 0}% Rate
+              </span>
             </div>
           </div>
 
           <div className="space-y-2.5 text-xs">
-            <span className="font-bold text-slate-700 uppercase text-[11px] block">Upcoming Lease Expirations (Next 90 Days)</span>
-            {[
-              { unit: "Unit 301", tenant: "Eleanor Vance", date: "Jan 14, 2026", status: "Renewal Notice Sent" },
-              { unit: "Unit 502", tenant: "Marcus Sterling", date: "Nov 14, 2026", status: "Active Tenancy" },
-            ].map((lease, idx) => (
-              <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between font-medium">
-                <div>
-                  <span className="font-bold text-slate-900 block">{lease.unit} — {lease.tenant}</span>
-                  <span className="text-slate-500 text-[11px]">Lease Ends: {lease.date}</span>
+            <span className="font-bold text-slate-700 uppercase text-[11px] block">
+              Upcoming Lease Expirations (Next 90 Days)
+            </span>
+            {upcomingLeases.length === 0 ? (
+              <p className="text-slate-500 font-medium">No leases expiring in the next 90 days.</p>
+            ) : (
+              upcomingLeases.map((lease, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between font-medium"
+                >
+                  <div>
+                    <span className="font-bold text-slate-900 block">
+                      {lease.unit} — {lease.tenant}
+                    </span>
+                    <span className="text-slate-500 text-[11px]">Lease Ends: {lease.date}</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-bold text-[10px]">
+                    {lease.status}
+                  </span>
                 </div>
-                <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-bold text-[10px]">
-                  {lease.status}
-                </span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
-
       </div>
 
-      {/* SECTION 4: AI SUMMARY & RECOMMENDATION */}
       <div className="p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-3xl space-y-3 border border-slate-700 shadow-xl">
         <div className="flex items-center gap-2.5 text-amber-400 font-extrabold text-sm uppercase tracking-wider">
           <Sparkles className="w-5 h-5" />
           <span>{property.name} Executive Analytics Summary</span>
         </div>
         <p className="text-xs text-slate-300 leading-relaxed font-medium">
-          {property.name} continues to deliver exceptional returns with a monthly yield of <strong>{property.monthlyYield}/mo</strong> and an occupancy rate of <strong>96%</strong>. Maintenance costs are well contained at under 3% of total revenue. Recommended next action: List Unit 302 to achieve 100% portfolio capacity.
+          {property.name} has a monthly gross yield of{" "}
+          <strong>{formatCurrency(property.monthlyGrossYield)}/mo</strong> with an occupancy rate of{" "}
+          <strong>{property.occupancyRate}%</strong> ({property.occupiedUnits} of{" "}
+          {property.totalUnits} units). YTD maintenance costs total{" "}
+          <strong>{formatCurrency(summary?.totalExpensesYtd ?? 0)}</strong>
+          {summary && summary.onTimePaymentRate > 0 && (
+            <>
+              , with an on-time payment rate of <strong>{summary.onTimePaymentRate}%</strong>
+            </>
+          )}
+          .
+          {property.occupiedUnits < property.totalUnits && (
+            <>
+              {" "}
+              Recommended next action: market the{" "}
+              {property.totalUnits - property.occupiedUnits} vacant unit
+              {property.totalUnits - property.occupiedUnits > 1 ? "s" : ""} to improve yield.
+            </>
+          )}
         </p>
       </div>
-
     </div>
   );
 }

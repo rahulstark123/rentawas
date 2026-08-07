@@ -80,6 +80,7 @@ model Workspace {
   aiUsageLogs      AiUsageLog[]
   rentReceiptTemplates RentReceiptTemplate[]
   rentReceiptSignatures RentReceiptSignature[]
+  expertsLaunchNotifies ExpertsLaunchNotify[]
   
   // Razorpay Payment Gateway Config
   razorpayKeyId         String?
@@ -561,6 +562,23 @@ model EarlyAccessLead {
   portfolioType String?  // "Landlord (1-5 Units)", "Portfolio Owner (50+ Units)", etc.
   notes         String?
   createdAt     DateTime @default(now())
+}
+
+model ExpertsLaunchNotify {
+  id          String     @id @default(cuid())
+  email       String
+  name        String?
+  phone       String?
+  source      String     @default("dashboard_experts") // dashboard_experts | public_services | landing
+  interest    String?    // service/category the user clicked
+  city        String?
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+
+  @@index([email])
+  @@index([workspaceId])
+  @@index([source])
 }
 
 model Announcement {

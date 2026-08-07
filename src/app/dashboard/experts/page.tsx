@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -18,6 +18,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import ComingSoonModal from "@/components/ui/ComingSoonModal";
+import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
 
 const EXPERT_DOMAINS = [
   {
@@ -70,56 +71,19 @@ const EXPERT_DOMAINS = [
   },
 ];
 
-const FEATURED_SERVICES = [
-  {
-    id: "ac-repair",
-    title: "AC Deep Servicing & Gas Charging",
-    image: "/rentawas experts/ac.jpg",
-    eta: "15–30 mins",
-    price: "₹499",
-  },
-  {
-    id: "plumber-pipe",
-    title: "Plumbing Leakage & Sanitary Fitting",
-    image: "/rentawas experts/plumber.jpg",
-    eta: "20–30 mins",
-    price: "₹199",
-  },
-  {
-    id: "househelp-daily",
-    title: "Full-Time & Daily Househelp / Maid",
-    image: "/rentawas experts/Househelp.jpg",
-    eta: "Same day",
-    price: "₹2,499/mo",
-  },
-  {
-    id: "pest-control-home",
-    title: "Complete Home Pest Control",
-    image: "/rentawas experts/pest control.jpg",
-    eta: "60 mins",
-    price: "₹799",
-  },
-  {
-    id: "packers-movers-shift",
-    title: "Home Shifting & Packers & Movers",
-    image: "/rentawas experts/packers movers.jpg",
-    eta: "Scheduled",
-    price: "₹3,999",
-  },
-  {
-    id: "locksmith-emergency",
-    title: "Emergency Locksmith & Key Duplicate",
-    image: "/rentawas experts/locksmith.jpg",
-    eta: "15 mins",
-    price: "₹349",
-  },
-];
-
 const LAUNCH_CITIES = ["Bengaluru", "Delhi NCR", "Noida", "Gurgaon"];
 
 export default function RentAwasExpertsDashboardPage() {
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
   const [comingSoonTitle, setComingSoonTitle] = useState("RentAwas Experts — Coming Soon!");
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const wid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (wid) setWorkspaceId(wid);
+    })();
+  }, []);
 
   const openComingSoon = (title: string) => {
     setComingSoonTitle(title);
@@ -128,56 +92,62 @@ export default function RentAwasExpertsDashboardPage() {
 
   return (
     <div className="space-y-8 font-sans">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-        <div className="space-y-2 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-50 border border-orange-200 text-[#FF6B00] text-[10px] font-extrabold uppercase tracking-wider">
-            <BadgeCheck className="w-3.5 h-3.5" />
-            <span>Coming Soon</span>
+      {/* Hero */}
+      <div className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-2xs">
+        <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
+          <div className="lg:col-span-5 p-5 sm:p-6 lg:p-7 flex flex-col justify-center space-y-2.5">
+            <div className="inline-flex w-fit items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-[#FF6B00] text-[10px] font-extrabold uppercase tracking-wider">
+              <BadgeCheck className="w-3.5 h-3.5" />
+              <span>Coming Soon</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight -mt-0.5">
+              RentAwas Experts
+            </h1>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Book verified local specialists for your properties and tenants — AC servicing, plumbing,
+              electrical, carpentry, househelp, pest control, and more. Same trusted network from our{" "}
+              <Link href="/services" className="text-[#FF6B00] font-bold hover:underline inline-flex items-center gap-1">
+                public Services page
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
+              , launching inside your workspace soon.
+            </p>
+
+            <div className="w-fit max-w-full flex flex-wrap items-center gap-x-2.5 gap-y-1.5 px-3 py-1.5 mt-1 bg-slate-50 border border-slate-200/90 rounded-lg">
+              <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-500 shrink-0">
+                <MapPin className="w-3 h-3 text-[#FF6B00]" />
+                <span>Launching soon in</span>
+              </div>
+              {LAUNCH_CITIES.map((city) => (
+                <span
+                  key={city}
+                  className="px-2 py-0.5 rounded-full bg-white border border-slate-200 text-[10px] font-bold text-slate-700"
+                >
+                  {city}
+                </span>
+              ))}
+            </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            RentAwas Experts
-          </h1>
-          <p className="text-sm text-slate-500 leading-relaxed">
-            Book verified local specialists for your properties and tenants — AC servicing, plumbing,
-            electrical, carpentry, househelp, pest control, and more. Same trusted network from our{" "}
-            <Link href="/services" className="text-[#FF6B00] font-bold hover:underline inline-flex items-center gap-1">
-              public Services page
-              <ExternalLink className="w-3.5 h-3.5" />
-            </Link>
-            , launching inside your workspace soon.
-          </p>
-        </div>
 
-        <div className="relative w-full lg:w-72 h-44 shrink-0 rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-md">
-          <Image
-            src="/rentawas experts/experts.png"
-            alt="RentAwas verified home experts"
-            fill
-            className="object-cover object-top"
-          />
+          <div className="lg:col-span-7 relative min-h-[220px] sm:min-h-[280px] lg:min-h-[300px]">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#FF6B00]/20 via-orange-100/80 to-amber-50" />
+            <div className="absolute inset-0 bg-gradient-to-l from-white/90 via-orange-50/40 to-transparent lg:from-white/70" />
+            <div className="absolute -right-8 -top-8 w-48 h-48 bg-[#FF6B00]/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-amber-400/20 rounded-full blur-2xl pointer-events-none" />
+            <div className="relative w-full h-full min-h-[220px] sm:min-h-[280px] lg:min-h-[300px]">
+              <Image
+                src="/rentawas experts/experts.png"
+                alt="RentAwas verified home experts"
+                fill
+                className="object-contain object-bottom lg:object-right-bottom p-2 sm:p-4"
+                priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Launch cities */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs">
-        <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-3">
-          <MapPin className="w-4 h-4 text-[#FF6B00]" />
-          <span>Launching soon in</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {LAUNCH_CITIES.map((city) => (
-            <span
-              key={city}
-              className="px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700"
-            >
-              {city}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Expert domains */}
       <div className="space-y-4">
         <div>
           <h2 className="text-lg font-extrabold text-slate-900">Expert categories</h2>
@@ -217,54 +187,6 @@ export default function RentAwasExpertsDashboardPage() {
         </div>
       </div>
 
-      {/* Featured services grid */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-extrabold text-slate-900">Popular home services</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Preview of what you&apos;ll book from the dashboard.</p>
-          </div>
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#FF6B00] bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-lg">
-            {FEATURED_SERVICES.length} services
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {FEATURED_SERVICES.map((service) => (
-            <div
-              key={service.id}
-              className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs flex flex-col"
-            >
-              <div className="relative h-44 bg-slate-100">
-                <Image src={service.image} alt={service.title} fill className="object-cover object-top" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 to-transparent" />
-                <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white bg-slate-900/80 px-2 py-1 rounded-lg">
-                  From {service.price}
-                </span>
-              </div>
-              <div className="p-4 flex-1 flex flex-col justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900 leading-snug">{service.title}</h3>
-                  <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    ETA: {service.eta}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => openComingSoon(`${service.title} — Coming Soon!`)}
-                  className="w-full py-2.5 bg-slate-100 hover:bg-[#FF6B00] hover:text-white text-slate-700 font-extrabold text-[10px] rounded-xl uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Book — Coming Soon
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* How it works */}
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-3xl p-6 sm:p-8 border border-slate-700/50 shadow-xl space-y-6">
         <div className="text-center max-w-xl mx-auto space-y-1">
           <span className="text-[10px] font-extrabold text-[#FF6B00] uppercase tracking-widest">
@@ -326,7 +248,6 @@ export default function RentAwasExpertsDashboardPage() {
         </div>
       </div>
 
-      {/* Bottom note */}
       <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium flex items-start gap-3">
         <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
         <p>
@@ -336,11 +257,26 @@ export default function RentAwasExpertsDashboardPage() {
         </p>
       </div>
 
+      <div className="w-full py-6 sm:py-10 overflow-hidden">
+        <h2
+          className="w-full text-center font-extrabold leading-[0.88] whitespace-nowrap text-[#FF6B00]"
+          style={{
+            fontFamily: "var(--font-cormorant), Georgia, serif",
+            fontSize: "clamp(4rem, 17vw, 13rem)",
+          }}
+        >
+          Coming Soon
+        </h2>
+      </div>
+
       <ComingSoonModal
         isOpen={comingSoonOpen}
         onClose={() => setComingSoonOpen(false)}
         title={comingSoonTitle}
         description="RentAwas Experts is in pre-launch. Enter your email to get notified when booking opens inside your landlord dashboard."
+        notifySource="dashboard_experts"
+        interest={comingSoonTitle}
+        workspaceId={workspaceId}
       />
     </div>
   );

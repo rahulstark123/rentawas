@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@/hooks/useWorkspaceId";
+import { formatDisplayDate } from "@/lib/dates";
 
 export type UnitDetailBundle = {
   property: {
@@ -79,12 +80,7 @@ export function useUnitDetail(propId: string | undefined, unitId: string | undef
               individualRent: t.monthlyRent || u.rent || 0,
               phone: t.phone || "+1 (555) 000-0000",
               email: t.email || "resident@rentawas.com",
-              moveIn: t.leaseStart
-                ? new Date(t.leaseStart).toISOString().split("T")[0]
-                : "2026-08-01",
-              leaseEnd: t.leaseEnd
-                ? new Date(t.leaseEnd).toISOString().split("T")[0]
-                : "2027-07-31",
+              moveIn: formatDisplayDate(t.leaseStart),
               paymentStatus: "Auto Paid (ACH)",
             }))
           : [];

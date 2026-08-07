@@ -1034,11 +1034,6 @@ export default function RoomTelemetryFullPage() {
                     <span className="text-[10px] text-slate-400 uppercase font-bold block">Move-in Date</span>
                     <div className="font-bold text-slate-200">{occ.moveIn}</div>
                   </div>
-
-                  <div className="p-3 bg-slate-800/80 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Lease Expiry</span>
-                    <div className="font-bold text-amber-400">{occ.leaseEnd}</div>
-                  </div>
                 </div>
 
                 {/* Action Buttons Row 1: Edit & Call */}

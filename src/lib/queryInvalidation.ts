@@ -5,6 +5,7 @@ export function invalidateLandlordPortfolio(queryClient: QueryClient, opts?: { p
   queryClient.invalidateQueries({ queryKey: ["properties"] });
   queryClient.invalidateQueries({ queryKey: ["tenants"] });
   queryClient.invalidateQueries({ queryKey: ["transactions"] });
+  queryClient.invalidateQueries({ queryKey: ["rent-bills"] });
   queryClient.invalidateQueries({ queryKey: ["maintenance"] });
   queryClient.invalidateQueries({ queryKey: ["unit-detail"] });
   if (opts?.propId) {

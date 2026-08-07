@@ -65,6 +65,7 @@ import { RENT_DUE_DAY_OPTIONS } from "@/lib/rentDueDay";
 import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
 import AiCreditsExhaustedModal from "@/components/AiCreditsExhaustedModal";
 import { usePropertyDetail } from "@/hooks/usePropertyDetail";
+import { formatDisplayDate } from "@/lib/dates";
 
 // Interface for unit item
 export interface UnitItem {
@@ -82,7 +83,6 @@ export interface UnitItem {
     phone: string;
     email: string;
     moveIn: string;
-    leaseEnd: string;
     health: string;
   } | null;
 }
@@ -556,8 +556,7 @@ export default function PropertyFloorPlanPage() {
               contact: "Primary Resident",
               phone: fullPhoneNumber || "—",
               email: tenantEmail || "resident@rentawas.com",
-              moveIn: tenantLeaseStart || new Date().toISOString().split("T")[0],
-              leaseEnd: "2027-07-31",
+              moveIn: formatDisplayDate(tenantLeaseStart || new Date()),
               health: "Active Tenant",
             },
           };
@@ -672,8 +671,7 @@ export default function PropertyFloorPlanPage() {
         contact: "Primary Resident",
         phone: "+1 (555) 019-2831",
         email: "resident@rentawas.com",
-        moveIn: "2026-08-01",
-        leaseEnd: "2027-07-31",
+        moveIn: formatDisplayDate(new Date()),
         health: "ACH — Active",
       } : null,
     };
@@ -775,8 +773,7 @@ export default function PropertyFloorPlanPage() {
                 contact: "Primary Resident",
                 phone: editingUnit.tenant?.phone || "+1 (555) 000-0000",
                 email: editingUnit.tenant?.email || "resident@rentawas.com",
-                moveIn: editingUnit.tenant?.moveIn || "2026-08-01",
-                leaseEnd: editingUnit.tenant?.leaseEnd || "2027-07-31",
+                moveIn: editingUnit.tenant?.moveIn || formatDisplayDate(new Date()),
                 health: "Active Tenant",
               }
             : null,
@@ -1295,15 +1292,9 @@ export default function PropertyFloorPlanPage() {
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
-                        <div>
-                          <span className="text-slate-500 block text-[9px] uppercase font-bold">Move-in Date</span>
-                          <span className="font-medium text-slate-200">{u.tenant.moveIn}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[9px] uppercase font-bold">Lease Expiry</span>
-                          <span className="font-medium text-slate-200">{u.tenant.leaseEnd}</span>
-                        </div>
+                      <div className="text-[11px] text-slate-300">
+                        <span className="text-slate-500 block text-[9px] uppercase font-bold">Move-in Date</span>
+                        <span className="font-medium text-slate-200">{u.tenant.moveIn}</span>
                       </div>
 
                       <div className="flex items-center gap-2 pt-1">
@@ -1451,13 +1442,8 @@ export default function PropertyFloorPlanPage() {
                       </div>
 
                       <div className="p-3.5 bg-slate-800/80 rounded-xl space-y-1">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold">Lease Start Date</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold">Move-in Date</span>
                         <div className="text-xs font-bold text-slate-200">{selectedDetailUnit.tenant.moveIn}</div>
-                      </div>
-
-                      <div className="p-3.5 bg-slate-800/80 rounded-xl space-y-1">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold">Lease Expiry Date</span>
-                        <div className="text-xs font-bold text-amber-400">{selectedDetailUnit.tenant.leaseEnd}</div>
                       </div>
                     </div>
 
