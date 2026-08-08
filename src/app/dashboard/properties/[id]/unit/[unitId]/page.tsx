@@ -317,6 +317,9 @@ export default function RoomTelemetryFullPage() {
   const totalRoomRent = occupants.reduce((acc, curr) => acc + curr.individualRent, 0);
 
   const openAddTenantModal = () => {
+    if (typeof window !== "undefined" && (window as any).checkCanAddAction) {
+      if (!(window as any).checkCanAddAction("Add New Tenant Resident")) return;
+    }
     setEditingOccupantId(null);
     setName("");
     setBedSlot("");

@@ -96,6 +96,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Announcement message content is required." }, { status: 400 });
     }
 
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const announcementDenied = await requireWorkspaceMutate(workspaceId);
+    if (announcementDenied) return announcementDenied;
+
     const announcement = await prisma.announcement.create({
       data: {
         title: title.trim(),

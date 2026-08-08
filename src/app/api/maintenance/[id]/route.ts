@@ -78,6 +78,10 @@ export async function PATCH(request: Request, { params }: Params) {
       return NextResponse.json({ error: "Maintenance ticket not found" }, { status: 404 });
     }
 
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const maintenancePatchDenied = await requireWorkspaceMutate(workspaceId);
+    if (maintenancePatchDenied) return maintenancePatchDenied;
+
     const updateData: any = {};
     if (status !== undefined) updateData.status = status;
     if (category !== undefined) updateData.category = category;
@@ -150,6 +154,10 @@ export async function DELETE(request: Request, { params }: Params) {
     if (!existing) {
       return NextResponse.json({ error: "Maintenance ticket not found" }, { status: 404 });
     }
+
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const maintenanceDeleteDenied = await requireWorkspaceMutate(workspaceId);
+    if (maintenanceDeleteDenied) return maintenanceDeleteDenied;
 
     await prisma.maintenance.delete({ where: { id } });
 

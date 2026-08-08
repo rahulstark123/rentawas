@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { supabase } from "@/lib/supabase";
+import { supabaseService as supabase } from "@/lib/supabase/service";
 
 function parseWid(raw: unknown): number | null {
   if (raw == null || raw === "") return null;
@@ -69,6 +69,10 @@ export async function POST(request: Request) {
         { status: 404 }
       );
     }
+
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const teamDenied = await requireWorkspaceMutate(workspaceIdNum);
+    if (teamDenied) return teamDenied;
 
     let linkedProfileId: string | null = null;
     try {

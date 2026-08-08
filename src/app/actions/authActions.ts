@@ -11,11 +11,13 @@ export interface SignUpParams {
   role: "owner" | "tenant";
   workspaceName?: string;
   currency?: string;
+  portfolioScale?: string;
 }
 
 export async function createUserProfileAndWorkspace(params: SignUpParams) {
   try {
-    const { userId, email, fullName, phone, role, workspaceName, currency } = params;
+    const { userId, email, fullName, phone, role, workspaceName, currency, portfolioScale } = params;
+    const prismaRole = role === "tenant" ? Role.TENANT : Role.OWNER;
 
     // 1. Create or upsert Profile (Mapped 1:1 with Supabase Auth ID)
     const profile = await prisma.profile.upsert({
@@ -23,29 +25,47 @@ export async function createUserProfileAndWorkspace(params: SignUpParams) {
       update: {
         fullName,
         phone,
-        role: role === "tenant" ? Role.TENANT : Role.OWNER,
+        role: prismaRole,
       },
       create: {
         id: userId,
         email,
         fullName,
         phone: phone || null,
-        role: role === "tenant" ? Role.TENANT : Role.OWNER,
+        role: prismaRole,
       },
     });
 
-    // 2. Create Workspace with auto-incrementing integer wid (1, 2, 3...) if Landlord Owner
+    // 2. Create workspace only for new owner accounts (avoid duplicates on Google re-login)
     let workspace = null;
     if (role === "owner") {
-      workspace = await prisma.workspace.create({
-        data: {
-          name: workspaceName || `${fullName}'s Workspace`,
-          currency: currency || "USD ($)",
-          plan: "trial",
-          trialStartedAt: new Date(),
-          ownerId: profile.id,
-        },
+      workspace = await prisma.workspace.findFirst({
+        where: { ownerId: profile.id },
+        orderBy: { wid: "asc" },
       });
+
+      if (!workspace) {
+        workspace = await prisma.workspace.create({
+          data: {
+            name: workspaceName || `${fullName}'s Workspace`,
+            currency: currency || "USD ($)",
+            plan: "trial",
+            trialStartedAt: new Date(),
+            portfolioScale: portfolioScale || null,
+            ownerId: profile.id,
+            isOnboarded: false,
+          },
+        });
+      } else if (workspace.plan === "free" && !workspace.trialStartedAt) {
+        // Recover workspaces that were created without a trial window
+        workspace = await prisma.workspace.update({
+          where: { wid: workspace.wid },
+          data: {
+            plan: "trial",
+            trialStartedAt: new Date(),
+          },
+        });
+      }
     }
 
     return {

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
+import { canPerformPlanAction, getPlanApiError } from "@/lib/planGate";
 
 export interface PropertyExpenseItem {
   id: string;
@@ -246,6 +247,7 @@ export default function PropertyExpensesPage() {
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!expenseTitle.trim() || !amount) return;
+    if (!canPerformPlanAction("Record Property Expense")) return;
 
     try {
       const res = await fetch("/api/expenses", {
@@ -267,9 +269,11 @@ export default function PropertyExpensesPage() {
       if (res.ok) {
         const json = await res.json();
         toast(json.message || `Expense recorded successfully!`, "success");
+        window.dispatchEvent(new Event("workspace-usage-updated"));
         fetchExpenses();
       } else {
-        toast("Failed to save expense record", "error");
+        const json = await res.json().catch(() => null);
+        toast(getPlanApiError(json) || json?.error || "Failed to save expense record", "error");
       }
     } catch (err) {
       toast("Failed to save expense record", "error");
@@ -325,7 +329,10 @@ export default function PropertyExpensesPage() {
         </div>
 
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            if (!canPerformPlanAction("Record Property Expense")) return;
+            setShowAddModal(true);
+          }}
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
         >
           <Plus className="w-4 h-4" />

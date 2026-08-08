@@ -15,6 +15,7 @@ import {
   Building2, 
   User, 
   AlertCircle,
+  CheckCircle2,
   Bot,
   MessageSquare,
   Heart
@@ -26,6 +27,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const roleParam = searchParams.get("role");
   const redirectParam = searchParams.get("redirect");
+  const resetParam = searchParams.get("reset");
 
   const [role, setRole] = useState<"owner" | "tenant">(roleParam === "tenant" ? "tenant" : "owner");
   const [emailInput, setEmailInput] = useState("");
@@ -33,6 +35,8 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isForgotLoading, setIsForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const getTargetRedirect = (sessionRole?: string | null) => {
@@ -91,10 +95,14 @@ function LoginForm() {
     setIsGoogleLoading(true);
     setErrorMessage(null);
     try {
+      const callbackUrl = new URL("/auth/callback", window.location.origin);
+      callbackUrl.searchParams.set("role", role);
+      callbackUrl.searchParams.set("next", getTargetRedirect());
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(getTargetRedirect())}`,
+          redirectTo: callbackUrl.toString(),
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -113,18 +121,34 @@ function LoginForm() {
 
   const handleForgotPassword = async (e: React.MouseEvent) => {
     e.preventDefault();
+    setForgotSuccess(null);
     if (!emailInput.trim()) {
       setErrorMessage("Enter your email address above first, then click Forgot Password.");
       return;
     }
-    const { error } = await supabase.auth.resetPasswordForEmail(emailInput.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) {
-      setErrorMessage(error.message);
-    } else {
-      setErrorMessage(null);
-      alert(`Password reset link sent to ${emailInput}. Check your inbox.`);
+    setIsForgotLoading(true);
+    setErrorMessage(null);
+    try {
+      const redirectTo = `${window.location.origin}/reset-password`;
+
+      const { error } = await supabase.auth.resetPasswordForEmail(emailInput.trim(), {
+        redirectTo,
+      });
+      if (error) {
+        console.error("resetPasswordForEmail error:", error);
+        setErrorMessage(
+          error.message ||
+            "Could not send reset email. Check Supabase Auth email settings and redirect URLs."
+        );
+      } else {
+        setForgotSuccess(
+          `Password reset link sent to ${emailInput.trim()}. Check your inbox (and spam folder).`
+        );
+      }
+    } catch {
+      setErrorMessage("Could not send reset email. Please try again.");
+    } finally {
+      setIsForgotLoading(false);
     }
   };
 
@@ -266,7 +290,21 @@ function LoginForm() {
 
             {/* Error Banner */}
             <AnimatePresence>
-              {errorMessage && (
+              {resetParam === "success" && (
+              <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>Password updated successfully. You can sign in with your new password.</span>
+              </div>
+            )}
+
+            {forgotSuccess && (
+              <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{forgotSuccess}</span>
+              </div>
+            )}
+
+            {errorMessage && (
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -331,13 +369,14 @@ function LoginForm() {
 
                 {/* Forgot Password */}
                 <div className="flex justify-end mt-1.5">
-                  <a
-                    href="#"
+                  <button
+                    type="button"
                     onClick={handleForgotPassword}
-                    className="text-xs font-semibold text-[#FF6B00] hover:underline"
+                    disabled={isForgotLoading}
+                    className="text-xs font-semibold text-[#FF6B00] hover:underline disabled:opacity-60 cursor-pointer"
                   >
-                    Forgot Password?
-                  </a>
+                    {isForgotLoading ? "Sending reset link..." : "Forgot Password?"}
+                  </button>
                 </div>
               </div>
 

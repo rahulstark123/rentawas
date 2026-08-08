@@ -44,6 +44,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
 import { uploadFile, validateFile } from "@/lib/upload";
 import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
+import { canPerformPlanAction } from "@/lib/planGate";
 import { supabase } from "@/lib/supabase";
 
 export interface LegalDocumentTemplate {
@@ -1228,6 +1229,7 @@ ${additionalTerms || "Standard 12-month agreement terms apply."}
             {/* Action: Upload Custom Document Button */}
             <button
               onClick={() => {
+                if (!canPerformPlanAction("Upload Lease Document")) return;
                 setUploadTitle("");
                 setUploadUrl("");
                 setUploadFileName("");

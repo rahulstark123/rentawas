@@ -170,6 +170,10 @@ export async function POST(request: Request) {
       );
     }
 
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const documentDenied = await requireWorkspaceMutate(workspaceId);
+    if (documentDenied) return documentDenied;
+
     if (isDataUrl(fileUrl)) {
       return NextResponse.json(
         { error: "fileUrl must be a storage URL, not a base64 data URL." },

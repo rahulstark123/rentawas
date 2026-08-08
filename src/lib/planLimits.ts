@@ -35,7 +35,7 @@ const PLAN_LIMITS: Record<PlanKey, PlanLimits> = {
   },
   pro: {
     unitsCap: 75,
-    propertiesCap: Number.POSITIVE_INFINITY,
+    propertiesCap: 3,
     aiCredits: getPlanCreditLimit("pro"),
     canMutate: true,
     canUseMessages: true,

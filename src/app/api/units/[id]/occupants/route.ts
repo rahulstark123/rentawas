@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { formatDisplayDate } from "@/lib/dates";
-import { supabase } from "@/lib/supabase";
+import { supabaseService as supabase } from "@/lib/supabase/service";
 import { Role } from "@/generated/prisma/client";
 
 interface Params {
@@ -163,6 +163,17 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     const resolvedPropId = unit ? unit.propertyId : (propertyId || null);
+
+    if (!targetWorkspaceId) {
+      return NextResponse.json(
+        { success: false, error: "Workspace could not be resolved for this unit." },
+        { status: 400 }
+      );
+    }
+
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const occupantDenied = await requireWorkspaceMutate(targetWorkspaceId);
+    if (occupantDenied) return occupantDenied;
 
     const tenantEmail = (email && email.trim()) || `${name.toLowerCase().replace(/\s+/g, ".")}@rentawas.com`;
     const tenantPassword = (body.password && body.password.trim()) || "Tenant@123";

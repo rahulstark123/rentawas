@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
+import { canPerformPlanAction, getPlanApiError } from "@/lib/planGate";
 
 async function resolveActiveWid(): Promise<string> {
   return (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
@@ -135,6 +136,7 @@ export default function LandlordAnnouncementsPage() {
 
 
   const handleOpenModal = () => {
+    if (!canPerformPlanAction("Create Announcement")) return;
     setTitle("");
     setContent("");
     setCategory("General Notice");
@@ -161,6 +163,7 @@ export default function LandlordAnnouncementsPage() {
 
   const handleCreateAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canPerformPlanAction("Create Announcement")) return;
     if (!title.trim() || !content.trim()) {
       toast("Please provide an announcement title and message content.", "info");
       return;

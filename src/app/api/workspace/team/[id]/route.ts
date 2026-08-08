@@ -32,6 +32,12 @@ export async function DELETE(request: Request, { params }: Params) {
       );
     }
 
+    if (existing.workspaceId) {
+      const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+      const teamDeleteDenied = await requireWorkspaceMutate(existing.workspaceId);
+      if (teamDeleteDenied) return teamDeleteDenied;
+    }
+
     await prisma.teamMember.delete({ where: { id } });
 
     return NextResponse.json({

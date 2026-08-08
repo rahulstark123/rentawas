@@ -58,6 +58,12 @@ export async function PATCH(request: Request, { params }: Params) {
       return NextResponse.json({ error: "Bill not found." }, { status: 404 });
     }
 
+    if (existing.workspaceId) {
+      const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+      const billPatchDenied = await requireWorkspaceMutate(existing.workspaceId);
+      if (billPatchDenied) return billPatchDenied;
+    }
+
     if (action === "verify") {
       const autoReceipt = await propertyAutoReceiptEnabled(existing.propertyId);
       let notes = appendBillNote(existing.notes, "landlord_verified");

@@ -90,7 +90,10 @@ export async function POST(request: Request, { params }: Params) {
 
     const targetFloor = parseInt(floorNumber, 10) || 1;
 
-    const { assertWorkspaceQuota } = await import("@/lib/planQuotaServer");
+    const { assertWorkspaceQuota, requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const mutateDenied = await requireWorkspaceMutate(property.workspaceId);
+    if (mutateDenied) return mutateDenied;
+
     const quota = await assertWorkspaceQuota({
       workspaceId: property.workspaceId,
       action: "unit",

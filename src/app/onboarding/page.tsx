@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Building2, 
   Sparkles, 
@@ -25,10 +25,27 @@ import { PROPERTY_CATEGORIES } from "@/components/ui/AddPropertyModal";
 import { RENT_DUE_DAY_OPTIONS, formatRentDueDayLabel } from "@/lib/rentDueDay";
 
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingForm />
+    </Suspense>
+  );
+}
+
+function OnboardingForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [isFinishing, setIsFinishing] = useState(false);
+
+  useEffect(() => {
+    const wid = searchParams.get("wid");
+    if (!wid) return;
+    import("@/lib/workspace").then(({ setActiveWorkspaceId }) => {
+      setActiveWorkspaceId(wid);
+    });
+  }, [searchParams]);
 
   // Step 1: Business Profile & Workspace
   const [companyName, setCompanyName] = useState("");

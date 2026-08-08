@@ -120,47 +120,28 @@ export async function POST(request: Request) {
     const unitsPerFloorInt = Math.max(1, parseInt(unitsPerFloor, 10) || 4);
     const totalUnitsCount = totalFloorsInt * unitsPerFloorInt;
 
-    // Ensure target Workspace exists in database to satisfy foreign key constraint
-    let workspace = await prisma.workspace.findUnique({
+    const workspace = await prisma.workspace.findUnique({
       where: { wid: workspaceId },
     });
 
-    if (workspace) {
-      const { assertWorkspaceQuota } = await import("@/lib/planQuotaServer");
-      const quota = await assertWorkspaceQuota({
-        workspaceId,
-        action: "property",
-        unitsToAdd: totalUnitsCount,
-      });
-      if (!quota.ok) {
-        return NextResponse.json(
-          { error: quota.message, code: quota.code },
-          { status: 403 }
-        );
-      }
+    if (!workspace) {
+      return NextResponse.json(
+        { error: "Workspace not found.", code: "PLAN_LOCKED" },
+        { status: 404 }
+      );
     }
 
-    if (!workspace) {
-      let ownerProfile = await prisma.profile.findFirst();
-      if (!ownerProfile) {
-        ownerProfile = await prisma.profile.create({
-          data: {
-            id: `owner_${Date.now()}`,
-            email: "owner@rentawas.com",
-            fullName: "Portfolio Owner",
-            role: "OWNER",
-          },
-        });
-      }
-
-      workspace = await prisma.workspace.create({
-        data: {
-          wid: workspaceId,
-          name: "Main Portfolio Workspace",
-          currency: "USD ($)",
-          ownerId: ownerProfile.id,
-        },
-      });
+    const { assertWorkspaceQuota } = await import("@/lib/planQuotaServer");
+    const quota = await assertWorkspaceQuota({
+      workspaceId,
+      action: "property",
+      unitsToAdd: totalUnitsCount,
+    });
+    if (!quota.ok) {
+      return NextResponse.json(
+        { success: false, error: quota.message, code: quota.code },
+        { status: 403 }
+      );
     }
 
     // Create Property under specific Workspace ID (wid)

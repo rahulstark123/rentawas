@@ -15,6 +15,13 @@ export async function DELETE(request: Request, { params }: Params) {
       return NextResponse.json({ error: "Expense record not found." }, { status: 404 });
     }
 
+    const expenseWid = existing.workspaceId;
+    if (expenseWid) {
+      const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+      const expenseDeleteDenied = await requireWorkspaceMutate(expenseWid);
+      if (expenseDeleteDenied) return expenseDeleteDenied;
+    }
+
     await prisma.propertyExpense.delete({ where: { id } });
 
     return NextResponse.json({
@@ -38,6 +45,13 @@ export async function PATCH(request: Request, { params }: Params) {
     const existing = await prisma.propertyExpense.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: "Expense record not found." }, { status: 404 });
+    }
+
+    const expenseWid = existing.workspaceId;
+    if (expenseWid) {
+      const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+      const expensePatchDenied = await requireWorkspaceMutate(expenseWid);
+      if (expensePatchDenied) return expensePatchDenied;
     }
 
     const updated = await prisma.propertyExpense.update({

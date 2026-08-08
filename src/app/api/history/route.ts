@@ -96,6 +96,17 @@ export async function POST(request: Request) {
       }
     }
 
+    if (!targetWid) {
+      return NextResponse.json(
+        { success: false, error: "Workspace ID (workspaceId) is required." },
+        { status: 400 }
+      );
+    }
+
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const historyDenied = await requireWorkspaceMutate(targetWid);
+    if (historyDenied) return historyDenied;
+
     const historyData: any = {
       name: name.trim(),
       period: period || "2025 - 2026",

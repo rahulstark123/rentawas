@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Profile } from "@/generated/prisma/client";
 
 export async function getAuthenticatedProfile(
@@ -11,6 +11,7 @@ export async function getAuthenticatedProfile(
 
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
+    const supabase = await createSupabaseServerClient();
     const { data } = await supabase.auth.getUser(token);
     if (data.user) {
       userId = data.user.id;
@@ -19,6 +20,7 @@ export async function getAuthenticatedProfile(
   }
 
   if (!userId) {
+    const supabase = await createSupabaseServerClient();
     const { data } = await supabase.auth.getUser();
     if (data.user) {
       userId = data.user.id;

@@ -78,6 +78,22 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
+    const tenantWorkspaceId =
+      existing.workspaceId ||
+      existing.property?.workspaceId ||
+      existing.unit?.property?.workspaceId ||
+      (!isNaN(widNum) && widNum > 0 ? widNum : null);
+    if (!tenantWorkspaceId) {
+      return NextResponse.json(
+        { success: false, error: "Workspace could not be resolved for this tenant." },
+        { status: 400 }
+      );
+    }
+
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const tenantPatchDenied = await requireWorkspaceMutate(tenantWorkspaceId);
+    if (tenantPatchDenied) return tenantPatchDenied;
+
     const parsedDueDay =
       rentDueDay !== undefined
         ? Math.min(28, Math.max(1, parseInt(String(rentDueDay), 10) || 1))
@@ -137,6 +153,17 @@ export async function DELETE(request: Request, { params }: Params) {
         { error: "Forbidden: Tenant does not belong to this workspace." },
         { status: 403 }
       );
+    }
+
+    const tenantWorkspaceId =
+      existing.workspaceId ||
+      existing.property?.workspaceId ||
+      existing.unit?.property?.workspaceId ||
+      (!isNaN(workspaceId) && workspaceId > 0 ? workspaceId : null);
+    if (tenantWorkspaceId) {
+      const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+      const tenantDeleteDenied = await requireWorkspaceMutate(tenantWorkspaceId);
+      if (tenantDeleteDenied) return tenantDeleteDenied;
     }
 
     const unitId = existing.unitId;

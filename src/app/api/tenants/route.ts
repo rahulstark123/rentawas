@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { supabase } from "@/lib/supabase";
+import { supabaseService as supabase } from "@/lib/supabase/service";
 import { Role } from "@/generated/prisma/client";
 import { parsePagination, paginationMeta, isDataUrl } from "@/lib/apiPagination";
 import { resolveRequestProfile } from "@/lib/api-auth";
@@ -242,6 +242,10 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const tenantQuotaDenied = await requireWorkspaceMutate(targetWorkspaceId);
+    if (tenantQuotaDenied) return tenantQuotaDenied;
 
     const resolvedPropId = targetUnit ? targetUnit.propertyId : (propertyId || null);
 

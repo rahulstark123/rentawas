@@ -131,6 +131,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Maintenance issue description is required." }, { status: 400 });
     }
 
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const maintenanceDenied = await requireWorkspaceMutate(workspaceId);
+    if (maintenanceDenied) return maintenanceDenied;
+
     // Prefer explicit property/unit workspace; fall back to body wid
     let resolvedWid = workspaceId;
     if (propertyId) {

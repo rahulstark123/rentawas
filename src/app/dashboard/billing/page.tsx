@@ -106,7 +106,7 @@ const PLANS: Record<PlanId, PlanDetails> = {
       "Free Access to RentAwas Expert Service (Coming Soon)",
       "Everything in Starter",
       "In-App Tenant DMs & Building Group Channels",
-      "Up to 75 Rental Units",
+      "Up to 3 Properties & 75 Rental Units",
       "Floor-by-Floor & Unit-by-Unit Grid Matrix",
       "Dedicated Property Yield Analytics",
       "Tenant Health Score Tracking (0-100%)",

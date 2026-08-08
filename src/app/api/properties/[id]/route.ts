@@ -104,6 +104,42 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
+    const { assertWorkspaceQuota } = await import("@/lib/planQuotaServer");
+    const mutateQuota = await assertWorkspaceQuota({
+      workspaceId,
+      action: "mutate",
+    });
+    if (!mutateQuota.ok) {
+      return NextResponse.json(
+        { success: false, error: mutateQuota.message, code: mutateQuota.code },
+        { status: 403 }
+      );
+    }
+
+    const nextFloors = floors ? parseInt(floors, 10) : existingProperty.floors;
+    const nextUnitsPerFloor = unitsPerFloor
+      ? parseInt(unitsPerFloor, 10)
+      : existingProperty.unitsPerFloor;
+    const currentUnitCount = await prisma.unit.count({
+      where: { propertyId: id },
+    });
+    const nextTotalUnits = nextFloors * nextUnitsPerFloor;
+    const unitsToAdd = Math.max(0, nextTotalUnits - currentUnitCount);
+
+    if (unitsToAdd > 0) {
+      const unitQuota = await assertWorkspaceQuota({
+        workspaceId,
+        action: "unit",
+        unitsToAdd,
+      });
+      if (!unitQuota.ok) {
+        return NextResponse.json(
+          { success: false, error: unitQuota.message, code: unitQuota.code },
+          { status: 403 }
+        );
+      }
+    }
+
     const updatedProperty = await prisma.property.update({
       where: { id },
       data: {
@@ -161,6 +197,18 @@ export async function DELETE(request: Request, { params }: Params) {
     if (isNaN(wid) || existingProperty.workspaceId !== wid) {
       return NextResponse.json(
         { error: "Forbidden: Property does not belong to specified workspace ID." },
+        { status: 403 }
+      );
+    }
+
+    const { assertWorkspaceQuota } = await import("@/lib/planQuotaServer");
+    const mutateQuota = await assertWorkspaceQuota({
+      workspaceId: wid,
+      action: "mutate",
+    });
+    if (!mutateQuota.ok) {
+      return NextResponse.json(
+        { success: false, error: mutateQuota.message, code: mutateQuota.code },
         { status: 403 }
       );
     }

@@ -40,6 +40,11 @@ export async function DELETE(
           { status: 403 }
         );
       }
+      if (docWid) {
+        const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+        const documentDeleteDenied = await requireWorkspaceMutate(docWid);
+        if (documentDeleteDenied) return documentDeleteDenied;
+      }
     }
 
     await prisma.tenantDocument.delete({

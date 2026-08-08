@@ -208,6 +208,18 @@ export default function PropertiesPage() {
   };
   // ─────────────────────────────────────────────────────────────────────────
 
+  const canAddProperty = (unitsToAdd?: number): boolean => {
+    if (typeof window !== "undefined" && (window as any).checkCanAddAction) {
+      return (window as any).checkCanAddAction("Add New Property", unitsToAdd);
+    }
+    return true;
+  };
+
+  const openAddPropertyModal = () => {
+    if (!canAddProperty()) return;
+    setShowAddModal(true);
+  };
+
   const filteredPropertyList = propertyList.filter((prop) => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
@@ -229,6 +241,11 @@ export default function PropertiesPage() {
   const handleAddProperty = async (newProp: PropertyData) => {
     const numFloors = newProp.floors || 4;
     const computedUnits = newProp.units || numFloors * 4;
+    const unitsPerFloor = newProp.unitsPerFloor || Math.ceil(computedUnits / numFloors);
+    const totalUnits = numFloors * unitsPerFloor;
+
+    if (!canAddProperty(totalUnits)) return;
+
     const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
     if (!activeWid) {
       toast("Account not found. Please sign in again.", "error");
@@ -246,7 +263,7 @@ export default function PropertiesPage() {
           pincode: newProp.pincode,
           address: newProp.address,
           floors: numFloors,
-          unitsPerFloor: newProp.unitsPerFloor || Math.ceil(computedUnits / numFloors),
+          unitsPerFloor,
         }),
       });
 
@@ -254,8 +271,13 @@ export default function PropertiesPage() {
       if (json.success) {
         toast(`Property "${newProp.name}" created successfully!`, "success");
         fetchProperties();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("workspace-usage-updated"));
+        }
         return;
       }
+
+      toast(json.error || "Your plan does not allow adding more properties.", "error");
     } catch (err) {
       console.warn("Failed to create property via API:", err);
       toast("Error creating property.", "error");
@@ -356,7 +378,7 @@ export default function PropertiesPage() {
 
           {/* Add New Property Button */}
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={openAddPropertyModal}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
@@ -437,7 +459,7 @@ export default function PropertiesPage() {
             </button>
           ) : (
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={openAddPropertyModal}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer"
             >
               <Plus className="w-4 h-4" />

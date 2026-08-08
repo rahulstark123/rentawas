@@ -123,7 +123,10 @@ export default function DashboardLayout({
     setShowPaywallModal(true);
   };
 
-  const checkCanAddAction = (featureName: string = "Add New Item"): boolean => {
+  const checkCanAddAction = (
+    featureName: string = "Add New Item",
+    unitsToAdd?: number
+  ): boolean => {
     const lower = featureName.toLowerCase();
     const action =
       lower.includes("unit")
@@ -138,7 +141,9 @@ export default function DashboardLayout({
       unitsCount,
       propertiesCount,
       action,
-      unitsToAdd: action === "unit" ? 1 : action === "property" ? 1 : 0,
+      unitsToAdd:
+        unitsToAdd ??
+        (action === "unit" ? 1 : action === "property" ? 4 : 0),
     });
 
     if (result.ok) return true;
@@ -152,8 +157,9 @@ export default function DashboardLayout({
   useEffect(() => {
     if (typeof window !== "undefined") {
       (window as any).checkCanAddAction = checkCanAddAction;
+      (window as any).checkCanUseMessages = () => messagesUnlocked;
     }
-  }, [isTrialActive, hasPaidSubscription, workspacePlanKey, unitsCount, propertiesCount]);
+  }, [isTrialActive, hasPaidSubscription, workspacePlanKey, unitsCount, propertiesCount, messagesUnlocked]);
 
   // View Mode Switcher: Manage View (Operations) vs Listing View  // Mode Switcher & Listing State
   const [dashboardViewMode, setDashboardViewMode] = useState<"manage" | "listing">("manage");
@@ -484,6 +490,12 @@ export default function DashboardLayout({
       }
     }
     loadWorkspacePlan();
+
+    const refreshUsage = () => {
+      loadWorkspacePlan();
+    };
+    window.addEventListener("workspace-usage-updated", refreshUsage);
+    return () => window.removeEventListener("workspace-usage-updated", refreshUsage);
   }, []);
 
   useEffect(() => {

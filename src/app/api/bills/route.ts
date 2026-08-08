@@ -102,6 +102,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invoice title and amount are required." }, { status: 400 });
     }
 
+    let resolvedWorkspaceId = workspaceId ? Number(workspaceId) : null;
+    if (!resolvedWorkspaceId && tenantId) {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { workspaceId: true },
+      });
+      resolvedWorkspaceId = tenant?.workspaceId ?? null;
+    }
+    if (!resolvedWorkspaceId && unitId) {
+      const unit = await prisma.unit.findUnique({
+        where: { id: unitId },
+        select: { workspaceId: true, property: { select: { workspaceId: true } } },
+      });
+      resolvedWorkspaceId = unit?.workspaceId ?? unit?.property?.workspaceId ?? null;
+    }
+    if (!resolvedWorkspaceId && propertyId) {
+      const property = await prisma.property.findUnique({
+        where: { id: String(propertyId) },
+        select: { workspaceId: true },
+      });
+      resolvedWorkspaceId = property?.workspaceId ?? null;
+    }
+    if (!resolvedWorkspaceId) {
+      return NextResponse.json(
+        { success: false, error: "Workspace ID (workspaceId) is required." },
+        { status: 400 }
+      );
+    }
+
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const billDenied = await requireWorkspaceMutate(resolvedWorkspaceId);
+    if (billDenied) return billDenied;
+
     const monthCode = new Date().toISOString().slice(0, 7);
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     const invoiceNumber = `INV-${monthCode}-${randomNum}`;
@@ -139,7 +172,7 @@ export async function POST(request: Request) {
     if (tenantId) billData.tenant = { connect: { id: tenantId } };
     if (unitId) billData.unit = { connect: { id: unitId } };
     if (propertyId) billData.property = { connect: { id: propertyId } };
-    if (workspaceId) billData.workspace = { connect: { wid: Number(workspaceId) } };
+    billData.workspace = { connect: { wid: resolvedWorkspaceId } };
 
     const bill = await prisma.bill.create({
       data: billData,

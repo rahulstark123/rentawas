@@ -41,6 +41,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Announcement not found" }, { status: 404 });
     }
 
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const announcementDeleteDenied = await requireWorkspaceMutate(workspaceId);
+    if (announcementDeleteDenied) return announcementDeleteDenied;
+
     await prisma.announcement.delete({ where: { id } });
 
     return NextResponse.json({
@@ -79,6 +83,10 @@ export async function PATCH(
     if (!existing) {
       return NextResponse.json({ error: "Announcement not found" }, { status: 404 });
     }
+
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const announcementPatchDenied = await requireWorkspaceMutate(workspaceId);
+    if (announcementPatchDenied) return announcementPatchDenied;
 
     const {
       title,

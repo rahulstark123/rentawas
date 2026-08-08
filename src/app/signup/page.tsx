@@ -171,8 +171,8 @@ export default function SignupPage() {
       <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 z-10">
         <div className="w-full max-w-5xl bg-white border border-slate-200/90 rounded-2xl md:rounded-3xl shadow-xl shadow-slate-200/50 overflow-hidden grid grid-cols-1 lg:grid-cols-12">
           
-          {/* Left Decorative/Feature Banner */}
-          <div className="lg:col-span-5 bg-gradient-to-br from-[#0B132B] via-[#141A26] to-[#1E293B] text-white p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden">
+          {/* Left Decorative/Feature Banner — desktop/tablet only */}
+          <div className="hidden lg:flex lg:col-span-5 bg-gradient-to-br from-[#0B132B] via-[#141A26] to-[#1E293B] text-white p-8 sm:p-10 flex-col justify-between relative overflow-hidden">
             {/* Subtle background glow */}
             <div className="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none" />
             <div className="absolute -top-12 -left-12 w-64 h-64 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -544,10 +544,17 @@ export default function SignupPage() {
                 type="button"
                 onClick={async () => {
                   try {
+                    const callbackUrl = new URL("/auth/callback", window.location.origin);
+                    callbackUrl.searchParams.set("role", role);
+                    callbackUrl.searchParams.set(
+                      "next",
+                      role === "tenant" ? "/tenant/dashboard" : "/onboarding"
+                    );
+
                     const { error } = await supabase.auth.signInWithOAuth({
                       provider: "google",
                       options: {
-                        redirectTo: `${window.location.origin}/auth/callback?next=${role === "tenant" ? "/tenant/dashboard" : "/onboarding"}`,
+                        redirectTo: callbackUrl.toString(),
                         queryParams: {
                           access_type: "offline",
                           prompt: "consent",

@@ -45,7 +45,18 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { transactionNumber, paymentId, orderId, type, amount, status, paymentMethod, description, tenantName, propertyUnit, wid } = body;
 
-    const workspaceIdNum = wid ? parseInt(String(wid), 10) : 1;
+    const workspaceIdNum = wid ? parseInt(String(wid), 10) : NaN;
+    if (!wid || isNaN(workspaceIdNum) || workspaceIdNum <= 0) {
+      return NextResponse.json(
+        { success: false, error: "Workspace ID (wid) is required." },
+        { status: 400 }
+      );
+    }
+
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const txnDenied = await requireWorkspaceMutate(workspaceIdNum);
+    if (txnDenied) return txnDenied;
+
     const randomSeq = Math.floor(800 + Math.random() * 199);
     const generatedTxnNumber = transactionNumber || `PAY-${randomSeq}`;
     const formattedDesc = description || (tenantName ? `${tenantName} — ${propertyUnit || "Rental Unit"}` : "Monthly Rent Payment");

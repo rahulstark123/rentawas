@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasActiveRentPaymentChannels } from "@/lib/paymentMethods";
 import { resolveTenantWorkspaceId } from "@/lib/tenantWorkspace";
 
@@ -27,6 +27,7 @@ export async function GET(request: Request) {
     const paramEmail = searchParams.get("email");
 
     // 1. Check Supabase auth user
+    const supabase = await createSupabaseServerClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

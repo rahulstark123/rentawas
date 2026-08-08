@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
   checkPlanQuota,
@@ -36,9 +37,15 @@ async function resolveWorkspacePlan(workspaceId: number): Promise<{
   let plan = workspace.plan || "trial";
   const trialDaysLeft = computeTrialDaysLeft(workspace.trialStartedAt, workspace.createdAt);
   const isTrialActive = plan === "trial" && trialDaysLeft > 0;
+
   if (plan === "trial" && !isTrialActive) {
     plan = "free";
+    await prisma.workspace.update({
+      where: { wid: workspaceId },
+      data: { plan: "free" },
+    });
   }
+
   return { plan, isTrialActive };
 }
 
@@ -58,6 +65,29 @@ export async function assertWorkspaceMessagesAccess(
     };
   }
   return { ok: true };
+}
+
+/** Block view-only Free plan writes (tenants, bills, maintenance, etc.). */
+export async function assertWorkspaceMutate(
+  workspaceId: number
+): Promise<QuotaCheckResult> {
+  return assertWorkspaceQuota({ workspaceId, action: "mutate" });
+}
+
+export function quotaDeniedResponse(quota: QuotaCheckResult): NextResponse | null {
+  if (quota.ok) return null;
+  return NextResponse.json(
+    { success: false, error: quota.message, code: quota.code },
+    { status: 403 }
+  );
+}
+
+/** Returns a 403 NextResponse when mutate is not allowed, otherwise null. */
+export async function requireWorkspaceMutate(
+  workspaceId: number
+): Promise<NextResponse | null> {
+  const quota = await assertWorkspaceMutate(workspaceId);
+  return quotaDeniedResponse(quota);
 }
 
 export async function assertWorkspaceQuota(opts: {

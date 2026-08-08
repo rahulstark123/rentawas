@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createUserProfileAndWorkspace } from "@/app/actions/authActions";
 
 // GET /auth/callback - OAuth Callback Handler for Supabase Google Sign-In
@@ -9,34 +9,64 @@ export async function GET(request: Request) {
   const roleHint = searchParams.get("role");
   const nextParam = searchParams.get("next");
 
-  if (code) {
-    try {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-      if (!error && data?.user) {
-        const userId = data.user.id;
-        const email = data.user.email || "";
-        const fullName = data.user.user_metadata?.full_name || data.user.user_metadata?.name || email.split("@")[0];
-        const role = data.user.user_metadata?.role || roleHint || "owner";
-
-        await createUserProfileAndWorkspace({
-          userId,
-          email,
-          fullName,
-          role,
-        });
-
-        const defaultNext =
-          role === "tenant" ? "/tenant/dashboard" : "/dashboard";
-        const next = nextParam || defaultNext;
-
-        return NextResponse.redirect(`${origin}${next}`);
-      }
-    } catch (err) {
-      console.error("OAuth Exchange Callback Error:", err);
-    }
+  if (!code) {
+    const fallbackNext =
+      roleHint === "tenant" ? "/tenant/dashboard" : nextParam || "/login";
+    return NextResponse.redirect(`${origin}${fallbackNext}`);
   }
 
-  const fallbackNext =
-    roleHint === "tenant" ? "/tenant/dashboard" : nextParam || "/dashboard";
-  return NextResponse.redirect(`${origin}${fallbackNext}`);
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error || !data?.user) {
+      console.error("OAuth exchange failed:", error?.message);
+      return NextResponse.redirect(`${origin}/login?error=oauth_failed`);
+    }
+
+    // Password recovery — session only; do not run signup/workspace provisioning
+    if (nextParam === "/reset-password") {
+      return NextResponse.redirect(`${origin}/reset-password`);
+    }
+
+    const userId = data.user.id;
+    const email = data.user.email || "";
+    const fullName =
+      data.user.user_metadata?.full_name ||
+      data.user.user_metadata?.fullName ||
+      data.user.user_metadata?.name ||
+      email.split("@")[0];
+    const role =
+      data.user.user_metadata?.role || roleHint || "owner";
+
+    const result = await createUserProfileAndWorkspace({
+      userId,
+      email,
+      fullName,
+      role: role === "tenant" ? "tenant" : "owner",
+    });
+
+    const workspace = result.workspace;
+    const isOwner = role !== "tenant";
+    const needsOnboarding = isOwner && workspace && !workspace.isOnboarded;
+
+    let next: string;
+    if (role === "tenant") {
+      next = nextParam || "/tenant/dashboard";
+    } else if (needsOnboarding) {
+      next = "/onboarding";
+    } else {
+      next = nextParam || "/dashboard";
+    }
+
+    const redirectUrl = new URL(next, origin);
+    if (result.wid) {
+      redirectUrl.searchParams.set("wid", String(result.wid));
+    }
+
+    return NextResponse.redirect(redirectUrl.toString());
+  } catch (err) {
+    console.error("OAuth Exchange Callback Error:", err);
+    return NextResponse.redirect(`${origin}/login?error=oauth_failed`);
+  }
 }

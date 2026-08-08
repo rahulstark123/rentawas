@@ -35,6 +35,12 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
+    if (existingUnit.workspaceId) {
+      const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+      const unitPatchDenied = await requireWorkspaceMutate(existingUnit.workspaceId);
+      if (unitPatchDenied) return unitPatchDenied;
+    }
+
     const updatedUnit = await prisma.unit.update({
       where: { id: existingUnit.id },
       data: {
@@ -85,6 +91,12 @@ export async function DELETE(request: Request, { params }: Params) {
         { error: "Unit not found for this property" },
         { status: 404 }
       );
+    }
+
+    if (existingUnit.workspaceId) {
+      const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+      const unitDeleteDenied = await requireWorkspaceMutate(existingUnit.workspaceId);
+      if (unitDeleteDenied) return unitDeleteDenied;
     }
 
     await prisma.unit.delete({

@@ -116,6 +116,17 @@ export async function POST(request: Request) {
       }
     }
 
+    if (!targetWorkspaceId) {
+      return NextResponse.json(
+        { success: false, error: "Workspace ID (workspaceId / wid) is required." },
+        { status: 400 }
+      );
+    }
+
+    const { requireWorkspaceMutate } = await import("@/lib/planQuotaServer");
+    const expenseDenied = await requireWorkspaceMutate(targetWorkspaceId);
+    if (expenseDenied) return expenseDenied;
+
     const nextNumber = `EXP-${Math.floor(100 + Math.random() * 899)}`;
 
     const newExpense = await prisma.propertyExpense.create({
@@ -132,7 +143,7 @@ export async function POST(request: Request) {
         status: "Verified & Paid",
         propertyId: resolvedPropId,
         unitId: unitId || null,
-        workspaceId: targetWorkspaceId || 1,
+        workspaceId: targetWorkspaceId,
       },
       select: expenseListSelect,
     });
