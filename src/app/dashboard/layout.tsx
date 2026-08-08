@@ -35,10 +35,7 @@ import {
   PanelLeftOpen,
   ChevronLeft,
   ChevronRight,
-  Monitor,
   Smartphone,
-  Laptop,
-  Copy,
   AlertTriangle,
   MoreVertical,
   Eye,
@@ -620,13 +617,11 @@ export default function DashboardLayout({
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#FF6B00]/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="max-w-md w-full bg-[#141A26] border border-slate-800 rounded-3xl p-6 sm:p-8 text-center space-y-6 shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-300">
-          
-          {/* Brand Logo Header */}
+        <div className="max-w-md w-full bg-[#141A26] border border-slate-800 rounded-3xl p-6 sm:p-8 text-center space-y-5 shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-300">
           <div className="flex items-center justify-center gap-2">
             <Image src="/logo.png" alt="RentAwas Logo" width={40} height={40} className="h-10 w-auto" />
-            <span 
-              className="text-2xl font-extrabold tracking-tight font-cormorant" 
+            <span
+              className="text-2xl font-extrabold tracking-tight font-cormorant"
               style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
             >
               <span className="text-white">Rent</span>
@@ -634,49 +629,18 @@ export default function DashboardLayout({
             </span>
           </div>
 
-          {/* Graphic Icon Display */}
-          <div className="relative w-20 h-20 mx-auto bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center text-[#FF6B00] shadow-inner">
-            <Monitor className="w-10 h-10" />
-            <div className="absolute -bottom-1 -right-1 bg-amber-500 text-slate-950 p-1.5 rounded-full border-2 border-[#141A26]">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
+          <div className="w-20 h-20 mx-auto bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center text-[#FF6B00] shadow-inner">
+            <Smartphone className="w-10 h-10" />
           </div>
 
-          {/* Headline & Explanation */}
           <div className="space-y-2">
             <h2 className="text-xl font-extrabold text-white tracking-tight">
-              Desktop Screen Required
+              Please Login Using Mobile App
             </h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              As of now, we are not available for small screen sizes under <strong className="text-amber-400">1000px</strong>.
+            <p className="text-sm text-slate-400 leading-relaxed">
+              As of now, the landlord dashboard is not available on smaller screens. Please use the RentAwas mobile app to continue.
             </p>
           </div>
-
-          {/* Notice Box */}
-          <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-2xl text-left text-xs space-y-2">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Laptop className="w-3.5 h-3.5 text-[#FF6B00]" />
-              <span>Recommended Resolution</span>
-            </div>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              RentAwas Landlord Mission Control requires a laptop or desktop computer (<strong className="text-white">≥ 1000px width</strong>) for property floor plan telemetry and financial ledgers.
-            </p>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="pt-2">
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText("https://app.rentawas.com");
-                toast("Desktop Portal URL copied to clipboard!", "success");
-              }}
-              className="w-full py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-md shadow-orange-500/20 transition-all uppercase tracking-wider cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Copy className="w-4 h-4" />
-              <span>Copy Desktop Portal Link</span>
-            </button>
-          </div>
-
         </div>
       </div>
     );
