@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isFirebaseMessagingConfigured } from "@/lib/firebase-messaging";
+import { getFirebaseMessagingStatus } from "@/lib/firebase-messaging";
 
 /**
  * GET /api/push/health — quick diagnostics (no auth).
@@ -9,7 +9,7 @@ import { isFirebaseMessagingConfigured } from "@/lib/firebase-messaging";
 export async function GET() {
   try {
     const deviceCount = await prisma.pushDevice.count();
-    const firebaseOk = isFirebaseMessagingConfigured();
+    const firebase = getFirebaseMessagingStatus();
 
     const sample = await prisma.pushDevice.findMany({
       take: 3,
@@ -33,13 +33,16 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      firebaseConfigured: firebaseOk,
+      firebaseConfigured: firebase.configured,
+      firebaseSource: firebase.source,
+      firebaseError: firebase.error,
       pushDeviceCount: deviceCount,
-      hint: firebaseOk
+      hint: firebase.configured
         ? deviceCount > 0
           ? "Firebase OK and tokens exist — triggers should send pushes."
           : "Firebase OK but no tokens — log into the mobile app and allow notifications."
-        : "Set FIREBASE_SERVICE_ACCOUNT_JSON on Vercel (plain JSON, private_key with \\n).",
+        : firebase.error ||
+          "Set FIREBASE_SERVICE_ACCOUNT_JSON on Vercel (paste the downloaded JSON file as-is).",
       recentDevices: maskedSample,
     });
   } catch (error: any) {

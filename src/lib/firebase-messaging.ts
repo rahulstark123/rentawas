@@ -17,21 +17,46 @@ function normalizePrivateKey(key: string): string {
   return key.replace(/\\n/g, "\n");
 }
 
-function loadServiceAccount(): admin.ServiceAccount | null {
-  const jsonRaw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
-  if (jsonRaw) {
+function parseServiceAccountJson(raw: string): (admin.ServiceAccount & { private_key?: string }) | null {
+  let json = raw.trim();
+  if (!json) return null;
+
+  const attempts = [json];
+
+  // Common .env mistake: literal \" instead of "
+  if (json.includes('\\"')) {
+    attempts.push(json.split('\\"').join('"'));
+  }
+
+  // Literal backslash + newline inside JSON strings (invalid JSON)
+  attempts.push(
+    ...attempts.map((candidate) => candidate.replace(/\\\r?\n/g, "\\n"))
+  );
+
+  for (const candidate of [...new Set(attempts)]) {
     try {
-      const parsed = JSON.parse(jsonRaw) as admin.ServiceAccount & {
+      const parsed = JSON.parse(candidate) as admin.ServiceAccount & {
         private_key?: string;
       };
       if (parsed.private_key) {
         parsed.private_key = normalizePrivateKey(parsed.private_key);
       }
       return parsed;
-    } catch (err) {
-      console.error("[push] Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:", err);
-      return null;
+    } catch {
+      // try next normalization
     }
+  }
+
+  return null;
+}
+
+function loadServiceAccount(): admin.ServiceAccount | null {
+  const jsonRaw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+  if (jsonRaw) {
+    const parsed = parseServiceAccountJson(jsonRaw);
+    if (parsed) return parsed;
+    console.error("[push] Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON.");
+    return null;
   }
 
   const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
@@ -75,6 +100,56 @@ function getFirebaseApp(): admin.app.App | null {
 /** Check Firebase Admin can initialize (for health/debug). */
 export function isFirebaseMessagingConfigured(): boolean {
   return getFirebaseApp() !== null;
+}
+
+export function getFirebaseMessagingStatus(): {
+  configured: boolean;
+  source: "json" | "split" | "none";
+  error: string | null;
+} {
+  const jsonRaw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+  if (jsonRaw) {
+    const parsed = parseServiceAccountJson(jsonRaw);
+    if (!parsed) {
+      return {
+        configured: false,
+        source: "json",
+        error: "FIREBASE_SERVICE_ACCOUNT_JSON is set but could not be parsed.",
+      };
+    }
+    try {
+      const ok = getFirebaseApp() !== null;
+      return {
+        configured: ok,
+        source: "json",
+        error: ok ? null : "Firebase initializeApp failed.",
+      };
+    } catch (err: any) {
+      return {
+        configured: false,
+        source: "json",
+        error: err?.message || "Firebase initializeApp failed.",
+      };
+    }
+  }
+
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+  const privateKeyRaw = process.env.FIREBASE_PRIVATE_KEY?.trim();
+  if (projectId && clientEmail && privateKeyRaw) {
+    const ok = getFirebaseApp() !== null;
+    return {
+      configured: ok,
+      source: "split",
+      error: ok ? null : "Firebase initializeApp failed.",
+    };
+  }
+
+  return {
+    configured: false,
+    source: "none",
+    error: "Firebase env not set.",
+  };
 }
 
 export async function sendFcmToTokens(
