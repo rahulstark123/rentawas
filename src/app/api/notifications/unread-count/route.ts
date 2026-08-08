@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveRequestProfile } from "@/lib/api-auth";
+import {
+  emptyUnreadCountResponse,
+  isMissingInAppNotificationTable,
+} from "@/lib/in-app-notification-api";
 
 function parseWorkspaceFilter(searchParams: URLSearchParams): number | null {
   const raw = searchParams.get("wid") || searchParams.get("workspaceId");
@@ -23,13 +27,24 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const workspaceId = parseWorkspaceFilter(searchParams);
 
-    const count = await prisma.inAppNotification.count({
-      where: {
-        profileId: profile.id,
-        readAt: null,
-        ...(workspaceId ? { workspaceId } : {}),
-      },
-    });
+    let count = 0;
+    try {
+      count = await prisma.inAppNotification.count({
+        where: {
+          profileId: profile.id,
+          readAt: null,
+          ...(workspaceId ? { workspaceId } : {}),
+        },
+      });
+    } catch (dbError) {
+      if (isMissingInAppNotificationTable(dbError)) {
+        console.warn(
+          "[notifications] InAppNotification table missing — run prisma migrate on production."
+        );
+        return emptyUnreadCountResponse();
+      }
+      throw dbError;
+    }
 
     return NextResponse.json({
       success: true,

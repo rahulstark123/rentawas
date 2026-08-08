@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveRequestProfile } from "@/lib/api-auth";
 import { parsePagination, paginationMeta } from "@/lib/apiPagination";
+import {
+  emptyNotificationsResponse,
+  isMissingInAppNotificationTable,
+} from "@/lib/in-app-notification-api";
 
 function parseWorkspaceFilter(searchParams: URLSearchParams): number | null {
   const raw = searchParams.get("wid") || searchParams.get("workspaceId");
@@ -30,14 +34,26 @@ export async function GET(request: Request) {
       ...(workspaceId ? { workspaceId } : {}),
     };
 
-    const total = await prisma.inAppNotification.count({ where });
+    let total = 0;
+    let rows: Awaited<ReturnType<typeof prisma.inAppNotification.findMany>> = [];
 
-    const rows = await prisma.inAppNotification.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: pagination.skip,
-      take: pagination.take,
-    });
+    try {
+      total = await prisma.inAppNotification.count({ where });
+      rows = await prisma.inAppNotification.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: pagination.skip,
+        take: pagination.take,
+      });
+    } catch (dbError) {
+      if (isMissingInAppNotificationTable(dbError)) {
+        console.warn(
+          "[notifications] InAppNotification table missing — run prisma migrate on production."
+        );
+        return emptyNotificationsResponse(pagination);
+      }
+      throw dbError;
+    }
 
     const data = rows.map((row) => ({
       id: row.id,
