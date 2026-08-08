@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isGatewayPayment } from "@/lib/rentReceipts";
+import {
+  isGatewayPayment,
+  isManualVerificationPayment,
+  billNotesInclude,
+} from "@/lib/rentReceipts";
 import { parsePagination, paginationMeta } from "@/lib/apiPagination";
+import { resolveRequestProfile } from "@/lib/api-auth";
+import {
+  sendRentPaymentSubmittedForVerificationPush,
+  sendRentPaymentReceivedPush,
+} from "@/lib/push-notifications";
 
 const billListSelect = {
   id: true,
@@ -136,6 +145,44 @@ export async function POST(request: Request) {
       data: billData,
       select: billListSelect,
     });
+
+    const creatorProfile = await resolveRequestProfile(request, body);
+    const isOwnerRecorded = creatorProfile?.role === "OWNER";
+    const workspaceIdNum = bill.workspaceId ?? (workspaceId ? Number(workspaceId) : null);
+
+    if (!isOwnerRecorded && workspaceIdNum) {
+      try {
+        const isManualPending =
+          bill.status === "Pending" &&
+          (billNotesInclude(bill.notes, "awaiting_landlord_verification") ||
+            isManualVerificationPayment(bill.paymentMethod));
+
+        if (isManualPending) {
+          const pushResult = await sendRentPaymentSubmittedForVerificationPush(
+            bill,
+            workspaceIdNum
+          );
+          if (pushResult.sent > 0) {
+            console.log(
+              `[push] Rent verification ${bill.invoiceNumber} notified ${pushResult.sent} landlord device(s).`
+            );
+          }
+        } else if (
+          bill.status === "Paid" &&
+          bill.tenantId &&
+          isGatewayPayment(bill.paymentMethod)
+        ) {
+          const pushResult = await sendRentPaymentReceivedPush(bill, workspaceIdNum);
+          if (pushResult.sent > 0) {
+            console.log(
+              `[push] Rent payment ${bill.invoiceNumber} notified ${pushResult.sent} landlord device(s).`
+            );
+          }
+        }
+      } catch (pushErr) {
+        console.error("[push] Rent payment push failed (bill still saved):", pushErr);
+      }
+    }
 
     return NextResponse.json(
       {

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parsePagination, paginationMeta } from "@/lib/apiPagination";
+import { resolveRequestProfile } from "@/lib/api-auth";
+import { sendMaintenanceTicketPush } from "@/lib/push-notifications";
 
 function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): number | null {
   const raw =
@@ -203,6 +205,27 @@ export async function POST(request: Request) {
       data: maintenanceData,
       select: maintenanceListSelect,
     });
+
+    const creatorProfile = await resolveRequestProfile(request, body);
+    const isTenantSubmitted =
+      creatorProfile?.role === "TENANT" ||
+      (!creatorProfile &&
+        tenantId &&
+        typeof loggedBy === "string" &&
+        loggedBy.includes("(Tenant)"));
+
+    if (isTenantSubmitted) {
+      try {
+        const pushResult = await sendMaintenanceTicketPush(ticket, resolvedWid);
+        if (pushResult.sent > 0) {
+          console.log(
+            `[push] Maintenance ${ticket.ticketNumber} notified ${pushResult.sent} landlord device(s).`
+          );
+        }
+      } catch (pushErr) {
+        console.error("[push] Maintenance ticket push failed (ticket still saved):", pushErr);
+      }
+    }
 
     return NextResponse.json(
       {

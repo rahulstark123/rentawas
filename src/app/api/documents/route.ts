@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parsePagination, paginationMeta, isDataUrl } from "@/lib/apiPagination";
+import { resolveRequestProfile } from "@/lib/api-auth";
+import { sendTenantDocumentUploadedPush } from "@/lib/push-notifications";
 
 function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): number | null {
   const raw =
@@ -237,6 +239,30 @@ export async function POST(request: Request) {
         data: docData,
         select: docListSelect,
       });
+    }
+
+    const creatorProfile = await resolveRequestProfile(request, body);
+    const isTenantUploader = creatorProfile?.role === "TENANT";
+
+    if (isTenantUploader && tenantId) {
+      try {
+        const pushResult = await sendTenantDocumentUploadedPush(
+          {
+            id: doc.id,
+            title: doc.title,
+            docType: doc.docType,
+            tenant: doc.tenant,
+          },
+          workspaceId
+        );
+        if (pushResult.sent > 0) {
+          console.log(
+            `[push] Document upload notified ${pushResult.sent} landlord device(s).`
+          );
+        }
+      } catch (pushErr) {
+        console.error("[push] Document upload push failed:", pushErr);
+      }
     }
 
     return NextResponse.json(

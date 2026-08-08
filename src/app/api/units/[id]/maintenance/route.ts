@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestProfile } from "@/lib/api-auth";
+import {
+  sendMaintenanceTicketPush,
+  sendMaintenanceStatusUpdatePush,
+} from "@/lib/push-notifications";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -162,6 +167,27 @@ export async function POST(request: Request, { params }: Params) {
       },
     });
 
+    const creatorProfile = await resolveRequestProfile(request, body);
+    const isTenantSubmitted =
+      creatorProfile?.role === "TENANT" ||
+      (!creatorProfile &&
+        tenantId &&
+        typeof loggedBy === "string" &&
+        loggedBy.includes("(Tenant)"));
+
+    if (isTenantSubmitted && resolvedWid) {
+      try {
+        const pushResult = await sendMaintenanceTicketPush(ticket, resolvedWid);
+        if (pushResult.sent > 0) {
+          console.log(
+            `[push] Maintenance ${ticket.ticketNumber} notified ${pushResult.sent} landlord device(s).`
+          );
+        }
+      } catch (pushErr) {
+        console.error("[push] Maintenance ticket push failed (ticket still saved):", pushErr);
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -189,6 +215,14 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "ticketId is required for update." }, { status: 400 });
     }
 
+    const existing = await prisma.maintenance.findUnique({
+      where: { id: ticketId },
+      include: { tenant: true, unit: true, property: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Maintenance ticket not found." }, { status: 404 });
+    }
+
     const updateData: any = {};
     if (status !== undefined) updateData.status = status;
     if (category !== undefined) updateData.category = category;
@@ -199,7 +233,38 @@ export async function PATCH(request: Request) {
     const updated = await prisma.maintenance.update({
       where: { id: ticketId },
       data: updateData,
+      include: { tenant: true, unit: true, property: true },
     });
+
+    const resolvedWid =
+      updated.workspaceId ??
+      updated.property?.workspaceId ??
+      existing.workspaceId ??
+      null;
+
+    if (
+      status !== undefined &&
+      status !== existing.status &&
+      resolvedWid
+    ) {
+      try {
+        const updater = await resolveRequestProfile(request, body);
+        const isTenantUpdater = updater?.role === "TENANT";
+        const pushResult = await sendMaintenanceStatusUpdatePush(
+          updated,
+          resolvedWid,
+          isTenantUpdater ? "OWNER" : "TENANT",
+          isTenantUpdater ? updater?.id : undefined
+        );
+        if (pushResult.sent > 0) {
+          console.log(
+            `[push] Maintenance ${updated.ticketNumber} status update notified ${pushResult.sent} device(s).`
+          );
+        }
+      } catch (pushErr) {
+        console.error("[push] Maintenance status push failed:", pushErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,

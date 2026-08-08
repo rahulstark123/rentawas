@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthenticatedProfile } from "@/lib/api-auth";
+import { resolveRequestProfile } from "@/lib/api-auth";
 import { mapListingToPropertyItem } from "@/lib/marketplace";
 
 export async function GET(request: Request) {
   try {
-    const profile = await getAuthenticatedProfile(request);
+    const profile = await resolveRequestProfile(request);
     if (!profile) {
       return NextResponse.json(
         { success: false, error: "Authentication required" },
@@ -43,7 +43,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const profile = await getAuthenticatedProfile(request);
+    const body = await request.json();
+    const profile = await resolveRequestProfile(request, body);
     if (!profile) {
       return NextResponse.json(
         { success: false, error: "Authentication required" },
@@ -51,7 +52,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
     const listingId = String(body.listingId || "").trim();
     if (!listingId) {
       return NextResponse.json(
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const profile = await getAuthenticatedProfile(request);
+    const profile = await resolveRequestProfile(request);
     if (!profile) {
       return NextResponse.json(
         { success: false, error: "Authentication required" },

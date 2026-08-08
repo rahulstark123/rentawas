@@ -1,6 +1,7 @@
 import { createHmac } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendRentPaymentReceivedPush } from "@/lib/push-notifications";
 
 async function resolveRazorpayKeys(workspaceId: number | null) {
   let keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "";
@@ -185,6 +186,19 @@ export async function POST(req: Request) {
         property: true,
       },
     });
+
+    if (!isNaN(wid) && wid > 0) {
+      try {
+        const pushResult = await sendRentPaymentReceivedPush(bill, wid);
+        if (pushResult.sent > 0) {
+          console.log(
+            `[push] Razorpay rent ${bill.invoiceNumber} notified ${pushResult.sent} landlord device(s).`
+          );
+        }
+      } catch (pushErr) {
+        console.error("[push] Razorpay rent push failed (bill still saved):", pushErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,

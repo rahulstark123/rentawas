@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { supabase } from "@/lib/supabase";
 import { Role } from "@/generated/prisma/client";
 import { parsePagination, paginationMeta, isDataUrl } from "@/lib/apiPagination";
+import { resolveRequestProfile } from "@/lib/api-auth";
+import {
+  sendNewTenantWelcomePush,
+  sendNewTenantNotifyOwnerPush,
+} from "@/lib/push-notifications";
 
 function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): number | null {
   const raw =
@@ -378,6 +383,40 @@ export async function POST(request: Request) {
         where: { id: targetUnitId },
         data: { isOccupied: true },
       });
+    }
+
+    const creatorProfile = await resolveRequestProfile(request, body);
+
+    try {
+      await sendNewTenantWelcomePush({
+        id: tenant.id,
+        name: tenant.name,
+        email: tenant.email,
+        profileId: linkedProfileId,
+        unit: tenant.unit,
+        property: tenant.property,
+      });
+      if (targetWorkspaceId) {
+        const ownerPush = await sendNewTenantNotifyOwnerPush(
+          {
+            id: tenant.id,
+            name: tenant.name,
+            email: tenant.email,
+            profileId: linkedProfileId,
+            unit: tenant.unit,
+            property: tenant.property,
+          },
+          targetWorkspaceId,
+          creatorProfile?.id
+        );
+        if (ownerPush.sent > 0) {
+          console.log(
+            `[push] New tenant ${tenant.name} notified ${ownerPush.sent} landlord device(s).`
+          );
+        }
+      }
+    } catch (pushErr) {
+      console.error("[push] New tenant push failed:", pushErr);
     }
 
     return NextResponse.json(

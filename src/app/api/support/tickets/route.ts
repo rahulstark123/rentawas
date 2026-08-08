@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isDataUrl } from "@/lib/apiPagination";
+import { resolveRequestProfile } from "@/lib/api-auth";
+import {
+  sendTenantSupportTicketPush,
+  sendSupportTicketUpdateToTenantPush,
+} from "@/lib/push-notifications";
 
 function parseWid(raw: unknown): number | null {
   if (raw == null || raw === "") return null;
@@ -137,6 +142,22 @@ export async function POST(request: Request) {
       });
     }
 
+    if (tenantFlag) {
+      try {
+        const pushResult = await sendTenantSupportTicketPush(
+          newTicket,
+          workspaceIdNum
+        );
+        if (pushResult.sent > 0) {
+          console.log(
+            `[push] Tenant support ${newTicket.ticketNumber} notified ${pushResult.sent} landlord device(s).`
+          );
+        }
+      } catch (pushErr) {
+        console.error("[push] Tenant support ticket push failed:", pushErr);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: `Support Ticket #${ticketNumber} created successfully!`,
@@ -187,6 +208,25 @@ export async function PATCH(request: Request) {
         ...(message ? { message } : {}),
       },
     });
+
+    if (
+      existing.isTenant &&
+      (status && status !== existing.status || message)
+    ) {
+      const updater = await resolveRequestProfile(request, body);
+      if (updater?.role !== "TENANT") {
+        try {
+          const pushResult = await sendSupportTicketUpdateToTenantPush(updatedTicket);
+          if (pushResult.sent > 0) {
+            console.log(
+              `[push] Support ${updatedTicket.ticketNumber} update notified tenant (${pushResult.sent} device(s)).`
+            );
+          }
+        } catch (pushErr) {
+          console.error("[push] Support ticket update push failed:", pushErr);
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,

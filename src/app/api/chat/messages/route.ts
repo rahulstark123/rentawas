@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { assertWorkspaceMessagesAccess } from "@/lib/planQuotaServer";
+import { sendNewChatMessagePush } from "@/lib/push-notifications";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -180,6 +181,21 @@ export async function POST(request: Request) {
         updatedAt: now,
       },
     });
+
+    try {
+      const pushResult = await sendNewChatMessagePush({
+        roomId,
+        senderProfileId: resolvedSenderId,
+        senderName,
+        text,
+        workspaceId: gateWid,
+      });
+      if (pushResult.sent > 0) {
+        console.log(`[push] Chat message notified ${pushResult.sent} device(s).`);
+      }
+    } catch (pushErr) {
+      console.error("[push] Chat message push failed:", pushErr);
+    }
 
     return NextResponse.json({
       success: true,

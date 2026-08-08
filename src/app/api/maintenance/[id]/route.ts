@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestProfile } from "@/lib/api-auth";
+import { sendMaintenanceStatusUpdatePush } from "@/lib/push-notifications";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -98,6 +100,27 @@ export async function PATCH(request: Request, { params }: Params) {
       data: updateData,
       include: { tenant: true, unit: true, property: true },
     });
+
+    const resolvedWid = updated.workspaceId ?? workspaceId;
+    if (status !== undefined && status !== existing.status && resolvedWid) {
+      try {
+        const updater = await resolveRequestProfile(request, body);
+        const isTenantUpdater = updater?.role === "TENANT";
+        const pushResult = await sendMaintenanceStatusUpdatePush(
+          updated,
+          resolvedWid,
+          isTenantUpdater ? "OWNER" : "TENANT",
+          isTenantUpdater ? updater?.id : undefined
+        );
+        if (pushResult.sent > 0) {
+          console.log(
+            `[push] Maintenance ${updated.ticketNumber} status update notified ${pushResult.sent} device(s).`
+          );
+        }
+      } catch (pushErr) {
+        console.error("[push] Maintenance status push failed:", pushErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,

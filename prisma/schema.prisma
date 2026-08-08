@@ -26,6 +26,20 @@ model Profile {
   tenancies    Tenant[]
   documents    TenantDocument[]
   wishlistItems WishlistItem[]
+  pushDevices  PushDevice[]
+}
+
+model PushDevice {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String
+  deviceId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
 }
 
 model Workspace {

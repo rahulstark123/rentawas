@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { appendBillNote } from "@/lib/rentReceipts";
+import {
+  sendRentPaymentVerifiedPush,
+  sendRentReceiptReadyPush,
+} from "@/lib/push-notifications";
 
 const billDetailSelect = {
   id: true,
@@ -71,6 +75,19 @@ export async function PATCH(request: Request, { params }: Params) {
         select: billDetailSelect,
       });
 
+      try {
+        const pushResult = await sendRentPaymentVerifiedPush(bill, {
+          receiptReady: autoReceipt,
+        });
+        if (pushResult.sent > 0) {
+          console.log(
+            `[push] Rent verified ${bill.invoiceNumber} notified tenant (${pushResult.sent} device(s)).`
+          );
+        }
+      } catch (pushErr) {
+        console.error("[push] Rent verified push failed:", pushErr);
+      }
+
       return NextResponse.json({
         success: true,
         message: autoReceipt
@@ -96,6 +113,17 @@ export async function PATCH(request: Request, { params }: Params) {
         },
         select: billDetailSelect,
       });
+
+      try {
+        const pushResult = await sendRentReceiptReadyPush(bill, existing.tenantId);
+        if (pushResult.sent > 0) {
+          console.log(
+            `[push] Receipt issued ${bill.invoiceNumber} notified tenant (${pushResult.sent} device(s)).`
+          );
+        }
+      } catch (pushErr) {
+        console.error("[push] Receipt issued push failed:", pushErr);
+      }
 
       return NextResponse.json({
         success: true,
@@ -128,6 +156,17 @@ export async function PATCH(request: Request, { params }: Params) {
         },
         select: billDetailSelect,
       });
+
+      try {
+        const pushResult = await sendRentReceiptReadyPush(bill, existing.tenantId);
+        if (pushResult.sent > 0) {
+          console.log(
+            `[push] Manual receipt ${bill.invoiceNumber} notified tenant (${pushResult.sent} device(s)).`
+          );
+        }
+      } catch (pushErr) {
+        console.error("[push] Manual receipt push failed:", pushErr);
+      }
 
       return NextResponse.json({
         success: true,

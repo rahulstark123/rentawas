@@ -41,5 +41,41 @@ export async function getAuthenticatedProfile(
       : { email: { equals: userEmail!, mode: "insensitive" } },
   });
 
+  if (!profile && userEmail) {
+    return prisma.profile.findFirst({
+      where: { email: { equals: userEmail, mode: "insensitive" } },
+    });
+  }
+
   return profile;
+}
+
+/** Resolves profile from Bearer token, then userId/email query/body (mobile client fallback). */
+export async function resolveRequestProfile(
+  request: Request,
+  body?: Record<string, unknown> | null
+): Promise<Profile | null> {
+  const fromAuth = await getAuthenticatedProfile(request);
+  if (fromAuth) return fromAuth;
+
+  const { searchParams } = new URL(request.url);
+  const userId =
+    searchParams.get("userId") ||
+    (body?.userId ? String(body.userId).trim() : null);
+  const email =
+    searchParams.get("email") ||
+    (body?.email ? String(body.email).trim() : null);
+
+  if (userId) {
+    const byId = await prisma.profile.findUnique({ where: { id: userId } });
+    if (byId) return byId;
+  }
+
+  if (email) {
+    return prisma.profile.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+    });
+  }
+
+  return null;
 }

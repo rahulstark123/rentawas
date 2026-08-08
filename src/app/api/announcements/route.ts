@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestProfile } from "@/lib/api-auth";
+import { sendAnnouncementPush } from "@/lib/push-notifications";
 
 function parseWorkspaceId(searchParams: URLSearchParams, bodyWid?: unknown): number | null {
   const raw =
@@ -107,6 +109,23 @@ export async function POST(request: Request) {
         workspace: { connect: { wid: workspaceId } },
       },
     });
+
+    const creatorProfile = await resolveRequestProfile(request, body);
+
+    try {
+      const pushResult = await sendAnnouncementPush(
+        announcement,
+        workspaceId,
+        creatorProfile?.id
+      );
+      if (pushResult.sent > 0) {
+        console.log(
+          `[push] Announcement "${announcement.title}" delivered to ${pushResult.sent} device(s) (${pushResult.recipients} residents).`
+        );
+      }
+    } catch (pushErr) {
+      console.error("[push] Announcement push failed (announcement still saved):", pushErr);
+    }
 
     return NextResponse.json(
       {

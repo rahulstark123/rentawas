@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendListingInquiryPush } from "@/lib/push-notifications";
 
 function parseWid(raw: unknown): number | null {
   if (raw == null || raw === "") return null;
@@ -125,6 +126,37 @@ export async function POST(request: Request) {
         });
       } catch (err) {
         console.warn("Could not increment listing inquiriesCount:", err);
+      }
+    }
+
+    if (workspaceId) {
+      try {
+        let listingTitle: string | null = null;
+        if (listingId) {
+          const listing = await prisma.propertyListing.findUnique({
+            where: { id: listingId },
+            select: { title: true },
+          });
+          listingTitle = listing?.title ?? null;
+        }
+        const pushResult = await sendListingInquiryPush(
+          {
+            id: inquiry.id,
+            tenantName,
+            phone,
+            email,
+            moveInDate,
+            listingTitle,
+          },
+          workspaceId
+        );
+        if (pushResult.sent > 0) {
+          console.log(
+            `[push] Listing inquiry notified ${pushResult.sent} landlord device(s).`
+          );
+        }
+      } catch (pushErr) {
+        console.error("[push] Listing inquiry push failed:", pushErr);
       }
     }
 
