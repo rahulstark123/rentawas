@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { sendFcmToTokens } from "@/lib/firebase-messaging";
+import {
+  buildInAppPayloadFromPush,
+  createInAppNotificationsForProfiles,
+} from "@/lib/in-app-notifications";
 
 export async function removeInvalidPushTokens(tokens: string[]) {
   const unique = [...new Set(tokens.filter(Boolean))];
@@ -69,6 +73,11 @@ export async function sendPushToProfile(
   profileId: string,
   payload: { title: string; body: string; data?: Record<string, string> }
 ) {
+  await createInAppNotificationsForProfiles(
+    [profileId],
+    buildInAppPayloadFromPush(payload)
+  );
+
   const devices = await prisma.pushDevice.findMany({
     where: { profileId },
     select: { token: true },
@@ -92,6 +101,11 @@ export async function sendPushToProfiles(
 ) {
   const uniqueIds = [...new Set(profileIds.filter(Boolean))];
   if (uniqueIds.length === 0) return { sent: 0, failed: 0 };
+
+  await createInAppNotificationsForProfiles(
+    uniqueIds,
+    buildInAppPayloadFromPush(payload)
+  );
 
   const devices = await prisma.pushDevice.findMany({
     where: { profileId: { in: uniqueIds } },

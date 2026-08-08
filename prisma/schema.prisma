@@ -27,6 +27,7 @@ model Profile {
   documents    TenantDocument[]
   wishlistItems WishlistItem[]
   pushDevices  PushDevice[]
+  inAppNotifications InAppNotification[]
 }
 
 model PushDevice {
@@ -40,6 +41,22 @@ model PushDevice {
   updatedAt DateTime @updatedAt
 
   @@index([profileId])
+}
+
+model InAppNotification {
+  id          String    @id @default(cuid())
+  profileId   String
+  profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  workspaceId Int?
+  title       String
+  body        String
+  type        String    @default("general")
+  data        Json?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([profileId, createdAt])
+  @@index([profileId, readAt])
 }
 
 model Workspace {
