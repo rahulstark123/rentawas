@@ -129,20 +129,22 @@ function LoginForm() {
     setIsForgotLoading(true);
     setErrorMessage(null);
     try {
-      const redirectTo = `${window.location.origin}/reset-password`;
-
-      const { error } = await supabase.auth.resetPasswordForEmail(emailInput.trim(), {
-        redirectTo,
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailInput.trim() }),
       });
-      if (error) {
-        console.error("resetPasswordForEmail error:", error);
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json.success) {
         setErrorMessage(
-          error.message ||
-            "Could not send reset email. Check Supabase Auth email settings and redirect URLs."
+          json.error ||
+            "Could not send reset email. Please try again or contact support."
         );
       } else {
         setForgotSuccess(
-          `Password reset link sent to ${emailInput.trim()}. Check your inbox (and spam folder).`
+          json.message ||
+            `If an account exists for ${emailInput.trim()}, a password reset link was sent. Check your inbox (and spam folder).`
         );
       }
     } catch {

@@ -3,17 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { resolveRequestProfile } from "@/lib/api-auth";
 import {
   emptyUnreadCountResponse,
-  isMissingInAppNotificationTable,
+  isInAppNotificationDbError,
 } from "@/lib/in-app-notification-api";
 
-function parseWorkspaceFilter(searchParams: URLSearchParams): number | null {
-  const raw = searchParams.get("wid") || searchParams.get("workspaceId");
-  if (!raw) return null;
-  const n = parseInt(raw, 10);
-  return !Number.isNaN(n) && n > 0 ? n : null;
-}
-
-// GET /api/notifications/unread-count?wid=3
+// GET /api/notifications/unread-count?userId=...
 export async function GET(request: Request) {
   try {
     const profile = await resolveRequestProfile(request);
@@ -24,23 +17,17 @@ export async function GET(request: Request) {
       );
     }
 
-    const { searchParams } = new URL(request.url);
-    const workspaceId = parseWorkspaceFilter(searchParams);
-
     let count = 0;
     try {
       count = await prisma.inAppNotification.count({
         where: {
           profileId: profile.id,
           readAt: null,
-          ...(workspaceId ? { workspaceId } : {}),
         },
       });
     } catch (dbError) {
-      if (isMissingInAppNotificationTable(dbError)) {
-        console.warn(
-          "[notifications] InAppNotification table missing — run prisma migrate on production."
-        );
+      if (isInAppNotificationDbError(dbError)) {
+        console.warn("[notifications] InAppNotification DB not ready:", dbError);
         return emptyUnreadCountResponse();
       }
       throw dbError;
@@ -51,6 +38,9 @@ export async function GET(request: Request) {
       data: { count },
     });
   } catch (error: unknown) {
+    if (isInAppNotificationDbError(error)) {
+      return emptyUnreadCountResponse();
+    }
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("GET /api/notifications/unread-count error:", error);
     return NextResponse.json(

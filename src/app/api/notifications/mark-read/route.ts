@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveRequestProfile } from "@/lib/api-auth";
+import { isInAppNotificationDbError } from "@/lib/in-app-notification-api";
 
-// POST /api/notifications/mark-read — body: { ids?: string[], all?: boolean, wid?: number }
+// POST /api/notifications/mark-read — body: { ids?: string[], all?: boolean, userId?, email? }
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
@@ -18,16 +19,10 @@ export async function POST(request: Request) {
       ? body.ids.map((id: unknown) => String(id)).filter(Boolean)
       : [];
     const markAll = Boolean(body.all);
-    const widRaw = body.wid ?? body.workspaceId;
-    const workspaceId =
-      widRaw != null && !Number.isNaN(parseInt(String(widRaw), 10))
-        ? parseInt(String(widRaw), 10)
-        : null;
 
     const baseWhere = {
       profileId: profile.id,
       readAt: null,
-      ...(workspaceId ? { workspaceId } : {}),
     };
 
     if (!markAll && ids.length === 0) {
@@ -37,20 +32,31 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await prisma.inAppNotification.updateMany({
-      where: markAll
-        ? baseWhere
-        : {
-            ...baseWhere,
-            id: { in: ids },
-          },
-      data: { readAt: new Date() },
-    });
+    try {
+      const result = await prisma.inAppNotification.updateMany({
+        where: markAll
+          ? baseWhere
+          : {
+              ...baseWhere,
+              id: { in: ids },
+            },
+        data: { readAt: new Date() },
+      });
 
-    return NextResponse.json({
-      success: true,
-      data: { updated: result.count },
-    });
+      return NextResponse.json({
+        success: true,
+        data: { updated: result.count },
+      });
+    } catch (dbError) {
+      if (isInAppNotificationDbError(dbError)) {
+        return NextResponse.json({
+          success: true,
+          data: { updated: 0 },
+          migrationPending: true,
+        });
+      }
+      throw dbError;
+    }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("POST /api/notifications/mark-read error:", error);

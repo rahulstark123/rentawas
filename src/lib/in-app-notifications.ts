@@ -37,16 +37,19 @@ export async function createInAppNotificationsForProfiles(
 
   const type = payload.type || inferNotificationType(payload.data);
   const workspaceId = inferWorkspaceId(payload.data, payload.workspaceId);
+  const dataPayload: Record<string, string> = { ...(payload.data ?? {}) };
+  if (workspaceId != null) {
+    dataPayload.wid = String(workspaceId);
+  }
 
   try {
     const result = await prisma.inAppNotification.createMany({
       data: uniqueIds.map((profileId) => ({
         profileId,
-        workspaceId,
         title: payload.title,
         body: payload.body,
         type,
-        data: payload.data ?? {},
+        data: dataPayload,
       })),
     });
     return result;

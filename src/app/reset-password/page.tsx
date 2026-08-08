@@ -1,11 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Eye, EyeOff, Lock, Sparkles, AlertCircle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+
+type RecoveryState = "checking" | "ready" | "invalid";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -15,54 +17,91 @@ function ResetPasswordForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [hasRecoverySession, setHasRecoverySession] = useState(false);
+  const [recoveryState, setRecoveryState] = useState<RecoveryState>("checking");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const passwordsMatch = useMemo(
+    () => password.length > 0 && password === confirmPassword,
+    [confirmPassword, password]
+  );
+
   useEffect(() => {
-    async function initRecoverySession() {
-      try {
-        const code = searchParams.get("code");
-        const tokenHash = searchParams.get("token_hash");
-        const type = searchParams.get("type");
+    let isMounted = true;
 
-        // PKCE flow: ?code=... from email link
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) {
-            setErrorMessage(error.message);
-            setHasRecoverySession(false);
-            setIsCheckingSession(false);
-            return;
-          }
-          router.replace("/reset-password");
+    const resolveSession = async () => {
+      const code = searchParams.get("code");
+      const tokenHash = searchParams.get("token_hash");
+      const type = searchParams.get("type");
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!isMounted) return false;
+        if (error) {
+          setRecoveryState("invalid");
+          setErrorMessage(error.message);
+          return false;
         }
-
-        // OTP flow: ?token_hash=...&type=recovery (handled by /auth/confirm, but fallback)
-        if (tokenHash && type === "recovery") {
-          const { error } = await supabase.auth.verifyOtp({
-            type: "recovery",
-            token_hash: tokenHash,
-          });
-          if (error) {
-            setErrorMessage(error.message);
-            setHasRecoverySession(false);
-            setIsCheckingSession(false);
-            return;
-          }
-          router.replace("/reset-password");
-        }
-
-        const { data: { user } } = await supabase.auth.getUser();
-        setHasRecoverySession(Boolean(user));
-      } catch {
-        setHasRecoverySession(false);
-      } finally {
-        setIsCheckingSession(false);
+        router.replace("/reset-password");
       }
-    }
-    initRecoverySession();
+
+      if (tokenHash && type === "recovery") {
+        const { error } = await supabase.auth.verifyOtp({
+          type: "recovery",
+          token_hash: tokenHash,
+        });
+        if (!isMounted) return false;
+        if (error) {
+          setRecoveryState("invalid");
+          setErrorMessage(error.message);
+          return false;
+        }
+        router.replace("/reset-password");
+      }
+
+      const { data, error } = await supabase.auth.getSession();
+      if (!isMounted) return false;
+
+      if (error) {
+        setRecoveryState("invalid");
+        setErrorMessage(error.message || "This reset link is invalid or has expired.");
+        return false;
+      }
+
+      if (data.session) {
+        setRecoveryState("ready");
+        setErrorMessage(null);
+        return true;
+      }
+
+      return false;
+    };
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      if (event === "PASSWORD_RECOVERY" || (session && event === "SIGNED_IN")) {
+        setRecoveryState("ready");
+        setErrorMessage(null);
+      }
+    });
+
+    void resolveSession();
+
+    const fallbackTimer = window.setTimeout(async () => {
+      const hasSession = await resolveSession();
+      if (!hasSession && isMounted) {
+        setRecoveryState("invalid");
+        setErrorMessage(
+          "This reset link is invalid or has expired. Request a new link from the login page."
+        );
+      }
+    }, 1500);
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(fallbackTimer);
+      authListener.subscription.unsubscribe();
+    };
   }, [router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,7 +113,7 @@ function ResetPasswordForm() {
       setErrorMessage("Password must be at least 8 characters.");
       return;
     }
-    if (password !== confirmPassword) {
+    if (!passwordsMatch) {
       setErrorMessage("Passwords do not match.");
       return;
     }
@@ -128,11 +167,13 @@ function ResetPasswordForm() {
             Choose a strong password for your RentAwas account.
           </p>
 
-          {isCheckingSession ? (
+          {recoveryState === "checking" && (
             <div className="flex justify-center py-10">
               <span className="inline-block w-8 h-8 border-2 border-slate-200 border-t-[#FF6B00] rounded-full animate-spin" />
             </div>
-          ) : !hasRecoverySession ? (
+          )}
+
+          {recoveryState === "invalid" && (
             <div className="space-y-4">
               {errorMessage && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-start gap-2">
@@ -140,12 +181,6 @@ function ResetPasswordForm() {
                   <span>{errorMessage}</span>
                 </div>
               )}
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>
-                  This reset link is invalid or has expired. Request a new link from the login page.
-                </span>
-              </div>
               <Link
                 href="/login"
                 className="block w-full text-center py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-sm rounded-xl uppercase tracking-wider"
@@ -153,7 +188,9 @@ function ResetPasswordForm() {
                 Go to Login
               </Link>
             </div>
-          ) : (
+          )}
+
+          {recoveryState === "ready" && (
             <form onSubmit={handleSubmit} className="space-y-4">
               {errorMessage && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-start gap-2">
@@ -216,6 +253,11 @@ function ResetPasswordForm() {
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {confirmPassword && (
+                  <p className={`mt-2 text-xs font-medium ${passwordsMatch ? "text-emerald-600" : "text-red-500"}`}>
+                    {passwordsMatch ? "Passwords match." : "Passwords do not match."}
+                  </p>
+                )}
               </div>
 
               <button

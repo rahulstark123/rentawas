@@ -4,17 +4,12 @@ import { resolveRequestProfile } from "@/lib/api-auth";
 import { parsePagination, paginationMeta } from "@/lib/apiPagination";
 import {
   emptyNotificationsResponse,
-  isMissingInAppNotificationTable,
+  isInAppNotificationDbError,
+  IN_APP_NOTIFICATION_SELECT,
+  widFromNotificationData,
 } from "@/lib/in-app-notification-api";
 
-function parseWorkspaceFilter(searchParams: URLSearchParams): number | null {
-  const raw = searchParams.get("wid") || searchParams.get("workspaceId");
-  if (!raw) return null;
-  const n = parseInt(raw, 10);
-  return !Number.isNaN(n) && n > 0 ? n : null;
-}
-
-// GET /api/notifications?page=1&limit=10&wid=3
+// GET /api/notifications?page=1&limit=10&userId=...
 export async function GET(request: Request) {
   try {
     const profile = await resolveRequestProfile(request);
@@ -27,15 +22,19 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const pagination = parsePagination(searchParams);
-    const workspaceId = parseWorkspaceFilter(searchParams);
 
-    const where = {
-      profileId: profile.id,
-      ...(workspaceId ? { workspaceId } : {}),
-    };
+    const where = { profileId: profile.id };
 
     let total = 0;
-    let rows: Awaited<ReturnType<typeof prisma.inAppNotification.findMany>> = [];
+    let rows: Array<{
+      id: string;
+      title: string;
+      body: string;
+      type: string;
+      data: unknown;
+      readAt: Date | null;
+      createdAt: Date;
+    }> = [];
 
     try {
       total = await prisma.inAppNotification.count({ where });
@@ -44,30 +43,33 @@ export async function GET(request: Request) {
         orderBy: { createdAt: "desc" },
         skip: pagination.skip,
         take: pagination.take,
+        select: IN_APP_NOTIFICATION_SELECT,
       });
     } catch (dbError) {
-      if (isMissingInAppNotificationTable(dbError)) {
-        console.warn(
-          "[notifications] InAppNotification table missing — run prisma migrate on production."
-        );
+      if (isInAppNotificationDbError(dbError)) {
+        console.warn("[notifications] InAppNotification DB not ready:", dbError);
         return emptyNotificationsResponse(pagination);
       }
       throw dbError;
     }
 
-    const data = rows.map((row) => ({
-      id: row.id,
-      title: row.title,
-      body: row.body,
-      type: row.type,
-      workspaceId: row.workspaceId,
-      data:
+    const data = rows.map((row) => {
+      const payload =
         row.data && typeof row.data === "object" && !Array.isArray(row.data)
           ? (row.data as Record<string, string>)
-          : {},
-      readAt: row.readAt?.toISOString() ?? null,
-      createdAt: row.createdAt.toISOString(),
-    }));
+          : {};
+
+      return {
+        id: row.id,
+        title: row.title,
+        body: row.body,
+        type: row.type,
+        workspaceId: widFromNotificationData(row.data),
+        data: payload,
+        readAt: row.readAt?.toISOString() ?? null,
+        createdAt: row.createdAt.toISOString(),
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -75,6 +77,11 @@ export async function GET(request: Request) {
       pagination: paginationMeta(total, pagination, data.length),
     });
   } catch (error: unknown) {
+    if (isInAppNotificationDbError(error)) {
+      const { searchParams } = new URL(request.url);
+      const pagination = parsePagination(searchParams);
+      return emptyNotificationsResponse(pagination);
+    }
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("GET /api/notifications error:", error);
     return NextResponse.json(
