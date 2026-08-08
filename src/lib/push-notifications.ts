@@ -1,6 +1,34 @@
 import { prisma } from "@/lib/prisma";
 import { sendFcmToTokens } from "@/lib/firebase-messaging";
 
+export async function removeInvalidPushTokens(tokens: string[]) {
+  const unique = [...new Set(tokens.filter(Boolean))];
+  if (unique.length === 0) return { count: 0 };
+
+  const result = await prisma.pushDevice.deleteMany({
+    where: { token: { in: unique } },
+  });
+
+  if (result.count > 0) {
+    console.log(`[push] Removed ${result.count} invalid FCM token(s).`);
+  }
+
+  return result;
+}
+
+async function sendAndCleanupTokens(
+  tokens: string[],
+  payload: { title: string; body: string; data?: Record<string, string> }
+) {
+  const result = await sendFcmToTokens(tokens, payload);
+
+  if (result.invalidTokens.length > 0) {
+    await removeInvalidPushTokens(result.invalidTokens);
+  }
+
+  return { sent: result.successCount, failed: result.failureCount };
+}
+
 export async function registerPushDevice(params: {
   profileId: string;
   token: string;
@@ -50,12 +78,12 @@ export async function sendPushToProfile(
     return { sent: 0, failed: 0 };
   }
 
-  const result = await sendFcmToTokens(
+  const result = await sendAndCleanupTokens(
     devices.map((d) => d.token),
     payload
   );
 
-  return { sent: result.successCount, failed: result.failureCount };
+  return { sent: result.sent, failed: result.failed };
 }
 
 export async function sendPushToProfiles(
@@ -74,12 +102,12 @@ export async function sendPushToProfiles(
     return { sent: 0, failed: 0 };
   }
 
-  const result = await sendFcmToTokens(
+  const result = await sendAndCleanupTokens(
     devices.map((d) => d.token),
     payload
   );
 
-  return { sent: result.successCount, failed: result.failureCount };
+  return { sent: result.sent, failed: result.failed };
 }
 
 type AnnouncementTarget = {

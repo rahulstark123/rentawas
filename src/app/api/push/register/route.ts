@@ -36,6 +36,10 @@ export async function POST(request: Request) {
       deviceId,
     });
 
+    console.log(
+      `[push] Registered device ${device.id} for profile ${profile.id} (${platform})`
+    );
+
     return NextResponse.json({
       success: true,
       message: "Push device registered.",
