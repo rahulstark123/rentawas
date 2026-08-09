@@ -1,13 +1,29 @@
-import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { createUserProfileAndWorkspace } from "@/app/actions/authActions";
 
-// GET /auth/callback - OAuth Callback Handler for Supabase Google Sign-In
-export async function GET(request: Request) {
+type CookieToSet = {
+  name: string;
+  value: string;
+  options?: Parameters<NextResponse["cookies"]["set"]>[2];
+};
+
+function redirectWithCookies(origin: string, path: string, sessionCookies: CookieToSet[]) {
+  const response = NextResponse.redirect(`${origin}${path}`);
+  sessionCookies.forEach(({ name, value, options }) => {
+    response.cookies.set(name, value, options);
+  });
+  return response;
+}
+
+// GET /auth/callback — OAuth + PKCE recovery (code exchange)
+export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const roleHint = searchParams.get("role");
   const nextParam = searchParams.get("next");
+  const isRecovery = nextParam === "/reset-password";
 
   if (!code) {
     const fallbackNext =
@@ -15,18 +31,41 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}${fallbackNext}`);
   }
 
+  const cookieStore = await cookies();
+  const sessionCookies: CookieToSet[] = [];
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+            sessionCookies.push({ name, value, options });
+          });
+        },
+      },
+    }
+  );
+
   try {
-    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error || !data?.user) {
-      console.error("OAuth exchange failed:", error?.message);
-      return NextResponse.redirect(`${origin}/login?error=oauth_failed`);
+      console.error("Auth callback exchange failed:", error?.message);
+      return redirectWithCookies(
+        origin,
+        isRecovery ? "/reset-password?error=invalid_link" : "/login?error=auth_callback_failed",
+        sessionCookies
+      );
     }
 
-    // Password recovery — session only; do not run signup/workspace provisioning
-    if (nextParam === "/reset-password") {
-      return NextResponse.redirect(`${origin}/reset-password`);
+    if (isRecovery) {
+      return redirectWithCookies(origin, "/reset-password", sessionCookies);
     }
 
     const userId = data.user.id;
@@ -36,8 +75,7 @@ export async function GET(request: Request) {
       data.user.user_metadata?.fullName ||
       data.user.user_metadata?.name ||
       email.split("@")[0];
-    const role =
-      data.user.user_metadata?.role || roleHint || "owner";
+    const role = data.user.user_metadata?.role || roleHint || "owner";
 
     const result = await createUserProfileAndWorkspace({
       userId,
@@ -64,9 +102,17 @@ export async function GET(request: Request) {
       redirectUrl.searchParams.set("wid", String(result.wid));
     }
 
-    return NextResponse.redirect(redirectUrl.toString());
+    const response = NextResponse.redirect(redirectUrl.toString());
+    sessionCookies.forEach(({ name, value, options }) => {
+      response.cookies.set(name, value, options);
+    });
+    return response;
   } catch (err) {
-    console.error("OAuth Exchange Callback Error:", err);
-    return NextResponse.redirect(`${origin}/login?error=oauth_failed`);
+    console.error("Auth callback error:", err);
+    return redirectWithCookies(
+      origin,
+      isRecovery ? "/reset-password?error=invalid_link" : "/login?error=auth_callback_failed",
+      sessionCookies
+    );
   }
 }

@@ -55,7 +55,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const redirectTo = `${resolveOrigin(request)}/reset-password`;
+    const origin = resolveOrigin(request);
+    const redirectTo = `${origin}/auth/callback?next=/reset-password`;
 
     const { data, error } = await admin.auth.admin.generateLink({
       type: "recovery",
@@ -81,7 +82,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const resetLink = data.properties?.action_link;
+    const hashedToken = data.properties?.hashed_token;
+    const resetLink = hashedToken
+      ? `${origin}/auth/confirm?token_hash=${encodeURIComponent(hashedToken)}&type=recovery`
+      : data.properties?.action_link;
 
     if (!resetLink || typeof resetLink !== "string") {
       console.error("[forgot-password] generateLink returned no action_link");

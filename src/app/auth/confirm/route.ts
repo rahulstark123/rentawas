@@ -1,39 +1,56 @@
-import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 
 // GET /auth/confirm?token_hash=...&type=recovery
-// Handles Supabase email links (password recovery, email confirm) with token_hash
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
   const next = searchParams.get("next");
 
   if (!tokenHash || !type) {
-    return NextResponse.redirect(`${origin}/login?error=auth_confirm_failed`);
+    return NextResponse.redirect(`${origin}/reset-password?error=invalid_link`);
   }
 
-  try {
-    const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.auth.verifyOtp({
-      type,
-      token_hash: tokenHash,
-    });
+  const destination =
+    type === "recovery"
+      ? "/reset-password"
+      : next && next.startsWith("/")
+        ? next
+        : "/dashboard";
 
-    if (error) {
-      console.error("Auth confirm verifyOtp error:", error.message);
-      return NextResponse.redirect(`${origin}/login?error=auth_confirm_failed`);
+  const cookieStore = await cookies();
+  let response = NextResponse.redirect(`${origin}${destination}`);
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+            response.cookies.set(name, value, options);
+          });
+        },
+      },
     }
+  );
 
-    if (type === "recovery") {
-      return NextResponse.redirect(`${origin}/reset-password`);
-    }
+  const { error } = await supabase.auth.verifyOtp({
+    type,
+    token_hash: tokenHash,
+  });
 
-    const destination = next && next.startsWith("/") ? next : "/dashboard";
-    return NextResponse.redirect(`${origin}${destination}`);
-  } catch (err) {
-    console.error("Auth confirm error:", err);
-    return NextResponse.redirect(`${origin}/login?error=auth_confirm_failed`);
+  if (error) {
+    console.error("Auth confirm verifyOtp error:", error.message);
+    return NextResponse.redirect(`${origin}/reset-password?error=invalid_link`);
   }
+
+  return response;
 }

@@ -29,6 +29,15 @@ function ResetPasswordForm() {
   useEffect(() => {
     let isMounted = true;
 
+    const errorParam = searchParams.get("error");
+    if (errorParam === "invalid_link") {
+      setRecoveryState("invalid");
+      setErrorMessage(
+        "This reset link is invalid or has expired. Request a new link from the login page."
+      );
+      return;
+    }
+
     const resolveSession = async () => {
       const code = searchParams.get("code");
       const tokenHash = searchParams.get("token_hash");
@@ -95,7 +104,7 @@ function ResetPasswordForm() {
           "This reset link is invalid or has expired. Request a new link from the login page."
         );
       }
-    }, 1500);
+    }, 5000);
 
     return () => {
       isMounted = false;
