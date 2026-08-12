@@ -8,26 +8,39 @@ import {
   Users, 
   Wrench, 
   Plus, 
-  ArrowRight, 
   FileText, 
   CreditCard, 
   TrendingUp, 
   X, 
   Command,
-  Sparkles,
-  ChevronRight
+  ChevronRight,
+  DoorOpen,
+  DollarSign,
+  Megaphone,
+  Settings,
+  Loader2
 } from "lucide-react";
+import { ensureActiveWorkspaceId, getActiveWorkspaceId } from "@/lib/workspace";
 
 interface GlobalSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+export type SearchCategory =
+  | "Quick Actions"
+  | "Properties"
+  | "Units & Rooms"
+  | "Tenants"
+  | "Maintenance"
+  | "Expenses & Outlay"
+  | "Building Notices";
+
 interface SearchResultItem {
   id: string;
   title: string;
   subtitle: string;
-  category: "Properties" | "Tenants" | "Maintenance" | "Quick Actions";
+  category: SearchCategory;
   href?: string;
   action?: () => void;
   icon: any;
@@ -41,32 +54,48 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
   const [properties, setProperties] = useState<any[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [notices, setNotices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch real database records when modal is opened
+  // Fetch real database records with active workspace scope when modal is opened
   useEffect(() => {
     if (!isOpen) return;
 
     const fetchSearchData = async () => {
       setLoading(true);
       try {
-        const [propRes, tenantRes, maintRes] = await Promise.all([
-          fetch("/api/properties"),
-          fetch("/api/tenants"),
-          fetch("/api/maintenance"),
+        const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+        const widQuery = activeWid ? `?wid=${activeWid}` : "";
+        const widWorkspaceQuery = activeWid ? `?workspaceId=${activeWid}` : "";
+
+        const [propRes, tenantRes, maintRes, expRes, noticeRes] = await Promise.all([
+          fetch(`/api/properties${widQuery}`),
+          fetch(`/api/tenants${widQuery}`),
+          fetch(`/api/maintenance${widWorkspaceQuery}`),
+          fetch(`/api/expenses${widQuery}`),
+          fetch(`/api/announcements${widWorkspaceQuery}`),
         ]);
 
         if (propRes.ok) {
           const propJson = await propRes.json();
-          setProperties(propJson.data || []);
+          setProperties(Array.isArray(propJson.data) ? propJson.data : []);
         }
         if (tenantRes.ok) {
           const tenantJson = await tenantRes.json();
-          setTenants(tenantJson.data || []);
+          setTenants(Array.isArray(tenantJson.data) ? tenantJson.data : []);
         }
         if (maintRes.ok) {
           const maintJson = await maintRes.json();
-          setTickets(maintJson.data || []);
+          setTickets(Array.isArray(maintJson.data) ? maintJson.data : []);
+        }
+        if (expRes.ok) {
+          const expJson = await expRes.json();
+          setExpenses(Array.isArray(expJson.data) ? expJson.data : []);
+        }
+        if (noticeRes.ok) {
+          const noticeJson = await noticeRes.json();
+          setNotices(Array.isArray(noticeJson.data) ? noticeJson.data : []);
         }
       } catch (err) {
         console.warn("Could not fetch global search data:", err);
@@ -100,6 +129,23 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
 
   if (!isOpen) return null;
 
+  // Extract units from properties
+  const unitsList: { id: string; unitNumber: string; propertyId: string; propertyName: string; floorNumber?: number; isOccupied?: boolean }[] = [];
+  properties.forEach((p) => {
+    if (Array.isArray(p.units)) {
+      p.units.forEach((u: any) => {
+        unitsList.push({
+          id: u.id || `${p.id}-${u.unitNumber}`,
+          unitNumber: u.unitNumber || u.number || "Unit",
+          propertyId: p.id,
+          propertyName: p.name,
+          floorNumber: u.floorNumber,
+          isOccupied: u.isOccupied,
+        });
+      });
+    }
+  });
+
   // Real Database Search Index
   const searchIndex: SearchResultItem[] = [
     // 1. Quick Actions
@@ -113,14 +159,22 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
     },
     {
       id: "qa2",
-      title: "Rent Payments Ledger",
+      title: "Expenses & Vendor Outlays",
+      subtitle: "Record operational bills, contractor payouts, and receipts",
+      category: "Quick Actions",
+      href: "/dashboard/expenses",
+      icon: DollarSign,
+    },
+    {
+      id: "qa3",
+      title: "Rent Payments & Receipts Ledger",
       subtitle: "View collections, bank disbursals, and payment transactions",
       category: "Quick Actions",
       href: "/dashboard/payments",
       icon: CreditCard,
     },
     {
-      id: "qa3",
+      id: "qa4",
       title: "Template Documents Architect",
       subtitle: "Draft legally binding lease agreements & notices",
       category: "Quick Actions",
@@ -128,12 +182,28 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
       icon: FileText,
     },
     {
-      id: "qa4",
+      id: "qa5",
       title: "Portfolio Yield & Financial Analytics",
       subtitle: "View Net Operating Income and real-time telemetry",
       category: "Quick Actions",
       href: "/dashboard/analytics",
       icon: TrendingUp,
+    },
+    {
+      id: "qa6",
+      title: "Building Notices & Announcements",
+      subtitle: "Broadcast announcements and notices to residents",
+      category: "Quick Actions",
+      href: "/dashboard/notices",
+      icon: Megaphone,
+    },
+    {
+      id: "qa7",
+      title: "Workspace & Gateway Settings",
+      subtitle: "Manage payment gateways, branding, and workspace team",
+      category: "Quick Actions",
+      href: "/dashboard/settings",
+      icon: Settings,
     },
 
     // 2. Real Database Properties
@@ -146,24 +216,56 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
       icon: Building2,
     })),
 
-    // 3. Real Database Tenants
+    // 3. Real Database Units & Rooms
+    ...unitsList.map((u) => ({
+      id: `unit-${u.id}`,
+      title: u.unitNumber,
+      subtitle: `${u.propertyName} • Floor ${u.floorNumber || 1} • ${u.isOccupied ? "Occupied" : "Vacant"}`,
+      category: "Units & Rooms" as const,
+      href: `/dashboard/properties/${u.propertyId}/unit/${encodeURIComponent(u.unitNumber)}`,
+      icon: DoorOpen,
+    })),
+
+    // 4. Real Database Tenants
     ...tenants.map((t) => ({
       id: `tenant-${t.id}`,
       title: t.name,
-      subtitle: `Tenant • ${t.email || t.phone || "Active Resident"}`,
+      subtitle: `${t.propertyName || "Resident"} ${t.unitNumber ? `(${t.unitNumber})` : ""} • ${t.email || t.phone || "Active Resident"}`,
       category: "Tenants" as const,
-      href: `/dashboard/tenants`,
+      href: t.propertyId && t.unitNumber
+        ? `/dashboard/properties/${t.propertyId}/unit/${encodeURIComponent(t.unitNumber)}`
+        : `/dashboard/tenants`,
       icon: Users,
     })),
 
-    // 4. Real Database Maintenance Tickets
+    // 5. Real Database Maintenance Tickets
     ...tickets.map((m) => ({
       id: `maint-${m.id}`,
-      title: `${m.ticketCode || "TCK"}: ${m.title || m.issue || "Maintenance Ticket"}`,
-      subtitle: `Status: ${m.status || "Pending"} • Priority: ${m.priority || "Normal"}`,
+      title: `${m.ticketCode || m.ticketNumber || "TCK"}: ${m.title || m.issue || "Maintenance Ticket"}`,
+      subtitle: `Status: ${m.status || "Pending"} • Priority: ${m.priority || "Normal"}${m.unitId ? ` • ${m.unitId}` : ""}`,
       category: "Maintenance" as const,
       href: `/dashboard/maintenance`,
       icon: Wrench,
+    })),
+
+    // 6. Real Database Expenses
+    ...expenses.map((e) => ({
+      id: `exp-${e.id}`,
+      title: `${e.expenseNumber || "EXP"}: ${e.title}`,
+      subtitle: `${e.category || "Expense"}${e.vendor ? ` • ${e.vendor}` : ""}${e.property?.name ? ` • ${e.property.name}` : ""}`,
+      category: "Expenses & Outlay" as const,
+      href: `/dashboard/expenses`,
+      icon: DollarSign,
+    })),
+
+    // 7. Building Announcements
+    ...notices.map((n) => ({
+      id: `notice-${n.id}`,
+      title: n.title || "Building Announcement",
+      subtitle: `Notice • ${n.category || "General"} • ${n.priority || "Normal"}`,
+      category: "Building Notices" as const,
+      href: `/dashboard/notices`,
+      icon: Megaphone,
     })),
   ];
 
@@ -177,11 +279,14 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
     );
   });
 
-  const categories: ("Quick Actions" | "Properties" | "Tenants" | "Maintenance")[] = [
+  const categories: SearchCategory[] = [
     "Quick Actions",
     "Properties",
+    "Units & Rooms",
     "Tenants",
     "Maintenance",
+    "Expenses & Outlay",
+    "Building Notices",
   ];
 
   const handleSelect = (item: SearchResultItem) => {
@@ -194,11 +299,14 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
   };
 
   return (
-    <div className="fixed inset-0 bg-black/65 backdrop-blur-xs flex items-start justify-center pt-16 sm:pt-24 p-4 z-50 animate-in fade-in duration-150">
+    <div 
+      className="fixed inset-0 bg-black/65 backdrop-blur-xs flex items-start justify-center pt-16 sm:pt-20 p-4 z-50 animate-in fade-in duration-150"
+      onClick={onClose}
+    >
       
       {/* Search Modal Dialog Card */}
       <div 
-        className="bg-white border border-slate-200/90 rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden font-sans flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-150"
+        className="bg-white border border-slate-200/90 rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden font-sans flex flex-col max-h-[82vh] animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search Header Bar */}
@@ -209,9 +317,13 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search properties, tenants, units, maintenance or quick actions..."
+            placeholder="Search properties, units (e.g. 301), tenants, maintenance, expenses..."
             className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
           />
+
+          {loading && (
+            <Loader2 className="w-4 h-4 text-[#FF6B00] animate-spin shrink-0" />
+          )}
 
           {query && (
             <button
@@ -231,8 +343,8 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
         <div className="overflow-y-auto custom-scrollbar p-3 space-y-4 flex-1">
           {filteredResults.length === 0 ? (
             <div className="p-12 text-center text-xs text-slate-400 space-y-2">
-              <p className="font-bold text-slate-700">No matching results found for "{query}"</p>
-              <p className="text-[11px]">Try searching for property names, unit numbers, or tenant names.</p>
+              <p className="font-bold text-slate-700">No matching results found for &quot;{query}&quot;</p>
+              <p className="text-[11px]">Try searching for property names, unit numbers (e.g. 301), tenant names, or maintenance tickets.</p>
             </div>
           ) : (
             categories.map((cat) => {
@@ -242,7 +354,7 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
               return (
                 <div key={cat} className="space-y-1">
                   <div className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                    {cat}
+                    {cat} ({catItems.length})
                   </div>
 
                   <div className="space-y-1">
@@ -254,21 +366,21 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
                           onClick={() => handleSelect(item)}
                           className="px-3.5 py-2.5 rounded-2xl hover:bg-orange-50/80 hover:border-orange-200 border border-transparent flex items-center justify-between group cursor-pointer transition-all"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-slate-100 group-hover:bg-[#FF6B00] text-slate-600 group-hover:text-white transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="p-2 rounded-xl bg-slate-100 group-hover:bg-[#FF6B00] text-slate-600 group-hover:text-white transition-colors shrink-0">
                               <Icon className="w-4 h-4" />
                             </div>
-                            <div>
-                              <div className="text-xs font-extrabold text-slate-900 group-hover:text-[#FF6B00] transition-colors">
+                            <div className="min-w-0">
+                              <div className="text-xs font-extrabold text-slate-900 group-hover:text-[#FF6B00] transition-colors truncate">
                                 {item.title}
                               </div>
-                              <div className="text-[11px] text-slate-500 font-medium">
+                              <div className="text-[11px] text-slate-500 font-medium truncate">
                                 {item.subtitle}
                               </div>
                             </div>
                           </div>
 
-                          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#FF6B00] group-hover:translate-x-0.5 transition-all" />
+                          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#FF6B00] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
                         </div>
                       );
                     })}

@@ -301,15 +301,10 @@ export async function POST(request: Request) {
       console.warn("Tenant auth profile creation notice:", authErr);
     }
 
-    // Compute dynamic health score based on compliance & documentation completeness
     const docList = Array.isArray(documents) ? documents : [];
-    const hasGovId = govIdUrl || docList.some((d: any) => d.docType === "Government ID" || d.type === "Passport" || d.type === "Driver's License");
-    const hasLeaseDoc = leaseDocUrl || docList.some((d: any) => d.docType === "Lease Agreement");
 
-    let computedHealthScore = 75; // Base score for new tenant
-    if (hasGovId) computedHealthScore += 10;
-    if (hasLeaseDoc) computedHealthScore += 10;
-    if (cleanPhone) computedHealthScore += 5;
+    // Default rating for new tenant is 100
+    let computedHealthScore = body.healthScore !== undefined ? Number(body.healthScore) : 100;
 
     const tenantData: any = {
       name,
@@ -386,6 +381,31 @@ export async function POST(request: Request) {
       await prisma.unit.update({
         where: { id: targetUnitId },
         data: { isOccupied: true },
+      });
+    }
+
+    // Optional: record move-in / current-period rent collection
+    let firstBill = null;
+    if (body.collectFirstRent) {
+      const amount = parseFloat(String(body.firstRentAmount ?? body.monthlyRent ?? 0)) || tenant.monthlyRent || 0;
+      const paid = body.firstRentPaid !== false;
+      const periodLabel = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+      firstBill = await prisma.bill.create({
+        data: {
+          invoiceNumber: `INV-MOVEIN-${Date.now().toString().slice(-6)}`,
+          title: `Move-in rent — ${periodLabel}`,
+          amount,
+          status: paid ? "Paid" : "Pending",
+          category: "Rent",
+          paymentMethod: body.firstRentMethod || "Recorded at move-in",
+          dueDate: new Date(),
+          paidDate: paid ? new Date() : null,
+          notes: `First period rent collected during resident onboarding.`,
+          tenantId: tenant.id,
+          unitId: targetUnitId || null,
+          propertyId: resolvedPropId,
+          workspaceId: targetWorkspaceId,
+        },
       });
     }
 

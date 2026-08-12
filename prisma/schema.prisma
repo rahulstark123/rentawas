@@ -237,7 +237,7 @@ model Tenant {
   phone         String
   leaseStart    DateTime
   leaseEnd      DateTime?
-  healthScore     Int      @default(75)
+  healthScore     Int      @default(100)
   monthlyRent     Float    @default(0)
   securityDeposit Float?   @default(0)
   rentBillingType String   @default("monthly") // kept for DB compat; app uses monthly rent only

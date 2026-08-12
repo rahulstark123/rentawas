@@ -56,6 +56,8 @@ import { getActivePaymentMethods, type ActivePaymentMethod } from "@/lib/payment
 import { invalidateMaintenance, invalidateLandlordPortfolio } from "@/lib/queryInvalidation";
 import { useUnitDetail } from "@/hooks/useUnitDetail";
 import { RENT_DUE_DAY_OPTIONS } from "@/lib/rentDueDay";
+import { generateRentPaymentReceiptHtml, triggerPrintOrDownload } from "@/lib/pdfGenerator";
+import { DEFAULT_RENT_RECEIPT_TEMPLATE, resolveSignatureForReceipt } from "@/lib/rentReceipts";
 
 export interface OccupantItem {
   id: string;
@@ -170,6 +172,8 @@ export default function RoomTelemetryFullPage() {
     isOccupied: boolean;
     propertyName?: string;
   } | null>(null);
+
+  const unitLabel = unitMeta?.unitNumber || unitId;
 
   // Active occupants list (starts empty for real database unit)
   const [occupants, setOccupants] = useState<OccupantItem[]>([]);
@@ -316,6 +320,125 @@ export default function RoomTelemetryFullPage() {
   // Calculated total combined room revenue from all active residents
   const totalRoomRent = occupants.reduce((acc, curr) => acc + curr.individualRent, 0);
 
+  // Dynamic 6-month historical revenue trend calculated based on occupant move-in dates & ledger
+  const sixMonthTrend = (() => {
+    const months: { label: string; revenue: number; isVacant: boolean }[] = [];
+    const now = new Date();
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthLabel = d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+
+      let monthlyRev = 0;
+
+      if (Array.isArray(occupants) && occupants.length > 0) {
+        occupants.forEach((occ) => {
+          let moveInDate: Date | null = null;
+          if (occ.moveIn) {
+            const parsed = new Date(occ.moveIn);
+            if (!isNaN(parsed.getTime())) {
+              moveInDate = parsed;
+            }
+          }
+          // Include occupant revenue if moved in on or before the end of this month
+          if (!moveInDate || moveInDate <= monthEnd) {
+            monthlyRev += (occ.individualRent || 0);
+          }
+        });
+      }
+
+      // Check past room history for revenue during earlier months if current occupants weren't present yet
+      if (monthlyRev === 0 && Array.isArray(roomHistory)) {
+        roomHistory.forEach((hist) => {
+          if (hist.rent) {
+            const rentVal = parseFloat(String(hist.rent).replace(/[^0-9.]/g, "")) || 0;
+            if (rentVal > 0 && hist.period) {
+              const parts = hist.period.split("–").map((p) => p.trim());
+              const histStart = parts[0] ? new Date(parts[0]) : null;
+              const histEnd = parts[1] ? new Date(parts[1]) : null;
+              if (histStart && !isNaN(histStart.getTime()) && histStart <= monthEnd) {
+                if (!histEnd || isNaN(histEnd.getTime()) || histEnd >= monthStart) {
+                  monthlyRev = Math.max(monthlyRev, rentVal);
+                }
+              }
+            }
+          }
+        });
+      }
+
+      months.push({
+        label: monthLabel,
+        revenue: monthlyRev,
+        isVacant: monthlyRev === 0,
+      });
+    }
+
+    return months;
+  })();
+
+  const maxMonthlyRevenue = Math.max(...sixMonthTrend.map((m) => m.revenue), totalRoomRent || 1);
+
+  // ---------------- HANDLER: DOWNLOAD BILL PDF RECEIPT ----------------
+  const handleDownloadBillPDF = async (b: any) => {
+    if (b.receiptUrl) {
+      window.open(b.receiptUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    try {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      let branding = DEFAULT_RENT_RECEIPT_TEMPLATE;
+      if (activeWid) {
+        try {
+          const res = await fetch(`/api/receipt-templates?workspaceId=${activeWid}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.data) branding = json.data;
+          }
+        } catch {}
+      }
+
+      let signature = null;
+      if (branding?.signatureId && activeWid) {
+        try {
+          const sigRes = await fetch(`/api/receipt-signatures?workspaceId=${activeWid}`);
+          if (sigRes.ok) {
+            const sigJson = await sigRes.json();
+            if (Array.isArray(sigJson.data)) {
+              signature = resolveSignatureForReceipt(sigJson.data, branding.signatureId);
+            }
+          }
+        } catch {}
+      }
+
+      const invNumber = b.invoiceNumber || b.inv || `RCPT-${b.id ? String(b.id).slice(-6).toUpperCase() : Date.now()}`;
+      const amountVal = Number(b.amount) || 0;
+      const html = generateRentPaymentReceiptHtml({
+        receiptNumber: invNumber,
+        date: b.paidDate || b.date || new Date().toISOString().split("T")[0],
+        tenantName: b.tenantName || b.tenant?.name || occupants[0]?.name || "Resident",
+        tenantEmail: b.tenantEmail || b.tenant?.email || occupants[0]?.email || "resident@rentawas.com",
+        propertyName: propertyData.name || "Property",
+        unitNumber: unitId,
+        title: b.title || `Rent Receipt — ${unitId}`,
+        amount: formatCurrency(amountVal),
+        rawAmount: amountVal,
+        paymentMethod: b.paymentMethod || b.method || "ACH Direct Debit",
+        paymentId: b.paymentId || b.id || invNumber,
+        status: (b.status || "PAID").toUpperCase(),
+        branding,
+        signature: signature || undefined,
+      });
+
+      triggerPrintOrDownload(html, `Rent_Receipt_${invNumber}`);
+    } catch (err) {
+      console.error("PDF download error:", err);
+      toast("Error generating PDF receipt", "error");
+    }
+  };
+
   const openAddTenantModal = () => {
     if (typeof window !== "undefined" && (window as any).checkCanAddAction) {
       if (!(window as any).checkCanAddAction("Add New Tenant Resident")) return;
@@ -388,12 +511,20 @@ export default function RoomTelemetryFullPage() {
 
   const [isSubmittingTenant, setIsSubmittingTenant] = useState(false);
 
-  const handleAddTenantSubmit = async (e: React.FormEvent) => {
+  const handleAddTenantFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key !== "Enter") return;
+    const target = e.target as HTMLElement;
+    if (target.tagName === "TEXTAREA") return;
     e.preventDefault();
     if (currentStep < 4) {
       handleNextStep();
-      return;
+    } else {
+      void handleAddTenantSubmit();
     }
+  };
+
+  const handleAddTenantSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
 
     if (isSubmittingTenant) return;
     if (!name.trim() || !email.trim()) return;
@@ -452,7 +583,7 @@ export default function RoomTelemetryFullPage() {
               : o
           )
         );
-        toast(`Updated resident ${name} in ${unitId}!`, "success");
+        toast(`Updated resident ${name} in ${unitLabel}!`, "success");
       } else {
         const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
         const res = await fetch(`/api/units/${encodeURIComponent(unitId)}/occupants`, {
@@ -511,8 +642,8 @@ export default function RoomTelemetryFullPage() {
 
         toast(
           collectFirstRent
-            ? `Added ${name} to ${unitId}. Move-in rent of ${formatCurrency(moveInAmount)} recorded.`
-            : `Added new resident ${name} to ${unitId} with rent ${formatCurrency(rentVal)}/mo!`,
+            ? `Added ${name} to ${unitLabel}. Move-in rent of ${formatCurrency(moveInAmount)} recorded.`
+            : `Added new resident ${name} to ${unitLabel} with rent ${formatCurrency(rentVal)}/mo!`,
           "success"
         );
         invalidateLandlordPortfolio(queryClient, { propId });
@@ -606,7 +737,7 @@ export default function RoomTelemetryFullPage() {
     }
 
     setOccupants((prev) => prev.filter((o) => o.id !== removeOccupantTarget.id));
-    toast(`Resident ${removeOccupantTarget.name} removed from ${unitId}. Incident archived in database.`, "warning");
+    toast(`Resident ${removeOccupantTarget.name} removed from ${unitLabel}. Incident archived in database.`, "warning");
     setShowRemoveModal(false);
     setRemoveOccupantTarget(null);
     invalidateLandlordPortfolio(queryClient, { propId });
@@ -733,7 +864,7 @@ export default function RoomTelemetryFullPage() {
             </button>
 
             <button
-              onClick={() => toast(`Generating full room report for ${unitId}...`, "info")}
+              onClick={() => toast(`Generating full room report for ${unitLabel}...`, "info")}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all uppercase tracking-wider cursor-pointer"
             >
               <Download className="w-4 h-4 text-orange-400" />
@@ -931,16 +1062,28 @@ export default function RoomTelemetryFullPage() {
                     <p className="text-[11px] text-slate-500">Revenue trend chart will accumulate once a resident is assigned.</p>
                   </div>
                 ) : (
-                  ["Feb 2026", "Mar 2026", "Apr 2026", "May 2026", "Jun 2026", "Jul 2026"].map((month) => (
-                    <div key={month} className="flex items-center gap-3 text-xs">
-                      <span className="w-16 font-bold text-slate-600 shrink-0">{month}</span>
-                      <div className="flex-1 flex items-center gap-1.5">
-                        <div className="h-4 bg-[#FF6B00] rounded text-[10px] font-extrabold text-white flex items-center justify-end px-2" style={{ width: "100%" }}>
-                          {formatCurrency(totalRoomRent)}
+                  sixMonthTrend.map((m) => {
+                    const widthPct = m.revenue > 0 ? Math.max(15, Math.round((m.revenue / maxMonthlyRevenue) * 100)) : 0;
+                    return (
+                      <div key={m.label} className="flex items-center gap-3 text-xs">
+                        <span className="w-16 font-bold text-slate-600 shrink-0">{m.label}</span>
+                        <div className="flex-1 flex items-center gap-1.5">
+                          {m.revenue > 0 ? (
+                            <div
+                              className="h-4 bg-[#FF6B00] rounded text-[10px] font-extrabold text-white flex items-center justify-end px-2 transition-all duration-500"
+                              style={{ width: `${widthPct}%` }}
+                            >
+                              {formatCurrency(m.revenue)}
+                            </div>
+                          ) : (
+                            <div className="h-4 bg-slate-100 border border-slate-200/80 rounded text-[10px] font-semibold text-slate-400 flex items-center px-2 w-full">
+                              Vacant ({formatCurrency(0)})
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -955,8 +1098,8 @@ export default function RoomTelemetryFullPage() {
             </div>
             <p className="text-xs text-slate-300 leading-relaxed font-medium">
               {occupants.length > 0
-                ? `${unitId} is generating ${formatCurrency(totalRoomRent)}/mo with active residents. Maintenance costs remain low, making this unit a strong performer.`
-                : `${unitId} is currently vacant and ready for new resident onboarding. Assign a tenant to start tracking monthly revenue and maintenance outlays.`}
+                ? `${unitLabel} is generating ${formatCurrency(totalRoomRent)}/mo with active residents. Maintenance costs remain low, making this unit a strong performer.`
+                : `${unitLabel} is currently vacant and ready for new resident onboarding. Assign a tenant to start tracking monthly revenue and maintenance outlays.`}
             </p>
           </div>
 
@@ -1527,7 +1670,7 @@ export default function RoomTelemetryFullPage() {
                 <div>
                   <span className="block text-sm">
                     {isAll
-                      ? `Combined Ledger for ${unitId}`
+                      ? `Combined Ledger for ${unitLabel}`
                       : `${currentBillOccupant?.name}'s Individual Ledger`}
                   </span>
                   <span className="text-xs text-emerald-700 font-medium">
@@ -1542,20 +1685,6 @@ export default function RoomTelemetryFullPage() {
                 <span className="font-black text-sm bg-emerald-100 px-3.5 py-1 rounded-xl text-emerald-900">
                   {currencySymbol}0.00 Outstanding
                 </span>
-                
-                <button
-                  onClick={() => {
-                    setInvoiceTitle(`Monthly Rent Invoice (${unitId})`);
-                    setInvoiceAmount(totalRoomRent ? totalRoomRent.toString() : "1000");
-                    setInvoiceCategory("Rent");
-                    setInvoiceTenantId(selectedBillOccupantId === "all" ? "" : selectedBillOccupantId);
-                    setShowIssueInvoiceModal(true);
-                  }}
-                  className="px-4 py-2 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer uppercase tracking-wider whitespace-nowrap"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Issue Invoice</span>
-                </button>
               </div>
             </div>
 
@@ -1565,7 +1694,7 @@ export default function RoomTelemetryFullPage() {
                 <div className="p-8 bg-white border border-slate-200/90 rounded-2xl text-center space-y-2">
                   <Receipt className="w-8 h-8 text-slate-300 mx-auto" />
                   <p className="font-bold text-slate-800 text-sm">No payment ledger or invoice receipts recorded for unit {unitId}.</p>
-                  <p className="text-xs text-slate-500">Click &quot;+ Issue Invoice&quot; to issue a new bill or invoice for this unit in database.</p>
+                  <p className="text-xs text-slate-500">Payment receipts and invoices for this unit will automatically appear here.</p>
                 </div>
               ) : (
                 displayInvoices.map((b: any) => (
@@ -1585,7 +1714,7 @@ export default function RoomTelemetryFullPage() {
                     </div>
 
                     <button
-                      onClick={() => toast(`Downloading PDF invoice receipt for ${b.invoiceNumber || b.inv}...`, "success")}
+                      onClick={() => void handleDownloadBillPDF(b)}
                       className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
                     >
                       <Download className="w-4 h-4" />
@@ -1604,7 +1733,8 @@ export default function RoomTelemetryFullPage() {
       {showAddTenantModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
           <form
-            onSubmit={handleAddTenantSubmit}
+            onSubmit={(e) => e.preventDefault()}
+            onKeyDown={handleAddTenantFormKeyDown}
             className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto"
           >
             {/* Header */}
@@ -1615,7 +1745,7 @@ export default function RoomTelemetryFullPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-extrabold text-slate-900 leading-none">
-                    {editingOccupantId ? "Edit Resident Profile & Rent" : `Add Resident to ${unitId}`}
+                    {editingOccupantId ? "Edit Resident Profile & Rent" : `Add Resident to ${unitLabel}`}
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
                     {propertyData.name} • {unitId}
@@ -2135,7 +2265,8 @@ export default function RoomTelemetryFullPage() {
                 </button>
               ) : (
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => void handleAddTenantSubmit()}
                   disabled={isSubmittingTenant}
                   className="px-5 py-2 text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] disabled:opacity-50 rounded-xl shadow-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
                 >

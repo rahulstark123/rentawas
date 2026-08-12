@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 
     const primaryTenant = unit?.tenants?.[0] || null;
     const tenantName = primaryTenant?.name || (isOccupied ? "Resident Assigned" : "Vacant (No Resident)");
-    const tenantHealth = primaryTenant?.healthScore || 75;
+    const tenantHealth = primaryTenant?.healthScore ?? 100;
     const leaseStartStr = primaryTenant?.leaseStart ? new Date(primaryTenant.leaseStart).toISOString().split("T")[0] : "N/A";
     const leaseEndStr = primaryTenant?.leaseEnd ? new Date(primaryTenant.leaseEnd).toISOString().split("T")[0] : "N/A";
 

@@ -51,6 +51,8 @@ import { getActiveWorkspaceId, ensureActiveWorkspaceId } from "@/lib/workspace";
 import { invalidateLandlordPortfolio } from "@/lib/queryInvalidation";
 import CountryPhoneInput, { ALL_COUNTRIES, Country, getDefaultCountryByLocale } from "@/components/ui/CountryPhoneInput";
 import { uploadFile, validateFile } from "@/lib/upload";
+import { getActivePaymentMethods, type ActivePaymentMethod } from "@/lib/paymentMethods";
+import Link from "next/link";
 
 export interface TenantItem {
   id: string;
@@ -83,13 +85,7 @@ function mapApiTenantToItem(t: any): TenantItem {
       ? t.unit
       : `${t.unit?.property?.name || t.property?.name || "Property"} - ${t.unit?.unitNumber || "Unit 101"}`;
 
-  let score = typeof t.healthScore === "number" ? t.healthScore : 80;
-  if (!t.healthScore || t.healthScore === 95) {
-    score = 75;
-    if (t.govIdUrl) score += 10;
-    if (t.leaseDocUrl) score += 10;
-    if (t.phone && String(t.phone).trim()) score += 5;
-  }
+  let score = typeof t.healthScore === "number" ? t.healthScore : 100;
 
   const status: TenantItem["status"] =
     t.status === "Excellent" || t.status === "Good" || t.status === "Fair" || t.status === "Attention"
@@ -158,7 +154,7 @@ export default function TenantsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTenantId, setEditingTenantId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
   // API Metadata lists for cascading selects
   const [propertyUnits, setPropertyUnits] = useState<any[]>([]);
@@ -177,6 +173,42 @@ export default function TenantsPage() {
   const [leaseStart, setLeaseStart] = useState("");
   const [monthlyRent, setMonthlyRent] = useState("");
   const [securityDeposit, setSecurityDeposit] = useState("");
+  const [rentDueDay, setRentDueDay] = useState("1");
+
+  // Step 4 Move-in Rent Payment Collection state
+  const [collectFirstRent, setCollectFirstRent] = useState(true);
+  const [firstRentAmount, setFirstRentAmount] = useState("");
+  const [firstRentMethod, setFirstRentMethod] = useState("");
+  const [firstRentPaid, setFirstRentPaid] = useState(true);
+  const [activePaymentMethods, setActivePaymentMethods] = useState<ActivePaymentMethod[]>([]);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
+
+  const loadActivePaymentMethods = async () => {
+    setLoadingPaymentMethods(true);
+    try {
+      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!activeWid) {
+        setActivePaymentMethods([]);
+        setFirstRentMethod("");
+        return;
+      }
+      const res = await fetch(`/api/workspace?wid=${encodeURIComponent(String(activeWid))}`);
+      if (!res.ok) {
+        setActivePaymentMethods([]);
+        setFirstRentMethod("");
+        return;
+      }
+      const json = await res.json();
+      const methods = getActivePaymentMethods(json.data);
+      setActivePaymentMethods(methods);
+      setFirstRentMethod(methods[0]?.name || "");
+    } catch {
+      setActivePaymentMethods([]);
+      setFirstRentMethod("");
+    } finally {
+      setLoadingPaymentMethods(false);
+    }
+  };
 
   // Multiple Uploaded Media State (Government ID & Lease Documents)
   interface UploadedMediaDoc {
@@ -473,11 +505,16 @@ export default function TenantsPage() {
     setLeaseFile(null);
     setLeaseUrl(null);
     setLeaseDocs([]);
+    setCollectFirstRent(true);
+    setFirstRentAmount("");
+    setFirstRentMethod("");
+    setFirstRentPaid(true);
     setCurrentStep(1);
 
-    // Refresh properties list
+    // Refresh properties list & load payment methods
     fetchPropertiesList();
     setShowAddModal(true);
+    void loadActivePaymentMethods();
   };
 
   // Open modal for EDITING tenant
@@ -493,7 +530,12 @@ export default function TenantsPage() {
     setLeaseStart(t.leaseStart || new Date().toISOString().split("T")[0]);
     setGovIdUrl(t.govIdUrl || null);
     setLeaseUrl(t.leaseDocUrl || null);
+    setCollectFirstRent(false);
+    setFirstRentAmount(t.monthlyRent ? t.monthlyRent.toString() : "");
+    setFirstRentMethod("");
+    setFirstRentPaid(true);
     setCurrentStep(1);
+    void loadActivePaymentMethods();
 
     // Ensure properties list is loaded
     let currentProps = propertiesList;
@@ -736,19 +778,30 @@ export default function TenantsPage() {
         toast("Please select an assigned Room / Unit.", "info");
         return;
       }
+      if (!firstRentAmount) setFirstRentAmount(monthlyRent);
       setCurrentStep(2);
     } else if (currentStep === 2) {
       setCurrentStep(3);
+    } else if (currentStep === 3) {
+      setCurrentStep(4);
+    }
+  };
+
+  const handleAddTenantFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key !== "Enter") return;
+    const target = e.target as HTMLElement;
+    if (target.tagName === "TEXTAREA") return;
+    e.preventDefault();
+    if (currentStep < 4) {
+      handleNextStep();
+    } else {
+      void handleAddTenantSubmit();
     }
   };
 
   // Submit Add / Edit Tenant Form
-  const handleAddTenantSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentStep < 3) {
-      handleNextStep();
-      return;
-    }
+  const handleAddTenantSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!name.trim() || !email.trim()) return;
 
     setIsSubmitting(true);
@@ -790,6 +843,11 @@ export default function TenantsPage() {
         govIdUrl: govIdDocs[0]?.url || govIdUrl || null,
         leaseDocUrl: leaseDocs[0]?.url || leaseUrl || null,
         documents: documentsPayload,
+        rentDueDay: Math.min(28, Math.max(1, parseInt(rentDueDay, 10) || 1)),
+        collectFirstRent,
+        firstRentAmount: Number(firstRentAmount || monthlyRent) || Number(monthlyRent) || 0,
+        firstRentMethod,
+        firstRentPaid,
         workspaceId: Number((await ensureActiveWorkspaceId()) || getActiveWorkspaceId() || 0) || undefined,
       };
 
@@ -1568,7 +1626,8 @@ export default function TenantsPage() {
       {showAddModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
           <form
-            onSubmit={handleAddTenantSubmit}
+            onSubmit={(e) => e.preventDefault()}
+            onKeyDown={handleAddTenantFormKeyDown}
             className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -1581,7 +1640,7 @@ export default function TenantsPage() {
                     {editingTenantId ? "Edit Resident Profile" : "Onboard New Resident"}
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    Step {currentStep} of 3 — {currentStep === 1 ? "Basic & Location Details" : currentStep === 2 ? "Government ID Upload" : "Lease Docs & Compliance"}
+                    Step {currentStep} of 4 — {currentStep === 1 ? "Basic & Location Details" : currentStep === 2 ? "Government ID Upload" : currentStep === 3 ? "Lease Docs & Compliance" : "Move-in Pay & Collection"}
                   </p>
                 </div>
               </div>
@@ -1596,15 +1655,30 @@ export default function TenantsPage() {
             </div>
 
             {/* Stepper Indicator */}
-            <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100 text-center text-xs font-bold">
-              <div className={`py-1.5 rounded-xl transition-all ${currentStep === 1 ? "bg-[#FF6B00] text-white" : "bg-slate-100 text-slate-600"}`}>
+            <div className="grid grid-cols-4 gap-1.5 pb-2 border-b border-slate-100 text-center text-[10px] sm:text-xs font-bold">
+              <div
+                onClick={() => setCurrentStep(1)}
+                className={`py-1.5 rounded-xl cursor-pointer transition-all ${currentStep === 1 ? "bg-[#FF6B00] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+              >
                 1. Basic Info
               </div>
-              <div className={`py-1.5 rounded-xl transition-all ${currentStep === 2 ? "bg-[#FF6B00] text-white" : "bg-slate-100 text-slate-600"}`}>
-                2. Govt ID (R2)
+              <div
+                onClick={() => setCurrentStep(2)}
+                className={`py-1.5 rounded-xl cursor-pointer transition-all ${currentStep === 2 ? "bg-[#FF6B00] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+              >
+                2. Govt ID
               </div>
-              <div className={`py-1.5 rounded-xl transition-all ${currentStep === 3 ? "bg-[#FF6B00] text-white" : "bg-slate-100 text-slate-600"}`}>
+              <div
+                onClick={() => setCurrentStep(3)}
+                className={`py-1.5 rounded-xl cursor-pointer transition-all ${currentStep === 3 ? "bg-[#FF6B00] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+              >
                 3. Lease Contract
+              </div>
+              <div
+                onClick={() => setCurrentStep(4)}
+                className={`py-1.5 rounded-xl cursor-pointer transition-all ${currentStep === 4 ? "bg-[#FF6B00] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+              >
+                4. Move-in Pay
               </div>
             </div>
 
@@ -2070,12 +2144,120 @@ export default function TenantsPage() {
               </div>
             )}
 
+            {/* Step 4: Move-in Rent Payment Collection */}
+            {currentStep === 4 && (
+              <div className="space-y-4 text-xs">
+                <div className="p-4 bg-orange-50/60 border border-orange-200/80 rounded-2xl space-y-3">
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={collectFirstRent}
+                      onChange={(e) => setCollectFirstRent(e.target.checked)}
+                      className="w-4.5 h-4.5 rounded border-slate-300 text-[#FF6B00] focus:ring-[#FF6B00] cursor-pointer"
+                    />
+                    <div>
+                      <span className="font-extrabold text-slate-900 block text-xs">
+                        Collect / Record Move-in Rent Payment
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-normal block">
+                        Record initial rent collection when onboarding this resident.
+                      </span>
+                    </div>
+                  </label>
+
+                  {collectFirstRent && (
+                    <div className="space-y-3 pt-2 border-t border-orange-200/60">
+                      <div>
+                        <label className="block font-bold text-slate-700 uppercase mb-1">
+                          Move-in Rent Amount ({currencySymbol}) *
+                        </label>
+                        <div className="relative">
+                          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-700 font-extrabold text-sm pointer-events-none">
+                            {currencySymbol}
+                          </div>
+                          <input
+                            type="number"
+                            min={0}
+                            value={firstRentAmount || monthlyRent}
+                            onChange={(e) => setFirstRentAmount(e.target.value)}
+                            placeholder={monthlyRent || "0"}
+                            className="w-full pl-8 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                          />
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Adjust for prorated move-in amounts if needed. Defaults to full monthly rent.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-700 uppercase mb-1">
+                          Payment Method (from Integrations)
+                        </label>
+                        {loadingPaymentMethods ? (
+                          <div className="flex items-center gap-2 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Loading active channels…
+                          </div>
+                        ) : activePaymentMethods.length === 0 ? (
+                          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 space-y-1.5">
+                            <p className="font-bold">No payment integrations are active</p>
+                            <p>
+                              Connect a channel in{" "}
+                              <Link href="/dashboard/settings" className="underline font-bold text-[#FF6B00]">
+                                Settings → Integrations
+                              </Link>{" "}
+                              to record move-in payment here.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <select
+                              value={firstRentMethod}
+                              onChange={(e) => setFirstRentMethod(e.target.value)}
+                              className="w-full appearance-none pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                            >
+                              {activePaymentMethods.map((m) => (
+                                <option key={m.id} value={m.name}>
+                                  {m.name}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          </div>
+                        )}
+                      </div>
+
+                      <label className="flex items-center gap-2.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={firstRentPaid}
+                          onChange={(e) => setFirstRentPaid(e.target.checked)}
+                          className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        />
+                        <span className="font-bold text-slate-800">Mark as paid now</span>
+                      </label>
+                    </div>
+                  )}
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                    <p>
+                      <strong className="text-slate-900">Resident:</strong> {name || "—"}
+                    </p>
+                    <p>
+                      <strong className="text-slate-900">Monthly rent:</strong>{" "}
+                      {monthlyRent ? formatCurrency(Number(monthlyRent)) : "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Wizard Modal Footer */}
             <div className="flex items-center justify-between pt-4 border-t border-slate-100">
               {currentStep > 1 ? (
                 <button
                   type="button"
-                  onClick={() => setCurrentStep((prev) => (prev - 1) as any)}
+                  onClick={() => setCurrentStep((prev) => (prev - 1) as 1 | 2 | 3 | 4)}
                   className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer flex items-center gap-1.5"
                 >
                   <ArrowLeft className="w-4 h-4" />
@@ -2091,7 +2273,7 @@ export default function TenantsPage() {
                 </button>
               )}
 
-              {currentStep < 3 ? (
+              {currentStep < 4 ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -2106,7 +2288,8 @@ export default function TenantsPage() {
                 </button>
               ) : (
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => void handleAddTenantSubmit()}
                   disabled={isSubmitting}
                   className="px-6 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-md uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
                 >

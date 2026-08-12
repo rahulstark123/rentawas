@@ -464,31 +464,43 @@ export default function PropertyFloorPlanPage() {
 
   const [isSubmittingTenant, setIsSubmittingTenant] = useState(false);
 
-  const handleAssignTenantSubmit = async (e: React.FormEvent) => {
+  const handleAssignTenantNextStep = () => {
+    if (currentTenantStep === 1) {
+      if (!tenantName.trim() || !tenantEmail.trim()) {
+        toast("Please fill in Resident Name and Email before proceeding.", "info");
+        return;
+      }
+      if (!tenantPassword.trim()) {
+        toast("Please set a Tenant Portal password before proceeding.", "info");
+        return;
+      }
+      if (!tenantMonthlyRent || Number(tenantMonthlyRent) <= 0) {
+        toast("Please enter a valid monthly rent amount.", "info");
+        return;
+      }
+      if (!firstRentAmount) setFirstRentAmount(tenantMonthlyRent);
+      setCurrentTenantStep(2);
+    } else if (currentTenantStep === 2) {
+      setCurrentTenantStep(3);
+    } else if (currentTenantStep === 3) {
+      setCurrentTenantStep(4);
+    }
+  };
+
+  const handleAssignTenantFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key !== "Enter") return;
+    const target = e.target as HTMLElement;
+    if (target.tagName === "TEXTAREA") return;
     e.preventDefault();
     if (currentTenantStep < 4) {
-      if (currentTenantStep === 1) {
-        if (!tenantName.trim() || !tenantEmail.trim()) {
-          toast("Please fill in Resident Name and Email before proceeding.", "info");
-          return;
-        }
-        if (!tenantPassword.trim()) {
-          toast("Please set a Tenant Portal password before proceeding.", "info");
-          return;
-        }
-        if (!tenantMonthlyRent || Number(tenantMonthlyRent) <= 0) {
-          toast("Please enter a valid monthly rent amount.", "info");
-          return;
-        }
-        if (!firstRentAmount) setFirstRentAmount(tenantMonthlyRent);
-        setCurrentTenantStep(2);
-      } else if (currentTenantStep === 2) {
-        setCurrentTenantStep(3);
-      } else if (currentTenantStep === 3) {
-        setCurrentTenantStep(4);
-      }
-      return;
+      handleAssignTenantNextStep();
+    } else {
+      void handleAssignTenantSubmit();
     }
+  };
+
+  const handleAssignTenantSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
 
     if (isSubmittingTenant) return;
     if (!tenantName.trim() || !assigningUnitNo) return;
@@ -2132,7 +2144,8 @@ export default function PropertyFloorPlanPage() {
       {assigningUnitNo && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 font-sans">
           <form
-            onSubmit={handleAssignTenantSubmit}
+            onSubmit={(e) => e.preventDefault()}
+            onKeyDown={handleAssignTenantFormKeyDown}
             className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto"
           >
             {/* Header */}
@@ -2520,24 +2533,7 @@ export default function PropertyFloorPlanPage() {
               {currentTenantStep < 4 ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    if (currentTenantStep === 1) {
-                      if (!tenantName.trim() || !tenantEmail.trim()) {
-                        toast("Please fill in Resident Name and Email before proceeding.", "info");
-                        return;
-                      }
-                      if (!tenantMonthlyRent || Number(tenantMonthlyRent) <= 0) {
-                        toast("Please enter a valid monthly rent amount.", "info");
-                        return;
-                      }
-                      if (!firstRentAmount) setFirstRentAmount(tenantMonthlyRent);
-                      setCurrentTenantStep(2);
-                    } else if (currentTenantStep === 2) {
-                      setCurrentTenantStep(3);
-                    } else if (currentTenantStep === 3) {
-                      setCurrentTenantStep(4);
-                    }
-                  }}
+                  onClick={handleAssignTenantNextStep}
                   className="px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-bold text-xs rounded-xl shadow-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <span>Next Step</span>
@@ -2545,7 +2541,8 @@ export default function PropertyFloorPlanPage() {
                 </button>
               ) : (
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => void handleAssignTenantSubmit()}
                   disabled={isSubmittingTenant}
                   className="px-6 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
                 >

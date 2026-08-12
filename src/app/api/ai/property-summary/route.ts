@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     const monthlyRevenue = allActiveTenants.reduce((sum, t) => sum + (t.monthlyRent || 0), 0);
     const avgHealthScore =
       allActiveTenants.length > 0
-        ? Math.round(allActiveTenants.reduce((s, t) => s + (t.healthScore || 75), 0) / allActiveTenants.length)
+        ? Math.round(allActiveTenants.reduce((s, t) => s + (t.healthScore ?? 100), 0) / allActiveTenants.length)
         : 0;
 
     const openTickets = property.maintenances;
