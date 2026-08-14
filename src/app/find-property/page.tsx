@@ -184,7 +184,7 @@ export default function FindPropertyPage() {
           size: item.sqft
             ? `${Number(item.sqft).toLocaleString("en-IN")} sq. ft.`
             : item.availableFrom || "Ready to Move",
-          rating: item.avgRating ? Number(item.avgRating).toFixed(1) : 4.8,
+          rating: item.reviewCount && item.reviewCount > 0 && item.avgRating ? Number(item.avgRating).toFixed(1) : 0,
           reviewsCount: item.reviewCount !== undefined ? item.reviewCount : 0,
           image: item.mainImage || item.image || item.coverImage || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80",
           tags: Array.isArray(item.amenities) && item.amenities.length > 0

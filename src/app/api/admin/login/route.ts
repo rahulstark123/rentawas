@@ -6,8 +6,8 @@ export async function POST(req: Request) {
     const { email, password, passcode } = body;
 
     const ADMIN_EMAIL = "admin@anshapps.com";
-    const ADMIN_PASSWORD = "Simran@Khushi@123";
-    const ADMIN_PASSCODE = "30042026";
+    const ADMIN_PASSWORD = "RentAwas@123@HMS";
+    const ADMIN_PASSCODE = "1012026";
 
     if (
       email?.trim() !== ADMIN_EMAIL ||

@@ -38,6 +38,8 @@ export async function GET(request: Request) {
           units: {
             select: {
               id: true,
+              unitNumber: true,
+              floorNumber: true,
               isOccupied: true,
               rent: true,
             },
@@ -76,6 +78,7 @@ export async function GET(request: Request) {
         tag: prop.category,
         workspaceId: prop.workspaceId,
         createdAt: prop.createdAt,
+        units: prop.units,
       };
     });
 

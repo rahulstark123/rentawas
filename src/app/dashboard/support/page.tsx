@@ -311,8 +311,8 @@ export default function LandlordSupportPage() {
       a: "Yes. All legal templates comply with local housing acts and include ISO 27001 cryptographic hashes for legal verification.",
     },
     {
-      q: "What happens if a tenant misses their rent due date?",
-      a: "RentAwas automatically sends scheduled WhatsApp & SMS reminders 5 days before, on the due date, and 3 days after. On the 6th day past due, an automated late fee can be applied to the tenant invoice.",
+      q: "What is the policy for subscription cancellation and refunds?",
+      a: "Subscriptions can be canceled at any time from Workspace Settings > Billing. However, per our Terms of Service, subscription fees are non-refundable — no partial, full, or pro-rated refunds are issued upon cancellation. Your subscription features will remain active until your paid period ends.",
     },
   ];
 

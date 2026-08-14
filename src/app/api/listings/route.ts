@@ -124,6 +124,7 @@ export async function POST(request: Request) {
       sqft,
       rent,
       deposit,
+      pricingTiers = [],
       tenantTypes = [],
       availableFrom,
       maintenance,
@@ -147,9 +148,9 @@ export async function POST(request: Request) {
       isLive = true,
     } = body;
 
-    if (!title || !propertyType || !rent) {
+    if (!title || !propertyType) {
       return NextResponse.json(
-        { error: "Missing mandatory fields: title, propertyType, rent are required." },
+        { error: "Missing mandatory fields: title and propertyType are required." },
         { status: 400 }
       );
     }
@@ -165,7 +166,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const parsedRent = typeof rent === "number" ? rent : parseFloat(String(rent).replace(/[^0-9.]/g, "")) || 0;
+    const parsedRent = rent != null && rent !== "" ? (typeof rent === "number" ? rent : parseFloat(String(rent).replace(/[^0-9.]/g, "")) || 0) : 0;
     const parsedDeposit = deposit ? (typeof deposit === "number" ? deposit : parseFloat(String(deposit).replace(/[^0-9.]/g, ""))) : null;
     const parsedSqft = sqft != null && sqft !== "" ? (typeof sqft === "number" ? sqft : parseFloat(String(sqft).replace(/[^0-9.]/g, ""))) : null;
 
@@ -186,6 +187,7 @@ export async function POST(request: Request) {
         sqft: parsedSqft,
         rent: parsedRent,
         deposit: parsedDeposit,
+        pricingTiers: Array.isArray(pricingTiers) && pricingTiers.length > 0 ? pricingTiers : undefined,
         tenantTypes,
         availableFrom,
         maintenance,

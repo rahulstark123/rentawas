@@ -1063,6 +1063,11 @@ export default function LandlordBillingPage() {
               </span>
             </div>
 
+            {/* Non-Refundable Subscription Disclaimer */}
+            <div className="text-[10px] text-slate-500 font-medium text-center bg-slate-50 border border-slate-200/80 rounded-xl p-2">
+              By proceeding, you agree to RentAwas <a href="/terms" target="_blank" className="text-[#FF6B00] underline font-bold">Terms of Service</a>. Subscriptions can be canceled at any time, but paid subscription fees are <strong>strictly non-refundable</strong>.
+            </div>
+
             {/* Modal Actions */}
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
               <button

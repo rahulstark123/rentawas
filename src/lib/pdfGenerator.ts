@@ -104,7 +104,7 @@ export function generateTaxInvoiceHtml(record: BillingDocRecord): string {
       <h1 class="company-name">ANSH Apps</h1>
       <div class="product-name">Rent Awas</div>
       <div style="font-size: 13px; font-weight: 700; color: #64748B; margin-top: 1px; margin-bottom: 4px;">rentawas.com</div>
-      <div class="udyam-no">Udyam Registration No: UDYAM-BR-23-0127857</div>
+      <div class="udyam-no">Udyam Registration Number: UDYAM-BR-23-0127857 | GSTIN: 10DIUPR1358M1ZP</div>
       <div class="support-info">Support: support.rentawas@anshapps.com | Website: rentawas.com</div>
       <div class="support-info" style="margin-top: 2px;">For billing support contact support.rentawas@anshapps.com</div>
     </div>
@@ -182,7 +182,10 @@ export function generateTaxInvoiceHtml(record: BillingDocRecord): string {
 
     <!-- ANSH Apps Footer -->
     <div class="company-footer">
-      <div class="footer-tagline">ANSH Apps — <span>software that solves everyday problems</span></div>
+      <div class="footer-tagline">A product of ANSH Apps</div>
+      <div style="font-size: 11px; color: #475569; margin: 4px 0 6px 0; font-weight: 600;">
+        Udyam Registration Number: UDYAM-BR-23-0127857 &nbsp;|&nbsp; GSTIN: 10DIUPR1358M1ZP
+      </div>
       <p class="footer-text">This is a computer-generated tax invoice for your subscription payment. Thank you for choosing ANSH Apps.</p>
     </div>
   </div>
@@ -250,7 +253,7 @@ export function generatePaymentReceiptHtml(record: BillingDocRecord): string {
       <h1 class="company-name">ANSH Apps</h1>
       <div class="product-name">Rent Awas</div>
       <div style="font-size: 13px; font-weight: 700; color: #64748B; margin-top: 1px; margin-bottom: 4px;">rentawas.com</div>
-      <div class="udyam-no">Udyam Registration No: UDYAM-BR-23-0127857</div>
+      <div class="udyam-no">Udyam Registration Number: UDYAM-BR-23-0127857 | GSTIN: 10DIUPR1358M1ZP</div>
       <div class="support-info">Support: support.rentawas@anshapps.com | Website: rentawas.com</div>
       <div class="support-info" style="margin-top: 2px;">For billing support contact support.rentawas@anshapps.com</div>
     </div>
@@ -299,7 +302,10 @@ export function generatePaymentReceiptHtml(record: BillingDocRecord): string {
 
     <!-- ANSH Apps Footer -->
     <div class="company-footer">
-      <div class="footer-tagline">ANSH Apps — <span>software that solves everyday problems</span></div>
+      <div class="footer-tagline">A product of ANSH Apps</div>
+      <div style="font-size: 11px; color: #475569; margin: 4px 0 6px 0; font-weight: 600;">
+        Udyam Registration Number: UDYAM-BR-23-0127857 &nbsp;|&nbsp; GSTIN: 10DIUPR1358M1ZP
+      </div>
       <p class="footer-text">This is a computer-generated receipt for your subscription payment. Thank you for choosing ANSH Apps.</p>
     </div>
   </div>
@@ -612,7 +618,10 @@ export function generateRentPaymentReceiptHtml(record: RentPaymentReceiptRecord)
     </div>
 
     <div class="footer-row">
-      <div class="rentawas-credit">Created with RentAwas</div>
+      <div class="rentawas-credit">
+        <div style="font-weight:700;">A product of ANSH Apps</div>
+        <div style="font-size:9px; color:#64748b; margin-top:2px;">Udyam Registration Number: UDYAM-BR-23-0127857 | GSTIN: 10DIUPR1358M1ZP</div>
+      </div>
       <div>
         <div class="footer">${footerNote}</div>
       </div>

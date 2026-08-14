@@ -96,7 +96,7 @@ Analyze this property listing performance and provide actionable marketing & pri
 
 ## Tenant Engagement Record
 - Total Inquiries Received: ${totalInquiries}
-- Total Ratings/Reviews: ${totalReviews} (Avg Rating: ${listing.avgRating || "4.8"})
+- Total Ratings/Reviews: ${totalReviews} (Avg Rating: ${totalReviews > 0 && listing.avgRating ? listing.avgRating : "No reviews yet"})
 
 ---
 

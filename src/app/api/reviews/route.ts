@@ -21,11 +21,11 @@ export async function GET(request: Request) {
         success: true,
         data: [],
         stats: {
-          avgRating: 4.8,
+          avgRating: 0,
           totalReviews: 0,
-          qualityAvg: 4.8,
-          localityAvg: 4.9,
-          landlordAvg: 4.7,
+          qualityAvg: 0,
+          localityAvg: 0,
+          landlordAvg: 0,
         },
       });
     }

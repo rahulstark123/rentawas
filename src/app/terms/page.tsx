@@ -132,10 +132,13 @@ export default function TermsOfServicePage() {
           <div className="space-y-3">
             <div className="p-4 rounded-2xl bg-orange-50/60 border border-orange-200 text-xs sm:text-sm space-y-1.5">
               <h4 className="font-extrabold text-[#FF6B00]">A. Property Owners &amp; Landlords</h4>
-              <ul className="list-disc pl-5 space-y-1 text-slate-700 font-medium">
+              <ul className="list-disc pl-5 space-y-1.5 text-slate-700 font-medium">
                 <li>Must provide accurate property details, rental pricing, security deposit terms, and valid bank account payout credentials.</li>
                 <li>Responsible for obtaining all statutory permits, building approvals, and local tenancy permissions required for letting properties.</li>
                 <li>Solely responsible for local tax compliance (e.g. GST, rental income reporting, municipal property tax filings).</li>
+                <li className="text-amber-950 font-bold">
+                  <strong>Platform Limitation &amp; Tenant Liability:</strong> RentAwas operates strictly as an online property listing and SaaS management technology platform. Creating an account or listing a property on RentAwas does <strong>not</strong> transfer any landlord liability to RentAwas. RentAwas is <strong>not responsible or liable</strong> for tenant screening, tenant conduct, physical property damage, tenant disputes, non-payment, illegal activities, or any incidents involving tenants or occupants. The property owner / landlord is solely and fully responsible for tenant background checks, identity verification (police verification), tenancy contracts, property maintenance, safety, and managing all tenant interactions.
+                </li>
               </ul>
             </div>
 
@@ -185,6 +188,13 @@ export default function TermsOfServicePage() {
               <strong className="text-slate-900 font-bold block mb-1">C. Rent Refunds &amp; Payment Disputes:</strong>
               <p className="text-slate-600">
                 Rent payment refunds or security deposit disputes must be resolved directly between the Landlord and Tenant. RentAwas does not hold custody of rent funds and cannot unilaterally reverse completed bank transfers unless required by payment gateway fraud protocols.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900">
+              <strong className="text-amber-950 font-bold block mb-1">D. Subscription Cancellation &amp; Non-Refundable Policy:</strong>
+              <p className="text-amber-900 text-xs sm:text-sm">
+                Users may cancel their workspace subscription at any time. However, <strong>all subscription cancellations are strictly non-refundable</strong>. Once a subscription fee is charged (monthly or annual), no full, partial, or pro-rated refunds will be issued for remaining days or unused quota. Upon cancellation, your workspace features will remain active until the end of your current paid billing period.
               </p>
             </div>
           </div>
@@ -305,6 +315,16 @@ export default function TermsOfServicePage() {
             </p>
             <p className="text-xs text-slate-300 leading-relaxed border-t border-slate-800 pt-2">
               In no event shall ANSH Apps or its officers be liable for indirect, incidental, punitive, or consequential damages arising from tenancy disputes, rent payment delays, or property maintenance issues.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 space-y-2">
+            <div className="flex items-center gap-2 font-bold text-amber-950 text-xs sm:text-sm">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Property Listing &amp; Tenant Liability Limitation</span>
+            </div>
+            <p className="text-xs text-amber-900 leading-relaxed font-medium">
+              RentAwas is strictly a software technology provider for property listing, tenant management, and rent tracking. <strong>RentAwas is not a property manager, real estate agency, background investigator, or tenant guarantor.</strong> RentAwas assumes no liability or responsibility for tenant misconduct, physical damages, illegal activities, personal injuries, accidents, or financial defaults occurring on listed properties. The property owner / landlord remains 100% solely responsible for conducting background checks, identity verification (police verification), lease enforcement, property safety, and managing all tenant matters.
             </p>
           </div>
         </div>

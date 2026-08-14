@@ -97,17 +97,36 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   currencyRef.current = currency;
 
   const updateCurrency = useCallback((newCurrency: string) => {
-    if (!newCurrency || currencyRef.current === newCurrency) return;
-    currencyRef.current = newCurrency;
-    setCurrencyState(newCurrency);
-    setDetails(extractCurrencyDetails(newCurrency));
+    if (!newCurrency) return;
+
+    let clean = newCurrency.trim();
+    if (clean.includes("INR") || clean.includes("₹")) clean = "INR (₹)";
+    else if (clean.includes("EUR") || clean.includes("€")) clean = "EUR (€)";
+    else if (clean.includes("GBP") || clean.includes("£")) clean = "GBP (£)";
+    else if (clean.includes("AED")) clean = "AED";
+    else if (clean.includes("SGD")) clean = "SGD ($)";
+    else if (clean.includes("USD") || clean.includes("$")) clean = "USD ($)";
+
+    if (currencyRef.current === clean) return;
+
+    currencyRef.current = clean;
+    setCurrencyState(clean);
+    setDetails(extractCurrencyDetails(clean));
     if (typeof window !== "undefined") {
-      localStorage.setItem("rentawas_workspace_currency", newCurrency);
+      localStorage.setItem("rentawas_workspace_currency", clean);
     }
   }, []);
 
   const refetchCurrency = useCallback(async () => {
     try {
+      if (typeof window !== "undefined") {
+        const cached = localStorage.getItem("rentawas_workspace_currency");
+        if (cached) {
+          updateCurrency(cached);
+          return;
+        }
+      }
+
       const { ensureActiveWorkspaceId, getActiveWorkspaceId } = await import("@/lib/workspace");
       const wid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
       if (!wid) return;
@@ -129,9 +148,12 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       const cached = localStorage.getItem("rentawas_workspace_currency");
       if (cached) {
         updateCurrency(cached);
+      } else {
+        refetchCurrency();
       }
+    } else {
+      refetchCurrency();
     }
-    refetchCurrency();
   }, [updateCurrency, refetchCurrency]);
 
   const formatCurrency = (amount: number | string) => {

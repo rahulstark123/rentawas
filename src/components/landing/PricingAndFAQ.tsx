@@ -14,7 +14,9 @@ import {
   TrendingUp,
   Search,
   MessageSquareHeart,
-  Handshake
+  Handshake,
+  ShieldCheck,
+  CheckCircle2
 } from "lucide-react";
 import { 
   IconCloudStorage, 
@@ -81,8 +83,8 @@ export default function PricingAndFAQ() {
       a: "Absolutely. You can switch between Free, Starter, Pro, and Pro Plus at any time directly from your workspace billing settings with pro-rated billing.",
     },
     {
-      q: "Can I cancel anytime?",
-      a: "Yes, there are no lock-in contracts or commitments. You can cancel your subscription whenever you wish with one click.",
+      q: "Can I cancel anytime and am I eligible for a refund?",
+      a: "Yes, you can cancel your subscription at any time with one click from your billing dashboard. Please note that subscription cancellations are non-refundable — no full or pro-rated refunds will be issued for remaining time or unused quota, but your subscription will remain active until the end of your current billing period.",
     },
     {
       q: "Do you charge per property?",
@@ -479,6 +481,88 @@ export default function PricingAndFAQ() {
                 </div>
               );
             })}
+          </div>
+        </motion.div>
+
+        {/* Trust & Compliance / ANSH Apps Section (Right Above FAQ) */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="max-w-5xl mx-auto mb-20 bg-[#0B132B] rounded-3xl p-8 sm:p-10 border border-slate-800 shadow-2xl relative overflow-hidden group font-sans"
+        >
+          {/* Ambient Glow Effects */}
+          <div className="absolute -top-24 -left-24 w-64 h-64 bg-[#FF6B00]/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
+            {/* Left Content Column */}
+            <div className="lg:col-span-7 space-y-4 text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-slate-300 text-[11px] font-black uppercase tracking-wider shadow-2xs">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#FF6B00]" />
+                <span>Trust &amp; Compliance</span>
+              </div>
+
+              <div>
+                <h3 
+                  className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight flex flex-wrap items-baseline gap-x-3 gap-y-1"
+                  style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
+                >
+                  <span>
+                    <span className="text-white">Rent</span>
+                    <span className="text-[#FF6B00]">Awas</span>
+                  </span>
+                  <span className="text-slate-400 font-light text-2xl sm:text-3xl md:text-4xl">—</span>
+                  <span className="text-slate-100 font-semibold text-2xl sm:text-3xl md:text-4xl">
+                    A product of ANSH Apps
+                  </span>
+                </h3>
+                <p className="text-base sm:text-lg font-bold text-[#FF6B00] mt-1">
+                  Software that solves everyday problems.
+                </p>
+              </div>
+
+              <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-xl">
+                <strong className="text-white">RentAwas</strong> is a proud product of <strong className="text-white">ANSH Apps</strong> — a Government of India MSME-registered software company building modern products across industries for businesses and people worldwide.
+              </p>
+            </div>
+
+            {/* Right Cards Column */}
+            <div className="lg:col-span-5 space-y-3.5 text-left">
+              {/* Card 1: MSME */}
+              <div className="p-4 sm:p-4.5 bg-[#141A26] border border-slate-800/90 rounded-2xl flex items-center gap-3.5 hover:border-emerald-500/40 transition-all shadow-md group/card">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover/card:scale-105 transition-transform">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-extrabold text-white tracking-tight">MSME Registered Enterprise</h4>
+                  <p className="text-xs text-slate-400 font-medium">Government of India Udyam Registered</p>
+                </div>
+              </div>
+
+              {/* Card 2: Udyam No */}
+              <div className="p-4 sm:p-4.5 bg-[#141A26] border border-slate-800/90 rounded-2xl flex items-center gap-3.5 hover:border-blue-500/40 transition-all shadow-md group/card">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover/card:scale-105 transition-transform">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">UDYAM REGISTRATION NUMBER</span>
+                  <span className="text-sm sm:text-base font-extrabold font-mono text-white tracking-wider">UDYAM-BR-23-0127857</span>
+                </div>
+              </div>
+
+              {/* Card 3: GSTIN */}
+              <div className="p-4 sm:p-4.5 bg-[#141A26] border border-slate-800/90 rounded-2xl flex items-center gap-3.5 hover:border-cyan-500/40 transition-all shadow-md group/card">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 group-hover/card:scale-105 transition-transform">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">GSTIN</span>
+                  <span className="text-sm sm:text-base font-extrabold font-mono text-white tracking-wider">10DIUPR1358M1ZP</span>
+                </div>
+              </div>
+            </div>
           </div>
         </motion.div>
 

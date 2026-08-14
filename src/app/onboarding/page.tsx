@@ -389,8 +389,11 @@ function OnboardingForm() {
       </main>
 
       {/* Footer */}
-      <footer className="text-center text-xs text-slate-500 py-4 z-10 font-sans">
-        RentAwas Onboarding Engine &copy; {new Date().getFullYear()} ANSH Apps. All rights reserved.
+      <footer className="text-center text-xs text-slate-500 py-6 z-10 font-sans space-y-1">
+        <p>RentAwas Onboarding Engine &copy; {new Date().getFullYear()} A product of ANSH Apps. All rights reserved.</p>
+        <p className="text-[11px] text-slate-400 font-medium">
+          Udyam Registration Number: <span className="font-mono text-slate-300">UDYAM-BR-23-0127857</span> &nbsp;|&nbsp; GSTIN: <span className="font-mono text-slate-300">10DIUPR1358M1ZP</span>
+        </p>
       </footer>
 
     </div>

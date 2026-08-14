@@ -125,6 +125,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={`${cormorant.variable} ${inter.variable} antialiased`}>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
         <JsonLd />
       </head>
       <body suppressHydrationWarning className="min-h-screen bg-[#F9FAFB] text-slate-950 font-sans selection:bg-orange-100 selection:text-orange-600">

@@ -104,15 +104,18 @@ export async function POST(request: Request) {
     let compressionPct = 0;
 
     if (IMAGE_MIME_TYPES.includes(mimeType)) {
-      // Compress image using Sharp → WebP
+      // Smart resolution scaling: 800px max width for profile avatars & payment QR codes, 2048px for general property images
+      const targetMaxWidth = (context === "profile" || context === "payment-qr") ? 800 : 2048;
+
+      // Compress image using Sharp → High-efficiency WebP format
       uploadBuffer = await sharp(rawBuffer)
-        .rotate() // auto-orient from EXIF
+        .rotate() // auto-orient EXIF orientation
         .resize({
-          width: 2048,
+          width: targetMaxWidth,
           withoutEnlargement: true,
           fit: "inside",
         })
-        .webp({ quality: 82, effort: 4 })
+        .webp({ quality: 80, effort: 4 })
         .toBuffer();
 
       uploadContentType = "image/webp";

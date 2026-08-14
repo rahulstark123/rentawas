@@ -30,14 +30,28 @@ export default function Footer() {
               streamline maintenance, and maximize yield with precision.
             </p>
 
-            <div className="mt-5 space-y-2 text-xs font-sans text-slate-300 font-medium">
-              <div className="flex items-center gap-2.5">
+            <div className="mt-5 space-y-3 text-xs font-sans text-slate-300">
+              <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2 max-w-sm">
+                <p className="text-white font-bold text-xs">A product of ANSH Apps</p>
+                <div className="text-[11px] text-slate-300 space-y-1 font-medium">
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Udyam Registration Number</span>
+                    <span className="font-mono text-slate-200 font-semibold">UDYAM-BR-23-0127857</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">GSTIN</span>
+                    <span className="font-mono text-slate-200 font-semibold">10DIUPR1358M1ZP</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 pt-1 font-medium">
                 <Mail className="w-4 h-4 text-[#FF6B00] shrink-0" />
                 <a href="mailto:hello.rentawas@anshapps.com" className="hover:text-[#FF6B00] transition-colors font-mono">
                   hello.rentawas@anshapps.com
                 </a>
               </div>
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 font-medium">
                 <Phone className="w-4 h-4 text-[#FF6B00] shrink-0" />
                 <a href="tel:+919625727372" className="hover:text-[#FF6B00] transition-colors font-mono">
                   +91 96257 27372
@@ -115,8 +129,13 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4 font-sans">
-          <p>© {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.</p>
+        <div className="pt-8 flex flex-col md:flex-row items-center justify-between text-xs text-slate-400 gap-4 font-sans">
+          <div className="space-y-1 text-center md:text-left">
+            <p>© {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.</p>
+            <p className="text-[11px] text-slate-400 font-medium">
+              Udyam Registration Number: <span className="font-mono text-slate-300">UDYAM-BR-23-0127857</span> &nbsp;|&nbsp; GSTIN: <span className="font-mono text-slate-300">10DIUPR1358M1ZP</span>
+            </p>
+          </div>
           <p className="flex items-center gap-1.5 font-medium">
             <span>Engineered for high-performance operations.</span>
             <span className="text-slate-600">•</span>

@@ -29,7 +29,9 @@ function LoginForm() {
   const redirectParam = searchParams.get("redirect");
   const resetParam = searchParams.get("reset");
 
-  const [role, setRole] = useState<"owner" | "tenant">(roleParam === "tenant" ? "tenant" : "owner");
+  const [role, setRole] = useState<"owner" | "tenant" | "expert">(
+    roleParam === "expert" ? "expert" : roleParam === "tenant" ? "tenant" : "owner"
+  );
   const [emailInput, setEmailInput] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -41,6 +43,9 @@ function LoginForm() {
 
   const getTargetRedirect = (sessionRole?: string | null) => {
     if (redirectParam) return redirectParam;
+    if (sessionRole === "expert" || role === "expert" || roleParam === "expert") {
+      return "/expert/dashboard";
+    }
     const isTenant =
       sessionRole === "tenant" || role === "tenant" || roleParam === "tenant";
     return isTenant ? "/tenant/dashboard" : "/dashboard";
@@ -52,13 +57,68 @@ function LoginForm() {
     setErrorMessage(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: emailInput.trim(),
-        password,
-      });
+      const rawInput = emailInput.trim();
+      const isPhoneInput = !rawInput.includes("@") && /^\+?\d[\d\s-]*$/.test(rawInput);
+
+      let data: any = null;
+      let error: any = null;
+
+      if (isPhoneInput) {
+        const rawPhoneDigits = rawInput.replace(/\D/g, "");
+
+        // Attempt 1: Raw phone digits e.g. 9876543210
+        const res1 = await supabase.auth.signInWithPassword({
+          phone: rawPhoneDigits,
+          password,
+        });
+
+        if (!res1.error && res1.data?.user) {
+          data = res1.data;
+        } else {
+          // Attempt 2: E.164 formatted phone e.g. +919876543210
+          const res2 = await supabase.auth.signInWithPassword({
+            phone: rawInput.startsWith("+") ? rawInput.replace(/\s+/g, "") : `+91${rawPhoneDigits}`,
+            password,
+          });
+
+          if (!res2.error && res2.data?.user) {
+            data = res2.data;
+          } else {
+            // Attempt 3: Look up associated email from DB using phone number
+            try {
+              const lookupRes = await fetch("/api/auth/resolve-phone", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ identifier: rawInput }),
+              });
+              const lookupJson = await lookupRes.json();
+
+              if (lookupJson?.success && lookupJson?.email) {
+                const res3 = await supabase.auth.signInWithPassword({
+                  email: lookupJson.email,
+                  password,
+                });
+                data = res3.data;
+                error = res3.error;
+              } else {
+                error = res1.error || res2.error || { message: "Invalid phone number or password." };
+              }
+            } catch {
+              error = res1.error || res2.error || { message: "Invalid phone number or password." };
+            }
+          }
+        }
+      } else {
+        const res = await supabase.auth.signInWithPassword({
+          email: rawInput,
+          password,
+        });
+        data = res.data;
+        error = res.error;
+      }
 
       if (error) {
-        setErrorMessage(error.message || "Invalid login credentials. Please check your email and password.");
+        setErrorMessage(error.message || "Invalid login credentials. Please check your phone/email and password.");
         setIsLoading(false);
         return;
       }
@@ -262,31 +322,44 @@ function LoginForm() {
             </div>
 
             {/* Role Switcher */}
-            <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-xl mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-xl mb-6">
               <button
                 type="button"
                 onClick={() => setRole("owner")}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   role === "owner"
                     ? "bg-white text-[#0B132B] shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                <Building2 className={`w-4 h-4 ${role === "owner" ? "text-[#FF6B00]" : ""}`} />
+                <Building2 className={`w-3.5 h-3.5 ${role === "owner" ? "text-[#FF6B00]" : ""}`} />
                 <span>Landlord / Owner</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setRole("tenant")}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   role === "tenant"
                     ? "bg-white text-[#0B132B] shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                <User className={`w-4 h-4 ${role === "tenant" ? "text-purple-600" : ""}`} />
-                <span>Tenant / Normal User</span>
+                <User className={`w-3.5 h-3.5 ${role === "tenant" ? "text-purple-600" : ""}`} />
+                <span>Tenant / User</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRole("expert")}
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  role === "expert"
+                    ? "bg-white text-[#0B132B] shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${role === "expert" ? "text-emerald-600" : ""}`} />
+                <span>RentAwas Expert</span>
               </button>
             </div>
 
@@ -321,25 +394,35 @@ function LoginForm() {
 
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Email Input */}
+              {/* Email / Phone Input */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Email Address
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Email Address or Phone Number
+                  </label>
+                  <span className="text-[11px] text-[#FF6B00] font-bold">
+                    📱 Phone or ✉️ Email
+                  </span>
+                </div>
+
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <Mail className="w-4 h-4" />
                   </div>
                   <input
-                    type="email"
+                    type="text"
                     required
-                    autoComplete="email"
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder={role === "owner" ? "owner@property.com" : "tenant@rentawas.com"}
+                    placeholder="Enter your Phone Number or Email..."
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00] transition-all"
                   />
                 </div>
+
+                <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-medium">
+                  <span>💡</span>
+                  <span>Mini Note: You can log in using either your Phone Number (without country code) or Email Address with your password.</span>
+                </p>
               </div>
 
               {/* Password Input */}
@@ -392,7 +475,13 @@ function LoginForm() {
                   <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <>
-                    <span>Sign In to Mission Control</span>
+                    <span>
+                      {role === "expert"
+                        ? "Sign In to Expert Portal"
+                        : role === "tenant"
+                        ? "Sign In to Tenant Portal"
+                        : "Sign In to Mission Control"}
+                    </span>
                     <Sparkles className="w-4 h-4 text-orange-200" />
                   </>
                 )}
@@ -433,20 +522,38 @@ function LoginForm() {
             </div>
 
             {/* Footer Sign Up Link */}
-            <p className="text-center text-xs text-slate-500 mt-6 font-normal">
-              Don&apos;t have an account yet?{" "}
-              <Link href="/signup" className="font-bold text-[#FF6B00] hover:underline">
-                Create an Account
-              </Link>
-            </p>
+            {role === "expert" ? (
+              <div className="mt-6 text-center space-y-2.5">
+                <p className="text-xs text-slate-500 font-medium">
+                  Looking to register as a verified service professional?
+                </p>
+                <Link
+                  href="/signup?role=expert"
+                  className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-emerald-200" />
+                  <span>Want to Join RentAwas Expert? Click Here</span>
+                </Link>
+              </div>
+            ) : (
+              <p className="text-center text-xs text-slate-500 mt-6 font-normal">
+                Don&apos;t have an account yet?{" "}
+                <Link href={`/signup?role=${role}`} className="font-bold text-[#FF6B00] hover:underline">
+                  Create an Account
+                </Link>
+              </p>
+            )}
 
           </div>
         </div>
       </main>
 
       {/* Page Footer */}
-      <footer className="py-4 text-center text-xs text-slate-400 z-10">
-        &copy; {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.
+      <footer className="py-6 text-center text-xs text-slate-400 z-10 space-y-1">
+        <p>&copy; {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.</p>
+        <p className="text-[11px] text-slate-500 font-medium">
+          Udyam Registration Number: <span className="font-mono text-slate-400">UDYAM-BR-23-0127857</span> &nbsp;|&nbsp; GSTIN: <span className="font-mono text-slate-400">10DIUPR1358M1ZP</span>
+        </p>
       </footer>
     </div>
   );

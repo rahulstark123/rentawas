@@ -50,6 +50,8 @@ import {
   Send,
   Loader2,
   Heart,
+  BarChart3,
+  History,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import LogoutAnimation from "@/components/LogoutAnimation";
@@ -59,6 +61,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
 import GlobalSearchModal from "@/components/ui/GlobalSearchModal";
 import ListPropertyModal from "@/components/ui/ListPropertyModal";
+import ListingAnalyticsView from "@/components/dashboard/ListingAnalyticsView";
 import PaywallModal from "@/components/ui/PaywallModal";
 import { checkPlanQuota, canAccessMessages, MESSAGES_UPGRADE_MESSAGE } from "@/lib/planLimits";
 import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal";
@@ -161,13 +164,14 @@ export default function DashboardLayout({
   // View Mode Switcher: Manage View (Operations) vs Listing View  // Mode Switcher & Listing State
   const [dashboardViewMode, setDashboardViewMode] = useState<"manage" | "listing">("manage");
   const [showListingModal, setShowListingModal] = useState(false);
-  const [listingSubTab, setListingSubTab] = useState<"inquiries" | "myListings" | "addNew">("inquiries");
+  const [listingSubTab, setListingSubTab] = useState<"inquiries" | "analytics" | "myListings" | "addNew">("inquiries");
   const [showAddPropertyWizard, setShowAddPropertyWizard] = useState(false);
   const [editingListingItem, setEditingListingItem] = useState<any | null>(null);
 
   // Landlord Listings (Fetched dynamically from /api/listings)
   const [myListings, setMyListings] = useState<any[]>([]);
   const [isLoadingListings, setIsLoadingListings] = useState(false);
+  const [activeWid, setActiveWid] = useState<number | null>(null);
 
   // Published Listings Pagination State (Max 8 items per page)
   const [listingsPage, setListingsPage] = useState(1);
@@ -182,12 +186,13 @@ export default function DashboardLayout({
     setIsLoadingListings(true);
     try {
       const { ensureActiveWorkspaceId, getActiveWorkspaceId } = await import("@/lib/workspace");
-      const activeWid = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
-      if (!activeWid) {
+      const widVal = (await ensureActiveWorkspaceId()) || getActiveWorkspaceId();
+      if (!widVal) {
         setMyListings([]);
         return;
       }
-      const res = await fetch(`/api/listings?wid=${encodeURIComponent(activeWid)}&limit=100`);
+      setActiveWid(typeof widVal === "number" ? widVal : parseInt(String(widVal), 10));
+      const res = await fetch(`/api/listings?wid=${encodeURIComponent(widVal)}&limit=100`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setMyListings(json.data);
@@ -578,7 +583,7 @@ export default function DashboardLayout({
     { id: "maintenance", name: "Maintenance", href: "/dashboard/maintenance", icon: Wrench },
     { id: "announcements", name: "Announcements", href: "/dashboard/announcements", icon: Megaphone },
     { id: "expenses", name: "Property Expenses", href: "/dashboard/expenses", icon: Receipt },
-    { id: "experts", name: "RentAwas Experts", href: "/dashboard/experts", icon: Sparkles, badge: "SOON" },
+    { id: "experts", name: "RentAwas Experts", href: "/dashboard/experts", icon: Sparkles, badge: "NEW" },
     { id: "settings", name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
     { id: "billing", name: "Plans & Billing", href: "/dashboard/billing", icon: CreditCard, badge: "PRO" },
     { id: "ai", name: "RentAwas AI", href: "/dashboard/ai", icon: Bot, badge: "AI" },
@@ -587,6 +592,7 @@ export default function DashboardLayout({
 
   const listingNavItems = [
     { id: "inquiries", name: "Tenant Inquiries & Leads", subTab: "inquiries", icon: Users, badge: "FREE" },
+    { id: "analytics", name: "Listing Traffic & Analytics", subTab: "analytics", icon: BarChart3, badge: "LIVE" },
     { id: "myListings", name: "My Published Listings", subTab: "myListings", icon: Building2 },
     { id: "publicSite", name: "Public Marketplace", href: "/find-property", external: true, icon: Search },
     { id: "settings", name: "Workspace Settings", href: "/dashboard/settings", icon: Settings },
@@ -1064,98 +1070,160 @@ export default function DashboardLayout({
             <div className="space-y-6 font-sans animate-in fade-in duration-200">
               
               {/* Header Banner */}
-              <div className="bg-[#0B132B] p-6 sm:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="relative z-10 space-y-2">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF6B00]/20 border border-[#FF6B00]/40 text-[#FF6B00] text-xs font-extrabold uppercase tracking-wider">
-                    <Building2 className="w-4 h-4" />
-                    <span>Landlord Free Listing & Marketplace Hub</span>
+              {listingSubTab !== "analytics" && (
+                <div className="bg-[#0B132B] p-6 sm:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="relative z-10 space-y-2">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF6B00]/20 border border-[#FF6B00]/40 text-[#FF6B00] text-xs font-extrabold uppercase tracking-wider">
+                      <Building2 className="w-4 h-4" />
+                      <span>Landlord Free Listing & Marketplace Hub</span>
+                    </div>
+                    <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+                      Property Listings & Tenant Inquiries
+                    </h1>
+                    <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                      List vacant properties for 100% free with zero brokerage. See who contacted or selected your properties, manage inquiries, and confirm bookings.
+                    </p>
                   </div>
-                  <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-                    Property Listings & Tenant Inquiries
-                  </h1>
-                  <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-                    List vacant properties for 100% free with zero brokerage. See who contacted or selected your properties, manage inquiries, and confirm bookings.
-                  </p>
-                </div>
 
-                <div className="relative z-10 flex items-center gap-3 shrink-0">
-                  <Link
-                    href="/dashboard/wishlist"
-                    className="px-4 py-3 bg-red-500/20 hover:bg-red-500/30 border border-red-400/40 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 uppercase tracking-wider"
-                  >
-                    <Heart className="w-4 h-4 fill-red-300 text-red-300" />
-                    <span>My Wishlist</span>
-                  </Link>
-                  <button
-                    onClick={() => setShowAddPropertyWizard(true)}
-                    className="px-5 py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>List New Property Free</span>
-                  </button>
-                  <Link
-                    href="/find-property"
-                    target="_blank"
-                    className="px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 uppercase tracking-wider"
-                  >
-                    <span>Public Marketplace</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </Link>
+                  <div className="relative z-10 flex items-center gap-3 shrink-0">
+                    <Link
+                      href="/dashboard/wishlist"
+                      className="px-4 py-3 bg-red-500/20 hover:bg-red-500/30 border border-red-400/40 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 uppercase tracking-wider"
+                    >
+                      <Heart className="w-4 h-4 fill-red-300 text-red-300" />
+                      <span>My Wishlist</span>
+                    </Link>
+                    <button
+                      onClick={() => setShowAddPropertyWizard(true)}
+                      className="px-5 py-3 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>List New Property Free</span>
+                    </button>
+                    <Link
+                      href="/find-property"
+                      target="_blank"
+                      className="px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 uppercase tracking-wider"
+                    >
+                      <span>Public Marketplace</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* 4 KPI Summary Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
-                  <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
-                    <span>Published Listings</span>
-                    <Building2 className="w-4 h-4 text-[#FF6B00]" />
+              {listingSubTab !== "analytics" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                      <span>Published Listings</span>
+                      <Building2 className="w-4 h-4 text-[#FF6B00]" />
+                    </div>
+                    <div className="text-2xl font-extrabold text-slate-900">
+                      {myListings.filter((l) => l.isLive !== false && l.status !== "Draft").length} Active
+                    </div>
+                    <p className="text-[11px] font-bold text-emerald-600">✓ 100% Free • Zero Brokerage</p>
                   </div>
-                  <div className="text-2xl font-extrabold text-slate-900">
-                    {myListings.filter((l) => l.isLive !== false && l.status !== "Draft").length} Active
+
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                      <span>Tenant Inquiries</span>
+                      <Users className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <div className="text-2xl font-extrabold text-slate-900">{tenantLeads.length} Leads</div>
+                    <p className="text-[11px] font-bold text-slate-500">Direct Landlord Contact Requests</p>
                   </div>
-                  <p className="text-[11px] font-bold text-emerald-600">✓ 100% Free • Zero Brokerage</p>
+
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                      <span>Tenants Chosen</span>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div className="text-2xl font-extrabold text-slate-900">
+                      {tenantLeads.filter((l) => l.status === "Tenant Chosen").length} Selected
+                    </div>
+                    <p className="text-[11px] font-bold text-emerald-600">Agreement & Onboarding Ready</p>
+                  </div>
+
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                      <span>Marketplace Views</span>
+                      <TrendingUp className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="text-2xl font-extrabold text-slate-900">
+                      {(
+                        myListings.reduce((sum, item) => sum + (item.viewsCount || 0), 0) ||
+                        (myListings.length > 0 ? myListings.length * 142 : 0)
+                      ).toLocaleString()}
+                    </div>
+                    <p className="text-[11px] font-bold text-blue-600">High Tenant Visibility</p>
+                  </div>
                 </div>
+              )}
 
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
-                  <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
-                    <span>Tenant Inquiries</span>
-                    <Users className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <div className="text-2xl font-extrabold text-slate-900">{tenantLeads.length} Leads</div>
-                  <p className="text-[11px] font-bold text-slate-500">Direct Landlord Contact Requests</p>
+              {/* Page Content Body Sub-Tabs */}
+              {listingSubTab !== "analytics" && (
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto custom-scrollbar">
+                  <button
+                    type="button"
+                    onClick={() => setListingSubTab("inquiries")}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                      listingSubTab === "inquiries"
+                        ? "bg-[#0B132B] text-white shadow-md"
+                        : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/90"
+                    }`}
+                  >
+                    <Users className="w-4 h-4 text-purple-400" />
+                    <span>Tenant Inquiries &amp; Leads</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-800">
+                      {tenantLeads.length}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setListingSubTab("analytics")}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                      (listingSubTab as string) === "analytics"
+                        ? "bg-[#FF6B00] text-white shadow-md shadow-orange-500/20"
+                        : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/90"
+                    }`}
+                  >
+                    <BarChart3 className="w-4 h-4 text-orange-400" />
+                    <span>Listing Traffic &amp; Deep Analytics</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-100 text-orange-800 uppercase">
+                      LIVE
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setListingSubTab("myListings")}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                      listingSubTab === "myListings"
+                        ? "bg-[#0B132B] text-white shadow-md"
+                        : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/90"
+                    }`}
+                  >
+                    <Building2 className="w-4 h-4 text-emerald-400" />
+                    <span>My Published Listings</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
+                      {myListings.length}
+                    </span>
+                  </button>
                 </div>
+              )}
 
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
-                  <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
-                    <span>Tenants Chosen</span>
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <div className="text-2xl font-extrabold text-slate-900">
-                    {tenantLeads.filter((l) => l.status === "Tenant Chosen").length} Selected
-                  </div>
-                  <p className="text-[11px] font-bold text-emerald-600">Agreement & Onboarding Ready</p>
-                </div>
+              {/* SUB TAB: Listing Traffic & Deep Analytics */}
+              {listingSubTab === "analytics" && (
+                <ListingAnalyticsView
+                  workspaceId={activeWid}
+                  currencySymbol={currencySymbol}
+                  onNavigateToListings={() => setListingSubTab("myListings")}
+                />
+              )}
 
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
-                  <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
-                    <span>Marketplace Views</span>
-                    <TrendingUp className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div className="text-2xl font-extrabold text-slate-900">
-                    {(
-                      myListings.reduce((sum, item) => sum + (item.viewsCount || 0), 0) ||
-                      (myListings.length > 0 ? myListings.length * 142 : 0)
-                    ).toLocaleString()}
-                  </div>
-                  <p className="text-[11px] font-bold text-blue-600">High Tenant Visibility</p>
-                </div>
-              </div>
-
-              {/* Page Content Body */}
-
-              {/* Page Content Body */}
-              
               {/* SUB TAB 1: Tenant Inquiries & Leads (Who Contacted or Chosen) */}
               {listingSubTab === "inquiries" && (
                 <div className="space-y-4">
@@ -1402,7 +1470,11 @@ export default function DashboardLayout({
                                 <div className="pt-2 flex items-center gap-2 flex-wrap text-[11px] font-semibold text-slate-600">
                                   <div className="px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 flex items-center gap-1 font-bold">
                                     <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-                                    <span>{item.avgRating ? Number(item.avgRating).toFixed(1) : "4.8"} ★ ({item.reviewCount || 0} Reviews)</span>
+                                    <span>
+                                      {item.reviewCount && item.reviewCount > 0 && item.avgRating
+                                        ? `${Number(item.avgRating).toFixed(1)} ★ (${item.reviewCount} Reviews)`
+                                        : "New Listing"}
+                                    </span>
                                   </div>
 
                                   <div className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 flex items-center gap-1">

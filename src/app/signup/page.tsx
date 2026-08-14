@@ -28,7 +28,7 @@ import { createUserProfileAndWorkspace } from "@/app/actions/authActions";
 
 export default function SignupPage() {
   const router = useRouter();
-  const [role, setRole] = useState<"owner" | "tenant">("owner");
+  const [role, setRole] = useState<"owner" | "tenant" | "expert">("owner");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [selectedCountry, setSelectedCountry] = useState<Country>(ALL_COUNTRIES[0]);
@@ -61,11 +61,13 @@ export default function SignupPage() {
 
     try {
       const formattedPhone = `${selectedCountry.dialCode} ${phone.trim()}`;
+      const rawPhoneDigits = phone.trim().replace(/\D/g, "");
 
-      // 1. Supabase Auth signup
+      // 1. Supabase Auth signup (Passes both email and raw phone digits to fill both columns in auth.users)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        phone: rawPhoneDigits.length > 0 ? rawPhoneDigits : undefined,
         options: {
           data: {
             fullName,
@@ -91,7 +93,7 @@ export default function SignupPage() {
         email,
         fullName,
         phone: formattedPhone,
-        role,
+        role: role as any,
       });
 
       setIsLoading(false);
@@ -102,7 +104,9 @@ export default function SignupPage() {
           setActiveWorkspaceId(workspaceResult.wid);
         }
       }
-      if (role === "tenant") {
+      if (role === "expert") {
+        router.push("/dashboard/experts");
+      } else if (role === "tenant") {
         router.push("/tenant/dashboard");
       } else {
         router.push("/onboarding");
@@ -245,31 +249,44 @@ export default function SignupPage() {
             </div>
 
             {/* Role Switcher */}
-            <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-xl mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-xl mb-6">
               <button
                 type="button"
                 onClick={() => setRole("owner")}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   role === "owner"
                     ? "bg-white text-[#0B132B] shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                <Building2 className={`w-4 h-4 ${role === "owner" ? "text-[#FF6B00]" : ""}`} />
+                <Building2 className={`w-3.5 h-3.5 ${role === "owner" ? "text-[#FF6B00]" : ""}`} />
                 <span>Landlord / Owner</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setRole("tenant")}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   role === "tenant"
                     ? "bg-white text-[#0B132B] shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                <User className={`w-4 h-4 ${role === "tenant" ? "text-purple-600" : ""}`} />
-                <span>Tenant / Normal User</span>
+                <User className={`w-3.5 h-3.5 ${role === "tenant" ? "text-purple-600" : ""}`} />
+                <span>Tenant / User</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRole("expert")}
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  role === "expert"
+                    ? "bg-white text-[#0B132B] shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${role === "expert" ? "text-emerald-600" : ""}`} />
+                <span>RentAwas Expert</span>
               </button>
             </div>
 
@@ -591,8 +608,11 @@ export default function SignupPage() {
       </main>
 
       {/* Page Footer */}
-      <footer className="py-4 text-center text-xs text-slate-400 z-10">
-        &copy; {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.
+      <footer className="py-6 text-center text-xs text-slate-400 z-10 space-y-1">
+        <p>&copy; {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.</p>
+        <p className="text-[11px] text-slate-500 font-medium">
+          Udyam Registration Number: <span className="font-mono text-slate-400">UDYAM-BR-23-0127857</span> &nbsp;|&nbsp; GSTIN: <span className="font-mono text-slate-400">10DIUPR1358M1ZP</span>
+        </p>
       </footer>
     </div>
   );

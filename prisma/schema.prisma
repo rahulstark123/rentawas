@@ -641,6 +641,7 @@ model PropertyListing {
   sqft               Float?
   rent               Float
   deposit            Float?
+  pricingTiers       Json?
   tenantTypes        String[]
   availableFrom      String?
   maintenance        String?
@@ -665,12 +666,14 @@ model PropertyListing {
   status             String   @default("Active") // "Active", "Draft", "Rented"
   inquiriesCount     Int      @default(0)
   viewsCount         Int      @default(0)
-  avgRating          Float    @default(4.8)
+  avgRating          Float    @default(0.0)
   reviewCount        Int      @default(0)
+  analyticsData      Json?
 
   inquiries          TenantInquiry[]
   reviews            PropertyReview[]
   wishlistItems      WishlistItem[]
+  viewLogs           ListingViewLog[]
 
   workspaceId        Int?
   workspace          Workspace? @relation(fields: [workspaceId], references: [wid], onDelete: Cascade)
@@ -681,6 +684,22 @@ model PropertyListing {
   @@index([workspaceId])
   @@index([city])
   @@index([status])
+}
+
+model ListingViewLog {
+  id           String          @id @default(cuid())
+  listingId    String
+  listing      PropertyListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  device       String          @default("Desktop") // "Mobile", "Desktop", "Tablet"
+  city         String?         @default("Delhi NCR")
+  area         String?         @default("Central Area")
+  channel      String?         @default("Direct Marketplace") // "WhatsApp Link", "Marketplace Search", "Google Organic", "Direct URL"
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime        @default(now())
+
+  @@index([listingId])
+  @@index([createdAt])
 }
 
 model PropertyReview {
@@ -834,4 +853,141 @@ model ContactInquiry {
 
   @@index([email])
   @@index([status])
+}
+
+model RentawasExpert {
+  id                    String   @id @default(cuid())
+  email                 String   @unique
+  passwordHash          String
+  name                  String
+  trade                 String
+  specialization        String?
+  experience            String?  @default("5+ Yrs Exp")
+  phone                 String?
+  govtIdType            String?  @default("Aadhaar Card (12-Digit UIDAI)")
+  govtId                String?
+  currency              String?  @default("INR (₹)")
+  fee                   Float    @default(599)
+  hourlyRate            Float    @default(49)
+  city                  String?
+  address               String?
+  pincode               String?
+  workStartTime         String?  @default("08:00 AM")
+  workEndTime           String?  @default("08:00 PM")
+  workDays              String?  @default("Mon-Sat")
+  languages             String?  // JSON or string
+  avatar                String?
+  qrCodeUrl             String?
+  bankHolder            String?
+  bankName              String?
+  customBankName        String?
+  accountNo             String?
+  ifsc                  String?
+  upiId                 String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  bloodGroup            String?
+  status                String   @default("Active & Verified")
+  isAvailable           Boolean  @default(true)
+  completedJobs         Int      @default(0)
+  totalGross            Float    @default(0)
+  platformCut           Float    @default(0)
+  rating                Float    @default(5.0)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([trade])
+}
+
+model RentawasExpertBooking {
+  id                    String   @id @default(cuid())
+  bookingNumber         String   @unique // e.g. EXP-BK-9021
+  expertId              String
+  expertName            String
+  expertTitle           String?
+  expertAvatar          String?
+  expertPhone           String?
+  serviceBooked         String
+  bookingDate           String   // e.g. "Aug 16, 2026"
+  timeSlot              String?
+  feePaid               Float    @default(599)
+  status                String   @default("Waiting Confirmation") // "Waiting Confirmation", "Confirmed", "In Progress", "Completed", "Cancelled"
+  property              String?
+  notes                 String?
+  otpCode               String?  // 6-digit OTP code for on-site visit
+
+  // Who booked this service (Condition to filter out per user)
+  bookedById            String   // User Profile ID or Supabase Auth ID
+  bookedByEmail         String
+  bookedByName          String?
+  bookedByRole          String   @default("owner") // "owner" | "tenant"
+  workspaceId           Int?
+
+  // Customer Feedback & Rating
+  userRating            Float?
+  userFeedbackTags      String?  // JSON string
+  userComment           String?
+  isRated               Boolean  @default(false)
+
+  // Live Timer & Work Completion Timestamps
+  startedAt             DateTime?
+  completedAt           DateTime?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([bookedById])
+  @@index([bookedByEmail])
+  @@index([expertId])
+  @@index([status])
+}
+
+model RentawasExpertPayout {
+  id            String   @id @default(cuid())
+  transactionId String   @unique // e.g. PAY-2026-0817
+  expertId      String?
+  expertEmail   String?
+  type          String   // "Consultation Fee Credit" | "Weekly Auto-Payout" | "Instant Withdrawal"
+  category      String   // "credit" | "payout"
+  description   String
+  grossAmount   Float
+  feeAmount     Float    @default(0)
+  tdsAmount     Float    @default(0)
+  netAmount     Float
+  status        String   // "Credited to Wallet" | "Transferred to Bank" | "Processing"
+  utrNumber     String?
+  methodName    String?  @default("RentAwas Escrow")
+  date          String   // e.g. "Aug 14, 2026"
+  time          String?  // e.g. "02:01 PM"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([expertId])
+  @@index([expertEmail])
+  @@index([category])
+}
+
+model RentawasExpertDocument {
+  id               String   @id @default(cuid())
+  docCode          String   // e.g. DOC-RA-2026-001
+  expertId         String?
+  expertEmail      String?
+  title            String   // e.g. RentAwas_Certified_Expert_Empanelment_Agreement.pdf
+  category         String   // "RentAwas Issued Agreement" | "Official RentAwas SLA" | "Compliance Deed" | "Audit Report"
+  description      String?
+  fileUrl          String?  // PDF URL or file path
+  fileSize         String?  @default("1.5 MB")
+  issuer           String?  @default("RentAwas Operations (ANSH Apps)")
+  isRentAwasIssued Boolean  @default(true)
+  statusBadge      String?  @default("Digitally Signed & Verified")
+  issuedDate       String   // e.g. "Jan 10, 2026"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([expertId])
+  @@index([expertEmail])
+  @@index([category])
 }

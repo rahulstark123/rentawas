@@ -96,6 +96,7 @@ interface PropertyItem {
   pinnedLat?: number | null;
   pinnedLng?: number | null;
   fullAddress?: string | null;
+  pricingTiers?: Array<{ name: string; rent: number | string; deposit?: number | string }> | null;
 }
 
 const DEFAULT_PROPERTIES: PropertyItem[] = [
@@ -354,34 +355,7 @@ export default function PropertyDetailPage() {
     tags: string[];
   }
 
-  const [reviewsList, setReviewsList] = useState<ReviewItem[]>([
-    {
-      id: "REV-101",
-      author: "Rahul Raj",
-      status: "Current Resident",
-      date: "July 2026",
-      overallRating: 5,
-      conditionRating: 5,
-      localityRating: 5,
-      landlordRating: 5,
-      headline: "Extremely peaceful locality with great connectivity!",
-      comment: "Living here for over 8 months. The landlord is super helpful and repairs are addressed within hours. Gated security and fiber wifi make work from home seamless.",
-      tags: ["Peaceful Locality", "Prompt Maintenance", "Zero Brokerage"],
-    },
-    {
-      id: "REV-102",
-      author: "Ananya Sharma",
-      status: "Verified Past Tenant",
-      date: "June 2026",
-      overallRating: 4.5,
-      conditionRating: 4,
-      localityRating: 5,
-      landlordRating: 5,
-      headline: "Safe neighborhood for working women & 100% deposit refund",
-      comment: "Smooth move-in and complete deposit returned without any unjustified deductions upon move-out. Walking distance to market and metro.",
-      tags: ["Safe for Women", "100% Deposit Refund", "Metro Connectivity"],
-    },
-  ]);
+  const [reviewsList, setReviewsList] = useState<ReviewItem[]>([]);
 
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isAllReviewsModalOpen, setIsAllReviewsModalOpen] = useState(false);
@@ -420,22 +394,22 @@ export default function PropertyDetailPage() {
       const res = await fetch(`/api/reviews?listingId=${encodeURIComponent(targetId)}`);
       if (res.ok) {
         const json = await res.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           const fetchedList: ReviewItem[] = json.data.map((r: any) => ({
             id: r.id,
             author: r.userName || "Verified Resident",
             status: r.userRole || "Current Resident",
             date: new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" }),
-            overallRating: r.overallRating || 5,
-            conditionRating: r.qualityRating || 5,
-            localityRating: r.localityRating || 5,
-            landlordRating: r.landlordRating || 5,
+            overallRating: Number(r.overallRating) || 5,
+            conditionRating: Number(r.qualityRating) || 5,
+            localityRating: Number(r.localityRating) || 5,
+            landlordRating: Number(r.landlordRating) || 5,
             headline: r.headline || "Verified Resident Review",
             comment: r.comment,
             tags: ["Zero Brokerage", "Verified Resident"],
           }));
           setReviewsList(fetchedList);
-          if (json.stats?.avgRating) {
+          if (json.stats) {
             setProperty((prev: any) => (prev ? { ...prev, rating: json.stats.avgRating, reviewsCount: json.stats.totalReviews } : prev));
           }
         }
@@ -570,8 +544,8 @@ export default function PropertyDetailPage() {
           size: item.sqft
             ? `${Number(item.sqft).toLocaleString("en-IN")} sq. ft.`
             : item.availableFrom || "Ready to Move",
-          rating: item.avgRating || 4.9,
-          reviewsCount: item.reviewCount || 14,
+          rating: item.reviewCount && item.reviewCount > 0 && item.avgRating ? Number(item.avgRating) : 0,
+          reviewsCount: item.reviewCount || 0,
           image: uploadedPhotos[0] || mergedImages[0],
           images: mergedImages,
           mainImage: item.mainImage || uploadedPhotos[0] || mergedImages[0],
@@ -585,9 +559,26 @@ export default function PropertyDetailPage() {
           pinnedLat: item.pinnedLat || null,
           pinnedLng: item.pinnedLng || null,
           fullAddress: item.fullAddress || [item.locality || item.location, item.city, item.stateName, item.pincode ? `- ${item.pincode}` : ""].filter(Boolean).join(", ") || null,
+          pricingTiers: Array.isArray(item.pricingTiers) ? item.pricingTiers : null,
         });
         setIsLoading(false);
         fetchPropertyReviews(item.id);
+
+        // Record deep listing traffic analytics view log
+        fetch("/api/listings/views", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            listingId: item.id,
+            city: item.city || item.stateName || "Delhi NCR",
+            area: item.locality || item.pincode || "Central Area",
+            channel: typeof document !== "undefined" && document.referrer.includes("whatsapp") 
+              ? "WhatsApp Link" 
+              : typeof document !== "undefined" && document.referrer.includes("google") 
+              ? "Google Organic" 
+              : "Marketplace Search",
+          }),
+        }).catch(() => {});
         return;
       }
 
@@ -921,7 +912,13 @@ export default function PropertyDetailPage() {
                 <div className="flex flex-col items-start sm:items-end gap-2 shrink-0">
                   <div className="flex items-center gap-1.5 font-bold text-amber-600 bg-amber-50 px-3.5 py-1.5 rounded-2xl border border-amber-200 shrink-0 w-fit">
                     <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                    <span className="text-xs">{property.rating} ({reviewsList.length || property.reviewsCount} Verified Reviews)</span>
+                    <span className="text-xs">
+                      {reviewsList.length > 0
+                        ? `${(reviewsList.reduce((acc, r) => acc + Number(r.overallRating || 0), 0) / reviewsList.length).toFixed(1)} ★ (${reviewsList.length} Verified ${reviewsList.length === 1 ? 'Review' : 'Reviews'})`
+                        : property?.rating && Number(property.rating) > 0 && property?.reviewsCount && Number(property.reviewsCount) > 0
+                        ? `${Number(property.rating).toFixed(1)} ★ (${property.reviewsCount} Verified Reviews)`
+                        : "New Listing (No Reviews Yet)"}
+                    </span>
                   </div>
                   <button
                     type="button"
@@ -939,6 +936,56 @@ export default function PropertyDetailPage() {
                 <span>{property.fullAddress || `${property.location}, ${property.city}`}</span>
               </div>
             </div>
+
+            {/* Room Sharing & Multiple Pricing Options (for PGs, Hostels, Multi-Category Rooms) */}
+            {Array.isArray(property.pricingTiers) && property.pricingTiers.length > 0 && (
+              <div className="bg-gradient-to-br from-amber-50/70 via-white to-orange-50/40 border border-orange-200/80 rounded-3xl p-6 sm:p-8 space-y-4 shadow-xs">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2.5 rounded-2xl bg-[#FF6B00]/10 text-[#FF6B00] border border-[#FF6B00]/20">
+                      <Layers className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900 tracking-tight">
+                        Room Sharing & Pricing Options
+                      </h3>
+                      <p className="text-xs text-slate-500 font-medium">
+                        Multiple occupancy and room rate options available for this property
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-3.5 py-1.5 rounded-full bg-[#FF6B00]/10 text-[#FF6B00] border border-[#FF6B00]/30 text-xs font-black uppercase tracking-wider">
+                    {property.pricingTiers.length} Pricing Tiers
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 pt-1">
+                  {property.pricingTiers.map((tier: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="bg-white border border-slate-200/90 hover:border-[#FF6B00]/50 rounded-2xl p-4 space-y-2 shadow-2xs transition-all hover:shadow-md"
+                    >
+                      <div className="text-xs font-black text-slate-900 flex items-center justify-between">
+                        <span>{tier.name}</span>
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xl font-black text-[#FF6B00]">
+                          ₹{Number(tier.rent).toLocaleString("en-IN")}
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-400">/ month</span>
+                      </div>
+                      {tier.deposit ? (
+                        <div className="text-[11px] font-semibold text-slate-500 pt-1 border-t border-slate-100 flex items-center justify-between">
+                          <span>Deposit:</span>
+                          <span className="font-extrabold text-slate-700">₹{Number(tier.deposit).toLocaleString("en-IN")}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* About This Home Description */}
             <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-3 shadow-2xs">
@@ -1140,26 +1187,48 @@ export default function PropertyDetailPage() {
                   <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Overall Rating</div>
                   <div className="text-lg font-black text-slate-900 flex items-center gap-1">
                     <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                    <span>4.9 / 5</span>
+                    <span>
+                      {reviewsList.length > 0
+                        ? `${(reviewsList.reduce((acc, r) => acc + (r.overallRating || 5), 0) / reviewsList.length).toFixed(1)} / 5`
+                        : (property?.rating ? `${Number(property.rating).toFixed(1)} / 5` : "N/A")}
+                    </span>
                   </div>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1">
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Property Quality</div>
-                  <div className="text-lg font-black text-slate-900">4.8 / 5</div>
+                  <div className="text-lg font-black text-slate-900">
+                    {reviewsList.length > 0
+                      ? `${(reviewsList.reduce((acc, r) => acc + (r.conditionRating || 5), 0) / reviewsList.length).toFixed(1)} / 5`
+                      : "N/A"}
+                  </div>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1">
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Locality & Safety</div>
-                  <div className="text-lg font-black text-slate-900">5.0 / 5</div>
+                  <div className="text-lg font-black text-slate-900">
+                    {reviewsList.length > 0
+                      ? `${(reviewsList.reduce((acc, r) => acc + (r.localityRating || 5), 0) / reviewsList.length).toFixed(1)} / 5`
+                      : "N/A"}
+                  </div>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1">
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Landlord Service</div>
-                  <div className="text-lg font-black text-slate-900">4.9 / 5</div>
+                  <div className="text-lg font-black text-slate-900">
+                    {reviewsList.length > 0
+                      ? `${(reviewsList.reduce((acc, r) => acc + (r.landlordRating || 5), 0) / reviewsList.length).toFixed(1)} / 5`
+                      : "N/A"}
+                  </div>
                 </div>
               </div>
 
               {/* Reviews List */}
               <div className="space-y-4 pt-2">
-                {reviewsList.map((rev) => (
+                {reviewsList.length === 0 ? (
+                  <div className="p-6 bg-slate-50 border border-slate-200/80 rounded-2xl text-center space-y-2">
+                    <div className="text-xs font-extrabold text-slate-800">No reviews submitted yet for this property</div>
+                    <p className="text-xs text-slate-500 font-medium">Be the first resident to share your experience and write a review!</p>
+                  </div>
+                ) : (
+                  reviewsList.map((rev) => (
                   <div key={rev.id} className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5">
@@ -1179,7 +1248,7 @@ export default function PropertyDetailPage() {
 
                       <div className="flex items-center gap-1 bg-amber-100/80 text-amber-900 px-2.5 py-1 rounded-xl text-xs font-black">
                         <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                        <span>{rev.overallRating}.0</span>
+                        <span>{Number(rev.overallRating).toFixed(1)}</span>
                       </div>
                     </div>
 
@@ -1197,7 +1266,8 @@ export default function PropertyDetailPage() {
                       </div>
                     )}
                   </div>
-                ))}
+                ))
+                )}
               </div>
             </div>
 
@@ -1764,20 +1834,36 @@ export default function PropertyDetailPage() {
                   <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Overall Rating</div>
                   <div className="text-lg font-black text-slate-900 flex items-center justify-center sm:justify-start gap-1">
                     <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                    <span>4.9 / 5</span>
+                    <span>
+                      {reviewsList.length > 0
+                        ? `${(reviewsList.reduce((acc, r) => acc + (r.overallRating || 5), 0) / reviewsList.length).toFixed(1)} / 5`
+                        : (property?.rating ? `${Number(property.rating).toFixed(1)} / 5` : "N/A")}
+                    </span>
                   </div>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1 text-center sm:text-left">
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Property Quality</div>
-                  <div className="text-lg font-black text-slate-900">4.8 / 5</div>
+                  <div className="text-lg font-black text-slate-900">
+                    {reviewsList.length > 0
+                      ? `${(reviewsList.reduce((acc, r) => acc + (r.conditionRating || 5), 0) / reviewsList.length).toFixed(1)} / 5`
+                      : "N/A"}
+                  </div>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1 text-center sm:text-left">
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Locality & Safety</div>
-                  <div className="text-lg font-black text-slate-900">5.0 / 5</div>
+                  <div className="text-lg font-black text-slate-900">
+                    {reviewsList.length > 0
+                      ? `${(reviewsList.reduce((acc, r) => acc + (r.localityRating || 5), 0) / reviewsList.length).toFixed(1)} / 5`
+                      : "N/A"}
+                  </div>
                 </div>
                 <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1 text-center sm:text-left">
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Landlord Service</div>
-                  <div className="text-lg font-black text-slate-900">4.9 / 5</div>
+                  <div className="text-lg font-black text-slate-900">
+                    {reviewsList.length > 0
+                      ? `${(reviewsList.reduce((acc, r) => acc + (r.landlordRating || 5), 0) / reviewsList.length).toFixed(1)} / 5`
+                      : "N/A"}
+                  </div>
                 </div>
               </div>
 
@@ -1823,7 +1909,7 @@ export default function PropertyDetailPage() {
 
                         <div className="flex items-center gap-1 bg-amber-100/80 text-amber-900 px-2.5 py-1 rounded-xl text-xs font-black">
                           <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                          <span>{rev.overallRating}.0</span>
+                          <span>{Number(rev.overallRating).toFixed(1)}</span>
                         </div>
                       </div>
 

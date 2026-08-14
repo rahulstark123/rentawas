@@ -65,7 +65,7 @@ export function mapListingToPropertyItem(item: any): MarketplacePropertyItem {
     size: item.sqft
       ? `${Number(item.sqft).toLocaleString("en-IN")} sq. ft.`
       : item.availableFrom || "Ready to Move",
-    rating: item.avgRating ? Number(item.avgRating).toFixed(1) : 4.8,
+    rating: item.reviewCount && item.reviewCount > 0 && item.avgRating ? Number(item.avgRating).toFixed(1) : 0,
     reviewsCount: item.reviewCount !== undefined ? item.reviewCount : 0,
     image:
       item.mainImage ||

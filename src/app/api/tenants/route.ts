@@ -263,17 +263,33 @@ export async function POST(request: Request) {
       });
 
       if (!existingProfile) {
-        const { data: authData } = await supabase.auth.signUp({
-          email: tenantEmail,
-          password: tenantPassword,
-          options: {
-            data: {
+        const rawPhoneDigits = cleanPhone ? cleanPhone.replace(/\D/g, "") : undefined;
+
+        let authData: any = null;
+        try {
+          const res = await supabase.auth.admin.createUser({
+            email: tenantEmail,
+            phone: rawPhoneDigits && rawPhoneDigits.length > 5 ? rawPhoneDigits : undefined,
+            password: tenantPassword,
+            email_confirm: true,
+            phone_confirm: true,
+            user_metadata: {
+              display_name: name,
               fullName: name,
               role: "tenant",
               phone: cleanPhone,
             },
-          },
-        });
+          });
+          authData = res.data;
+        } catch (e) {
+          // Fallback if admin.createUser notice
+          const res = await supabase.auth.signUp({
+            email: tenantEmail,
+            password: tenantPassword,
+            options: { data: { fullName: name, role: "tenant", phone: cleanPhone } }
+          });
+          authData = res.data;
+        }
 
         const userId = authData?.user?.id || `tenant_${Date.now()}`;
 
