@@ -712,7 +712,7 @@ export default function TenantDocumentsPage() {
                   >
                     <option value="ID & Verification">ID &amp; Verification (Passport, Driver License, Aadhaar, KYC)</option>
                     <option value="Lease & Addendums">Lease &amp; Addendums (Tenancy Contract, Renewals, House Rules)</option>
-                    <option value="Receipts & Tax">Receipts &amp; Tax (Rent Receipts, Escrow Deposit, TDS/Form 16)</option>
+                    <option value="Receipts & Tax">Receipts &amp; Tax (Rent Receipts, Escrow Deposit)</option>
                     <option value="Renter Insurance & Liability">Renter Insurance &amp; Liability (Policy &amp; Coverage Proof)</option>
                     <option value="Vehicle & Passes">Vehicle &amp; Passes (Vehicle RC, Parking Permit, RFID Gate Pass)</option>
                     <option value="Pet Records & License">Pet Records &amp; License (Vaccination, Pet License &amp; Agreement)</option>

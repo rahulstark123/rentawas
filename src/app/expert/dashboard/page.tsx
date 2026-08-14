@@ -301,16 +301,16 @@ const EXPERT_REVIEWS = [
 // Mock Payout & Earnings Transaction Ledger
 const INITIAL_PAYOUT_TRANSACTIONS = [
   {
-    id: "PAY-2026-0811",
-    date: "Aug 11, 2026",
-    time: "09:30 AM",
+    id: "PAY-2026-0812",
+    date: "Aug 12, 2026",
+    time: "02:30 PM",
     type: "Weekly Auto-Payout",
     category: "payout",
     description: "Weekly automated withdrawal to HDFC Bank (**** 8912)",
     grossAmount: 18500,
     feeAmount: 0,
-    tdsAmount: 185,
-    netAmount: 18315,
+    tdsAmount: 0,
+    netAmount: 18500,
     status: "Transferred",
     utrNumber: "UTR8912039412",
     methodName: "HDFC Bank (IMPS)",
@@ -324,8 +324,8 @@ const INITIAL_PAYOUT_TRANSACTIONS = [
     description: "Property Structural & Safety Inspection — Villa 12 (EXP-JOB-1045)",
     grossAmount: 1499,
     feeAmount: 0,
-    tdsAmount: 15,
-    netAmount: 1484,
+    tdsAmount: 0,
+    netAmount: 1499,
     status: "Credited to Wallet",
     utrNumber: "ESCROW-1045",
     methodName: "RentAwas Escrow",
@@ -339,8 +339,8 @@ const INITIAL_PAYOUT_TRANSACTIONS = [
     description: "Weekly automated withdrawal to HDFC Bank (**** 8912)",
     grossAmount: 24200,
     feeAmount: 0,
-    tdsAmount: 242,
-    netAmount: 23958,
+    tdsAmount: 0,
+    netAmount: 24200,
     status: "Transferred",
     utrNumber: "UTR7719203912",
     methodName: "HDFC Bank (IMPS)",
@@ -354,8 +354,8 @@ const INITIAL_PAYOUT_TRANSACTIONS = [
     description: "Plumbing Pipe Repair — Unit 102 (EXP-JOB-1092)",
     grossAmount: 799,
     feeAmount: 0,
-    tdsAmount: 8,
-    netAmount: 791,
+    tdsAmount: 0,
+    netAmount: 799,
     status: "Credited to Wallet",
     utrNumber: "ESCROW-1092",
     methodName: "RentAwas Escrow",
@@ -1021,8 +1021,8 @@ function ExpertDashboardContent() {
         description: `${selectedJobForReport.serviceType} — ${selectedJobForReport.clientName} (${selectedJobForReport.id})`,
         grossAmount: finalFee,
         feeAmount: platformFee,
-        tdsAmount: Math.round(netTakeHome * 0.01),
-        netAmount: netTakeHome - Math.round(netTakeHome * 0.01),
+        tdsAmount: 0,
+        netAmount: netTakeHome,
         status: "Credited to Wallet",
         utrNumber: `ESCROW-${selectedJobForReport.id}`,
         methodName: "RentAwas Escrow",
@@ -2357,7 +2357,6 @@ function ExpertDashboardContent() {
                     <th className="py-3 px-4">Transaction ID</th>
                     <th className="py-3 px-4">Description</th>
                     <th className="py-3 px-4">Gross Fee</th>
-                    <th className="py-3 px-4">1% TDS</th>
                     <th className="py-3 px-4">Net Payout</th>
                     <th className="py-3 px-4">Status &amp; UTR</th>
                   </tr>
@@ -2365,7 +2364,7 @@ function ExpertDashboardContent() {
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
                   {loadingPayouts ? (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-400 font-bold text-xs bg-slate-50/50">
+                      <td colSpan={6} className="py-12 text-center text-slate-400 font-bold text-xs bg-slate-50/50">
                         <div className="animate-pulse flex items-center justify-center gap-2">
                           <DollarSign className="w-5 h-5 text-emerald-500 animate-spin" />
                           <span>Fetching real payout &amp; earnings transactions from database...</span>
@@ -2374,7 +2373,7 @@ function ExpertDashboardContent() {
                     </tr>
                   ) : filteredTransactions.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-500 font-medium text-xs bg-slate-50/50 space-y-2">
+                      <td colSpan={6} className="py-12 text-center text-slate-500 font-medium text-xs bg-slate-50/50 space-y-2">
                         <DollarSign className="w-8 h-8 text-slate-300 mx-auto" />
                         <p className="font-bold text-slate-700 text-sm">No payout or earnings transactions yet.</p>
                         <p className="text-slate-400 max-w-sm mx-auto">When clients book your expert services and jobs are marked completed, consultation fee credits will automatically show up here!</p>
@@ -2394,9 +2393,6 @@ function ExpertDashboardContent() {
                         </td>
                         <td className="py-3.5 px-4 font-extrabold text-slate-900 whitespace-nowrap">
                           {currencySymbol}{tx.grossAmount.toLocaleString()}
-                        </td>
-                        <td className="py-3.5 px-4 text-slate-500 font-bold whitespace-nowrap">
-                          -{currencySymbol}{tx.tdsAmount}
                         </td>
                         <td className="py-3.5 px-4 font-black whitespace-nowrap">
                           <span className={tx.category === "payout" ? "text-emerald-700" : "text-blue-700"}>
@@ -2420,29 +2416,6 @@ function ExpertDashboardContent() {
                   )}
                 </tbody>
               </table>
-            </div>
-          </div>
-
-          {/* Tax & TDS Compliance Box */}
-          <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-3 relative overflow-hidden shadow-xl border border-slate-800">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <h4 className="text-sm font-extrabold text-white">Government TDS &amp; Tax Compliance (Section 194O)</h4>
-                </div>
-                <p className="text-xs text-slate-300 font-medium">
-                  RentAwas automatically deducts 1% TDS as per Indian Income Tax regulations. TDS certificates (Form 16A) are issued quarterly.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => toast("Generating Form 16A TDS Certificate...", "info")}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all border border-white/20 cursor-pointer shrink-0"
-              >
-                Download Form 16A
-              </button>
             </div>
           </div>
         </div>
@@ -3788,14 +3761,10 @@ function ExpertDashboardContent() {
                   <span>Platform Surcharge (0% Offer):</span>
                   <span className="font-bold text-emerald-600">{currencySymbol}0</span>
                 </div>
-                <div className="flex items-center justify-between text-slate-600 font-medium">
-                  <span>TDS (1% Sec 194O Tax):</span>
-                  <span className="font-bold text-slate-700">-{currencySymbol}{Math.round(Number(withdrawAmountInput || 0) * 0.01)}</span>
-                </div>
                 <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-sm font-black text-slate-900">
                   <span>Net Payout Amount:</span>
                   <span className="text-[#FF6B00] text-base">
-                    {currencySymbol}{Math.max(0, Math.round(Number(withdrawAmountInput || 0) * 0.99)).toLocaleString()}
+                    {currencySymbol}{Math.max(0, Number(withdrawAmountInput || 0)).toLocaleString()}
                   </span>
                 </div>
               </div>

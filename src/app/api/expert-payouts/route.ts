@@ -55,8 +55,8 @@ export async function GET(request: Request) {
     const creditTransactions = completedBookings.map((b: any) => {
       const gross = Number(b.feePaid) || 599;
       const platformFee = Math.round(gross * 0.10);
-      const tds = Math.round((gross - platformFee) * 0.01);
-      const net = gross - platformFee - tds;
+      const tds = 0;
+      const net = gross - platformFee;
 
       totalNetCredits += net;
 
@@ -153,8 +153,8 @@ export async function POST(request: Request) {
     }
 
     const amt = Number(amount);
-    const tds = Math.round(amt * 0.01);
-    const net = amt - tds;
+    const tds = 0;
+    const net = amt;
     const txId = `PAY-2026-08${Math.floor(10 + Math.random() * 90)}`;
     const utr = `UTR${Math.floor(100000000000 + Math.random() * 900000000000)}`;
     const formattedDate = new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
