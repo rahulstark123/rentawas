@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Sparkles,
   Search,
@@ -26,7 +27,9 @@ import {
   Award,
   ThumbsUp,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Wrench,
+  HelpCircle,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -158,7 +161,7 @@ const EXPERTS_LIST = [
 // Default Initial Booking History
 const INITIAL_HISTORY = [
   {
-    id: "EXP-BK-9021",
+    id: "EX-BK-1",
     expertId: "EXP-101",
     expertName: "Anil Kumar",
     expertTitle: "Master Plumber & Water Leakage Specialist",
@@ -172,7 +175,7 @@ const INITIAL_HISTORY = [
     createdAt: "2026-08-10T10:00:00Z",
   },
   {
-    id: "EXP-BK-8842",
+    id: "EX-BK-2",
     expertId: "EXP-102",
     expertName: "Rajesh Sharma",
     expertTitle: "Senior Electrician & Electrical Wiring Expert",
@@ -407,6 +410,15 @@ function RentAwasExpertsContent() {
     setUserReviewComment(booking.userComment || "");
   };
 
+  // Booking Details Sidebar Drawer State
+  const [selectedBookingForDetails, setSelectedBookingForDetails] = useState<any | null>(null);
+  const [showBookingDetailsSidebar, setShowBookingDetailsSidebar] = useState<boolean>(false);
+
+  const openBookingDetailsSidebar = (booking: any) => {
+    setSelectedBookingForDetails(booking);
+    setShowBookingDetailsSidebar(true);
+  };
+
   const handleSubmitUserRating = async () => {
     if (!selectedBookingForRating) return;
 
@@ -475,13 +487,17 @@ function RentAwasExpertsContent() {
   const filteredExperts = useMemo(() => {
     const sourceList = liveExperts;
     return sourceList.filter((exp) => {
-      // 1. Strictly exclude experts whose BOOKING STATUS toggle is FALSE / Offline / Unavailable
-      if (exp.isAvailable === false || exp.isAvailable === "false" || exp.isAvailable === 0) {
-        return false;
-      }
+      // 1. Strictly exclude experts whose BOOKING STATUS toggle is OFF / Inactive / Suspended / Offline
+      const st = String(exp.status || "").toLowerCase();
       if (
-        String(exp.status || "").toLowerCase().includes("offline") ||
-        String(exp.status || "").toLowerCase().includes("busy")
+        exp.isAvailable === false ||
+        exp.isAvailable === "false" ||
+        exp.isAvailable === 0 ||
+        st.includes("suspended") ||
+        st.includes("inactive") ||
+        st.includes("offline") ||
+        st.includes("busy") ||
+        st.includes("unavailable")
       ) {
         return false;
       }
@@ -973,9 +989,6 @@ function RentAwasExpertsContent() {
                             {expert.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                           </div>
                         )}
-                        <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-2 border-white rounded-full flex items-center justify-center text-white text-[10px]" title="Verified Expert">
-                          ✓
-                        </span>
                       </div>
 
                       <div className="space-y-1 flex-1 min-w-0">
@@ -1265,7 +1278,10 @@ function RentAwasExpertsContent() {
 
                         <button
                           type="button"
-                          onClick={() => toast("Connecting to RentAwas 24/7 Expert Support desk...", "info")}
+                          onClick={() => {
+                            toast("Redirecting to RentAwas Support Desk...", "info");
+                            router.push(typeof window !== "undefined" && window.location.pathname.startsWith("/tenant") ? "/tenant/support" : "/dashboard/support");
+                          }}
                           className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0"
                         >
                           Support Desk
@@ -1377,8 +1393,9 @@ function RentAwasExpertsContent() {
                       )}
 
                       <button
-                        onClick={() => toast(`Consultation session details for ${item.id} sent to your email!`, "info")}
-                        className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer transition-all"
+                        type="button"
+                        onClick={() => openBookingDetailsSidebar(item)}
+                        className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-2xs"
                       >
                         View Details
                       </button>
@@ -1721,9 +1738,6 @@ function RentAwasExpertsContent() {
                   className="w-20 h-20 rounded-2xl object-cover border border-slate-200 shadow-xs shrink-0"
                 />
                 <div className="space-y-1">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black uppercase">
-                    ✓ Verified &amp; Certified Expert
-                  </span>
                   <h3 className="text-lg font-extrabold text-slate-900 tracking-tight leading-snug">
                     {viewingExpertDetails.name}
                   </h3>
@@ -1798,10 +1812,6 @@ function RentAwasExpertsContent() {
                   <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <span className="font-semibold text-slate-700">Operating in {viewingExpertDetails.city || "NCR"} ({viewingExpertDetails.workDays || "Mon-Sat"}, {viewingExpertDetails.workStartTime || "08:00 AM"} – {viewingExpertDetails.workEndTime || "08:00 PM"}).</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <span className="font-semibold text-slate-700">Verified RentAwas partner with 100% background-checked compliance.</span>
                   </div>
                 </div>
               </div>
@@ -2063,6 +2073,260 @@ function RentAwasExpertsContent() {
                 <Star className="w-4 h-4 fill-white text-white" />
                 <span>Submit Rating &amp; Review</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* BOOKING DETAILS RIGHT SIDEBAR DRAWER */}
+      {showBookingDetailsSidebar && selectedBookingForDetails && (
+        <div className="fixed inset-0 z-50 overflow-hidden font-sans select-none">
+          {/* Backdrop Overlay */}
+          <div
+            onClick={() => setShowBookingDetailsSidebar(false)}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+          />
+
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-md bg-white border-l border-slate-200 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-300 relative z-10">
+              
+              {/* Drawer Header */}
+              <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30 text-[10px] font-black font-mono">
+                      {selectedBookingForDetails.id}
+                    </span>
+                    <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                      String(selectedBookingForDetails.status || "").toLowerCase().includes("completed")
+                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                        : String(selectedBookingForDetails.status || "").toLowerCase().includes("confirmed") || String(selectedBookingForDetails.status || "").toLowerCase().includes("accepted")
+                        ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                        : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                    }`}>
+                      {String(selectedBookingForDetails.status || "").toLowerCase().includes("completed") ? "✓ COMPLETED" : selectedBookingForDetails.status}
+                    </span>
+                  </div>
+                  <h2 className="text-lg font-extrabold text-white tracking-tight pt-1">
+                    Booking &amp; Consultation Summary
+                  </h2>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowBookingDetailsSidebar(false)}
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all cursor-pointer"
+                  title="Close Drawer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Drawer Body Scroll Area */}
+              <div className="p-6 overflow-y-auto space-y-6 flex-1 custom-scrollbar text-xs font-medium text-slate-700">
+                
+                {/* Section 1: Assigned Expert Profile Card */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assigned Maintenance Partner</div>
+                  <div className="flex items-center gap-3">
+                    {selectedBookingForDetails.avatar ? (
+                      <img
+                        src={selectedBookingForDetails.avatar}
+                        alt={selectedBookingForDetails.expertName}
+                        className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#FF6B00] to-amber-500 text-white font-black text-base flex items-center justify-center shrink-0">
+                        {String(selectedBookingForDetails.expertName || "EX").split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="space-y-0.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-extrabold text-slate-900 text-sm truncate">{selectedBookingForDetails.expertName}</span>
+                        <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-semibold truncate">{selectedBookingForDetails.expertTitle || selectedBookingForDetails.serviceBooked}</p>
+                      <div className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 pt-0.5">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>RentAwas Verified Master Expert</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Direct Phone / Contact Action */}
+                  {(() => {
+                    const matchedExpert = liveExperts.find((e) => e.id === selectedBookingForDetails.expertId || e.name === selectedBookingForDetails.expertName);
+                    const phone = selectedBookingForDetails.phone || selectedBookingForDetails.expertPhone || matchedExpert?.phone || "+91 98765 43210";
+                    return (
+                      <a
+                        href={`tel:${phone}`}
+                        className="mt-2 w-full py-2 px-3 bg-white border border-slate-200 hover:bg-slate-100 text-slate-900 font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Call Expert ({phone})</span>
+                      </a>
+                    );
+                  })()}
+                </div>
+
+                {/* Section 2: Service Visit Schedule & Location */}
+                <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-3">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Service Visit Details</div>
+                  
+                  <div className="space-y-2.5">
+                    <div className="flex items-start gap-2.5">
+                      <Wrench className="w-4 h-4 text-[#FF6B00] shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase">Requested Trade Category</div>
+                        <div className="font-extrabold text-slate-900 text-xs">{selectedBookingForDetails.serviceBooked}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <Calendar className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase">Scheduled Time Slot</div>
+                        <div className="font-extrabold text-slate-900 text-xs">{selectedBookingForDetails.date} at {selectedBookingForDetails.timeSlot}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <Building2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase">Service Premises Location</div>
+                        <div className="font-extrabold text-slate-900 text-xs">{selectedBookingForDetails.property}</div>
+                      </div>
+                    </div>
+
+                    {/* 6-Digit OTP Box */}
+                    <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl space-y-1">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-amber-900 uppercase">
+                        <span>Work Verification Security OTP:</span>
+                        <span className="font-mono font-black text-amber-700">{selectedBookingForDetails.otpCode || "489201"}</span>
+                      </div>
+                      <p className="text-[10px] text-amber-800 font-medium leading-relaxed">
+                        Share this 6-digit code with {selectedBookingForDetails.expertName} upon on-site visit completion.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Financial Payment Summary */}
+                <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Breakdown</span>
+                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                      ✓ ESCROW PROTECTED
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 border-b border-slate-100 pb-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-500 font-semibold">Consultation &amp; Visit Fee</span>
+                      <span className="font-bold text-slate-900">{getExpertCurrencySymbol(selectedBookingForDetails.currency)}{Number(selectedBookingForDetails.feePaid ?? selectedBookingForDetails.fee ?? 599).toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-500 font-semibold">RentAwas Platform Surcharge</span>
+                      <span className="font-bold text-emerald-600">₹0 (0% Free)</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-500 font-semibold">Taxes &amp; Service Insurance</span>
+                      <span className="font-bold text-slate-900">₹0 (Included)</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 text-sm font-black text-slate-900">
+                    <span>Total Amount Paid</span>
+                    <span className="text-base text-emerald-700">{getExpertCurrencySymbol(selectedBookingForDetails.currency)}{Number(selectedBookingForDetails.feePaid ?? selectedBookingForDetails.fee ?? 599).toLocaleString()}</span>
+                  </div>
+
+                  <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 text-[10px] text-slate-500 font-mono flex items-center justify-between">
+                    <span>Transaction Ref:</span>
+                    <span className="font-bold text-slate-800">ESCROW-{selectedBookingForDetails.id}</span>
+                  </div>
+                </div>
+
+                {/* Section 4: What Happened / Work Completion Audit Log */}
+                <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Service Work &amp; Audit Log</div>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-xs text-slate-700 font-medium space-y-1.5">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>
+                        {String(selectedBookingForDetails.status || "").toLowerCase().includes("completed")
+                          ? "Service Visit Completed & Verified"
+                          : "Booking Scheduled & Awaiting On-Site Visit"}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      {String(selectedBookingForDetails.status || "").toLowerCase().includes("completed")
+                        ? "Expert performed diagnostic inspection and resolved property maintenance requirements. Work report verified by tenant/landlord."
+                        : `Assigned partner ${selectedBookingForDetails.expertName} is scheduled to arrive at your premises during the chosen time slot.`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Section 5: Ratings & Client Feedback */}
+                {selectedBookingForDetails.isRated ? (
+                  <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-amber-900 uppercase tracking-wider">Your Submitted Rating</span>
+                      <span className="font-extrabold text-xs text-amber-800">{selectedBookingForDetails.userRating}.0 ★★★★★</span>
+                    </div>
+                    {selectedBookingForDetails.userFeedbackTags?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {selectedBookingForDetails.userFeedbackTags.map((tag: string, idx: number) => (
+                          <span key={idx} className="px-2 py-0.5 bg-amber-100 text-amber-900 text-[10px] font-bold rounded-md border border-amber-200">
+                            ✓ {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {selectedBookingForDetails.userComment && (
+                      <p className="text-xs text-amber-950 font-medium italic pt-1 border-t border-amber-200/60">
+                        &ldquo;{selectedBookingForDetails.userComment}&rdquo;
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 flex items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="font-extrabold text-slate-900 text-xs">Have you completed this visit?</div>
+                      <div className="text-[10px] text-slate-500 font-medium">Rate your experience &amp; help keep RentAwas quality high!</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowBookingDetailsSidebar(false);
+                        openRatingModal(selectedBookingForDetails);
+                      }}
+                      className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-md shrink-0 uppercase tracking-wider"
+                    >
+                      Rate ⭐
+                    </button>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Drawer Footer Actions */}
+              <div className="p-6 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+                <Link
+                  href={typeof window !== "undefined" && window.location.pathname.startsWith("/tenant") ? "/tenant/support" : "/dashboard/support"}
+                  className="flex-1 py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl text-xs font-extrabold text-center flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                >
+                  <HelpCircle className="w-3.5 h-3.5 text-[#FF6B00]" />
+                  <span>Support Desk</span>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => setShowBookingDetailsSidebar(false)}
+                  className="py-2.5 px-5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl text-xs transition-all cursor-pointer shadow-md"
+                >
+                  Close Details
+                </button>
+              </div>
+
             </div>
           </div>
         </div>

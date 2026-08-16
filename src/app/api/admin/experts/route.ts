@@ -241,8 +241,18 @@ export async function GET(request: Request) {
         : (exp.rating != null ? Number(exp.rating).toFixed(1) : "5.0");
       const revCount = stats.ratingCount > 0 ? stats.ratingCount : (exp.completedJobs ?? 0);
 
-      const isAvail = exp.isAvailable ?? (globalAvail ? globalAvail.isAvailable : true);
-      const availStatus = isAvail === false ? "Offline / Busy" : (exp.status || "Active & Verified");
+      const isSuspendedOrInactive =
+        String(exp.status || "").toLowerCase().includes("suspended") ||
+        String(exp.status || "").toLowerCase().includes("inactive") ||
+        String(exp.status || "").toLowerCase().includes("offline");
+
+      const isAvail = (exp.isAvailable === false || isSuspendedOrInactive)
+        ? false
+        : (exp.isAvailable ?? (globalAvail ? globalAvail.isAvailable : true));
+
+      const availStatus = isAvail === false
+        ? (String(exp.status || "").toLowerCase().includes("suspended") ? "Suspended" : "Offline / Busy")
+        : (exp.status || "Active & Verified");
 
       return {
         ...exp,

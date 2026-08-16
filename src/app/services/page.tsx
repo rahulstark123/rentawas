@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -35,13 +35,157 @@ import {
 export default function ServicesPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCity, setSelectedCity] = useState("Bengaluru");
+  const [selectedCity, setSelectedCity] = useState("Delhi NCR");
   const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifySuccess, setNotifySuccess] = useState(false);
   const [isComingSoonModalOpen, setIsComingSoonModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("Home Service Booking Coming Soon!");
   const [activeDomainId, setActiveDomainId] = useState("ac");
+  const [activeStoryIndex, setActiveStoryIndex] = useState(0);
+
+  const cardStoriesData = [
+    {
+      id: "rentawas-advantage",
+      badge: "THE RENTAWAS ADVANTAGE",
+      title: "Why RentAwas Experts?",
+      subtitle: "Connecting you directly with background-checked local maintenance specialists. Built for absolute transparency, instant availability, and complete peace of mind.",
+      accent: "text-[#FF6B00]",
+      badgeBg: "bg-orange-500/10 border-orange-500/30 text-[#FF6B00]",
+      quote: "Why worry about unverified technicians? Every RentAwas expert is Aadhaar & identity background checked, offers fixed upfront rates, and guarantees work with a service warranty.",
+      authorName: "The RentAwas Standard",
+      authorRole: "100% Aadhaar & Identity Verified Network",
+      authorInitials: "VS",
+      cardTag: "Trust & Safety",
+      imageSrc: "/1st section.png",
+      highlights: [
+        {
+          title: "100% Aadhaar & Government ID Verified",
+          desc: "Every technician is identity-checked and Aadhaar-verified before taking any booking.",
+          icon: ShieldCheck,
+          iconColor: "text-emerald-600",
+        },
+        {
+          title: "Fixed Transparent Rates & Escrow Security",
+          desc: "No hidden fees or post-job price inflation. Funds remain locked until work completion.",
+          icon: BadgeCheck,
+          iconColor: "text-[#FF6B00]",
+        },
+        {
+          title: "6-Digit OTP Security & Re-service Guarantee",
+          desc: "Verify work using a one-time OTP and enjoy hassle-free service warranty.",
+          icon: Clock,
+          iconColor: "text-purple-600",
+        },
+      ],
+      chips: [" Verified Identity", " Upfront Pricing", " Service Cover"],
+    },
+    {
+      id: "tenant-story",
+      badge: "TENANT SUCCESS STORY",
+      title: "Meet Abhya — A tenant who gets all her home solutions in one place.",
+      subtitle: "From sudden late-night plumbing leaks to annual AC servicing, Abhya manages her entire rental apartment maintenance with 1-tap RentAwas expert booking and 6-digit OTP safety.",
+      accent: "text-blue-600",
+      badgeBg: "bg-blue-500/10 border-blue-500/30 text-blue-600",
+      quote: "“When my bathroom pipeline burst at 10 PM, I booked on RentAwas. A local verified plumber arrived, fixed the leak, and I verified completion with my 6-digit OTP.”",
+      authorName: "Abhya Sharma",
+      authorRole: "Tenant • Resident in Gurgaon",
+      authorInitials: "AS",
+      cardTag: "Tenant Verified Review",
+      imageSrc: "/section 2.png",
+      highlights: [
+        {
+          title: "1-Tap Instant Service Dispatch",
+          desc: "Request certified plumbers, electricians, or househelp right from your smartphone.",
+          icon: Zap,
+          iconColor: "text-blue-600",
+        },
+        {
+          title: "6-Digit OTP Work Security",
+          desc: "Share your OTP code only when the technician completes the job to your satisfaction.",
+          icon: ShieldCheck,
+          iconColor: "text-emerald-600",
+        },
+        {
+          title: "Fixed Escrow Payment Protection",
+          desc: "Upfront pricing with zero hidden charges. Funds locked until work completion.",
+          icon: BadgeCheck,
+          iconColor: "text-[#FF6B00]",
+        },
+      ],
+      chips: [" Instant Booking", " 6-Digit OTP", " Fixed Rates"],
+    },
+    {
+      id: "locality-experts",
+      badge: "NEIGHBORHOOD EXPERTS",
+      title: "Experts From Your Own Locality",
+      subtitle: "Connect directly with independent, Aadhaar & identity-verified electricians, plumbers, carpenters, and househelp operating right within your city neighborhood.",
+      accent: "text-emerald-600",
+      badgeBg: "bg-emerald-500/10 border-emerald-500/30 text-emerald-600",
+      quote: "“RentAwas connects me directly to jobs in my neighborhood. I earn fair wages without paying middleman commissions, and customers trust me because I am background-verified.”",
+      authorName: "Manoj Kumar",
+      authorRole: "Master Electrician • Delhi NCR",
+      authorInitials: "MK",
+      cardTag: "Expert Spotlight",
+      imageSrc: "/section 3.png",
+      highlights: [
+        {
+          title: "Rapid Local Arrival",
+          desc: "Local neighborhood technicians arrive quickly with professional equipment.",
+          icon: Clock,
+          iconColor: "text-emerald-600",
+        },
+        {
+          title: "100% Aadhaar & Government ID Verified",
+          desc: "Complete identity checks and background verification for tenant safety.",
+          icon: UserCheck,
+          iconColor: "text-[#FF6B00]",
+        },
+        {
+          title: "Transparent & Fair Local Rates",
+          desc: "Direct earnings for independent specialists with 100% transparent pricing.",
+          icon: BadgeCheck,
+          iconColor: "text-purple-600",
+        },
+      ],
+      chips: [" Direct Local Work", " Zero Middlemen", " Verified Badge"],
+    },
+    {
+      id: "landlords-managers",
+      badge: "LANDLORD & MANAGER BENEFIT",
+      title: "Effortless Maintenance for Landlords & Property Managers",
+      subtitle: "Ensure your rental units remain pristine without endless phone calls. RentAwas coordinates doorstep work completion, digital invoice logs, and service warranty automatically.",
+      accent: "text-purple-600",
+      badgeBg: "bg-purple-500/10 border-purple-500/30 text-purple-600",
+      quote: "“Managing 15 rental flats used to take 20 calls a day for repairs. Now my tenants book on RentAwas, jobs are tracked digitally, and I get automated expense logs without lifting a finger.”",
+      authorName: "Sunil Verma",
+      authorRole: "Property Owner • Bhopal",
+      authorInitials: "SV",
+      cardTag: "Landlord Feedback",
+      imageSrc: "/landign 3.png",
+      highlights: [
+        {
+          title: "Zero Phone Call Coordination",
+          desc: "Tenants book verified experts directly with digital audit logs for property owners.",
+          icon: ShieldCheck,
+          iconColor: "text-purple-600",
+        },
+        {
+          title: "Digital Work Verification Log",
+          desc: "Track completed maintenance visits with photo proof and verified digital logs.",
+          icon: CheckCircle2,
+          iconColor: "text-emerald-600",
+        },
+        {
+          title: "Automated Maintenance Expense Invoices",
+          desc: "Keep property repair costs logged and exported in one central dashboard.",
+          icon: BadgeCheck,
+          iconColor: "text-[#FF6B00]",
+        },
+      ],
+      chips: [" Automated Logs", " Zero Phone Calls", " Digital Audit"],
+    },
+  ];
 
   const domainHubs = [
     {
@@ -143,9 +287,8 @@ export default function ServicesPage() {
   ];
 
   const cities = [
-    "Bengaluru",
     "Delhi NCR",
-    "Noida",
+    "Bhopal",
     "Gurgaon",
   ];
 
@@ -156,6 +299,92 @@ export default function ServicesPage() {
     { label: "🧹 Househelp & Maid Staff", icon: UserCheck },
     { label: "❄️ AC Deep Servicing & Gas Topup", icon: Wrench },
     { label: "🔑 Emergency Locksmith & Keys", icon: ShieldCheck },
+  ];
+
+  const testimonialsRow1 = [
+    {
+      stars: 5,
+      quote: "Great work, my home was left spotless and fresh. The AC jet wash was thorough, and I really appreciated the technician's attention to detail. I'll definitely recommend it. 👍",
+      name: "Pradnyesh",
+      locality: "Suncity, Gurgaon",
+      initial: "P",
+      color: "bg-orange-50 text-[#FF6B00] border-orange-200",
+    },
+    {
+      stars: 5,
+      quote: "The services have definitely improved compared to local unverified mechanics. Preferences and safety guidelines are kept as top priority. Thank you for making our lives easier!",
+      name: "Ridhi Saluja",
+      locality: "Sector 56, Gurgaon",
+      initial: "R",
+      color: "bg-amber-50 text-amber-800 border-amber-200",
+    },
+    {
+      stars: 5,
+      quote: "I'd say it was great value for money. The pipe leak urgency was handled within 20 minutes, without compromising quality. Really satisfied with the experience.",
+      name: "Kirti",
+      locality: "Sector 56, Gurgaon",
+      initial: "K",
+      color: "bg-[#FF6B00]/10 text-[#FF6B00] border-[#FF6B00]/30",
+    },
+    {
+      stars: 5,
+      quote: "The service was simple and effective. It met my expectations without any hassle or extra hidden fees. Good overall experience.",
+      name: "Neha",
+      locality: "Sector 57, Gurgaon",
+      initial: "N",
+      color: "bg-orange-100 text-orange-900 border-orange-200",
+    },
+    {
+      stars: 5,
+      quote: "Booked a modular kitchen carpenter. The specialist arrived with modern woodworking tools, aligned all hinges perfectly, and left zero mess.",
+      name: "Aakash Verma",
+      locality: "DLF Phase 5, Gurgaon",
+      initial: "A",
+      color: "bg-amber-100 text-amber-900 border-amber-200",
+    },
+  ];
+
+  const testimonialsRow2 = [
+    {
+      stars: 5,
+      quote: "Really impressive compared to other platforms. The service was reliable, background-checked, and communication was clear and fast — very pleased!",
+      name: "Rabia",
+      locality: "Suncity, Gurgaon",
+      initial: "R",
+      color: "bg-[#FF6B00]/10 text-[#FF6B00] border-[#FF6B00]/30",
+    },
+    {
+      stars: 5,
+      quote: "Seamless experience from booking to completion. The househelp staff was courteous, police-verified, punctual, and did a fantastic job.",
+      name: "Ritika",
+      locality: "Sector 57, Gurgaon",
+      initial: "R",
+      color: "bg-orange-50 text-[#FF6B00] border-orange-200",
+    },
+    {
+      stars: 5,
+      quote: "Really liked your service, it was smooth, efficient, and just what I needed for MCB tripping issues. Would definitely recommend to others. ☀️",
+      name: "Sameer",
+      locality: "Sector 57, Gurgaon",
+      initial: "S",
+      color: "bg-amber-50 text-amber-800 border-amber-200",
+    },
+    {
+      stars: 5,
+      quote: "Absolutely excellent service! The deep sanitization team was prompt and professional throughout. Would love to use it again.",
+      name: "Karishma",
+      locality: "Suncity, Gurgaon",
+      initial: "K",
+      color: "bg-orange-100 text-orange-900 border-orange-200",
+    },
+    {
+      stars: 5,
+      quote: "As a tenant living alone in Noida, having background-verified experts with 6-digit OTP verification gives complete peace of mind. Excellent work!",
+      name: "Meera Deshmukh",
+      locality: "Sector 62, Noida",
+      initial: "M",
+      color: "bg-amber-100 text-amber-900 border-amber-200",
+    },
   ];
 
   const marqueeRow2 = [
@@ -376,14 +605,60 @@ export default function ServicesPage() {
                       key={idx}
                       onClick={() => setSelectedCity(c)}
                       className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${selectedCity === c
-                          ? "bg-[#FF6B00] text-white border-[#FF6B00] shadow-md"
-                          : "bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700"
+                        ? "bg-[#FF6B00] text-white border-[#FF6B00] shadow-md"
+                        : "bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700"
                         }`}
                     >
                       {c}
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* App Store Download Badges (Google Play & Indus Appstore) */}
+              <div className="pt-4 flex flex-wrap items-center gap-3.5">
+                <button
+                  type="button"
+                  onClick={() => triggerComingSoon("Google Play Store App")}
+                  className="hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer inline-block group"
+                  title="Get it on Google Play"
+                >
+                  <Image
+                    src="/googlePlayButton.png"
+                    alt="Get it on Google Play"
+                    width={160}
+                    height={52}
+                    className="h-12 sm:h-14 w-auto object-contain rounded-xl shadow-md border border-slate-700/80 group-hover:border-[#FF6B00]/60 transition-colors"
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => triggerComingSoon("Indus Appstore App")}
+                  className="hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer inline-block group"
+                  title="Download on Indus Appstore"
+                >
+                  <Image
+                    src="/indusAppstore.jpg"
+                    alt="Download on Indus Appstore"
+                    width={160}
+                    height={52}
+                    className="h-12 sm:h-14 w-auto object-contain rounded-xl shadow-md border border-slate-700/80 group-hover:border-[#FF6B00]/60 transition-colors"
+                  />
+                </button>
+              </div>
+
+              {/* Become a RentAwas Expert CTA Link Button */}
+              <div className="pt-3">
+                <a
+                  href="https://forms.anshapps.com/rentawas-s-workspace/rentawas-experts-form"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg hover:shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer hover:scale-[1.02] border border-orange-400/30"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span>Become a RentAwas Expert</span>
+                </a>
               </div>
 
             </div>
@@ -459,86 +734,152 @@ export default function ServicesPage() {
         </div>
       </section>
 
-      {/* SECTION 3: 3 ROWS OF ALL HOME SERVICES CARDS */}
-      <section className="py-16 bg-[#F8FAFC]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      {/* SECTION 3: REAL STORIES & PROVEN TRUST (Interactive Showcase) */}
+      <section className="py-16 sm:py-24 bg-[#F8FAFC] font-sans border-t border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
 
-          <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Available Home Services in {selectedCity}
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Book verified local independent technicians &amp; home experts.
-              </p>
+          {/* Header Banner */}
+          <div className="text-center max-w-4xl mx-auto space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-[#FF6B00] text-xs font-black uppercase tracking-widest">
+              <Sparkles className="w-4 h-4" />
+              <span>REAL STORIES FROM RENTAWAS</span>
             </div>
-
-            <span className="text-xs font-black bg-orange-100 text-[#FF6B00] px-3 py-1.5 rounded-lg uppercase tracking-wider">
-              {serviceList.length} Services Listed
-            </span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+              RentAwas is transforming how tenants, verified locality experts, and property owners connect
+            </h2>
+            <p className="text-slate-600 text-base sm:text-lg font-medium max-w-2xl mx-auto">
+              Turning rental maintenance headaches into 1-tap peace of mind.
+            </p>
           </div>
 
-          {/* Cards Grid — 3 Columns x 3 Rows = 9 Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {serviceList.map((service) => (
-              <div
-                key={service.id}
-                className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between group"
+          {/* Story Selection Tabs */}
+          <div className="flex flex-wrap justify-center gap-2.5 max-w-4xl mx-auto pb-2">
+            {cardStoriesData.map((story, idx) => (
+              <button
+                key={story.id}
+                onClick={() => setActiveStoryIndex(idx)}
+                className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all border ${activeStoryIndex === idx
+                  ? "bg-slate-900 text-white border-slate-900 shadow-md scale-105"
+                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900 shadow-2xs"
+                  }`}
               >
-                {/* Top Image */}
-                <div className="h-72 sm:h-80 relative overflow-hidden bg-slate-900">
-                  <Image
-                    src={service.image}
-                    alt={service.title}
-                    fill
-                    className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-
-                  {/* Rating */}
-                  <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-slate-900/90 backdrop-blur-md text-[11px] font-extrabold text-amber-400 flex items-center gap-1">
-                    ★ {service.rating} <span className="text-slate-300 text-[10px]">({service.reviews})</span>
-                  </span>
-                </div>
-
-                {/* Content */}
-                <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <h3 className="text-base font-extrabold text-slate-900 group-hover:text-[#FF6B00] transition-colors">
-                      {service.title}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                      {service.desc}
-                    </p>
-
-                    {/* Features list */}
-                    <div className="pt-2 flex flex-wrap gap-1.5">
-                      {service.features.map((feat, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2.5 py-1 bg-slate-100 rounded-md text-[10px] font-bold text-slate-700 flex items-center gap-1"
-                        >
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          {feat}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Coming Soon Booking Button */}
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      onClick={() => triggerComingSoon(service.title)}
-                      className="w-full py-3 bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] text-white font-extrabold text-xs rounded-xl shadow-md uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Book Service — Coming Soon</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
+                <span>{story.title.split(" — ")[0].split("?")[0]}</span>
+              </button>
             ))}
+          </div>
+
+          {/* Active Story Card Display */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-10 lg:p-12 shadow-xl relative overflow-hidden">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeStoryIndex}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center"
+              >
+                {/* Left Side: Story Details & Highlights */}
+                <div className="lg:col-span-6 space-y-6 text-left">
+                  <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-black uppercase tracking-widest ${cardStoriesData[activeStoryIndex].badgeBg}`}>
+                    <Sparkles className="w-4 h-4" />
+                    <span>{cardStoriesData[activeStoryIndex].badge}</span>
+                  </div>
+
+                  <h3 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                    {cardStoriesData[activeStoryIndex].title}
+                  </h3>
+
+                  <p className="text-slate-600 text-sm sm:text-base font-medium leading-relaxed italic border-l-2 border-[#FF6B00] pl-4 py-0.5">
+                    {cardStoriesData[activeStoryIndex].subtitle}
+                  </p>
+
+                  {/* Highlights List */}
+                  {cardStoriesData[activeStoryIndex].highlights.length > 0 && (
+                    <div className="space-y-3 pt-2">
+                      {cardStoriesData[activeStoryIndex].highlights.map((h, hIdx) => {
+                        const IconComp = h.icon;
+                        return (
+                          <div key={hIdx} className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
+                            <div className="flex items-center gap-2.5 text-slate-900 font-extrabold text-sm sm:text-base">
+                              <IconComp className={`w-4 h-4 ${h.iconColor}`} />
+                              <span>{h.title}</span>
+                            </div>
+                            <p className="text-xs sm:text-sm text-slate-500 font-medium pl-6 leading-relaxed">
+                              {h.desc}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Feature Chips */}
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {cardStoriesData[activeStoryIndex].chips.map((chip, cIdx) => (
+                      <span
+                        key={cIdx}
+                        className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-slate-100 text-slate-800 border border-slate-200"
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right Side: Showcase Image or Quote Card */}
+                <div className={`lg:col-span-6 flex items-center justify-center h-[380px] sm:h-[440px] relative rounded-3xl overflow-hidden ${cardStoriesData[activeStoryIndex].imageSrc
+                  ? "bg-transparent border-none shadow-none"
+                  : "bg-slate-50 border border-slate-100"
+                  }`}>
+                  {cardStoriesData[activeStoryIndex].imageSrc ? (
+                    <div className="w-full h-full relative flex items-center justify-center">
+                      <Image
+                        src={cardStoriesData[activeStoryIndex].imageSrc}
+                        alt={cardStoriesData[activeStoryIndex].title}
+                        fill
+                        unoptimized
+                        className="object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-full p-6 sm:p-8 space-y-4 flex flex-col justify-between text-left">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                        <span className={`text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full border ${cardStoriesData[activeStoryIndex].badgeBg}`}>
+                          0{activeStoryIndex + 1} / 04 — {cardStoriesData[activeStoryIndex].badge}
+                        </span>
+                        <span className="text-xs font-extrabold text-[#FF6B00] bg-orange-50 border border-orange-200 px-3 py-1 rounded-full flex items-center gap-1.5">
+                          <Star className="w-3.5 h-3.5 fill-[#FF6B00]" />
+                          {cardStoriesData[activeStoryIndex].cardTag}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3 my-auto">
+                        <div className="text-[#FF6B00] font-serif text-4xl leading-none select-none">“</div>
+                        <p className="text-slate-900 text-base sm:text-lg font-bold leading-relaxed tracking-tight -mt-2">
+                          {cardStoriesData[activeStoryIndex].quote}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3.5 pt-3.5 border-t border-slate-200">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-md">
+                          {cardStoriesData[activeStoryIndex].authorInitials}
+                        </div>
+                        <div className="leading-tight">
+                          <div className="font-extrabold text-slate-900 text-sm sm:text-base flex items-center gap-1.5">
+                            <span>{cardStoriesData[activeStoryIndex].authorName}</span>
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-100" />
+                          </div>
+                          <div className="text-xs text-slate-500 font-medium mt-0.5">
+                            {cardStoriesData[activeStoryIndex].authorRole}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </AnimatePresence>
           </div>
 
         </div>
@@ -588,38 +929,38 @@ export default function ServicesPage() {
               {/* App Store & Play Store Download Badges */}
               <div className="pt-2 space-y-3">
                 <span className="text-xs font-black uppercase tracking-widest text-slate-400 block">
-                  Coming Soon To iOS &amp; Android:
+                  Coming Soon To Google Play &amp; Indus Appstore:
                 </span>
 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3.5">
                   <button
-                    onClick={() => triggerComingSoon("RentAwas iOS App")}
-                    className="px-5 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-2xl flex items-center gap-3 transition-all cursor-pointer shadow-lg group"
+                    type="button"
+                    onClick={() => triggerComingSoon("Google Play Store App")}
+                    className="hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer inline-block group"
+                    title="Get it on Google Play"
                   >
-                    <div className="w-7 h-7 flex items-center justify-center text-white">
-                      <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.32c.64-.78 1.08-1.85.96-2.92-.93.04-2.06.62-2.73 1.4-.6.69-1.12 1.79-.98 2.84 1.04.08 2.11-.53 2.75-1.32z" />
-                      </svg>
-                    </div>
-                    <div className="text-left">
-                      <span className="text-[10px] uppercase text-slate-400 block font-bold leading-none">Download on the</span>
-                      <span className="text-sm font-extrabold text-white leading-tight block">App Store</span>
-                    </div>
+                    <Image
+                      src="/googlePlayButton.png"
+                      alt="Get it on Google Play"
+                      width={160}
+                      height={52}
+                      className="h-12 sm:h-14 w-auto object-contain rounded-xl shadow-md border border-slate-700/80 group-hover:border-[#FF6B00]/60 transition-colors"
+                    />
                   </button>
 
                   <button
-                    onClick={() => triggerComingSoon("RentAwas Android App")}
-                    className="px-5 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-2xl flex items-center gap-3 transition-all cursor-pointer shadow-lg group"
+                    type="button"
+                    onClick={() => triggerComingSoon("Indus Appstore App")}
+                    className="hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer inline-block group"
+                    title="Download on Indus Appstore"
                   >
-                    <div className="w-7 h-7 flex items-center justify-center text-emerald-400">
-                      <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                        <path d="M3.609 1.814L13.792 12 3.61 22.186c-.187.186-.39.294-.61.324V1.49c.22.03.423.138.61.324zM15.207 13.414l2.67-2.67c.39-.39.39-1.02 0-1.414l-2.67-2.67-2.83 2.83 2.83 2.924zm-2.83-4.338L3.25 1.5l10.54 10.54-1.413-2.964zm0 5.848l1.414-2.924L3.25 22.5l9.127-7.576z" />
-                      </svg>
-                    </div>
-                    <div className="text-left">
-                      <span className="text-[10px] uppercase text-slate-400 block font-bold leading-none">GET IT ON</span>
-                      <span className="text-sm font-extrabold text-white leading-tight block">Google Play</span>
-                    </div>
+                    <Image
+                      src="/indusAppstore.jpg"
+                      alt="Download on Indus Appstore"
+                      width={160}
+                      height={52}
+                      className="h-12 sm:h-14 w-auto object-contain rounded-xl shadow-md border border-slate-700/80 group-hover:border-[#FF6B00]/60 transition-colors"
+                    />
                   </button>
                 </div>
               </div>
@@ -635,27 +976,112 @@ export default function ServicesPage() {
                   <div className="w-10 h-1 bg-slate-800 rounded-full" />
                 </div>
 
-                {/* Inner Screen Canvas — Coming Soon Display */}
-                <div className="w-full h-full bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 rounded-[38px] overflow-hidden relative flex flex-col items-center justify-center p-6 border border-slate-800 text-center font-sans space-y-4">
-                  <div className="w-16 h-16 rounded-2xl bg-[#FF6B00]/20 border border-[#FF6B00]/40 text-[#FF6B00] flex items-center justify-center font-black text-2xl shadow-lg">
-                    RA
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <span className="px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-[#FF6B00] text-[10px] font-black uppercase tracking-widest inline-block">
-                      Pre-Launch Phase
-                    </span>
-                    <h4 className="text-xl font-extrabold text-white tracking-tight">
-                      Coming Soon
-                    </h4>
-                    <p className="text-xs text-slate-400 font-medium">
-                      RentAwas Experts App on iOS &amp; Android
-                    </p>
-                  </div>
+                {/* Inner Screen Canvas — RentAwas Mobile App Screenshot */}
+                <div className="w-full h-full bg-slate-950 rounded-[38px] overflow-hidden relative border border-slate-800 font-sans">
+                  <Image
+                    src="/mobilerentawas.jpeg"
+                    alt="RentAwas Mobile App Preview"
+                    fill
+                    className="object-cover object-top"
+                    priority
+                  />
                 </div>
               </div>
             </div>
 
+          </div>
+        </div>
+      </section>
+
+      {/* TESTIMONIALS SECTION (SLOWLY MOVING INFINITE MARQUEE) */}
+      <section className="py-20 bg-[#F8FAFC] border-t border-b border-slate-200 overflow-hidden font-sans relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-3 text-left mb-12">
+          <span className="text-xs font-black text-[#FF6B00] uppercase tracking-widest block">
+            COMMUNITY TRUST &amp; STORIES
+          </span>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
+            Trusted By RentAwas Families.
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium">
+            Real experiences from property managers, landlords, and residents relying on RentAwas maintenance experts.
+          </p>
+        </div>
+
+        {/* Marquee Row 1 (Moving Slowly Left) */}
+        <div className="relative w-full overflow-hidden mb-6">
+          {/* Edge Blur Gradients */}
+          <div className="absolute top-0 bottom-0 left-0 w-24 bg-gradient-to-r from-[#F8FAFC] to-transparent z-10 pointer-events-none" />
+          <div className="absolute top-0 bottom-0 right-0 w-24 bg-gradient-to-l from-[#F8FAFC] to-transparent z-10 pointer-events-none" />
+
+          <div className="flex gap-6 w-max animate-marquee-left">
+            {[...testimonialsRow1, ...testimonialsRow1, ...testimonialsRow1].map((item, idx) => (
+              <div
+                key={idx}
+                className="w-[300px] sm:w-[350px] p-6 bg-white border border-slate-200/90 rounded-3xl shadow-xs hover:shadow-lg transition-all duration-300 shrink-0 flex flex-col justify-between space-y-4 group cursor-pointer"
+              >
+                {/* 5 Orange Stars */}
+                <div className="flex items-center gap-1 text-[#FF6B00]">
+                  {[...Array(item.stars)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-[#FF6B00] text-[#FF6B00]" />
+                  ))}
+                </div>
+
+                {/* Quote */}
+                <p className="text-xs sm:text-[13px] text-slate-700 font-medium leading-relaxed italic">
+                  &ldquo;{item.quote}&rdquo;
+                </p>
+
+                {/* Author Info */}
+                <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
+                  <div className={`w-8 h-8 rounded-full font-black text-xs flex items-center justify-center border shrink-0 ${item.color}`}>
+                    {item.initial}
+                  </div>
+                  <div className="leading-tight">
+                    <span className="text-xs font-extrabold text-slate-900 block">{item.name}</span>
+                    <span className="text-[10px] font-semibold text-slate-400 block">{item.locality}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Marquee Row 2 (Moving Slowly Right) */}
+        <div className="relative w-full overflow-hidden">
+          {/* Edge Blur Gradients */}
+          <div className="absolute top-0 bottom-0 left-0 w-24 bg-gradient-to-r from-[#F8FAFC] to-transparent z-10 pointer-events-none" />
+          <div className="absolute top-0 bottom-0 right-0 w-24 bg-gradient-to-l from-[#F8FAFC] to-transparent z-10 pointer-events-none" />
+
+          <div className="flex gap-6 w-max animate-marquee-right">
+            {[...testimonialsRow2, ...testimonialsRow2, ...testimonialsRow2].map((item, idx) => (
+              <div
+                key={idx}
+                className="w-[300px] sm:w-[350px] p-6 bg-white border border-slate-200/90 rounded-3xl shadow-xs hover:shadow-lg transition-all duration-300 shrink-0 flex flex-col justify-between space-y-4 group cursor-pointer"
+              >
+                {/* 5 Orange Stars */}
+                <div className="flex items-center gap-1 text-[#FF6B00]">
+                  {[...Array(item.stars)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-[#FF6B00] text-[#FF6B00]" />
+                  ))}
+                </div>
+
+                {/* Quote */}
+                <p className="text-xs sm:text-[13px] text-slate-700 font-medium leading-relaxed italic">
+                  &ldquo;{item.quote}&rdquo;
+                </p>
+
+                {/* Author Info */}
+                <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
+                  <div className={`w-8 h-8 rounded-full font-black text-xs flex items-center justify-center border shrink-0 ${item.color}`}>
+                    {item.initial}
+                  </div>
+                  <div className="leading-tight">
+                    <span className="text-xs font-extrabold text-slate-900 block">{item.name}</span>
+                    <span className="text-[10px] font-semibold text-slate-400 block">{item.locality}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

@@ -1198,14 +1198,47 @@ export default function AdminPanelPage() {
                               </span>
                             )}
                           </td>
-                          <td className="py-4 px-4">
-                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase ${
-                              exp.status.includes("Active")
-                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                : "bg-red-500/20 text-red-400 border border-red-500/30"
-                            }`}>
-                              ✓ {exp.status}
-                            </span>
+                          <td className="py-4 px-4 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const isActive = exp.status.includes("Active");
+                                const newStatus = isActive ? "Suspended" : "Active & Verified";
+                                const newAvailable = !isActive;
+
+                                setAdminExpertsList((prev) =>
+                                  prev.map((item) =>
+                                    item.id === exp.id ? { ...item, status: newStatus, isAvailable: newAvailable } : item
+                                  )
+                                );
+
+                                try {
+                                  await fetch(`/api/admin/experts/${exp.id}`, {
+                                    method: "PUT",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ status: newStatus, isAvailable: newAvailable }),
+                                  });
+                                } catch (err) {
+                                  console.warn("Failed to persist expert status update:", err);
+                                }
+
+                                toast(
+                                  `Expert listing for ${exp.name} set to ${newAvailable ? "ACTIVE (Live for Bookings)" : "INACTIVE (Suspended)"}`,
+                                  newAvailable ? "success" : "info"
+                                );
+                              }}
+                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                exp.status.includes("Active") ? "bg-emerald-500" : "bg-slate-700"
+                              }`}
+                              title={exp.status.includes("Active") ? "Active & Verified (Click to Suspend)" : "Suspended / Inactive (Click to Activate)"}
+                            >
+                              <span
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                  exp.status.includes("Active") ? "translate-x-5" : "translate-x-0"
+                                }`}
+                              />
+                            </button>
                           </td>
                           <td className="py-4 px-4 text-right">
                             <div className="relative inline-block text-left">

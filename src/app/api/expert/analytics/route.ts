@@ -8,19 +8,47 @@ export async function GET(request: Request) {
     const expertId = searchParams.get("expertId");
     const expertEmail = searchParams.get("expertEmail");
 
+    if (!expertId && !expertEmail) {
+      return NextResponse.json({
+        success: true,
+        kpis: {
+          weeklyRevenue: 0,
+          weeklyGrowthPct: "0.0",
+          completedJobsCount: 0,
+          avgResponseTimeMins: 0,
+          reputationScore: 5.0,
+          reviewsCount: 0,
+        },
+        weeklyChartData: [
+          { day: "Mon", rev: 0, jobs: 0, height: "15%" },
+          { day: "Tue", rev: 0, jobs: 0, height: "15%" },
+          { day: "Wed", rev: 0, jobs: 0, height: "15%" },
+          { day: "Thu", rev: 0, jobs: 0, height: "15%" },
+          { day: "Fri", rev: 0, jobs: 0, height: "15%" },
+          { day: "Sat", rev: 0, jobs: 0, height: "15%" },
+          { day: "Sun", rev: 0, jobs: 0, height: "15%" },
+        ],
+        totalWeeklyJobs: 0,
+        avgDailyIncome: 0,
+        categoryDistribution: [],
+        topInsightCategory: "No jobs yet",
+      });
+    }
+
+    const orConditions: any[] = [];
+    if (expertId) {
+      orConditions.push({ expertId });
+      orConditions.push({ expertName: { contains: expertId, mode: "insensitive" } });
+    }
+    if (expertEmail) {
+      orConditions.push({ expertEmail: expertEmail.trim().toLowerCase() });
+    }
+
     // 1. Fetch real expert bookings from DB
     let dbBookings: any[] = [];
     try {
-      const whereClause: any = {};
-      if (expertId) {
-        whereClause.OR = [
-          { expertId: expertId },
-          { expertName: { contains: expertId, mode: "insensitive" } },
-        ];
-      }
-
       dbBookings = await (prisma as any).rentawasExpertBooking.findMany({
-        where: whereClause,
+        where: { OR: orConditions },
         orderBy: { createdAt: "desc" },
       });
     } catch (e: any) {
@@ -57,18 +85,14 @@ export async function GET(request: Request) {
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
     completedBookings.forEach((b: any) => {
-      const fee = Number(b.feePaid) || 599;
-      const bDate = new Date(b.completedAt || b.updatedAt || b.createdAt);
+      const fee = Number(b.feePaid) || 1000;
+      const bDate = new Date(b.completedAt || b.updatedAt || b.createdAt || Date.now());
 
-      if (bDate >= startOfWeek) {
-        weeklyRevenue += fee;
-        const dName = dayNames[bDate.getDay()];
-        if (daysMap[dName]) {
-          daysMap[dName].rev += fee;
-          daysMap[dName].jobs += 1;
-        }
-      } else if (bDate >= fourteenDaysAgo) {
-        prevWeeklyRevenue += fee;
+      weeklyRevenue += fee;
+      const dName = dayNames[bDate.getDay()];
+      if (daysMap[dName]) {
+        daysMap[dName].rev += fee;
+        daysMap[dName].jobs += 1;
       }
     });
 
@@ -134,19 +158,21 @@ export async function GET(request: Request) {
     const avgRating = ratedBookings.length > 0 ? (totalRatingSum / ratedBookings.length).toFixed(1) : "5.0";
     const reviewsCount = ratedBookings.length;
 
+    const calcGrowthPct = prevWeeklyRevenue > 0 ? weeklyGrowthPct : (weeklyRevenue > 0 ? "+100.0" : "0.0");
+
     return NextResponse.json({
       success: true,
       kpis: {
-        weeklyRevenue: isSpecificExpert ? weeklyRevenue : (weeklyRevenue > 0 ? weeklyRevenue : 32800),
-        weeklyGrowthPct: isSpecificExpert ? (prevWeeklyRevenue > 0 ? weeklyGrowthPct : "0.0") : weeklyGrowthPct,
-        completedJobsCount: isSpecificExpert ? completedBookings.length : (completedBookings.length > 0 ? completedBookings.length : 340),
-        avgResponseTimeMins: 18,
+        weeklyRevenue: isSpecificExpert ? weeklyRevenue : (weeklyRevenue > 0 ? weeklyRevenue : 0),
+        weeklyGrowthPct: isSpecificExpert ? calcGrowthPct : calcGrowthPct,
+        completedJobsCount: isSpecificExpert ? completedBookings.length : completedBookings.length,
+        avgResponseTimeMins: completedBookings.length > 0 ? 18 : 0,
         reputationScore: ratedBookings.length > 0 ? Number(avgRating) : 5.0,
-        reviewsCount: isSpecificExpert ? reviewsCount : (reviewsCount > 0 ? reviewsCount : 142),
+        reviewsCount: isSpecificExpert ? reviewsCount : reviewsCount,
       },
       weeklyChartData,
-      totalWeeklyJobs: isSpecificExpert ? totalWeeklyJobs : (totalWeeklyJobs > 0 ? totalWeeklyJobs : 39),
-      avgDailyIncome: isSpecificExpert ? avgDailyIncome : (avgDailyIncome > 0 ? avgDailyIncome : 4685),
+      totalWeeklyJobs: totalWeeklyJobs,
+      avgDailyIncome: avgDailyIncome,
       categoryDistribution: finalCategoryDistribution,
       topInsightCategory: finalCategoryDistribution[0]?.title || "No data yet",
     });

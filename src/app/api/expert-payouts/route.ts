@@ -8,34 +8,46 @@ export async function GET(request: Request) {
     const expertId = searchParams.get("expertId");
     const expertEmail = searchParams.get("expertEmail");
 
-    // 1. Fetch real expert bookings from DB
+    // Return zero metrics if no expert target is provided
+    if (!expertId && !expertEmail) {
+      return NextResponse.json({
+        success: true,
+        count: 0,
+        metrics: {
+          availableWalletBalance: 0,
+          thisWeekEarnings: 0,
+          pendingEscrow: 0,
+          totalLifetimeWithdrawn: 0,
+        },
+        transactions: [],
+      });
+    }
+
+    const orConditions: any[] = [];
+    if (expertId) {
+      orConditions.push({ expertId });
+      orConditions.push({ expertName: { contains: expertId, mode: "insensitive" } });
+    }
+    if (expertEmail) {
+      orConditions.push({ expertEmail: expertEmail.trim().toLowerCase() });
+    }
+
+    // 1. Fetch real expert bookings from DB for this specific expert
     let dbBookings: any[] = [];
     try {
-      const whereClause: any = {};
-      if (expertId) {
-        whereClause.OR = [
-          { expertId: expertId },
-          { expertName: { contains: expertId, mode: "insensitive" } },
-        ];
-      }
-
       dbBookings = await (prisma as any).rentawasExpertBooking.findMany({
-        where: whereClause,
+        where: { OR: orConditions },
         orderBy: { updatedAt: "desc" },
       });
     } catch (e: any) {
       console.warn("DB query warning for bookings in /api/expert-payouts:", e?.message);
     }
 
-    // 2. Fetch real payout withdrawals from DB
+    // 2. Fetch real payout withdrawals from DB for this specific expert
     let dbPayouts: any[] = [];
     try {
-      const whereClause: any = {};
-      if (expertId) whereClause.expertId = expertId;
-      else if (expertEmail) whereClause.expertEmail = expertEmail;
-
       dbPayouts = await (prisma as any).rentawasExpertPayout.findMany({
-        where: whereClause,
+        where: { OR: orConditions },
         orderBy: { createdAt: "desc" },
       });
     } catch (e: any) {
@@ -46,24 +58,19 @@ export async function GET(request: Request) {
     const completedBookings = dbBookings.filter((b: any) => b.status === "Completed");
     const activeBookings = dbBookings.filter((b: any) => b.status !== "Completed" && b.status !== "Cancelled");
 
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
     let totalNetCredits = 0;
     let thisWeekEarnings = 0;
 
     const creditTransactions = completedBookings.map((b: any) => {
-      const gross = Number(b.feePaid) || 599;
+      const gross = Number(b.feePaid) || 1000;
       const platformFee = Math.round(gross * 0.10);
       const tds = 0;
       const net = gross - platformFee;
 
       totalNetCredits += net;
+      thisWeekEarnings += net;
 
-      const bookingDate = b.completedAt || b.updatedAt || b.createdAt;
-      if (new Date(bookingDate) >= sevenDaysAgo) {
-        thisWeekEarnings += net;
-      }
+      const bookingDate = b.completedAt || b.updatedAt || b.createdAt || new Date();
 
       return {
         id: `PAY-CREDIT-${b.bookingNumber || b.id}`,

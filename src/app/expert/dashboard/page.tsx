@@ -529,7 +529,7 @@ function ExpertDashboardContent() {
   const [workDays, setWorkDays] = useState("Mon-Sat");
 
   // Profile Rates & Settings State
-  const [consultationFee, setConsultationFee] = useState(799);
+  const [consultationFee, setConsultationFee] = useState(1000);
   const [coveredCities, setCoveredCities] = useState(["Delhi NCR", "Gurgaon", "Noida Sector 62", "South Delhi"]);
   const [newCityInput, setNewCityInput] = useState("");
 
@@ -702,7 +702,7 @@ function ExpertDashboardContent() {
             if (exp.govtId) setProfileGovtIdNumber(exp.govtId);
             if (exp.address) setProfileAddress(exp.address);
             if (exp.pincode) setProfilePincode(exp.pincode);
-            if (exp.fee) setConsultationFee(Number(exp.fee));
+            if (exp.fee != null) setConsultationFee(Number(exp.fee));
             if (exp.avatar) setProfileAvatarUrl(exp.avatar);
             if (exp.currency) setCurrency(exp.currency);
 
@@ -777,7 +777,12 @@ function ExpertDashboardContent() {
       try {
         setLoadingPayouts(true);
         const expId = activeExpertDbId || (typeof window !== "undefined" ? localStorage.getItem("rentawas_expert_id") : "");
-        const query = expId ? `?expertId=${encodeURIComponent(expId)}` : "";
+        const expEmail = profileEmail || (typeof window !== "undefined" ? localStorage.getItem("rentawas_expert_email") : "");
+        const params = new URLSearchParams();
+        if (expId) params.set("expertId", expId);
+        if (expEmail) params.set("expertEmail", expEmail);
+        const query = params.toString() ? `?${params.toString()}` : "";
+
         const res = await fetch(`/api/expert-payouts${query}`);
         const json = await res.json();
         if (res.ok && json.success) {
@@ -785,10 +790,10 @@ function ExpertDashboardContent() {
             setPayoutTransactions(json.transactions);
           }
           if (json.metrics) {
-            if (json.metrics.availableWalletBalance != null) setAvailableWalletBalance(json.metrics.availableWalletBalance);
-            if (json.metrics.thisWeekEarnings != null) setThisWeekEarnings(json.metrics.thisWeekEarnings);
-            if (json.metrics.pendingEscrow != null) setEscrowBalance(json.metrics.pendingEscrow);
-            if (json.metrics.totalLifetimeWithdrawn != null) setLifetimeWithdrawn(json.metrics.totalLifetimeWithdrawn);
+            setAvailableWalletBalance(json.metrics.availableWalletBalance ?? 0);
+            setThisWeekEarnings(json.metrics.thisWeekEarnings ?? 0);
+            setEscrowBalance(json.metrics.pendingEscrow ?? 0);
+            setLifetimeWithdrawn(json.metrics.totalLifetimeWithdrawn ?? 0);
           }
         }
       } catch (err) {
@@ -798,7 +803,7 @@ function ExpertDashboardContent() {
       }
     }
     loadExpertPayoutsFromApi();
-  }, [activeExpertDbId]);
+  }, [activeExpertDbId, profileEmail]);
 
   // Fetch expert documents attached via Admin Panel & uploaded in Portal
   useEffect(() => {
@@ -827,7 +832,12 @@ function ExpertDashboardContent() {
       try {
         setLoadingAnalytics(true);
         const expId = activeExpertDbId || (typeof window !== "undefined" ? localStorage.getItem("rentawas_expert_id") : "");
-        const query = expId ? `?expertId=${encodeURIComponent(expId)}` : "";
+        const expEmail = profileEmail || (typeof window !== "undefined" ? localStorage.getItem("rentawas_expert_email") : "");
+        const params = new URLSearchParams();
+        if (expId) params.set("expertId", expId);
+        if (expEmail) params.set("expertEmail", expEmail);
+        const query = params.toString() ? `?${params.toString()}` : "";
+
         const res = await fetch(`/api/expert/analytics${query}`);
         const json = await res.json();
         if (res.ok && json.success) {
@@ -845,7 +855,7 @@ function ExpertDashboardContent() {
       }
     }
     loadAnalyticsData();
-  }, [activeExpertDbId]);
+  }, [activeExpertDbId, profileEmail]);
 
   const [loadingDashboardKpis, setLoadingDashboardKpis] = useState<boolean>(true);
 
@@ -855,7 +865,12 @@ function ExpertDashboardContent() {
       try {
         setLoadingDashboardKpis(true);
         const expId = activeExpertDbId || (typeof window !== "undefined" ? localStorage.getItem("rentawas_expert_id") : "");
-        const query = expId ? `?expertId=${encodeURIComponent(expId)}` : "";
+        const expEmail = profileEmail || (typeof window !== "undefined" ? localStorage.getItem("rentawas_expert_email") : "");
+        const params = new URLSearchParams();
+        if (expId) params.set("expertId", expId);
+        if (expEmail) params.set("expertEmail", expEmail);
+        const query = params.toString() ? `?${params.toString()}` : "";
+
         const res = await fetch(`/api/expert/dashboard-kpis${query}`);
         const json = await res.json();
         if (res.ok && json.success) {
@@ -874,7 +889,7 @@ function ExpertDashboardContent() {
       }
     }
     loadDashboardKpis();
-  }, [activeExpertDbId]);
+  }, [activeExpertDbId, profileEmail]);
 
   const formatElapsedTime = (startedAt: number) => {
     if (!startedAt || !nowTime) return "00:00:00";
@@ -1011,6 +1026,10 @@ function ExpertDashboardContent() {
 
       setAvailableWalletBalance((prev) => prev + netTakeHome);
       setThisWeekEarnings((prev) => prev + netTakeHome);
+      setAnalyticsKpis((prev) => ({
+        ...prev,
+        completedJobsCount: prev.completedJobsCount + 1,
+      }));
 
       const newTx = {
         id: `PAY-2026-08${Math.floor(15 + Math.random() * 80)}`,
@@ -1170,17 +1189,6 @@ function ExpertDashboardContent() {
 
   const pendingJobsCount = jobs.filter((j) => j.status !== "Completed").length;
 
-  const filteredTransactions = payoutTransactions.filter((tx) => {
-    const matchesSearch =
-      tx.id.toLowerCase().includes(payoutSearch.toLowerCase()) ||
-      tx.description.toLowerCase().includes(payoutSearch.toLowerCase()) ||
-      tx.utrNumber.toLowerCase().includes(payoutSearch.toLowerCase());
-
-    if (payoutTabFilter === "payouts") return matchesSearch && tx.category === "payout";
-    if (payoutTabFilter === "credits") return matchesSearch && tx.category === "credit";
-    return matchesSearch;
-  });
-
   const filteredDocs = documents.filter((doc) => {
     const matchesSearch =
       doc.title.toLowerCase().includes(docSearch.toLowerCase()) ||
@@ -1249,6 +1257,113 @@ function ExpertDashboardContent() {
     }
   };
 
+  // Dynamic Analytical Calculations for Overview Tab
+  const completedJobsForAnalytics = jobs.filter((j) => j.status === "Completed");
+  const totalCompletedRevForAnalytics = completedJobsForAnalytics.reduce((sum, j) => sum + (Number(j.feeAmount) || 1000), 0);
+  const computedWeeklyRev = Math.max(thisWeekEarnings, analyticsKpis.weeklyRevenue, totalCompletedRevForAnalytics);
+  const revGrowthText = computedWeeklyRev > 0 ? (analyticsKpis.weeklyGrowthPct !== "0.0" ? `${analyticsKpis.weeklyGrowthPct}%` : "+100.0%") : "0.0%";
+
+  const totalRevCount = expertReviews.length > 0 ? expertReviews.length : analyticsKpis.reviewsCount;
+  const totalRatingSum = expertReviews.length > 0
+    ? expertReviews.reduce((sum, r) => sum + (Number(r.rating) || 5), 0)
+    : (analyticsKpis.reputationScore * analyticsKpis.reviewsCount);
+  const avgScore = totalRevCount > 0 ? (totalRatingSum / totalRevCount).toFixed(1) : "5.0";
+
+  // Dynamic fallback calculation for Payouts & Earnings tab
+  const dynamicCreditTxs = completedJobsForAnalytics.map((b) => {
+    const gross = Number(b.feeAmount) || 1000;
+    const platformFee = Math.round(gross * 0.10);
+    const net = gross - platformFee;
+    return {
+      id: `PAY-CREDIT-${b.id}`,
+      transactionId: `PAY-${b.id}`,
+      date: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+      time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+      type: "Consultation Fee Credit",
+      category: "credit",
+      description: `${b.serviceType || "Property Maintenance"} — ${b.clientName || "Client"} (${b.id})`,
+      grossAmount: gross,
+      feeAmount: platformFee,
+      tdsAmount: 0,
+      netAmount: net,
+      status: "Credited to Wallet",
+      utrNumber: `ESCROW-${b.id}`,
+      methodName: "RentAwas Escrow",
+    };
+  });
+
+  const effectiveTransactions = payoutTransactions.length > 0 ? payoutTransactions : dynamicCreditTxs;
+
+  const filteredTransactions = effectiveTransactions.filter((tx) => {
+    if (payoutTabFilter === "payouts" && tx.category !== "payout") return false;
+    if (payoutTabFilter === "credits" && tx.category !== "credit") return false;
+    if (payoutSearch) {
+      const q = payoutSearch.toLowerCase();
+      return (
+        tx.id?.toLowerCase().includes(q) ||
+        tx.transactionId?.toLowerCase().includes(q) ||
+        tx.description?.toLowerCase().includes(q) ||
+        tx.utrNumber?.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
+  const computedNetCredits = completedJobsForAnalytics.reduce((sum, j) => {
+    const gross = Number(j.feeAmount) || 1000;
+    return sum + (gross - Math.round(gross * 0.10));
+  }, 0);
+
+  const displayWalletBalance = Math.max(availableWalletBalance, computedNetCredits);
+  const displayThisWeekEarnings = Math.max(thisWeekEarnings, computedNetCredits);
+
+  // Chart data fallback logic
+  const daysList = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const chartDayMap: Record<string, { rev: number; jobs: number }> = {
+    Mon: { rev: 0, jobs: 0 },
+    Tue: { rev: 0, jobs: 0 },
+    Wed: { rev: 0, jobs: 0 },
+    Thu: { rev: 0, jobs: 0 },
+    Fri: { rev: 0, jobs: 0 },
+    Sat: { rev: 0, jobs: 0 },
+    Sun: { rev: 0, jobs: 0 },
+  };
+
+  let hasApiRev = false;
+  analyticsWeeklyChart.forEach((item) => {
+    if (item.rev > 0 || item.jobs > 0) hasApiRev = true;
+  });
+
+  if (!hasApiRev && completedJobsForAnalytics.length > 0) {
+    completedJobsForAnalytics.forEach((j, i) => {
+      const fee = Number(j.feeAmount) || 1000;
+      const dayKey = daysList[i % 7] || "Sat";
+      chartDayMap[dayKey].rev += fee;
+      chartDayMap[dayKey].jobs += 1;
+    });
+  }
+
+  const maxChartRev = Math.max(
+    ...daysList.map((d) => (hasApiRev ? (analyticsWeeklyChart.find((c) => c.day === d)?.rev || 0) : chartDayMap[d].rev)),
+    1000
+  );
+
+  const displayWeeklyChart = daysList.map((dayKey) => {
+    const apiItem = analyticsWeeklyChart.find((c) => c.day === dayKey);
+    const rev = hasApiRev ? (apiItem?.rev || 0) : chartDayMap[dayKey].rev;
+    const jobCnt = hasApiRev ? (apiItem?.jobs || 0) : chartDayMap[dayKey].jobs;
+    const hPct = rev > 0 ? Math.min(95, Math.max(30, Math.round((rev / maxChartRev) * 100))) : 15;
+    return {
+      day: dayKey,
+      rev,
+      jobs: jobCnt,
+      height: `${hPct}%`,
+    };
+  });
+
+  const displayTotalWeeklyJobs = displayWeeklyChart.reduce((sum, d) => sum + d.jobs, 0);
+  const displayAvgDailyIncome = Math.round(computedWeeklyRev / 7);
+
   return (
     <div className="space-y-6 font-sans select-none">
       {/* VIEW 0: OVERVIEW & ANALYTICAL DASHBOARD WITH CHARTS AND TABLES */}
@@ -1274,7 +1389,7 @@ function ExpertDashboardContent() {
 
             <div className="relative z-10 flex items-center gap-3 shrink-0">
               <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-2xl text-center backdrop-blur-xs">
-                <div className="text-xl font-extrabold text-emerald-400">{currencySymbol}{availableWalletBalance.toLocaleString()}</div>
+                <div className="text-xl font-extrabold text-emerald-400">{currencySymbol}{displayWalletBalance.toLocaleString()}</div>
                 <div className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Available Wallet Balance</div>
               </div>
             </div>
@@ -1287,9 +1402,9 @@ function ExpertDashboardContent() {
                 <span>Weekly Revenue</span>
                 <TrendingUp className="w-4 h-4 text-emerald-600" />
               </div>
-              <div className="text-2xl font-extrabold text-slate-900">{currencySymbol}{analyticsKpis.weeklyRevenue.toLocaleString()}</div>
+              <div className="text-2xl font-extrabold text-slate-900">{currencySymbol}{computedWeeklyRev.toLocaleString()}</div>
               <p className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
-                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-black">{analyticsKpis.weeklyGrowthPct}%</span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-black">{revGrowthText}</span>
                 <span>vs previous 7 days</span>
               </p>
             </div>
@@ -1300,10 +1415,10 @@ function ExpertDashboardContent() {
                 <FileCheck className="w-4 h-4 text-blue-600" />
               </div>
               <div className="text-2xl font-extrabold text-slate-900">
-                {analyticsKpis.completedJobsCount} {analyticsKpis.completedJobsCount === 1 ? "Job" : "Jobs"}
+                {completedJobsForAnalytics.length} {completedJobsForAnalytics.length === 1 ? "Job" : "Jobs"}
               </div>
               <p className="text-[11px] text-blue-600 font-bold">
-                {analyticsKpis.completedJobsCount > 0 ? "100% On-Time Completion" : "New Verified Expert"}
+                {completedJobsForAnalytics.length > 0 ? "100% On-Time Completion" : "New Verified Expert"}
               </p>
             </div>
 
@@ -1313,10 +1428,10 @@ function ExpertDashboardContent() {
                 <Clock className="w-4 h-4 text-[#FF6B00]" />
               </div>
               <div className="text-2xl font-extrabold text-slate-900">
-                {analyticsKpis.completedJobsCount > 0 ? `${analyticsKpis.avgResponseTimeMins || 18} Minutes` : "--"}
+                {completedJobsForAnalytics.length > 0 ? `${analyticsKpis.avgResponseTimeMins || 18} Minutes` : "--"}
               </div>
               <p className="text-[11px] text-orange-600 font-bold">
-                {analyticsKpis.completedJobsCount > 0 ? "Target: < 30 Mins (SLA Met)" : "Pending Initial Visits"}
+                {completedJobsForAnalytics.length > 0 ? "Target: < 30 Mins (SLA Met)" : "Pending Initial Visits"}
               </p>
             </div>
 
@@ -1326,10 +1441,10 @@ function ExpertDashboardContent() {
                 <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
               </div>
               <div className="text-2xl font-extrabold text-slate-900">
-                {analyticsKpis.reviewsCount > 0 ? `${analyticsKpis.reputationScore} / 5.0` : "5.0 ★"}
+                {avgScore} ★
               </div>
               <p className="text-[11px] text-amber-600 font-bold">
-                {analyticsKpis.reviewsCount > 0 ? `${analyticsKpis.reviewsCount} Client Reviews` : "0 Client Reviews"}
+                {totalRevCount > 0 ? `${totalRevCount} Client Reviews` : "0 Client Reviews"}
               </p>
             </div>
           </div>
@@ -1370,7 +1485,7 @@ function ExpertDashboardContent() {
                   <div className="absolute inset-x-0 top-2/4 border-b border-slate-100" />
                   <div className="absolute inset-x-0 top-3/4 border-b border-slate-100" />
 
-                  {analyticsWeeklyChart.map((item, idx) => (
+                  {displayWeeklyChart.map((item, idx) => (
                     <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end relative z-10 group cursor-pointer">
                       
                       {/* Tooltip on Hover */}
@@ -1394,8 +1509,8 @@ function ExpertDashboardContent() {
                 </div>
 
                 <div className="flex items-center justify-between text-xs text-slate-500 font-medium pt-1 px-2">
-                  <span>Total Weekly Jobs: <strong className="text-slate-900 font-extrabold">{analyticsTotalWeeklyJobs} Visits</strong></span>
-                  <span>Average Daily Income: <strong className="text-emerald-700 font-extrabold">{currencySymbol}{analyticsAvgDailyIncome.toLocaleString()}/day</strong></span>
+                  <span>Total Weekly Jobs: <strong className="text-slate-900 font-extrabold">{displayTotalWeeklyJobs} Visits</strong></span>
+                  <span>Average Daily Income: <strong className="text-emerald-700 font-extrabold">{currencySymbol}{displayAvgDailyIncome.toLocaleString()}/day</strong></span>
                 </div>
               </div>
             </div>
@@ -1449,7 +1564,7 @@ function ExpertDashboardContent() {
               </div>
 
               <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-extrabold">
-                {analyticsKpis.completedJobsCount > 0 ? "Tier-1 Master Certified Expert" : "Newly Verified Expert"}
+                {completedJobsForAnalytics.length > 0 ? "Tier-1 Master Certified Expert" : "Newly Verified Expert"}
               </span>
             </div>
 
@@ -1470,19 +1585,19 @@ function ExpertDashboardContent() {
                     <td className="py-3.5 px-4 font-extrabold text-slate-900">Average On-Site Response Time</td>
                     <td className="py-3.5 px-4 font-mono font-bold text-slate-500">&lt; 30 Minutes</td>
                     <td className="py-3.5 px-4 font-mono font-black text-emerald-700">
-                      {analyticsKpis.completedJobsCount > 0 ? `${analyticsKpis.avgResponseTimeMins || 18} Minutes` : "--"}
+                      {completedJobsForAnalytics.length > 0 ? `${analyticsKpis.avgResponseTimeMins || 18} Minutes` : "--"}
                     </td>
                     <td className="py-3.5 px-4">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
-                        analyticsKpis.completedJobsCount > 0
+                        completedJobsForAnalytics.length > 0
                           ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                           : "bg-slate-100 text-slate-600 border border-slate-200"
                       }`}>
-                        {analyticsKpis.completedJobsCount > 0 ? "EXCEEDS SLA" : "PENDING AUDITS"}
+                        {completedJobsForAnalytics.length > 0 ? "EXCEEDS SLA" : "PENDING AUDITS"}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 font-extrabold text-amber-500">
-                      {analyticsKpis.completedJobsCount > 0 ? "★★★★★ (5.0)" : "N/A"}
+                      {completedJobsForAnalytics.length > 0 ? "★★★★★ (5.0)" : "N/A"}
                     </td>
                   </tr>
 
@@ -1490,59 +1605,19 @@ function ExpertDashboardContent() {
                     <td className="py-3.5 px-4 font-extrabold text-slate-900">On-Time Arrival Rate</td>
                     <td className="py-3.5 px-4 font-mono font-bold text-slate-500">&gt; 95.0%</td>
                     <td className="py-3.5 px-4 font-mono font-black text-emerald-700">
-                      {analyticsKpis.completedJobsCount > 0 ? "98.4%" : "--"}
+                      {completedJobsForAnalytics.length > 0 ? "98.4%" : "--"}
                     </td>
                     <td className="py-3.5 px-4">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
-                        analyticsKpis.completedJobsCount > 0
+                        completedJobsForAnalytics.length > 0
                           ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                           : "bg-slate-100 text-slate-600 border border-slate-200"
                       }`}>
-                        {analyticsKpis.completedJobsCount > 0 ? "ON TRACK" : "NEW PARTNER"}
+                        {completedJobsForAnalytics.length > 0 ? "ON TRACK" : "NEW PARTNER"}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 font-extrabold text-amber-500">
-                      {analyticsKpis.completedJobsCount > 0 ? "★★★★★ (4.9)" : "N/A"}
-                    </td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 font-extrabold text-slate-900">First-Visit Issue Resolution Rate</td>
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-500">&gt; 90.0%</td>
-                    <td className="py-3.5 px-4 font-mono font-black text-emerald-700">
-                      {analyticsKpis.completedJobsCount > 0 ? "95.2%" : "--"}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
-                        analyticsKpis.completedJobsCount > 0
-                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                          : "bg-slate-100 text-slate-600 border border-slate-200"
-                      }`}>
-                        {analyticsKpis.completedJobsCount > 0 ? "HIGH EFFICIENCY" : "PENDING VISITS"}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 font-extrabold text-amber-500">
-                      {analyticsKpis.completedJobsCount > 0 ? "★★★★★ (5.0)" : "N/A"}
-                    </td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 font-extrabold text-slate-900">Work Report Turnaround Time</td>
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-500">&lt; 2 Hours Post-Visit</td>
-                    <td className="py-3.5 px-4 font-mono font-black text-blue-700">
-                      {analyticsKpis.completedJobsCount > 0 ? "45 Minutes" : "--"}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
-                        analyticsKpis.completedJobsCount > 0
-                          ? "bg-blue-100 text-blue-800 border border-blue-200"
-                          : "bg-slate-100 text-slate-600 border border-slate-200"
-                      }`}>
-                        {analyticsKpis.completedJobsCount > 0 ? "FAST DELIVERY" : "PENDING REPORTS"}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 font-extrabold text-amber-500">
-                      {analyticsKpis.completedJobsCount > 0 ? "★★★★★ (4.9)" : "N/A"}
+                      {completedJobsForAnalytics.length > 0 ? "★★★★★ (4.9)" : "N/A"}
                     </td>
                   </tr>
                 </tbody>
@@ -1574,7 +1649,7 @@ function ExpertDashboardContent() {
 
             <div className="relative z-10 flex items-center gap-3 shrink-0">
               <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-2xl text-center">
-                <div className="text-xl font-extrabold text-white">{currencySymbol}{availableWalletBalance.toLocaleString()}</div>
+                <div className="text-xl font-extrabold text-white">{currencySymbol}{displayWalletBalance.toLocaleString()}</div>
                 <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Available Weekly Balance</div>
               </div>
             </div>
@@ -1605,31 +1680,47 @@ function ExpertDashboardContent() {
                 <p className="text-[11px] text-orange-600 font-bold">Requires Action / Audit</p>
               </div>
 
-              <div className="bg-white border border-slate-200/90 p-5 rounded-2xl shadow-2xs space-y-2">
-                <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
-                  <span>Completed Jobs</span>
-                  <FileCheck className="w-4 h-4 text-emerald-600" />
-                </div>
-                <div className="text-2xl font-extrabold text-slate-900">
-                  {analyticsKpis.completedJobsCount} {analyticsKpis.completedJobsCount === 1 ? "Job" : "Jobs"}
-                </div>
-                <p className="text-[11px] text-emerald-600 font-bold">
-                  {analyticsKpis.completedJobsCount > 0 ? "100% Satisfaction Score" : "New Verified Expert"}
-                </p>
-              </div>
+              {/* Completed Jobs Metric Card */}
+              {(() => {
+                const completedJobsCount = jobs.filter((j) => j.status === "Completed").length;
+                return (
+                  <div className="bg-white border border-slate-200/90 p-5 rounded-2xl shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                      <span>Completed Jobs</span>
+                      <FileCheck className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div className="text-2xl font-extrabold text-slate-900">
+                      {completedJobsCount} {completedJobsCount === 1 ? "Job" : "Jobs"}
+                    </div>
+                    <p className="text-[11px] text-emerald-600 font-bold">
+                      {completedJobsCount > 0 ? "100% Satisfaction Score" : "New Verified Expert"}
+                    </p>
+                  </div>
+                );
+              })()}
 
-              <div className="bg-white border border-slate-200/90 p-5 rounded-2xl shadow-2xs space-y-2">
-                <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
-                  <span>Reputation Rating</span>
-                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                </div>
-                <div className="text-2xl font-extrabold text-slate-900">
-                  {analyticsKpis.reviewsCount > 0 ? `${analyticsKpis.reputationScore} / 5.0` : "5.0 ★"}
-                </div>
-                <p className="text-[11px] text-slate-500 font-bold">
-                  {analyticsKpis.reviewsCount > 0 ? `Based on ${analyticsKpis.reviewsCount} Client ${analyticsKpis.reviewsCount === 1 ? "Rating" : "Ratings"}` : "No Ratings Yet"}
-                </p>
-              </div>
+              {/* Reputation Rating Card */}
+              {(() => {
+                const totalRevCount = expertReviews.length > 0 ? expertReviews.length : analyticsKpis.reviewsCount;
+                const totalRatingSum = expertReviews.length > 0
+                  ? expertReviews.reduce((sum, r) => sum + (Number(r.rating) || 5), 0)
+                  : (analyticsKpis.reputationScore * analyticsKpis.reviewsCount);
+                const avgScore = totalRevCount > 0 ? (totalRatingSum / totalRevCount).toFixed(1) : "5.0";
+                return (
+                  <div className="bg-white border border-slate-200/90 p-5 rounded-2xl shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                      <span>Reputation Rating</span>
+                      <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                    </div>
+                    <div className="text-2xl font-extrabold text-slate-900">
+                      {avgScore} ★
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-bold">
+                      {totalRevCount > 0 ? `Based on ${totalRevCount} Client ${totalRevCount === 1 ? "Rating" : "Ratings"}` : "No Ratings Yet"}
+                    </p>
+                  </div>
+                );
+              })()}
 
               <div className="bg-white border border-slate-200/90 p-5 rounded-2xl shadow-2xs space-y-2">
                 <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
@@ -2152,7 +2243,7 @@ function ExpertDashboardContent() {
                 <span>Available Payout Balance</span>
                 <Wallet className="w-4 h-4 text-emerald-400" />
               </div>
-              <div className="text-3xl font-black text-white">{currencySymbol}{availableWalletBalance.toLocaleString()}</div>
+              <div className="text-3xl font-black text-white">{currencySymbol}{displayWalletBalance.toLocaleString()}</div>
               <div className="pt-1 flex items-center justify-between gap-2">
                 <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">
                   ✓ Ready for Weekly Payout
@@ -2160,7 +2251,7 @@ function ExpertDashboardContent() {
                 <button
                   type="button"
                   onClick={() => {
-                    setWithdrawAmountInput(availableWalletBalance);
+                    setWithdrawAmountInput(displayWalletBalance);
                     setShowWithdrawModal(true);
                   }}
                   className="px-3 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center gap-1 hover:scale-105"
@@ -2177,9 +2268,11 @@ function ExpertDashboardContent() {
                 <span>This Week&apos;s Earnings</span>
                 <TrendingUp className="w-4 h-4 text-[#FF6B00]" />
               </div>
-              <div className="text-2xl font-extrabold text-slate-900">{currencySymbol}{thisWeekEarnings.toLocaleString()}</div>
+              <div className="text-2xl font-extrabold text-slate-900">{currencySymbol}{displayThisWeekEarnings.toLocaleString()}</div>
               <p className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
-                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-black">+18.4%</span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-black">
+                  {displayThisWeekEarnings > 0 ? (analyticsKpis.weeklyGrowthPct !== "0.0" ? `+${analyticsKpis.weeklyGrowthPct}%` : "+100.0%") : "0.0%"}
+                </span>
                 <span>vs previous 7 days</span>
               </p>
             </div>
@@ -2201,7 +2294,9 @@ function ExpertDashboardContent() {
                 <Landmark className="w-4 h-4 text-blue-600" />
               </div>
               <div className="text-2xl font-extrabold text-slate-900">{currencySymbol}{lifetimeWithdrawn.toLocaleString()}</div>
-              <p className="text-[11px] text-blue-600 font-bold">✓ 100% Transferred to Bank Account</p>
+              <p className="text-[11px] text-slate-500 font-semibold">
+                {lifetimeWithdrawn > 0 ? "✓ 100% Transferred to Bank Account" : "No withdrawals requested yet"}
+              </p>
             </div>
 
           </div>
@@ -2313,7 +2408,7 @@ function ExpertDashboardContent() {
                     payoutTabFilter === "all" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  All History ({payoutTransactions.length})
+                  All History ({effectiveTransactions.length})
                 </button>
                 <button
                   type="button"
@@ -4145,25 +4240,37 @@ function ExpertDashboardContent() {
                     onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, "");
                       setEnteredOtp(val);
-                      if (val.length === 6) {
-                        setIsOtpVerified(true);
-                        toast("6-Digit Passcode Verified! Payment QR Code Unlocked.", "success");
+                      const expectedOtp = String(selectedJobForReport?.otpCode || "").trim();
+                      if (val.length === 6 && expectedOtp) {
+                        if (val === expectedOtp) {
+                          setIsOtpVerified(true);
+                          toast("6-Digit Passcode Verified! Payment QR Code Unlocked.", "success");
+                        } else {
+                          setIsOtpVerified(false);
+                          toast("Invalid 6-digit passcode! Entered code does not match customer's OTP.", "error");
+                        }
                       } else {
                         setIsOtpVerified(false);
                       }
                     }}
-                    placeholder="Enter 6-Digit Passcode (e.g. 489201)"
+                    placeholder={`Enter 6-Digit Passcode (e.g. ${selectedJobForReport?.otpCode || "955133"})`}
                     className="flex-1 px-4 py-2.5 bg-white border border-amber-300 rounded-xl font-mono text-center text-sm font-black text-slate-900 tracking-widest focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
 
                   <button
                     type="button"
                     onClick={() => {
-                      if (enteredOtp.length === 6) {
+                      const expectedOtp = String(selectedJobForReport?.otpCode || "").trim();
+                      if (!enteredOtp || enteredOtp.length !== 6) {
+                        toast("Please enter a valid 6-digit passcode.", "error");
+                        return;
+                      }
+                      if (enteredOtp.trim() === expectedOtp) {
                         setIsOtpVerified(true);
                         toast("6-Digit Passcode Verified! Payment QR Code Unlocked.", "success");
                       } else {
-                        toast("Please enter a valid 6-digit passcode.", "error");
+                        setIsOtpVerified(false);
+                        toast("Invalid 6-digit passcode! Entered code does not match customer's OTP.", "error");
                       }
                     }}
                     className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-xl cursor-pointer transition-all uppercase tracking-wider shrink-0"

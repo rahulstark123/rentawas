@@ -162,7 +162,7 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
                   : "text-slate-700 hover:text-slate-950"
               }`}
             >
-              Services
+              RentAwas Experts
             </Link>
             <Link
               href="/vision"
@@ -279,7 +279,7 @@ export default function Navbar({ onOpenEarlyAccess, variant = "dark" }: NavbarPr
                 onClick={() => setMobileMenuOpen(false)}
                 className={`text-sm font-bold uppercase tracking-wider ${isServices ? "text-[#FF6B00]" : "text-slate-200"}`}
               >
-                Services
+                RentAwas Experts
               </Link>
               <Link
                 href="/vision"

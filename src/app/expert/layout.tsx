@@ -136,6 +136,29 @@ export default function ExpertPortalLayout({
     loadAvailability();
   }, [activeExpertId, expertEmail]);
 
+  // Fetch real average rating for layout header
+  useEffect(() => {
+    async function loadRealRating() {
+      try {
+        const expId = activeExpertId || (typeof window !== "undefined" ? localStorage.getItem("rentawas_expert_id") : "");
+        const expEmail = expertEmail || (typeof window !== "undefined" ? localStorage.getItem("rentawas_expert_email") : "");
+        const params = new URLSearchParams();
+        if (expId) params.set("expertId", expId);
+        if (expEmail) params.set("expertEmail", expEmail);
+        const query = params.toString() ? `?${params.toString()}` : "";
+
+        const res = await fetch(`/api/expert-reviews${query}`);
+        const json = await res.json();
+        if (res.ok && json.averageRating != null) {
+          setExpertRating(Number(json.averageRating).toFixed(1));
+        }
+      } catch (err) {
+        console.warn("Failed to load real rating in layout:", err);
+      }
+    }
+    loadRealRating();
+  }, [activeExpertId, expertEmail]);
+
   const handleToggleOnline = async () => {
     const nextVal = !isOnline;
     setIsOnline(nextVal);
@@ -315,7 +338,7 @@ export default function ExpertPortalLayout({
             </button>
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-emerald-600" />
-              <span className="text-sm font-extrabold text-slate-900">RentAwas Certified Expert Workspace</span>
+              <span className="text-sm font-extrabold text-slate-900">RentAwas Expert Workspace</span>
             </div>
           </div>
 

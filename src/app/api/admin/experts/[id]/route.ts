@@ -80,9 +80,12 @@ export async function PUT(
     let updatedExpert: any = null;
 
     try {
-      updatedExpert = await (prisma as any).rentawasExpert.update({
+      const isAvailableVal = body.isAvailable !== undefined ? Boolean(body.isAvailable) : (status ? !status.toLowerCase().includes("suspended") : true);
+      const statusVal = status || (isAvailableVal ? "Active & Verified" : "Suspended");
+
+      updatedExpert = await (prisma as any).rentawasExpert.upsert({
         where: { id },
-        data: {
+        update: {
           ...(name && { name: name.trim() }),
           ...(trade && { trade }),
           ...(specialization !== undefined && { specialization }),
@@ -110,13 +113,37 @@ export async function PUT(
           ...(ifsc !== undefined && { ifsc }),
           ...(upiId !== undefined && { upiId }),
           ...(emergencyContactName !== undefined && { emergencyContactName }),
-          ...(emergencyContactPhone !== undefined && { emergencyContactPhone }),
           ...(bloodGroup && { bloodGroup }),
-          ...(status && { status }),
+          status: statusVal,
+          isAvailable: isAvailableVal,
+        },
+        create: {
+          id,
+          name: name?.trim() || "Expert Partner",
+          trade: trade || "Property Maintenance",
+          specialization: specialization || "Certified Field Specialist",
+          experience: experience || "5+ Yrs Exp",
+          email: email?.trim().toLowerCase() || `expert_${id.toLowerCase()}@rentawas.com`,
+          phone: phone?.trim() || "+91 98765 43210",
+          govtIdType: govtIdType || "Aadhaar Card",
+          govtId: govtId || "1234 5678 9012",
+          currency: currency || "INR (₹)",
+          fee: Number(fee) || 599,
+          hourlyRate: Number(hourlyRate) || 49,
+          city: city || "Gurugram / NCR",
+          address: address || "Sector 62, Gurgaon",
+          pincode: pincode || "122011",
+          workStartTime: workStartTime || "08:00 AM",
+          workEndTime: workEndTime || "08:00 PM",
+          workDays: workDays || "Mon-Sat",
+          languages: languagesJson,
+          avatar: avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
+          status: statusVal,
+          isAvailable: isAvailableVal,
         },
       });
     } catch (e: any) {
-      console.warn("DB update fallback:", e?.message);
+      console.warn("DB upsert fallback:", e?.message);
       updatedExpert = {
         id,
         ...body,

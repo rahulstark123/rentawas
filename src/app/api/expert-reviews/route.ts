@@ -62,22 +62,29 @@ export async function GET(request: Request) {
 
     let dbBookings: any[] = [];
     try {
-      const whereClause: any = {
-        OR: [
-          { isRated: true },
-          { userRating: { not: null } },
-        ],
-      };
+      const AND: any[] = [
+        {
+          OR: [
+            { isRated: true },
+            { userRating: { not: null } },
+          ],
+        },
+      ];
 
-      if (expertId) {
-        whereClause.OR = [
-          { expertId: expertId },
-          { expertName: { contains: expertId, mode: "insensitive" } },
-        ];
+      if (expertId || expertEmail) {
+        const expertOR: any[] = [];
+        if (expertId) {
+          expertOR.push({ expertId: expertId });
+          expertOR.push({ expertName: { contains: expertId, mode: "insensitive" } });
+        }
+        if (expertEmail) {
+          expertOR.push({ expertEmail: expertEmail.trim().toLowerCase() });
+        }
+        AND.push({ OR: expertOR });
       }
 
       const rawBookings = await (prisma as any).rentawasExpertBooking.findMany({
-        where: whereClause,
+        where: { AND },
         orderBy: { updatedAt: "desc" },
       });
 

@@ -19,7 +19,7 @@ export default function ComingSoonModal({
   isOpen,
   onClose,
   title = "Feature Coming Soon!",
-  description = "We are putting the finishing touches on the RentAwas platform. Enter your email below to get priority early access and exclusive launch updates.",
+  description = "We are putting the finishing touches on this app and feature. Stay tuned for our official rollout!",
   notifySource,
   interest,
   workspaceId,
@@ -108,50 +108,15 @@ export default function ComingSoonModal({
         <h3 className="text-2xl font-extrabold text-[#0B132B] mb-2 tracking-tight">{title}</h3>
         <p className="text-slate-600 text-sm leading-relaxed mb-6">{description}</p>
 
-        {submitted ? (
-          alreadyRegistered ? (
-            <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-4 flex items-center justify-center gap-2 text-sm font-semibold animate-in zoom-in duration-150">
-              <Info className="w-5 h-5 text-amber-600 shrink-0" />
-              <span>You already filled this.</span>
-            </div>
-          ) : (
-            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 flex items-center justify-center gap-2 text-sm font-semibold animate-in zoom-in duration-150">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-              <span>You&apos;re on the launch waitlist!</span>
-            </div>
-          )
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your work email..."
-              className="w-full px-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/40 focus:border-[#FF6B00] transition-all text-slate-900 placeholder:text-slate-400"
-            />
-            {error ? <p className="text-xs text-red-600 font-semibold text-left">{error}</p> : null}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full py-3 px-6 text-sm font-bold text-white bg-[#FF6B00] hover:bg-[#E56000] disabled:opacity-60 active:scale-[0.98] transition-all rounded-xl shadow-md flex items-center justify-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Notify Me at Launch</span>
-                </>
-              )}
-            </button>
-          </form>
-        )}
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full py-3 px-6 text-sm font-extrabold text-white bg-[#FF6B00] hover:bg-[#E56000] active:scale-[0.98] transition-all rounded-xl shadow-md cursor-pointer"
+        >
+          Got It
+        </button>
 
-        <p className="text-[11px] text-slate-400 mt-4">Powered by ANSH Apps • No spam ever.</p>
+        <p className="text-[11px] text-slate-400 mt-4">Powered by ANSH Apps</p>
       </div>
     </div>
   );

@@ -128,7 +128,7 @@ export async function POST(req: Request) {
           govtIdType: govtIdType || "Aadhaar Card (12-Digit UIDAI)",
           govtId: govtId || "",
           currency: currency || "INR (₹)",
-          fee: Number(fee) || 599,
+          fee: fee != null && !isNaN(Number(fee)) && Number(fee) > 0 ? Number(fee) : 1000,
           hourlyRate: Number(hourlyRate) || 49,
           city: city || "Gurugram / NCR",
           address: address || "",

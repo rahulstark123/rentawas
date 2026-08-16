@@ -285,7 +285,7 @@ export default function RentAwasExpertsSection({ hideCards = true }: RentAwasExp
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.35, delay: (i % 5) * 0.06 }}
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => window.open("https://forms.anshapps.com/rentawas-s-workspace/rentawas-experts-form", "_blank")}
                 className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden shadow-xl hover:border-[#FF6B00]/70 hover:shadow-orange-500/10 transition-all duration-300 group cursor-pointer flex flex-col justify-between"
               >
                 {/* Image Container */}
@@ -336,14 +336,15 @@ export default function RentAwasExpertsSection({ hideCards = true }: RentAwasExp
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
+          <a
+            href="https://forms.anshapps.com/rentawas-s-workspace/rentawas-experts-form"
+            target="_blank"
+            rel="noopener noreferrer"
             className="px-8 py-3.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg hover:shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer shrink-0 flex items-center gap-2 hover:scale-[1.02]"
           >
             <UserCheck className="w-4 h-4" />
             <span>Join Now</span>
-          </button>
+          </a>
         </div>
       </div>
 

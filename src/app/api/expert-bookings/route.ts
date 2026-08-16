@@ -92,7 +92,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const bookingNum = `EXP-BK-${Math.floor(1000 + Math.random() * 9000)}`;
+    let bookingNum = "EX-BK-1";
+    try {
+      const existingCount = await (prisma as any).rentawasExpertBooking.count();
+      bookingNum = `EX-BK-${existingCount + 1}`;
+    } catch (e) {
+      bookingNum = `EX-BK-1`;
+    }
     const otpCode = String(Math.floor(100000 + Math.random() * 900000));
 
     const booking = await (prisma as any).rentawasExpertBooking.create({
@@ -155,6 +161,15 @@ export async function PATCH(request: Request) {
     if (isRated !== undefined) updateData.isRated = Boolean(isRated);
     if (startedAt) updateData.startedAt = new Date(startedAt);
     if (completedAt) updateData.completedAt = new Date(completedAt);
+
+    if (status === "Confirmed" || status === "Accepted") {
+      try {
+        const bk = await (prisma as any).rentawasExpertBooking.findFirst({ where });
+        if (bk && !bk.otpCode) {
+          updateData.otpCode = String(Math.floor(100000 + Math.random() * 900000));
+        }
+      } catch (e) {}
+    }
 
     if (status === "Completed") {
       updateData.completedAt = updateData.completedAt || new Date();
