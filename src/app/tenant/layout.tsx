@@ -94,17 +94,22 @@ export default function TenantLayout({
       (d.leaseDocUrl ? 1 : 0);
 
     setTenantProfile({
-      name: d.name,
-      email: d.email,
-      unitNumber: d.unitNumber,
-      propertyName: d.propertyName,
-      propertyAddress: d.propertyAddress,
-      monthlyRent: d.monthlyRent || 3200,
+      name: d.name || "Resident",
+      email: d.email || "",
+      unitNumber: d.unitNumber || "",
+      propertyName: d.propertyName || "",
+      propertyAddress: d.propertyAddress || "",
+      monthlyRent: d.monthlyRent || 0,
       initials: init || "TN",
       maintenancesCount: Array.isArray(d.maintenances) ? d.maintenances.length : 0,
       documentsCount: realDocsCount,
     });
   }, [tenantMe]);
+
+  const hasActiveLease = Boolean(
+    tenantMe?.hasAssignedLease ||
+    (tenantProfile.propertyName && tenantProfile.unitNumber)
+  );
 
   useEffect(() => {
     const fromWorkspace = hasActiveRentPaymentChannels(workspace);
@@ -158,14 +163,14 @@ export default function TenantLayout({
         </button>
       </div>
 
-      {/* Stationary Left Sidebar Navigation for Tenant */}
+      {/* Left Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-[#0F172A] text-slate-300 flex flex-col justify-between shrink-0 transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-[#0B132B] text-slate-300 flex flex-col justify-between transition-transform duration-300 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
-        <div className="flex-1 overflow-y-auto">
-          {/* Brand Header */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
+          {/* Logo Header */}
           <div className="p-6 border-b border-slate-800 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2 group">
               <Image
@@ -189,8 +194,6 @@ export default function TenantLayout({
               </div>
             </Link>
           </div>
-
-
 
           {/* Navigation Links */}
           <nav className="px-3 py-2 space-y-1">
@@ -250,28 +253,43 @@ export default function TenantLayout({
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-700">Resident Portal</span>
               <span className="text-slate-300">•</span>
-              <span className="text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
-                Lease Active
-              </span>
+              {hasActiveLease ? (
+                <span className="text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
+                  Lease Active
+                </span>
+              ) : (
+                <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+                  Account Registered (No Lease Linked)
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-3">
-              {canPayRent ? (
-                <Link
-                  href="/tenant/payments?pay=1"
-                  className="px-3.5 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl transition-all shadow-xs uppercase tracking-wider"
-                >
-                  Pay Rent (${(tenantProfile.monthlyRent || 3200).toLocaleString()})
-                </Link>
+              {hasActiveLease && tenantProfile.monthlyRent > 0 ? (
+                canPayRent ? (
+                  <Link
+                    href="/tenant/payments?pay=1"
+                    className="px-3.5 py-1.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-bold rounded-xl transition-all shadow-xs uppercase tracking-wider"
+                  >
+                    Pay Rent (${tenantProfile.monthlyRent.toLocaleString()})
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    title="No payment channels enabled by your landlord yet"
+                    className="px-3.5 py-1.5 bg-[#FF6B00] text-white text-xs font-bold rounded-xl shadow-xs uppercase tracking-wider opacity-50 cursor-not-allowed"
+                  >
+                    Pay Rent (${tenantProfile.monthlyRent.toLocaleString()})
+                  </button>
+                )
               ) : (
-                <button
-                  type="button"
-                  disabled
-                  title="No payment channels enabled by your landlord yet"
-                  className="px-3.5 py-1.5 bg-[#FF6B00] text-white text-xs font-bold rounded-xl shadow-xs uppercase tracking-wider opacity-50 cursor-not-allowed"
+                <Link
+                  href="/find-property"
+                  className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs uppercase tracking-wider"
                 >
-                  Pay Rent (${(tenantProfile.monthlyRent || 3200).toLocaleString()})
-                </button>
+                  Browse Properties
+                </Link>
               )}
             </div>
           </header>

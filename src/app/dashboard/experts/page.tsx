@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -30,9 +30,14 @@ import {
   ChevronRight,
   Wrench,
   HelpCircle,
+  MapPin,
+  Compass,
+  Navigation,
+  Loader2,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { useCurrency } from "@/context/CurrencyContext";
+import { INDIA_LOCATION_DATA, CITY_LOCALITIES_DATA, DEFAULT_CITY_LOCALITIES } from "@/lib/indiaLocations";
 
 // Helper function to extract symbol from expert's own currency (e.g. "INR (₹)", "USD ($)")
 function getExpertCurrencySymbol(expertCurrency?: string) {
@@ -301,6 +306,41 @@ function RentAwasExpertsContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const servicesDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Cascading Location Dropdown State (Country -> State -> City -> Area)
+  const [selectedLocationCountry, setSelectedLocationCountry] = useState<string>("");
+  const [selectedLocationState, setSelectedLocationState] = useState<string>("");
+  const [selectedLocationCity, setSelectedLocationCity] = useState<string>("");
+  const [selectedLocationAreas, setSelectedLocationAreas] = useState<string[]>([]);
+  const [locationStep, setLocationStep] = useState<"country" | "state" | "city" | "area">("country");
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+  const [stateSearchQuery, setStateSearchQuery] = useState("");
+  const [citySearchQuery, setCitySearchQuery] = useState("");
+  const [areaSearchQuery, setAreaSearchQuery] = useState("");
+  const locationDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        servicesDropdownRef.current &&
+        !servicesDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+      if (
+        locationDropdownRef.current &&
+        !locationDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsLocationDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Right-Side Drawer Sidebar Details State
   const [viewingExpertDetails, setViewingExpertDetails] = useState<any | null>(null);
@@ -337,6 +377,9 @@ function RentAwasExpertsContent() {
   }, [viewingExpertDetails]);
 
   // Booking Modal State
+  // Active User Session State
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
   const [selectedExpert, setSelectedExpert] = useState<any | null>(null);
   const [bookingDate, setBookingDate] = useState(() => {
     const tom = new Date();
@@ -349,6 +392,215 @@ function RentAwasExpertsContent() {
   const [bookingNotes, setBookingNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Address & Map Location Picker State (Used when user has no property)
+  const [customAddress, setCustomAddress] = useState("");
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [mapPinCoords, setMapPinCoords] = useState<{ lat: number; lng: number; addressName: string }>({
+    lat: 28.4595,
+    lng: 77.0266,
+    addressName: "Sector 29, Gurgaon, Delhi NCR"
+  });
+  const [mapSearchQuery, setMapSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [isSearchingMap, setIsSearchingMap] = useState(false);
+
+  // Pre-populate search query with customAddress if set on form when map picker modal opens
+  useEffect(() => {
+    if (isMapPickerOpen) {
+      if (customAddress && customAddress.trim().length > 0) {
+        setMapSearchQuery(customAddress);
+        setMapPinCoords((prev) => ({
+          ...prev,
+          addressName: customAddress,
+        }));
+      } else {
+        setMapSearchQuery("");
+        setSuggestions([]);
+      }
+    }
+  }, [isMapPickerOpen, customAddress]);
+
+  const handleMapClick = async (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const normX = (x / rect.width - 0.5);
+    const normY = (y / rect.height - 0.5);
+
+    const newLat = Number((mapPinCoords.lat - normY * 0.005).toFixed(5));
+    const newLng = Number((mapPinCoords.lng + normX * 0.005).toFixed(5));
+
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLat}&lon=${newLng}`
+      );
+      const data = await res.json();
+      const addr = data?.display_name || `Adjusted Location Pin (${newLat}° N, ${newLng}° E)`;
+      setMapPinCoords({ lat: newLat, lng: newLng, addressName: addr });
+      setMapSearchQuery(addr);
+    } catch {
+      const addr = `Adjusted Location Pin (${newLat}° N, ${newLng}° E)`;
+      setMapPinCoords({ lat: newLat, lng: newLng, addressName: addr });
+      setMapSearchQuery(addr);
+    }
+  };
+
+  const movePinByOffset = async (latDelta: number, lngDelta: number) => {
+    const newLat = Number((mapPinCoords.lat + latDelta).toFixed(5));
+    const newLng = Number((mapPinCoords.lng + lngDelta).toFixed(5));
+
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLat}&lon=${newLng}`
+      );
+      const data = await res.json();
+      const addr = data?.display_name || `Adjusted Location Pin (${newLat}° N, ${newLng}° E)`;
+      setMapPinCoords({ lat: newLat, lng: newLng, addressName: addr });
+      setMapSearchQuery(addr);
+    } catch {
+      const addr = `Adjusted Location Pin (${newLat}° N, ${newLng}° E)`;
+      setMapPinCoords({ lat: newLat, lng: newLng, addressName: addr });
+      setMapSearchQuery(addr);
+    }
+  };
+
+  // Google Maps Search Engine & Intelligent Indian Geography Recommendations
+  useEffect(() => {
+    if (!mapSearchQuery || mapSearchQuery.trim().length === 0) {
+      setSuggestions([]);
+      return;
+    }
+
+    const cleanQuery = mapSearchQuery.trim();
+    const queryLower = cleanQuery.toLowerCase();
+    const matches: any[] = [];
+
+    // 1. Primary Recommendation: Google Maps Search
+    matches.push({
+      display_name: `Search Google Maps for: "${cleanQuery}"`,
+      queryValue: cleanQuery.toLowerCase().includes("india") ? cleanQuery : `${cleanQuery}, India`,
+      type: "google",
+      subtitle: "Live Google Maps Search & Pin Location",
+    });
+
+    // 2. Custom Address Recommendation
+    matches.push({
+      display_name: `Use exact typed address: "${cleanQuery}"`,
+      queryValue: cleanQuery,
+      type: "custom",
+      subtitle: "Set exact address text for expert visit",
+    });
+
+    const addedSet = new Set<string>();
+
+    // 3. Smart Street & Road Recommendations (e.g. Ramraji Road, MG Road, Ring Road, Main Road)
+    if (queryLower.includes("road") || queryLower.includes("marg") || queryLower.includes("lane") || queryLower.includes("path") || queryLower.includes("ram") || queryLower.includes("street")) {
+      const roadSuggestions = [
+        `${cleanQuery}, Patna, Bihar, India`,
+        `${cleanQuery}, Gurgaon, Delhi NCR, India`,
+        `${cleanQuery}, New Delhi, India`,
+        `${cleanQuery}, Bengaluru, Karnataka, India`,
+        `${cleanQuery}, Mumbai, Maharashtra, India`,
+      ];
+      roadSuggestions.forEach((rs) => {
+        if (!addedSet.has(rs)) {
+          addedSet.add(rs);
+          matches.push({
+            display_name: rs,
+            queryValue: rs,
+            type: "road",
+            subtitle: "Street & Highway Location Recommendation",
+          });
+        }
+      });
+    }
+
+    // 4. Search local Indian cities & localities dataset for matching areas
+    Object.entries(CITY_LOCALITIES_DATA).forEach(([cityName, locList]) => {
+      locList.forEach((loc) => {
+        const fullLoc = `${loc}, ${cityName}, India`;
+        if (
+          (loc.toLowerCase().includes(queryLower) ||
+            cityName.toLowerCase().includes(queryLower) ||
+            queryLower.includes(loc.toLowerCase())) &&
+          matches.length < 12
+        ) {
+          if (!addedSet.has(fullLoc)) {
+            addedSet.add(fullLoc);
+            matches.push({
+              display_name: fullLoc,
+              queryValue: fullLoc,
+              type: "locality",
+              subtitle: `Locality in ${cityName}`,
+            });
+          }
+        }
+      });
+    });
+
+    // 5. Search inside INDIA_LOCATION_DATA cities
+    Object.entries(INDIA_LOCATION_DATA).forEach(([stateName, citiesList]) => {
+      citiesList.forEach((city) => {
+        if (
+          (city.toLowerCase().includes(queryLower) || stateName.toLowerCase().includes(queryLower)) &&
+          matches.length < 15
+        ) {
+          const cityStr = `${city}, ${stateName}, India`;
+          if (!addedSet.has(cityStr)) {
+            addedSet.add(cityStr);
+            matches.push({
+              display_name: cityStr,
+              queryValue: cityStr,
+              type: "city",
+              subtitle: `City in ${stateName}`,
+            });
+          }
+        }
+      });
+    });
+
+    setSuggestions(matches);
+  }, [mapSearchQuery]);
+
+  const selectGeocodedLocation = (item: any) => {
+    const finalAddr = item.queryValue || item.display_name;
+    setMapPinCoords((prev) => ({
+      ...prev,
+      addressName: finalAddr,
+    }));
+    setMapSearchQuery(finalAddr);
+    setSuggestions([]);
+  };
+
+  const handleDetectGPS = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = Number(pos.coords.latitude.toFixed(5));
+          const lng = Number(pos.coords.longitude.toFixed(5));
+          try {
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+            );
+            const data = await res.json();
+            const addr = data?.display_name || `GPS Location (${lat}° N, ${lng}° E)`;
+            setMapPinCoords({ lat, lng, addressName: addr });
+            setMapSearchQuery(addr);
+          } catch {
+            const addr = `GPS Location (${lat}° N, ${lng}° E)`;
+            setMapPinCoords({ lat, lng, addressName: addr });
+            setMapSearchQuery(addr);
+          }
+        },
+        () => {
+          alert("Geolocation permission denied. Please type address or select locality.");
+        }
+      );
+    } else {
+      alert("Geolocation is not supported by your browser.");
+    }
+  };
+
   // Dynamic Real Database Properties State
   const [userProperties, setUserProperties] = useState<any[]>([]);
   const [loadingUserProps, setLoadingUserProps] = useState<boolean>(true);
@@ -358,41 +610,76 @@ function RentAwasExpertsContent() {
     async function loadProperties() {
       try {
         setLoadingUserProps(true);
-        const { ensureActiveWorkspaceId } = await import("@/lib/workspace");
-        const wid = await ensureActiveWorkspaceId();
-        if (wid) {
-          const res = await fetch(`/api/properties?wid=${wid}`);
-          const json = await res.json();
-          const fetchedProps = Array.isArray(json.data)
-            ? json.data
-            : Array.isArray(json.properties)
-            ? json.properties
-            : [];
 
-          if (res.ok && fetchedProps.length > 0) {
-            setUserProperties(fetchedProps);
-            const firstProp = fetchedProps[0];
-            setSelectedProperty(firstProp.name);
+        const tenantRes = await fetch("/api/tenant/me");
+        const tenantJson = await tenantRes.json();
+        const tenantData = tenantJson?.data;
 
-            if (firstProp.units && firstProp.units.length > 0) {
-              const firstUnit = firstProp.units[0];
-              const fNum = firstUnit.floorNumber ?? 1;
-              const fLabel = fNum === 0 ? "Ground Floor" : fNum === 1 ? "1st Floor" : fNum === 2 ? "2nd Floor" : fNum === 3 ? "3rd Floor" : `${fNum}th Floor`;
-              setSelectedFloor(fLabel);
-              setSelectedUnit(firstUnit.unitNumber || `Unit 101`);
-            } else {
-              setSelectedFloor("1st Floor");
+        if (currentUser?.user_metadata?.role === "tenant" || (tenantData && tenantData.email && currentUser?.user_metadata?.role !== "landlord" && currentUser?.user_metadata?.role !== "owner")) {
+          if (tenantData?.hasAssignedLease && tenantData?.propertyName) {
+            setUserProperties([
+              {
+                id: tenantData.propertyId || "tenant-prop-1",
+                name: tenantData.propertyName,
+                address: tenantData.propertyAddress || "",
+                units: [
+                  {
+                    id: tenantData.unitId || "unit-1",
+                    unitNumber: tenantData.unitNumber || "Unit 101",
+                    floorNumber: 1,
+                  },
+                ],
+              },
+            ]);
+            setSelectedProperty(tenantData.propertyName);
+            if (tenantData.unitNumber) {
+              setSelectedUnit(tenantData.unitNumber);
             }
+          } else {
+            setUserProperties([]);
+          }
+        } else {
+          const { ensureActiveWorkspaceId } = await import("@/lib/workspace");
+          const wid = await ensureActiveWorkspaceId();
+          if (wid) {
+            const res = await fetch(`/api/properties?wid=${wid}`);
+            const json = await res.json();
+            const fetchedProps = Array.isArray(json.data)
+              ? json.data
+              : Array.isArray(json.properties)
+              ? json.properties
+              : [];
+
+            if (res.ok && fetchedProps.length > 0) {
+              setUserProperties(fetchedProps);
+              const firstProp = fetchedProps[0];
+              setSelectedProperty(firstProp.name);
+
+              if (firstProp.units && firstProp.units.length > 0) {
+                const firstUnit = firstProp.units[0];
+                const fNum = firstUnit.floorNumber ?? 1;
+                const fLabel = fNum === 0 ? "Ground Floor" : fNum === 1 ? "1st Floor" : fNum === 2 ? "2nd Floor" : fNum === 3 ? "3rd Floor" : `${fNum}th Floor`;
+                setSelectedFloor(fLabel);
+                setSelectedUnit(firstUnit.unitNumber || `Unit 101`);
+              } else {
+                setSelectedFloor("1st Floor");
+              }
+            } else {
+              setUserProperties([]);
+            }
+          } else {
+            setUserProperties([]);
           }
         }
       } catch (err) {
         console.error("Failed to load user properties:", err);
+        setUserProperties([]);
       } finally {
         setLoadingUserProps(false);
       }
     }
     loadProperties();
-  }, []);
+  }, [currentUser]);
 
   // Booking History & Customer Rating State
   const [waitingConfirmationBooking, setWaitingConfirmationBooking] = useState<any | null>(null);
@@ -478,9 +765,25 @@ function RentAwasExpertsContent() {
     }
   };
 
+  const toggleLocationArea = (area: string) => {
+    if (selectedLocationAreas.includes(area)) {
+      setSelectedLocationAreas(selectedLocationAreas.filter((a) => a !== area));
+    } else {
+      setSelectedLocationAreas([...selectedLocationAreas, area]);
+    }
+  };
+
   const clearAllFilters = () => {
     setSelectedServices([]);
     setSearchTerm("");
+    setSelectedLocationCountry("");
+    setSelectedLocationState("");
+    setSelectedLocationCity("");
+    setSelectedLocationAreas([]);
+    setStateSearchQuery("");
+    setCitySearchQuery("");
+    setAreaSearchQuery("");
+    setLocationStep("country");
   };
 
   // Filtered Experts List from Live Database (Shows only experts where BOOKING STATUS toggle is ON / Available)
@@ -514,7 +817,29 @@ function RentAwasExpertsContent() {
         selectedServices.length === 0 ||
         selectedServices.some((sel) => exp.services.includes(sel));
 
-      return matchesSearch && matchesServices;
+      // 4. Filter by Cascading Location (Country -> State -> City -> Area)
+      let matchesLocation = true;
+      if (selectedLocationAreas.length > 0) {
+        matchesLocation = selectedLocationAreas.some(area => 
+          exp.fullAddress?.toLowerCase().includes(area.toLowerCase()) ||
+          exp.bio?.toLowerCase().includes(area.toLowerCase()) ||
+          exp.city?.toLowerCase().includes(area.toLowerCase()) ||
+          exp.title?.toLowerCase().includes(area.toLowerCase())
+        );
+      } else if (selectedLocationCity) {
+        matchesLocation =
+          exp.city?.toLowerCase().includes(selectedLocationCity.toLowerCase()) ||
+          exp.fullAddress?.toLowerCase().includes(selectedLocationCity.toLowerCase()) ||
+          exp.state?.toLowerCase().includes(selectedLocationCity.toLowerCase());
+      } else if (selectedLocationState) {
+        const stateCities = INDIA_LOCATION_DATA[selectedLocationState] || [];
+        matchesLocation =
+          exp.state?.toLowerCase().includes(selectedLocationState.toLowerCase()) ||
+          exp.city?.toLowerCase().includes(selectedLocationState.toLowerCase()) ||
+          stateCities.some((c) => exp.city?.toLowerCase().includes(c.toLowerCase()) || exp.city?.toLowerCase().includes(selectedLocationState.toLowerCase()));
+      }
+
+      return matchesSearch && matchesServices && matchesLocation;
     }).sort((a, b) => {
       const jobsDiff = (b.completedJobs || 0) - (a.completedJobs || 0);
       if (jobsDiff !== 0) return jobsDiff;
@@ -522,10 +847,24 @@ function RentAwasExpertsContent() {
       if (ratingDiff !== 0) return ratingDiff;
       return (Number(b.reviewsCount) || 0) - (Number(a.reviewsCount) || 0);
     });
-  }, [liveExperts, searchTerm, selectedServices]);
+  }, [liveExperts, searchTerm, selectedServices, selectedLocationState, selectedLocationCity, selectedLocationAreas]);
+
+  // Expert Cards Grid Pagination State (Max 9 cards per page)
+  const [currentDashboardExpertPage, setCurrentDashboardExpertPage] = useState<number>(1);
+  const EXPERTS_PER_PAGE = 9;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentDashboardExpertPage(1);
+  }, [searchTerm, selectedServices, selectedLocationState, selectedLocationCity, selectedLocationAreas]);
+
+  const totalDashboardExpertPages = Math.max(1, Math.ceil(filteredExperts.length / EXPERTS_PER_PAGE));
+  const paginatedDashboardExperts = useMemo(() => {
+    const start = (currentDashboardExpertPage - 1) * EXPERTS_PER_PAGE;
+    return filteredExperts.slice(start, start + EXPERTS_PER_PAGE);
+  }, [filteredExperts, currentDashboardExpertPage]);
 
   // Active User Session & Database Bookings State
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const [bookingHistory, setBookingHistory] = useState<any[]>([]);
   const [loadingBookings, setLoadingBookings] = useState<boolean>(true);
 
@@ -695,11 +1034,24 @@ function RentAwasExpertsContent() {
   // Handle Confirm Booking with database persistence
   const handleConfirmBooking = async () => {
     if (!selectedExpert) return;
+
+    // Validation if user has no property registered
+    if (userProperties.length === 0 && !customAddress.trim() && !mapPinCoords.addressName) {
+      toast("Please enter your service address or pick your location from map.", "error");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const formattedDate = new Date(bookingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-      const locationText = `${selectedProperty} (${selectedFloor}, ${selectedUnit})`;
+      const locationText = userProperties.length > 0 
+        ? `${selectedProperty} (${selectedFloor}, ${selectedUnit})`
+        : (customAddress.trim() || mapPinCoords.addressName || "On-Site Location");
+
+      const timeSlotText = userProperties.length > 0
+        ? `${selectedFloor}, ${selectedUnit}`
+        : "On-Site Direct Visit";
 
       const res = await fetch("/api/expert-bookings", {
         method: "POST",
@@ -712,7 +1064,7 @@ function RentAwasExpertsContent() {
           expertPhone: selectedExpert.phone,
           serviceBooked: selectedExpert.services?.[0] || selectedExpert.trade || "Home Service",
           bookingDate: formattedDate,
-          timeSlot: `${selectedFloor}, ${selectedUnit}`,
+          timeSlot: timeSlotText,
           feePaid: selectedExpert.fee,
           property: locationText,
           notes: bookingNotes,
@@ -768,7 +1120,7 @@ function RentAwasExpertsContent() {
         <div className="relative z-10 flex items-center gap-3 shrink-0">
           <div className="px-4 py-3 bg-white/10 border border-white/20 rounded-2xl text-center">
             <div className="text-xl font-extrabold text-white">{filteredExperts.length}</div>
-            <div className="text-[10px] font-bold text-slate-300 uppercase">VERIFIED EXPERTS</div>
+            <div className="text-[10px] font-bold text-slate-300 uppercase">EXPERTS</div>
           </div>
         </div>
       </div>
@@ -866,7 +1218,7 @@ function RentAwasExpertsContent() {
               </div>
 
               {/* Middle: Multi-Select Services Dropdown Button */}
-              <div className="relative min-w-[280px]">
+              <div ref={servicesDropdownRef} className="relative min-w-[280px]">
                 <button
                   type="button"
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -917,12 +1269,377 @@ function RentAwasExpertsContent() {
                   </div>
                 )}
               </div>
+
+              {/* Location Cascading Dropdown (India -> State -> City -> Area) */}
+              <div ref={locationDropdownRef} className="relative min-w-[240px]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLocationDropdownOpen(!isLocationDropdownOpen);
+                    setIsDropdownOpen(false);
+                  }}
+                  className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 flex items-center justify-between gap-2 cursor-pointer transition-all"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <MapPin className="w-4 h-4 text-[#FF6B00] shrink-0" />
+                    <span className="truncate">
+                      {selectedLocationAreas.length > 0
+                        ? `📍 ${selectedLocationAreas.length} Area(s) in ${selectedLocationCity}`
+                        : selectedLocationCity
+                        ? `📍 ${selectedLocationCity}, ${selectedLocationState}`
+                        : selectedLocationState
+                        ? `📍 ${selectedLocationState} (All Cities)`
+                        : selectedLocationCountry
+                        ? `🇮🇳 India (Select State)`
+                        : "Select Location (India)..."}
+                    </span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isLocationDropdownOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {/* Cascading Dropdown Menu */}
+                {isLocationDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 p-3 space-y-2.5 overflow-hidden">
+                    
+                    {/* Header & Back Controls */}
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 px-1">
+                      {locationStep === "country" && (
+                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Select Country</span>
+                      )}
+                      {locationStep === "state" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLocationStep("country");
+                            setSelectedLocationCountry("");
+                            setSelectedLocationState("");
+                            setSelectedLocationCity("");
+                            setSelectedLocationAreas([]);
+                          }}
+                          className="text-[11px] font-extrabold text-[#FF6B00] hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          ← Back to Country
+                        </button>
+                      )}
+                      {locationStep === "city" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLocationStep("state");
+                            setSelectedLocationCity("");
+                            setSelectedLocationAreas([]);
+                          }}
+                          className="text-[11px] font-extrabold text-[#FF6B00] hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          ← Back to States ({selectedLocationState})
+                        </button>
+                      )}
+                      {locationStep === "area" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLocationStep("city");
+                            setSelectedLocationAreas([]);
+                          }}
+                          className="text-[11px] font-extrabold text-[#FF6B00] hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          ← Back to Cities ({selectedLocationCity})
+                        </button>
+                      )}
+
+                      {(selectedLocationCountry || selectedLocationState || selectedLocationCity || selectedLocationAreas.length > 0) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedLocationCountry("");
+                            setSelectedLocationState("");
+                            setSelectedLocationCity("");
+                            setSelectedLocationAreas([]);
+                            setLocationStep("country");
+                          }}
+                          className="text-[11px] font-extrabold text-red-500 hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+
+                    {/* STEP 1: COUNTRY SELECTOR (Only India as requested) */}
+                    {locationStep === "country" && (
+                      <div className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedLocationCountry("India");
+                            setLocationStep("state");
+                          }}
+                          className="w-full px-3.5 py-3 rounded-xl text-xs font-extrabold text-left transition-all flex items-center justify-between bg-orange-50/80 hover:bg-orange-100 text-slate-900 border border-orange-200 cursor-pointer shadow-2xs"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-base leading-none">🇮🇳</span>
+                            <span className="text-sm font-extrabold">India</span>
+                          </div>
+                          <span className="text-[10px] font-black bg-[#FF6B00] text-white px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                            <span>Select State</span>
+                            <ChevronRight className="w-3 h-3" />
+                          </span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* STEP 2: STATE SELECTOR */}
+                    {locationStep === "state" && (
+                      <div className="space-y-2">
+                        <div className="text-[10px] font-bold text-slate-400 px-1 uppercase tracking-wider">
+                          🇮🇳 India › Select State or UT ({Object.keys(INDIA_LOCATION_DATA).length} Total)
+                        </div>
+
+                        {/* State Search Bar */}
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={stateSearchQuery}
+                            onChange={(e) => setStateSearchQuery(e.target.value)}
+                            placeholder="Type state (e.g. Delhi, Maharashtra, UP)..."
+                            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#FF6B00]"
+                          />
+                        </div>
+
+                        <div className="space-y-1 max-h-60 overflow-y-auto custom-scrollbar pr-0.5">
+                          {Object.keys(INDIA_LOCATION_DATA)
+                            .filter((st) => st.toLowerCase().includes(stateSearchQuery.toLowerCase()))
+                            .map((st) => (
+                              <button
+                                key={st}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedLocationState(st);
+                                  setSelectedLocationCity("");
+                                  setSelectedLocationAreas([]);
+                                  setLocationStep("city");
+                                  setStateSearchQuery("");
+                                }}
+                                className={`w-full px-3 py-2 rounded-xl text-xs font-bold text-left transition-all flex items-center justify-between cursor-pointer ${
+                                  selectedLocationState === st
+                                    ? "bg-slate-900 text-white"
+                                    : "hover:bg-slate-100 text-slate-800"
+                                }`}
+                              >
+                                <span>{st}</span>
+                                <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* STEP 3: CITY SELECTOR */}
+                    {locationStep === "city" && (
+                      <div className="space-y-2">
+                        <div className="text-[10px] font-bold text-slate-400 px-1 uppercase tracking-wider">
+                          🇮🇳 {selectedLocationState} › Click City for Local Areas
+                        </div>
+
+                        {/* City Search Bar */}
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={citySearchQuery}
+                            onChange={(e) => setCitySearchQuery(e.target.value)}
+                            placeholder={`Type city name (e.g. Gurgaon, Mumbai)...`}
+                            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#FF6B00]"
+                          />
+                        </div>
+
+                        <div className="space-y-1 max-h-60 overflow-y-auto custom-scrollbar pr-0.5">
+                          {/* Dynamic Custom City Selection Option if typing */}
+                          {citySearchQuery.trim() !== "" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedLocationCity(citySearchQuery.trim());
+                                setSelectedLocationAreas([]);
+                                setLocationStep("area");
+                                setCitySearchQuery("");
+                              }}
+                              className="w-full px-3 py-2 rounded-xl text-xs font-extrabold text-left bg-orange-50 text-[#FF6B00] border border-orange-200 hover:bg-orange-100 flex items-center justify-between cursor-pointer shadow-2xs"
+                            >
+                              <span>📍 Select Custom City: "{citySearchQuery.trim()}"</span>
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          {/* Option: All Cities in selected state */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedLocationCity("");
+                              setSelectedLocationAreas([]);
+                              setIsLocationDropdownOpen(false);
+                              setCitySearchQuery("");
+                            }}
+                            className={`w-full px-3 py-2 rounded-xl text-xs font-bold text-left transition-all flex items-center justify-between cursor-pointer ${
+                              !selectedLocationCity
+                                ? "bg-[#FF6B00] text-white"
+                                : "hover:bg-slate-100 text-slate-800 border border-dashed border-slate-300"
+                            }`}
+                          >
+                            <span>All Cities in {selectedLocationState}</span>
+                            {!selectedLocationCity && <Check className="w-3.5 h-3.5" />}
+                          </button>
+
+                          {/* City options */}
+                          {(INDIA_LOCATION_DATA[selectedLocationState] || [])
+                            .filter((ct) => ct.toLowerCase().includes(citySearchQuery.toLowerCase()))
+                            .map((ct) => (
+                              <button
+                                key={ct}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedLocationCity(ct);
+                                  setSelectedLocationAreas([]);
+                                  setLocationStep("area");
+                                  setCitySearchQuery("");
+                                }}
+                                className={`w-full px-3 py-2 rounded-xl text-xs font-bold text-left transition-all flex items-center justify-between cursor-pointer ${
+                                  selectedLocationCity === ct
+                                    ? "bg-slate-900 text-white"
+                                    : "hover:bg-slate-100 text-slate-800"
+                                }`}
+                              >
+                                <span>{ct}</span>
+                                <span className="text-[10px] opacity-70 flex items-center gap-0.5">
+                                  <span>Areas</span>
+                                  <ChevronRight className="w-3 h-3" />
+                                </span>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* STEP 4: AREA / LOCALITY SELECTOR */}
+                    {locationStep === "area" && (
+                      <div className="space-y-2">
+                        <div className="text-[10px] font-bold text-slate-400 px-1 uppercase tracking-wider">
+                          📍 {selectedLocationCity} › Select Specific Area / Sector
+                        </div>
+
+                        {/* Area Search & Custom Entry Bar */}
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={areaSearchQuery}
+                            onChange={(e) => setAreaSearchQuery(e.target.value)}
+                            placeholder={`Search area in ${selectedLocationCity} (e.g. Sector 56)...`}
+                            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#FF6B00]"
+                          />
+                        </div>
+
+                        <div className="space-y-1 max-h-60 overflow-y-auto custom-scrollbar pr-0.5">
+                          {/* Dynamic Custom Area Entry Button */}
+                          {areaSearchQuery.trim() !== "" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                toggleLocationArea(areaSearchQuery.trim());
+                                setAreaSearchQuery("");
+                              }}
+                              className={`w-full px-3 py-2 rounded-xl text-xs font-extrabold text-left transition-all flex items-center justify-between cursor-pointer shadow-2xs border ${
+                                selectedLocationAreas.includes(areaSearchQuery.trim())
+                                  ? "bg-slate-900 text-white border-slate-900"
+                                  : "bg-orange-50 text-[#FF6B00] border-orange-200 hover:bg-orange-100"
+                              }`}
+                            >
+                              <span>📍 Select Custom Area: "{areaSearchQuery.trim()}"</span>
+                              {selectedLocationAreas.includes(areaSearchQuery.trim()) ? (
+                                <Check className="w-3.5 h-3.5 text-white" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5 text-[#FF6B00]" />
+                              )}
+                            </button>
+                          )}
+
+                          {/* Option: All Localities in selected city */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedLocationAreas([]);
+                            }}
+                            className={`w-full px-3 py-2 rounded-xl text-xs font-bold text-left transition-all flex items-center justify-between cursor-pointer ${
+                              selectedLocationAreas.length === 0
+                                ? "bg-[#FF6B00] text-white"
+                                : "hover:bg-slate-100 text-slate-800 border border-dashed border-slate-300"
+                            }`}
+                          >
+                            <span>All Areas in {selectedLocationCity}</span>
+                            {selectedLocationAreas.length === 0 && <Check className="w-3.5 h-3.5" />}
+                          </button>
+
+                          {/* Area / Locality options */}
+                          {(CITY_LOCALITIES_DATA[selectedLocationCity] || DEFAULT_CITY_LOCALITIES)
+                            .filter((ar) => ar.toLowerCase().includes(areaSearchQuery.toLowerCase()))
+                            .map((ar) => (
+                              <button
+                                key={ar}
+                                type="button"
+                                onClick={() => {
+                                  toggleLocationArea(ar);
+                                }}
+                                className={`w-full px-3 py-2 rounded-xl text-xs font-bold text-left transition-all flex items-center justify-between cursor-pointer ${
+                                  selectedLocationAreas.includes(ar)
+                                    ? "bg-slate-900 text-white"
+                                    : "hover:bg-slate-100 text-slate-800"
+                                }`}
+                              >
+                                <span>{ar}</span>
+                                {selectedLocationAreas.includes(ar) && <Check className="w-3.5 h-3.5 text-[#FF6B00]" />}
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Active Selected Services Tags Bar */}
-            {(selectedServices.length > 0 || searchTerm) && (
+            {/* Active Selected Services & Location Tags Bar */}
+            {(selectedServices.length > 0 || searchTerm || selectedLocationState || selectedLocationCity || selectedLocationAreas.length > 0) && (
               <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
                 <span className="text-[11px] font-bold text-slate-400">Active Filters:</span>
+                
+                {/* Location Filter Tag */}
+                {(selectedLocationState || selectedLocationCity || selectedLocationAreas.length > 0) && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white border border-slate-800 rounded-full text-xs font-extrabold shadow-2xs">
+                    <MapPin className="w-3 h-3 text-[#FF6B00]" />
+                    <span>
+                      {selectedLocationAreas.length > 0
+                        ? `${selectedLocationAreas.length} Area(s), ${selectedLocationCity}`
+                        : selectedLocationCity
+                        ? `${selectedLocationCity}, ${selectedLocationState}`
+                        : selectedLocationState}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setSelectedLocationCountry("");
+                        setSelectedLocationState("");
+                        setSelectedLocationCity("");
+                        setSelectedLocationAreas([]);
+                        setLocationStep("country");
+                      }}
+                      className="hover:text-orange-400 cursor-pointer ml-1"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+
+                {/* Service Filter Tags */}
                 {selectedServices.map((service, idx) => (
                   <span
                     key={idx}
@@ -937,6 +1654,7 @@ function RentAwasExpertsContent() {
                     </button>
                   </span>
                 ))}
+
                 <button
                   onClick={clearAllFilters}
                   className="text-xs font-bold text-slate-500 hover:text-slate-800 underline ml-2 cursor-pointer"
@@ -969,7 +1687,7 @@ function RentAwasExpertsContent() {
                 </button>
               </div>
             ) : (
-              filteredExperts.map((expert) => (
+              paginatedDashboardExperts.map((expert) => (
                 <div
                   key={expert.id}
                   className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-2xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between space-y-5 group"
@@ -1081,6 +1799,69 @@ function RentAwasExpertsContent() {
               ))
             )}
           </div>
+
+          {/* Expert Cards Grid Pagination Controls Bar (Max 9 items per page) */}
+          {filteredExperts.length > EXPERTS_PER_PAGE && (
+            <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 font-sans text-xs font-bold text-slate-700">
+              <div className="text-slate-500 text-xs">
+                Showing{" "}
+                <span className="font-black text-slate-900">
+                  {Math.min((currentDashboardExpertPage - 1) * EXPERTS_PER_PAGE + 1, filteredExperts.length)}
+                </span>{" "}
+                to{" "}
+                <span className="font-black text-slate-900">
+                  {Math.min(currentDashboardExpertPage * EXPERTS_PER_PAGE, filteredExperts.length)}
+                </span>{" "}
+                of <span className="font-black text-slate-900">{filteredExperts.length}</span> Experts
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  disabled={currentDashboardExpertPage === 1}
+                  onClick={() => {
+                    setCurrentDashboardExpertPage((prev) => Math.max(1, prev - 1));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="px-3 py-2 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-200 rounded-xl text-slate-800 font-extrabold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Previous</span>
+                </button>
+
+                {Array.from({ length: totalDashboardExpertPages }, (_, i) => i + 1).map((pNum) => (
+                  <button
+                    key={pNum}
+                    type="button"
+                    onClick={() => {
+                      setCurrentDashboardExpertPage(pNum);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className={`w-9 h-9 rounded-xl font-extrabold text-xs transition-all flex items-center justify-center cursor-pointer shadow-2xs ${
+                      currentDashboardExpertPage === pNum
+                        ? "bg-[#FF6B00] text-white shadow-md shadow-orange-500/20"
+                        : "bg-white hover:bg-slate-100 text-slate-700 border border-slate-200"
+                    }`}
+                  >
+                    {pNum}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  disabled={currentDashboardExpertPage === totalDashboardExpertPages}
+                  onClick={() => {
+                    setCurrentDashboardExpertPage((prev) => Math.min(totalDashboardExpertPages, prev + 1));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="px-3 py-2 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-200 rounded-xl text-slate-800 font-extrabold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1483,9 +2264,6 @@ function RentAwasExpertsContent() {
                 </div>
               )}
               <div>
-                <div className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                  ✓ RentAwas Certified Expert
-                </div>
                 <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">{selectedExpert.name}</h3>
                 <p className="text-xs text-slate-500 font-semibold">{selectedExpert.title}</p>
               </div>
@@ -1495,7 +2273,7 @@ function RentAwasExpertsContent() {
             <div className="space-y-4 text-xs font-sans">
               <div>
                 <label className="block font-extrabold text-slate-800 mb-1.5 uppercase tracking-wider text-[10px]">
-                  Select Consultation Date
+                  Select Consultation Date *
                 </label>
                 <input
                   type="date"
@@ -1506,154 +2284,183 @@ function RentAwasExpertsContent() {
                 />
               </div>
 
-              <div>
-                <label className="block font-extrabold text-slate-800 mb-1.5 uppercase tracking-wider text-[10px]">
-                  Select Property
-                </label>
-                <div className="relative">
-                  <select
-                    value={selectedProperty}
-                    onChange={(e) => {
-                      const propName = e.target.value;
-                      setSelectedProperty(propName);
-                      const foundProp = userProperties.find((p) => p.name === propName);
-                      if (foundProp) {
-                        if (foundProp.units && foundProp.units.length > 0) {
-                          const firstUnit = foundProp.units[0];
-                          setSelectedUnit(firstUnit.unitNumber || `Unit 101`);
-                          const fNum = firstUnit.floorNumber ?? 1;
-                          const fLabel = fNum === 0 ? "Ground Floor" : fNum === 1 ? "1st Floor" : fNum === 2 ? "2nd Floor" : fNum === 3 ? "3rd Floor" : `${fNum}th Floor`;
-                          setSelectedFloor(fLabel);
-                        } else {
-                          setSelectedFloor("1st Floor");
-                        }
-                      }
-                    }}
-                    className="w-full appearance-none pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                  >
-                    {userProperties.length > 0 ? (
-                      userProperties.map((prop) => (
-                        <option key={prop.id} value={prop.name}>
-                          {prop.name} ({prop.address || prop.category || "Property"})
-                        </option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="Main Residential Property">Main Residential Property</option>
-                        <option value="Commercial Complex">Commercial Complex</option>
-                        <option value="Custom Address / On-Site Location">Custom Address / On-Site Location</option>
-                      </>
-                    )}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-extrabold text-slate-800 mb-1.5 uppercase tracking-wider text-[10px]">
-                    Select Floor
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={selectedFloor}
-                      onChange={(e) => {
-                        const newFloorLabel = e.target.value;
-                        setSelectedFloor(newFloorLabel);
-
-                        const selectedPropObj = userProperties.find((p) => p.name === selectedProperty);
-                        if (selectedPropObj?.units && selectedPropObj.units.length > 0) {
-                          const floorNumMatch = newFloorLabel.match(/\d+/);
-                          const targetFloorNum = newFloorLabel.toLowerCase().includes("ground")
-                            ? 0
-                            : floorNumMatch
-                            ? parseInt(floorNumMatch[0], 10)
-                            : 1;
-
-                          const floorUnits = selectedPropObj.units.filter((u: any) => (u.floorNumber ?? 1) === targetFloorNum);
-                          if (floorUnits.length > 0) {
-                            setSelectedUnit(floorUnits[0].unitNumber);
+              {/* IF USER HAS REGISTERED PROPERTIES */}
+              {userProperties.length > 0 ? (
+                <>
+                  <div>
+                    <label className="block font-extrabold text-slate-800 mb-1.5 uppercase tracking-wider text-[10px]">
+                      Select Property
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={selectedProperty}
+                        onChange={(e) => {
+                          const propName = e.target.value;
+                          setSelectedProperty(propName);
+                          const foundProp = userProperties.find((p) => p.name === propName);
+                          if (foundProp) {
+                            if (foundProp.units && foundProp.units.length > 0) {
+                              const firstUnit = foundProp.units[0];
+                              setSelectedUnit(firstUnit.unitNumber || `Unit 101`);
+                              const fNum = firstUnit.floorNumber ?? 1;
+                              const fLabel = fNum === 0 ? "Ground Floor" : fNum === 1 ? "1st Floor" : fNum === 2 ? "2nd Floor" : fNum === 3 ? "3rd Floor" : `${fNum}th Floor`;
+                              setSelectedFloor(fLabel);
+                            } else {
+                              setSelectedFloor("1st Floor");
+                            }
                           }
-                        }
-                      }}
-                      className="w-full appearance-none pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                    >
-                      {(() => {
-                        const selectedPropObj = userProperties.find((p) => p.name === selectedProperty);
-                        if (selectedPropObj) {
-                          let floorNums: number[] = [];
-                          if (selectedPropObj.units && selectedPropObj.units.length > 0) {
-                            const unitFloors = selectedPropObj.units.map((u: any) => u.floorNumber ?? 1);
-                            floorNums = Array.from(new Set(unitFloors)).sort((a: any, b: any) => a - b) as number[];
-                          }
-                          if (floorNums.length === 0) {
-                            const maxF = Math.max(1, selectedPropObj.floors || 1);
-                            floorNums = Array.from({ length: maxF }, (_, i) => i + 1);
-                          }
-                          return floorNums.map((fNum) => {
-                            const label = fNum === 0 ? "Ground Floor" : fNum === 1 ? "1st Floor" : fNum === 2 ? "2nd Floor" : fNum === 3 ? "3rd Floor" : `${fNum}th Floor`;
+                        }}
+                        className="w-full appearance-none pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                      >
+                        {userProperties.map((prop) => (
+                          <option key={prop.id} value={prop.name}>
+                            {prop.name} ({prop.address || prop.category || "Property"})
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-extrabold text-slate-800 mb-1.5 uppercase tracking-wider text-[10px]">
+                        Select Floor
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={selectedFloor}
+                          onChange={(e) => {
+                            const newFloorLabel = e.target.value;
+                            setSelectedFloor(newFloorLabel);
+
+                            const selectedPropObj = userProperties.find((p) => p.name === selectedProperty);
+                            if (selectedPropObj?.units && selectedPropObj.units.length > 0) {
+                              const floorNumMatch = newFloorLabel.match(/\d+/);
+                              const targetFloorNum = newFloorLabel.toLowerCase().includes("ground")
+                                ? 0
+                                : floorNumMatch
+                                ? parseInt(floorNumMatch[0], 10)
+                                : 1;
+
+                              const floorUnits = selectedPropObj.units.filter((u: any) => (u.floorNumber ?? 1) === targetFloorNum);
+                              if (floorUnits.length > 0) {
+                                setSelectedUnit(floorUnits[0].unitNumber);
+                              }
+                            }
+                          }}
+                          className="w-full appearance-none pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                        >
+                          {(() => {
+                            const selectedPropObj = userProperties.find((p) => p.name === selectedProperty);
+                            if (selectedPropObj) {
+                              let floorNums: number[] = [];
+                              if (selectedPropObj.units && selectedPropObj.units.length > 0) {
+                                const unitFloors = selectedPropObj.units.map((u: any) => u.floorNumber ?? 1);
+                                floorNums = Array.from(new Set(unitFloors)).sort((a: any, b: any) => a - b) as number[];
+                              }
+                              if (floorNums.length === 0) {
+                                const maxF = Math.max(1, selectedPropObj.floors || 1);
+                                floorNums = Array.from({ length: maxF }, (_, i) => i + 1);
+                              }
+                              return floorNums.map((fNum) => {
+                                const label = fNum === 0 ? "Ground Floor" : fNum === 1 ? "1st Floor" : fNum === 2 ? "2nd Floor" : fNum === 3 ? "3rd Floor" : `${fNum}th Floor`;
+                                return (
+                                  <option key={fNum} value={label}>{label}</option>
+                                );
+                              });
+                            }
                             return (
-                              <option key={fNum} value={label}>{label}</option>
+                              <>
+                                <option value="1st Floor">1st Floor</option>
+                                <option value="2nd Floor">2nd Floor</option>
+                              </>
                             );
-                          });
-                        }
-                        return (
-                          <>
-                            <option value="1st Floor">1st Floor</option>
-                            <option value="2nd Floor">2nd Floor</option>
-                            <option value="3rd Floor">3rd Floor</option>
-                          </>
-                        );
-                      })()}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          })()}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-extrabold text-slate-800 mb-1.5 uppercase tracking-wider text-[10px]">
+                        Select Unit / Flat
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={selectedUnit}
+                          onChange={(e) => setSelectedUnit(e.target.value)}
+                          className="w-full appearance-none pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
+                        >
+                          {(() => {
+                            const selectedPropObj = userProperties.find((p) => p.name === selectedProperty);
+                            if (selectedPropObj?.units && selectedPropObj.units.length > 0) {
+                              const floorNumMatch = selectedFloor.match(/\d+/);
+                              const targetFloorNum = selectedFloor.toLowerCase().includes("ground")
+                                ? 0
+                                : floorNumMatch
+                                ? parseInt(floorNumMatch[0], 10)
+                                : 1;
+
+                              const floorUnits = selectedPropObj.units.filter((u: any) => (u.floorNumber ?? 1) === targetFloorNum);
+                              const unitsToDisplay = floorUnits.length > 0 ? floorUnits : selectedPropObj.units;
+
+                              return unitsToDisplay.map((u: any) => (
+                                <option key={u.id} value={u.unitNumber}>
+                                  {u.unitNumber} {u.isOccupied ? "(Occupied)" : "(Vacant)"}
+                                </option>
+                              ));
+                            }
+                            const floorNumMatch = selectedFloor.match(/\d+/);
+                            const fallbackNum = floorNumMatch ? floorNumMatch[0] : "1";
+                            return (
+                              <>
+                                <option value={`Unit ${fallbackNum}01`}>Unit {fallbackNum}01</option>
+                                <option value={`Unit ${fallbackNum}02`}>Unit {fallbackNum}02</option>
+                              </>
+                            );
+                          })()}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block font-extrabold text-slate-800 mb-1.5 uppercase tracking-wider text-[10px]">
-                    Select Unit / Flat
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={selectedUnit}
-                      onChange={(e) => setSelectedUnit(e.target.value)}
-                      className="w-full appearance-none pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] cursor-pointer"
-                    >
-                      {(() => {
-                        const selectedPropObj = userProperties.find((p) => p.name === selectedProperty);
-                        if (selectedPropObj?.units && selectedPropObj.units.length > 0) {
-                          const floorNumMatch = selectedFloor.match(/\d+/);
-                          const targetFloorNum = selectedFloor.toLowerCase().includes("ground")
-                            ? 0
-                            : floorNumMatch
-                            ? parseInt(floorNumMatch[0], 10)
-                            : 1;
-
-                          const floorUnits = selectedPropObj.units.filter((u: any) => (u.floorNumber ?? 1) === targetFloorNum);
-                          const unitsToDisplay = floorUnits.length > 0 ? floorUnits : selectedPropObj.units;
-
-                          return unitsToDisplay.map((u: any) => (
-                            <option key={u.id} value={u.unitNumber}>
-                              {u.unitNumber} {u.isOccupied ? "(Occupied)" : "(Vacant)"}
-                            </option>
-                          ));
-                        }
-                        const floorNumMatch = selectedFloor.match(/\d+/);
-                        const fallbackNum = floorNumMatch ? floorNumMatch[0] : "1";
-                        return (
-                          <>
-                            <option value={`Unit ${fallbackNum}01`}>Unit {fallbackNum}01</option>
-                            <option value={`Unit ${fallbackNum}02`}>Unit {fallbackNum}02</option>
-                            <option value={`Unit ${fallbackNum}03`}>Unit {fallbackNum}03</option>
-                          </>
-                        );
-                      })()}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </>
+              ) : (
+                /* IF USER DOES NOT HAVE REGISTERED PROPERTIES */
+                <div className="space-y-3 p-3.5 bg-orange-50/60 border border-orange-200/80 rounded-2xl">
+                  <div className="space-y-1.5">
+                    <label className="block font-extrabold text-slate-900 uppercase tracking-wider text-[10px]">
+                      Enter Service Address *
+                    </label>
+                    <input
+                      type="text"
+                      value={customAddress}
+                      onChange={(e) => setCustomAddress(e.target.value)}
+                      placeholder="e.g. Flat 402, Royal Residency, Sector 28, Gurgaon"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
                   </div>
+
+                  {/* Pick from Map Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsMapPickerOpen(true)}
+                    className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    <MapPin className="w-4 h-4 text-[#FF6B00]" />
+                    <span>Pick from Map for Correct Location</span>
+                  </button>
+
+                  {/* Map Pin Result Readout */}
+                  {mapPinCoords.addressName && (
+                    <div className="text-[11px] font-bold text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                      <Compass className="w-4 h-4 text-[#FF6B00] shrink-0" />
+                      <span className="truncate">📍 Pin: {mapPinCoords.addressName}</span>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block font-extrabold text-slate-800 mb-1.5 uppercase tracking-wider text-[10px]">
@@ -1663,7 +2470,7 @@ function RentAwasExpertsContent() {
                   value={bookingNotes}
                   onChange={(e) => setBookingNotes(e.target.value)}
                   rows={2}
-                  placeholder="e.g. Please review section 4 of lease agreement..."
+                  placeholder="e.g. Water leak in kitchen sink; please call before coming..."
                   className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 />
               </div>
@@ -1699,6 +2506,228 @@ function RentAwasExpertsContent() {
                     <span>Confirm Expert Booking</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MAP PICKER MODAL */}
+      {isMapPickerOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[70] flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4 relative font-sans text-slate-900 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-200 text-[#FF6B00] flex items-center justify-center font-bold">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Pick Exact Location from Map</h3>
+                  <p className="text-[11px] font-medium text-slate-500">Click anywhere on map or search locality for pin</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMapPickerOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search Input & Detect GPS Button */}
+            <div className="space-y-2 relative">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={mapSearchQuery}
+                    onChange={(e) => setMapSearchQuery(e.target.value)}
+                    placeholder="Search area, landmark, street address (e.g. Bandra, Patna, DLF Gurgaon)..."
+                    className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  />
+                  {isSearchingMap && (
+                    <Loader2 className="w-3.5 h-3.5 text-[#FF6B00] animate-spin absolute right-3 top-1/2 -translate-y-1/2" />
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDetectGPS}
+                  title="Detect current GPS location"
+                  className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
+                >
+                  <Navigation className="w-3.5 h-3.5 text-[#FF6B00]" />
+                  <span>GPS</span>
+                </button>
+              </div>
+
+              {/* Real-time Recommendations Dropdown */}
+              {suggestions.length > 0 && (
+                <div className="absolute top-11 left-0 right-14 z-50 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-56 overflow-y-auto divide-y divide-slate-100 font-sans animate-in fade-in duration-150">
+                  <div className="px-3.5 py-1.5 bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>Location Recommendations</span>
+                    <span className="text-[#FF6B00]">{suggestions.length} Options</span>
+                  </div>
+                  {suggestions.map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => selectGeocodedLocation(item)}
+                      className="w-full px-3.5 py-2.5 text-left hover:bg-orange-50/80 transition-colors flex items-start gap-3 cursor-pointer group"
+                    >
+                      <div className="mt-0.5 shrink-0">
+                        {item.type === "google" ? (
+                          <div className="w-5 h-5 rounded-full bg-orange-100 text-[#FF6B00] flex items-center justify-center font-bold text-[10px]">
+                            G
+                          </div>
+                        ) : item.type === "road" ? (
+                          <Compass className="w-4 h-4 text-purple-600" />
+                        ) : item.type === "city" ? (
+                          <Building2 className="w-4 h-4 text-blue-600" />
+                        ) : (
+                          <MapPin className="w-4 h-4 text-emerald-600" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-black text-slate-900 group-hover:text-[#FF6B00] truncate">
+                          {item.display_name}
+                        </div>
+                        {item.subtitle && (
+                          <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">
+                            {item.subtitle}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Quick Location Presets */}
+              <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 text-[11px] font-bold">
+                {[
+                  "DLF Phase 1, Gurgaon",
+                  "Indiranagar, Bengaluru",
+                  "Boring Road, Patna",
+                  "Andheri West, Mumbai",
+                  "Connaught Place, Delhi",
+                  "Banjara Hills, Hyderabad"
+                ].map((loc, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setMapSearchQuery(loc);
+                    }}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-orange-50 text-slate-700 hover:text-[#FF6B00] rounded-lg border border-slate-200/80 whitespace-nowrap cursor-pointer transition-all"
+                  >
+                    📍 {loc}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Interactive Google Maps Embed */}
+            <div className="h-64 rounded-2xl bg-slate-900 relative overflow-hidden border border-slate-800 flex items-center justify-center select-none shadow-inner group">
+              <iframe
+                key={mapPinCoords.addressName || mapSearchQuery}
+                title="Google Maps Location"
+                src={`https://www.google.com/maps?q=${encodeURIComponent(mapSearchQuery || mapPinCoords.addressName)}&output=embed`}
+                className="w-full h-full border-0 pointer-events-auto"
+                allowFullScreen
+                loading="lazy"
+              />
+
+              {/* Floating Address Tag */}
+              <div className="absolute top-2 left-2 right-2 z-10 pointer-events-none">
+                <div className="px-3 py-1.5 bg-slate-900/90 backdrop-blur-xs text-white text-[11px] font-extrabold rounded-xl border border-orange-500/40 shadow-lg flex items-center gap-1.5 w-fit max-w-full truncate">
+                  <Navigation className="w-3.5 h-3.5 text-[#FF6B00] shrink-0" />
+                  <span className="truncate">{mapPinCoords.addressName}</span>
+                </div>
+              </div>
+
+              {/* Floating GPS Readout */}
+              <div className="absolute bottom-2 right-2 z-10 px-2.5 py-1 bg-slate-900/90 text-[10px] font-mono font-bold text-slate-300 rounded-md border border-slate-700 pointer-events-none shadow-md">
+                GPS: {mapPinCoords.lat.toFixed(4)} N, {mapPinCoords.lng.toFixed(4)} E
+              </div>
+            </div>
+
+            {/* Pin Micro-Nudge & Directional Location Adjuster */}
+            <div className="p-3 bg-slate-50 border border-slate-200/90 rounded-2xl flex items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Adjust Pin Location</span>
+                <span className="text-[11px] font-bold text-slate-700">Nudge pin position to exact gate or entrance</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => movePinByOffset(0.0005, 0)}
+                  title="Move Pin North"
+                  className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-800 hover:text-[#FF6B00] hover:border-orange-500/40 font-black text-xs flex items-center justify-center cursor-pointer shadow-2xs transition-colors"
+                >
+                  ⬆️
+                </button>
+                <button
+                  type="button"
+                  onClick={() => movePinByOffset(-0.0005, 0)}
+                  title="Move Pin South"
+                  className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-800 hover:text-[#FF6B00] hover:border-orange-500/40 font-black text-xs flex items-center justify-center cursor-pointer shadow-2xs transition-colors"
+                >
+                  ⬇️
+                </button>
+                <button
+                  type="button"
+                  onClick={() => movePinByOffset(0, -0.0005)}
+                  title="Move Pin West"
+                  className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-800 hover:text-[#FF6B00] hover:border-orange-500/40 font-black text-xs flex items-center justify-center cursor-pointer shadow-2xs transition-colors"
+                >
+                  ⬅️
+                </button>
+                <button
+                  type="button"
+                  onClick={() => movePinByOffset(0, 0.0005)}
+                  title="Move Pin East"
+                  className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-800 hover:text-[#FF6B00] hover:border-orange-500/40 font-black text-xs flex items-center justify-center cursor-pointer shadow-2xs transition-colors"
+                >
+                  ➡️
+                </button>
+              </div>
+            </div>
+
+            {/* Selected Address Output */}
+            <div className="p-3.5 bg-orange-50/60 border border-orange-200/80 rounded-2xl space-y-1">
+              <span className="text-[10px] font-extrabold text-[#FF6B00] uppercase tracking-wider block">Selected Location Address</span>
+              <p className="text-xs font-black text-slate-900 leading-snug">
+                {mapSearchQuery ? `${mapSearchQuery}` : mapPinCoords.addressName}
+              </p>
+            </div>
+
+            {/* Confirm Location Button */}
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsMapPickerOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const finalAddr = mapSearchQuery ? `${mapSearchQuery}` : mapPinCoords.addressName;
+                  setCustomAddress(finalAddr);
+                  setMapPinCoords({
+                    ...mapPinCoords,
+                    addressName: finalAddr
+                  });
+                  setIsMapPickerOpen(false);
+                }}
+                className="px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-extrabold rounded-xl shadow-md uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Confirm Pin Location</span>
               </button>
             </div>
           </div>

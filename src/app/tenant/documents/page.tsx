@@ -360,7 +360,6 @@ export default function TenantDocumentsPage() {
         <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Stored Vault Documents</span>
           <div className="text-2xl font-black text-slate-900 mt-1">{documents.length} Files</div>
-          <div className="text-xs text-slate-500 mt-0.5">256-bit Encrypted Cloud Vault</div>
         </div>
 
         <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs">
@@ -377,10 +376,18 @@ export default function TenantDocumentsPage() {
         <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Contract Term</span>
           <div className="text-2xl font-black text-slate-900 mt-1">
-            {tenant?.leaseStart ? new Date(tenant.leaseStart).getFullYear() : "2026"} – {tenant?.leaseEnd ? new Date(tenant.leaseEnd).getFullYear() : "2027"}
+            {tenant?.leaseStart && tenant?.leaseEnd
+              ? `${new Date(tenant.leaseStart).getFullYear()} – ${new Date(tenant.leaseEnd).getFullYear()}`
+              : tenant?.hasAssignedLease
+              ? "Active Lease"
+              : "No Active Lease"}
           </div>
           <div className="text-xs text-purple-700 font-bold mt-0.5">
-            {tenant?.propertyName || "The Regent"} — {tenant?.unitNumber || "Unit 302"}
+            {tenant?.propertyName && tenant?.unitNumber
+              ? `${tenant.propertyName} — ${tenant.unitNumber}`
+              : tenant?.hasAssignedLease
+              ? "Assigned Unit"
+              : "Unassigned Resident"}
           </div>
         </div>
       </div>

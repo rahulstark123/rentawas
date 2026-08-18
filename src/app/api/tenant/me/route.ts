@@ -37,18 +37,19 @@ export async function GET(request: Request) {
       return NextResponse.json({
         success: true,
         data: {
-          id: "demo-tenant-id",
-          name: user?.user_metadata?.fullName || "Eleanor Vance",
-          email: "resident@rentawas.com",
-          phone: "+1 (555) 019-2834",
-          healthScore: 85,
-          monthlyRent: 3200,
-          securityDeposit: 3200,
-          leaseStart: "2026-01-01",
-          leaseEnd: "2026-12-31",
-          unitNumber: "Unit 302",
-          propertyName: "The Regent",
-          propertyAddress: "1420 5th Ave, Seattle WA",
+          id: "guest-tenant-id",
+          name: "Guest Resident",
+          email: "",
+          phone: "",
+          healthScore: 100,
+          monthlyRent: 0,
+          securityDeposit: 0,
+          hasAssignedLease: false,
+          leaseStart: null,
+          leaseEnd: null,
+          unitNumber: "",
+          propertyName: "",
+          propertyAddress: "",
           bills: [],
           maintenances: [],
           documents: [],
@@ -87,16 +88,27 @@ export async function GET(request: Request) {
       },
     });
 
+    const hasAssignedLease = !!(
+      tenant &&
+      (tenant.unitId || tenant.propertyId || tenant.unit?.unitNumber || tenant.property?.name || tenant.monthlyRent)
+    );
+
     const tenantName =
-      tenant?.name || user?.user_metadata?.fullName || userEmail.split("@")[0];
-    const unitNumber = tenant?.unit?.unitNumber || "Unit 302";
+      tenant?.name ||
+      tenant?.profile?.fullName ||
+      user?.user_metadata?.fullName ||
+      user?.user_metadata?.name ||
+      userEmail.split("@")[0] ||
+      "Resident";
+
+    const unitNumber = tenant?.unit?.unitNumber || "";
     const propertyName =
-      tenant?.unit?.property?.name || tenant?.property?.name || "The Regent";
+      tenant?.unit?.property?.name || tenant?.property?.name || "";
     const propertyAddress =
       tenant?.unit?.property?.address ||
       tenant?.property?.address ||
-      "1420 5th Ave, Seattle WA";
-    const rentAmount = tenant?.monthlyRent || tenant?.unit?.rent || 3200;
+      "";
+    const rentAmount = tenant?.monthlyRent || tenant?.unit?.rent || 0;
 
     const workspaceId = resolveTenantWorkspaceId(tenant);
 
@@ -166,7 +178,6 @@ export async function GET(request: Request) {
 
       teamMembers.forEach((m, idx) => {
         const emailLower = (m.email || "").toLowerCase();
-        // Skip duplicate if team member is the same person as workspace owner
         if (ownerEmailLower && emailLower && emailLower === ownerEmailLower) {
           return;
         }
@@ -196,19 +207,20 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       data: {
-        id: tenant?.id || "demo-tenant-id",
+        id: tenant?.id || user?.id || "tenant-id",
         name: tenantName,
         email: tenant?.email || userEmail,
-        phone: tenant?.phone || "+1 (555) 019-2834",
-        healthScore: tenant?.healthScore || 85,
+        phone: tenant?.phone || user?.user_metadata?.phone || "",
+        healthScore: tenant?.healthScore || 100,
         monthlyRent: rentAmount,
         securityDeposit: tenant?.securityDeposit || rentAmount,
+        hasAssignedLease,
         leaseStart: tenant?.leaseStart
           ? new Date(tenant.leaseStart).toISOString().split("T")[0]
-          : "2026-01-01",
+          : null,
         leaseEnd: tenant?.leaseEnd
           ? new Date(tenant.leaseEnd).toISOString().split("T")[0]
-          : "2026-12-31",
+          : null,
         unitId: tenant?.unitId || null,
         propertyId: tenant?.propertyId || tenant?.unit?.propertyId || null,
         workspaceId,
@@ -217,7 +229,7 @@ export async function GET(request: Request) {
         unitNumber,
         propertyName,
         propertyAddress,
-        currentStatus: tenant?.currentStatus || "Current",
+        currentStatus: tenant?.currentStatus || (hasAssignedLease ? "Current" : "Unassigned"),
         govIdUrl: tenant?.govIdUrl || null,
         govIdType: tenant?.govIdType || null,
         govIdNumber: tenant?.govIdNumber || null,

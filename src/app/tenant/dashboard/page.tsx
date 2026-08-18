@@ -22,11 +22,11 @@ export default function TenantDashboardPage() {
   const [notices, setNotices] = useState<any[]>([]);
   const [tenant, setTenant] = useState<any>({
     name: "Resident",
-    propertyName: "The Regent",
-    unitNumber: "Unit 302",
-    monthlyRent: 3200,
-    leaseStart: "2025-08-01",
-    leaseEnd: "2026-07-31",
+    propertyName: "",
+    unitNumber: "",
+    monthlyRent: 0,
+    leaseStart: null,
+    leaseEnd: null,
     documents: [],
     maintenances: [],
   });
@@ -70,8 +70,9 @@ export default function TenantDashboardPage() {
   }, [announcementsData, annLoading, tenantMe, wid]);
 
   const loading = meLoading || (!!tenantMe && annLoading);
+  const hasAssignedLease = !!(tenantMe?.hasAssignedLease || (tenant?.propertyName && tenant?.unitNumber));
 
-  const rentVal = tenant.monthlyRent || 3200;
+  const rentVal = tenant.monthlyRent || 0;
   const dueMonthLabel = new Date().toLocaleString("en-US", {
     month: "long",
     year: "numeric",
@@ -142,138 +143,177 @@ export default function TenantDashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 font-sans">
       {/* Welcome Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Welcome back, {tenant.name}!
+            Welcome back, {tenant.name || "Resident"}!
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Resident Dashboard for <span className="font-bold text-slate-800">{tenant.propertyName} — {tenant.unitNumber}</span>.
+            {hasAssignedLease ? (
+              <>Resident Dashboard for <span className="font-bold text-slate-800">{tenant.propertyName} — {tenant.unitNumber}</span>.</>
+            ) : (
+              <span>Resident Account Registered • No Active Property Lease Linked</span>
+            )}
           </p>
         </div>
 
-        <span className="px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-700 flex items-center gap-1.5 w-fit">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span>Lease Active & Account Verified</span>
-        </span>
+        {hasAssignedLease ? (
+          <span className="px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-700 flex items-center gap-1.5 w-fit">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span>Lease Active &amp; Account Verified</span>
+          </span>
+        ) : (
+          <span className="px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800 flex items-center gap-1.5 w-fit">
+            <Clock className="w-4 h-4 text-amber-600" />
+            <span>Awaiting Property Assignment</span>
+          </span>
+        )}
       </div>
 
-      {/* Top Banner Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        
-        {/* Rent Due Primary Action Card (7 Cols) */}
-        <div className="md:col-span-7 bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] text-white rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+      {!hasAssignedLease ? (
+        /* UNASSIGNED TENANT CARD BANNER */
+        <div className="bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] text-white rounded-3xl p-6 sm:p-10 shadow-xl space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 space-y-4 max-w-2xl">
+            <span className="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-orange-500/20 text-[#FF6B00] border border-orange-500/30 inline-block">
+              Account Ready
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-white leading-snug">
+              No Active Property Lease Contract Linked
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
+              Your resident account is active. Once your landlord or property manager adds your lease contract to their RentAwas property workspace, your unit details, rent payment portal, and digital receipts will automatically appear here.
+            </p>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Link
+                href="/find-property"
+                className="px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-black rounded-xl uppercase tracking-wider shadow-md transition-all flex items-center gap-2"
+              >
+                <span>Browse Available Rental Properties</span>
+              </Link>
+              <Link
+                href="/services"
+                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl uppercase tracking-wider transition-all border border-slate-700 flex items-center gap-2"
+              >
+                <span>Book On-Demand Home Experts</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Top Banner Cards */
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          
+          {/* Rent Due Primary Action Card (7 Cols) */}
+          <div className="md:col-span-7 bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] text-white rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative overflow-hidden flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
-                noPaymentDueThisMonth
-                  ? "bg-emerald-400/20 border border-emerald-400/30 text-emerald-200"
-                  : "bg-amber-400/20 border border-amber-400/30 text-amber-300"
-              }`}>
-                {noPaymentDueThisMonth ? (
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                ) : (
-                  <Clock className="w-3.5 h-3.5" />
-                )}
-                <span>
-                  {noPaymentDueThisMonth ? `${dueMonthLabel} Paid` : `${dueMonthLabel} Due`}
+            <div className="relative z-10 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                  noPaymentDueThisMonth
+                    ? "bg-emerald-400/20 border border-emerald-400/30 text-emerald-200"
+                    : "bg-amber-400/20 border border-amber-400/30 text-amber-300"
+                }`}>
+                  {noPaymentDueThisMonth ? (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  ) : (
+                    <Clock className="w-3.5 h-3.5" />
+                  )}
+                  <span>
+                    {noPaymentDueThisMonth ? `${dueMonthLabel} Paid` : `${dueMonthLabel} Due`}
+                  </span>
                 </span>
-              </span>
 
-              <span className="text-xs font-bold text-slate-300">Monthly Billing</span>
+                <span className="text-xs font-bold text-slate-300">Monthly Billing</span>
+              </div>
+
+              <div>
+                {noPaymentDueThisMonth ? (
+                  <>
+                    <div className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                      No payment due for this month
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-black text-white mt-1">
+                      {formatCurrency(rentVal)} recorded
+                    </div>
+                    <div className="text-xs text-slate-300 mt-1">
+                      <span>
+                        {currentMonthRentStatus === "pending_verification"
+                          ? "Awaiting landlord verification"
+                          : `${dueMonthLabel} rent is already on file`}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      {dueMonthLabel} Rent Due
+                    </div>
+                    <div className="text-3xl sm:text-4xl font-black text-white mt-1">{formatCurrency(rentVal)}</div>
+                    <div className="text-xs text-slate-300 mt-1">
+                      <span>Includes Base Rent &amp; Assigned Premises</span>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
+            <div className="relative z-10 pt-4 border-t border-slate-700/80 flex justify-end">
+              <Link
+                href="/tenant/payments"
+                className="text-xs font-bold text-slate-300 hover:text-white underline"
+              >
+                View Payment Receipts
+              </Link>
+            </div>
+          </div>
+
+          {/* Active Lease Overview Card (5 Cols) */}
+          <div className="md:col-span-5 bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4 flex flex-col justify-between">
             <div>
-              {noPaymentDueThisMonth ? (
-                <>
-                  <div className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
-                    No payment due for this month
-                  </div>
-                  <div className="text-2xl sm:text-3xl font-black text-white mt-1">
-                    {formatCurrency(rentVal)} recorded
-                  </div>
-                  <div className="text-xs text-slate-300 mt-1">
-                    <span>
-                      {currentMonthRentStatus === "pending_verification"
-                        ? "Awaiting landlord verification"
-                        : `${dueMonthLabel} rent is already on file`}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    {dueMonthLabel} Rent Due
-                  </div>
-                  <div className="text-3xl sm:text-4xl font-black text-white mt-1">{formatCurrency(rentVal)}</div>
-                  <div className="text-xs text-slate-300 mt-1">
-                    <span>Includes Base Rent &amp; Assigned Premises</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="relative z-10 pt-4 border-t border-slate-700/80 flex justify-end">
-            <Link
-              href="/tenant/payments"
-              className="text-xs font-bold text-slate-300 hover:text-white underline"
-            >
-              View Payment Receipts
-            </Link>
-          </div>
-        </div>
-
-        {/* Active Lease Overview Card (5 Cols) */}
-        <div className="md:col-span-5 bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <FileText className="w-4 h-4 text-purple-600" />
-                Active Lease Contract
-              </span>
-              <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                Verified
-              </span>
-            </div>
-
-            <div className="space-y-3 mt-4 text-xs">
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Demised Premises</span>
-                <span className="font-bold text-slate-900">{tenant.propertyName} — {tenant.unitNumber}</span>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-purple-600" />
+                  Active Lease Contract
+                </span>
+                <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                  Verified
+                </span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+
+              <div className="space-y-3 mt-4 text-xs">
                 <div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Start Date</span>
-                  <span className="font-bold text-slate-800">{tenant.leaseStart || "2025-08-01"}</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Demised Premises</span>
+                  <span className="font-bold text-slate-900">{tenant.propertyName} — {tenant.unitNumber}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Start Date</span>
+                    <span className="font-bold text-slate-800">{tenant.leaseStart || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">End Date</span>
+                    <span className="font-bold text-slate-800">{tenant.leaseEnd || "—"}</span>
+                  </div>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">End Date</span>
-                  <span className="font-bold text-slate-800">{tenant.leaseEnd || "2026-07-31"}</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Resident Email</span>
+                  <span className="font-bold text-slate-800">{tenant.email}</span>
                 </div>
               </div>
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Resident Email</span>
-                <span className="font-bold text-slate-900">{tenant.email}</span>
-              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
+              <Link href="/tenant/documents" className="text-xs font-extrabold text-purple-700 hover:text-purple-900 uppercase tracking-wider">
+                View All My Documents ({Array.isArray(tenant.documents) ? tenant.documents.length : 0} Files)
+              </Link>
             </div>
           </div>
-
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <Link
-              href="/tenant/documents"
-              className="text-xs font-bold text-purple-700 hover:underline uppercase tracking-wider"
-            >
-              View All My Documents ({Array.isArray(tenant.documents) ? tenant.documents.length : 8} Files)
-            </Link>
-          </div>
         </div>
-
-      </div>
+      )}
 
       {/* Main Grid: My Active Maintenance (Left 7) & Building Announcements (Right 5) */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">

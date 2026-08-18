@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
@@ -142,13 +143,17 @@ function TenantPaymentsContent() {
   const refreshTenantData = () =>
     queryClient.invalidateQueries({ queryKey: ["tenant-me"] });
 
-  const rentVal = tenant?.monthlyRent || 3200;
+  const hasAssignedLease = !!(
+    tenant?.hasAssignedLease ||
+    (tenant?.propertyName && tenant?.unitNumber)
+  );
+  const rentVal = hasAssignedLease ? (tenant?.monthlyRent || 0) : 0;
   const dueMonthLabel = new Date().toLocaleString("en-US", {
     month: "long",
     year: "numeric",
   });
   const currentMonthRentStatus = getTenantMonthRentStatus(tenant?.bills, dueMonthLabel);
-  const noPaymentDueThisMonth = currentMonthRentStatus !== "due";
+  const noPaymentDueThisMonth = !hasAssignedLease || rentVal === 0 || currentMonthRentStatus !== "due";
 
   const history = Array.isArray(tenant?.bills)
     ? tenant.bills.map((b: any, idx: number) => ({
@@ -610,12 +615,47 @@ function TenantPaymentsContent() {
           Tenant Pay Rent Portal
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Pay monthly rent for <span className="font-bold text-slate-800">{tenant?.propertyName || "your property"} — {tenant?.unitNumber || "Unit"}</span> using your landlord&apos;s active payment channels.
+          {hasAssignedLease ? (
+            <>Pay monthly rent for <span className="font-bold text-slate-800">{tenant?.propertyName} — {tenant?.unitNumber}</span> using your landlord&apos;s active payment channels.</>
+          ) : (
+            <span>View payment receipts and rent portals once your property lease contract is linked to your account.</span>
+          )}
         </p>
       </div>
 
-      {/* Main Outstanding Rent Card */}
-      <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-2xs space-y-6">
+      {!hasAssignedLease ? (
+        /* UNASSIGNED TENANT RENT BANNER */
+        <div className="bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] text-white rounded-3xl p-6 sm:p-10 shadow-xl space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 space-y-4 max-w-2xl">
+            <span className="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-orange-500/20 text-[#FF6B00] border border-orange-500/30 inline-block">
+              No Rent Billing Active
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-white leading-snug">
+              No Property Lease Contract Linked
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
+              You currently have no monthly rent due because your account is not linked to an active property lease contract yet. Once your landlord or property manager adds your lease to their RentAwas property workspace, your rent due amount and online payment channels will automatically appear here.
+            </p>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Link
+                href="/find-property"
+                className="px-5 py-2.5 bg-[#FF6B00] hover:bg-[#E56000] text-white text-xs font-black rounded-xl uppercase tracking-wider shadow-md transition-all flex items-center gap-2"
+              >
+                <span>Browse Available Rental Properties</span>
+              </Link>
+              <Link
+                href="/services"
+                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl uppercase tracking-wider transition-all border border-slate-700 flex items-center gap-2"
+              >
+                <span>Book On-Demand Home Experts</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Main Outstanding Rent Card */
+        <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-2xs space-y-6">
         
         {/* Outstanding Balance Banner */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-100">
@@ -760,6 +800,8 @@ function TenantPaymentsContent() {
           )}
         </div>
         )}
+      </div>
+      )}
 
         {/* Success Confirmation Toast Banner */}
         {paid && (
@@ -775,8 +817,6 @@ function TenantPaymentsContent() {
             </div>
           </div>
         )}
-
-      </div>
 
       {/* TENANT PAY RENT PREVIEW & CHECKOUT MODAL */}
       {showPaymentModal && activeSelected && (
