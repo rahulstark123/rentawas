@@ -484,7 +484,8 @@ export default function PricingAndFAQ() {
           </div>
         </motion.div>
 
-        {/* Trust & Compliance / ANSH Apps Section (Right Above FAQ) */}
+        {/* Trust & Compliance / ANSH Apps Section (Right Above FAQ) - HIDDEN */}
+        {false && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -565,6 +566,7 @@ export default function PricingAndFAQ() {
             </div>
           </div>
         </motion.div>
+        )}
 
         {/* FAQ Accordion Section */}
         <div className="max-w-3xl mx-auto">

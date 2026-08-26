@@ -31,30 +31,36 @@ export default function Footer() {
             </p>
 
             <div className="mt-5 space-y-3 text-xs font-sans text-slate-300">
-              <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2 max-w-sm">
-                <p className="text-white font-bold text-xs">A product of ANSH Apps</p>
-                <div className="text-[11px] text-slate-300 space-y-1 font-medium">
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Udyam Registration Number</span>
-                    <span className="font-mono text-slate-200 font-semibold">UDYAM-BR-23-0127857</span>
+              {/* Hidden ANSH Apps Card & Email */}
+              {false && (
+                <>
+                  <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2 max-w-sm">
+                    <p className="text-white font-bold text-xs">A product of ANSH Apps</p>
+                    <div className="text-[11px] text-slate-300 space-y-1 font-medium">
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Udyam Registration Number</span>
+                        <span className="font-mono text-slate-200 font-semibold">UDYAM-BR-23-0127857</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">GSTIN</span>
+                        <span className="font-mono text-slate-200 font-semibold">10DIUPR1358M1ZP</span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">GSTIN</span>
-                    <span className="font-mono text-slate-200 font-semibold">10DIUPR1358M1ZP</span>
-                  </div>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-2.5 pt-1 font-medium">
-                <Mail className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                <a href="mailto:hello.rentawas@anshapps.com" className="hover:text-[#FF6B00] transition-colors font-mono">
-                  hello.rentawas@anshapps.com
-                </a>
-              </div>
+                  <div className="flex items-center gap-2.5 pt-1 font-medium">
+                    <Mail className="w-4 h-4 text-[#FF6B00] shrink-0" />
+                    <a href="mailto:hello.rentawas@anshapps.com" className="hover:text-[#FF6B00] transition-colors font-mono">
+                      hello.rentawas@anshapps.com
+                    </a>
+                  </div>
+                </>
+              )}
+
               <div className="flex items-center gap-2.5 font-medium">
                 <Phone className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                <a href="tel:+919625727372" className="hover:text-[#FF6B00] transition-colors font-mono">
-                  +91 96257 27372
+                <a href="tel:+919110062950" className="hover:text-[#FF6B00] transition-colors font-mono">
+                  +91 91100 62950
                 </a>
               </div>
             </div>
@@ -108,49 +114,57 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Nav Links Col 3 */}
-          <div className="md:col-span-3 font-sans">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
-              Legal & Support
-            </h4>
-            <ul className="space-y-2.5 text-sm text-slate-300 font-medium">
-              <li>
-                <Link href="/privacy" className="hover:text-[#FF6B00] transition-colors">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="hover:text-[#FF6B00] transition-colors">
-                  Terms of Service
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {/* Nav Links Col 3 - HIDDEN */}
+          {false && (
+            <div className="md:col-span-3 font-sans">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+                Legal & Support
+              </h4>
+              <ul className="space-y-2.5 text-sm text-slate-300 font-medium">
+                <li>
+                  <Link href="/privacy" className="hover:text-[#FF6B00] transition-colors">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/terms" className="hover:text-[#FF6B00] transition-colors">
+                    Terms of Service
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col md:flex-row items-center justify-between text-xs text-slate-400 gap-4 font-sans">
           <div className="space-y-1 text-center md:text-left">
-            <p>© {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.</p>
-            <p className="text-[11px] text-slate-400 font-medium">
-              Udyam Registration Number: <span className="font-mono text-slate-300">UDYAM-BR-23-0127857</span> &nbsp;|&nbsp; GSTIN: <span className="font-mono text-slate-300">10DIUPR1358M1ZP</span>
+            <p>
+              © {new Date().getFullYear()} RentAwas.{false && " A product of ANSH Apps."} All rights reserved.
             </p>
+            {false && (
+              <p className="text-[11px] text-slate-400 font-medium">
+                Udyam Registration Number: <span className="font-mono text-slate-300">UDYAM-BR-23-0127857</span> &nbsp;|&nbsp; GSTIN: <span className="font-mono text-slate-300">10DIUPR1358M1ZP</span>
+              </p>
+            )}
           </div>
-          <p className="flex items-center gap-1.5 font-medium">
-            <span>Engineered for high-performance operations.</span>
-            <span className="text-slate-600">•</span>
-            <span>
-              Powered by{" "}
-              <a
-                href="https://anshapps.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white hover:text-[#FF6B00] font-bold underline underline-offset-2 transition-colors cursor-pointer"
-              >
-                ANSH Apps
-              </a>
-            </span>
-          </p>
+          {false && (
+            <p className="flex items-center gap-1.5 font-medium">
+              <span>Engineered for high-performance operations.</span>
+              <span className="text-slate-600">•</span>
+              <span>
+                Powered by{" "}
+                <a
+                  href="https://anshapps.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white hover:text-[#FF6B00] font-bold underline underline-offset-2 transition-colors cursor-pointer"
+                >
+                  ANSH Apps
+                </a>
+              </span>
+            </p>
+          )}
         </div>
       </div>
     </footer>

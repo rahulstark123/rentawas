@@ -607,13 +607,15 @@ export default function SignupPage() {
         </div>
       </main>
 
-      {/* Page Footer */}
-      <footer className="py-6 text-center text-xs text-slate-400 z-10 space-y-1">
-        <p>&copy; {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.</p>
-        <p className="text-[11px] text-slate-500 font-medium">
-          Udyam Registration Number: <span className="font-mono text-slate-400">UDYAM-BR-23-0127857</span> &nbsp;|&nbsp; GSTIN: <span className="font-mono text-slate-400">10DIUPR1358M1ZP</span>
-        </p>
-      </footer>
+      {/* Page Footer - HIDDEN */}
+      {false && (
+        <footer className="py-6 text-center text-xs text-slate-400 z-10 space-y-1">
+          <p>&copy; {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.</p>
+          <p className="text-[11px] text-slate-500 font-medium">
+            Udyam Registration Number: <span className="font-mono text-slate-400">UDYAM-BR-23-0127857</span> &nbsp;|&nbsp; GSTIN: <span className="font-mono text-slate-400">10DIUPR1358M1ZP</span>
+          </p>
+        </footer>
+      )}
     </div>
   );
 }

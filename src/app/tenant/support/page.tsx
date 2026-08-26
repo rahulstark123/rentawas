@@ -211,41 +211,47 @@ export default function TenantSupportPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
-              <MessageSquare className="w-5 h-5" />
+      {/* Support Channels Ribbon - HIDDEN */}
+      {false && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  WhatsApp Support
+                </span>
+                <span className="font-extrabold text-slate-900 text-sm block">+91 96257 27372</span>
+              </div>
             </div>
-            <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                WhatsApp Support
-              </span>
-              <span className="font-extrabold text-slate-900 text-sm block">+91 96257 27372</span>
-            </div>
+            <a
+              href={`https://wa.me/919625727372?text=${encodeURIComponent(`Hi, I am ${tenantName} (tenant). I need support regarding RentAwas.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all uppercase tracking-wider cursor-pointer shrink-0"
+            >
+              Chat
+            </a>
           </div>
-          <a
-            href={`https://wa.me/919625727372?text=${encodeURIComponent(`Hi, I am ${tenantName} (tenant). I need support regarding RentAwas.`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all uppercase tracking-wider cursor-pointer shrink-0"
-          >
-            Chat
-          </a>
-        </div>
 
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-blue-50 text-blue-600 shrink-0">
-            <Mail className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              Email Support
-            </span>
-            <span className="font-extrabold text-slate-900 text-sm block">support.rentawas@anshapps.com</span>
-          </div>
+          {/* Hidden Email Support Card */}
+          {false && (
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-blue-50 text-blue-600 shrink-0">
+                <Mail className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Email Support
+                </span>
+                <span className="font-extrabold text-slate-900 text-sm block">support.rentawas@anshapps.com</span>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">

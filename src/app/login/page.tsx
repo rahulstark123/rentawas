@@ -297,15 +297,17 @@ function LoginForm() {
               </div>
             </div>
 
-            {/* Bottom Footer Quote */}
-            <div className="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-slate-300">
-              <span className="flex items-center gap-1.5 font-medium">
-                <span>Made with</span>
-                <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 animate-pulse" />
-                <span>by <strong className="text-white font-bold">ANSH Apps</strong></span>
-              </span>
-              <span className="text-slate-400 text-[11px]">v2.4.0</span>
-            </div>
+            {/* Bottom Footer Quote - HIDDEN */}
+            {false && (
+              <div className="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-slate-300">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span>Made with</span>
+                  <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 animate-pulse" />
+                  <span>by <strong className="text-white font-bold">ANSH Apps</strong></span>
+                </span>
+                <span className="text-slate-400 text-[11px]">v2.4.0</span>
+              </div>
+            )}
           </div>
 
           {/* Right Login Form Section */}
@@ -548,13 +550,15 @@ function LoginForm() {
         </div>
       </main>
 
-      {/* Page Footer */}
-      <footer className="py-6 text-center text-xs text-slate-400 z-10 space-y-1">
-        <p>&copy; {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.</p>
-        <p className="text-[11px] text-slate-500 font-medium">
-          Udyam Registration Number: <span className="font-mono text-slate-400">UDYAM-BR-23-0127857</span> &nbsp;|&nbsp; GSTIN: <span className="font-mono text-slate-400">10DIUPR1358M1ZP</span>
-        </p>
-      </footer>
+      {/* Page Footer - HIDDEN */}
+      {false && (
+        <footer className="py-6 text-center text-xs text-slate-400 z-10 space-y-1">
+          <p>&copy; {new Date().getFullYear()} RentAwas. A product of ANSH Apps. All rights reserved.</p>
+          <p className="text-[11px] text-slate-500 font-medium">
+            Udyam Registration Number: <span className="font-mono text-slate-400">UDYAM-BR-23-0127857</span> &nbsp;|&nbsp; GSTIN: <span className="font-mono text-slate-400">10DIUPR1358M1ZP</span>
+          </p>
+        </footer>
+      )}
     </div>
   );
 }

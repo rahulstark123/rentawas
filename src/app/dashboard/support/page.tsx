@@ -344,42 +344,47 @@ export default function LandlordSupportPage() {
         </button>
       </div>
 
-      {/* Support Channels Ribbon */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
-              <MessageSquare className="w-5 h-5 text-emerald-600" />
+      {/* Support Channels Ribbon - HIDDEN */}
+      {false && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+                <MessageSquare className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">WhatsApp Support Desk</span>
+                <span className="font-extrabold text-slate-900 text-sm block">+91 96257 27372</span>
+                <span className="text-[11px] text-emerald-600 font-bold">Instant Agent Chat</span>
+              </div>
             </div>
-            <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">WhatsApp Support Desk</span>
-              <span className="font-extrabold text-slate-900 text-sm block">+91 96257 27372</span>
-              <span className="text-[11px] text-emerald-600 font-bold">Instant Agent Chat</span>
-            </div>
+
+            <a
+              href={`https://wa.me/919625727372?text=${encodeURIComponent(`Hi, I am ${userName}. I need support regarding RentAwas.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer shrink-0"
+            >
+              <MessageSquare className="w-4 h-4 fill-white text-white" />
+              <span>Chat</span>
+            </a>
           </div>
 
-          <a
-            href={`https://wa.me/919625727372?text=${encodeURIComponent(`Hi, I am ${userName}. I need support regarding RentAwas.`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer shrink-0"
-          >
-            <MessageSquare className="w-4 h-4 fill-white text-white" />
-            <span>Chat</span>
-          </a>
+          {/* Hidden Dedicated Email Desk Card */}
+          {false && (
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-blue-50 text-blue-600 shrink-0">
+                <Mail className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Dedicated Email Desk</span>
+                <span className="font-extrabold text-slate-900 text-sm block">support.rentawas@anshapps.com</span>
+                <span className="text-[11px] text-blue-600 font-bold">Email Support Active</span>
+              </div>
+            </div>
+          )}
         </div>
-
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-blue-50 text-blue-600 shrink-0">
-            <Mail className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Dedicated Email Desk</span>
-            <span className="font-extrabold text-slate-900 text-sm block">support.rentawas@anshapps.com</span>
-            <span className="text-[11px] text-blue-600 font-bold">Email Support Active</span>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Active Support Tickets List */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
