@@ -1202,18 +1202,20 @@ export default function ServicesPage() {
                 </button>
               </div>
 
-              {/* Become a RentAwas Expert CTA Link Button */}
-              <div className="pt-3">
-                <a
-                  href="https://forms.anshapps.com/rentawas-s-workspace/rentawas-experts-form"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg hover:shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer hover:scale-[1.02] border border-orange-400/30"
-                >
-                  <UserCheck className="w-4 h-4" />
-                  <span>Become a RentAwas Expert</span>
-                </a>
-              </div>
+              {/* Become a RentAwas Expert CTA Link Button - HIDDEN */}
+              {false && (
+                <div className="pt-3">
+                  <a
+                    href="https://forms.anshapps.com/rentawas-s-workspace/rentawas-experts-form"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-[#FF6B00] hover:bg-[#E56000] text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg hover:shadow-orange-500/20 uppercase tracking-wider transition-all cursor-pointer hover:scale-[1.02] border border-orange-400/30"
+                  >
+                    <UserCheck className="w-4 h-4" />
+                    <span>Become a RentAwas Expert</span>
+                  </a>
+                </div>
+              )}
 
             </div>
 
