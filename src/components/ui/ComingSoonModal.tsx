@@ -116,7 +116,8 @@ export default function ComingSoonModal({
           Got It
         </button>
 
-        <p className="text-[11px] text-slate-400 mt-4">Powered by ANSH Apps</p>
+        {/* Hidden Powered by ANSH Apps footer line */}
+        {false && <p className="text-[11px] text-slate-400 mt-4">Powered by ANSH Apps</p>}
       </div>
     </div>
   );
